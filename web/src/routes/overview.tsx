@@ -96,8 +96,8 @@ export function Overview() {
 					</Button>
 				</Card>
 			) : (
-				<div className="mt-6 grid gap-6 lg:grid-cols-[1fr_340px]">
-					<div className="grid content-start gap-6">
+				<div className="mt-6 grid grid-cols-1 gap-6 lg:grid-cols-[minmax(0,1fr)_340px]">
+					<div className="grid min-w-0 content-start gap-6">
 						{(unconfirmed.length > 0 || expiring.length > 0) && (
 							<Card className="border-warn/40">
 								<CardHeader
@@ -191,8 +191,9 @@ function Kpi({ label, value, hint, tone }: { label: string; value: string; hint?
 }
 
 function ChargeRow({ charge }: { charge: ChargeView }) {
+	const due = charge.daysUntil <= 0 || charge.status === "failed";
 	return (
-		<li className="flex items-center gap-3 px-5 py-3">
+		<li className="group flex flex-wrap items-center gap-x-3 gap-y-2 px-4 py-3 sm:flex-nowrap sm:px-5">
 			<ServiceTile name={charge.subscriptionName} size="sm" />
 			<div className="min-w-0 flex-1">
 				<Link
@@ -211,8 +212,10 @@ function ChargeRow({ charge }: { charge: ChargeView }) {
 			<div className="hidden sm:block">
 				<ChargeStatus charge={charge} />
 			</div>
-			<span className="tnum w-20 text-right text-sm font-medium">{money(charge.amount)}</span>
-			<ChargeActions charge={charge} compact />
+			<span className="tnum text-right text-sm font-medium sm:w-24">{money(charge.amount)}</span>
+			<div className={due ? "basis-full sm:basis-auto" : ""}>
+				<ChargeActions charge={charge} compact />
+			</div>
 		</li>
 	);
 }

@@ -61,34 +61,36 @@ export function Layout() {
 	const household = useGetHousehold();
 	return (
 		<div className="min-h-dvh md:grid md:grid-cols-[232px_1fr]">
-			<aside className="sticky top-0 hidden h-dvh flex-col border-r border-line bg-surface/60 px-3 py-4 md:flex">
-				<div className="px-2 pb-6">
-					<Logo />
-				</div>
-				<nav className="grid gap-0.5">
-					{nav.map(({ to, label, icon: Icon }) => (
-						<Link
-							key={to}
-							to={to}
-							activeOptions={{ exact: to === "/" }}
-							className="flex items-center gap-2.5 rounded-lg px-2.5 py-2 text-sm text-muted transition-colors hover:bg-raised hover:text-fg"
-							activeProps={{ className: "bg-raised !text-fg font-medium" }}
-						>
-							<Icon className="size-4" />
-							{label}
-						</Link>
-					))}
-				</nav>
-				<div className="mt-auto flex items-center justify-between gap-2 border-t border-line px-2 pt-3">
-					<div className="min-w-0 text-xs">
-						<p className="truncate font-medium text-fg">{household.data?.household.name ?? "Household"}</p>
-						<p className="truncate text-muted">
-							{household.data?.household.currency} · {household.data?.household.timezone}
-						</p>
+			<div className="hidden border-r border-line bg-surface/60 md:block">
+				<aside className="sticky top-0 flex h-dvh flex-col px-3 py-4">
+					<div className="px-2 pb-6">
+						<Logo />
 					</div>
-					<ThemeToggle dark={dark} onToggle={() => setDark(!dark)} />
-				</div>
-			</aside>
+					<nav className="grid gap-0.5">
+						{nav.map(({ to, label, icon: Icon }) => (
+							<Link
+								key={to}
+								to={to}
+								activeOptions={{ exact: to === "/" }}
+								className="flex items-center gap-2.5 rounded-lg px-2.5 py-2 text-sm text-muted transition-colors hover:bg-raised hover:text-fg"
+								activeProps={{ className: "bg-raised !text-fg font-medium" }}
+							>
+								<Icon className="size-4" />
+								{label}
+							</Link>
+						))}
+					</nav>
+					<div className="mt-auto flex items-center justify-between gap-2 border-t border-line px-2 pt-3">
+						<div className="min-w-0 text-xs">
+							<p className="truncate font-medium text-fg">{household.data?.household.name ?? "Household"}</p>
+							<p className="truncate text-muted">
+								{household.data?.household.currency} · {household.data?.household.timezone}
+							</p>
+						</div>
+						<ThemeToggle dark={dark} onToggle={() => setDark(!dark)} />
+					</div>
+				</aside>
+			</div>
 			<div className="min-w-0 pb-20 md:pb-0">
 				<header className="flex items-center justify-between border-b border-line bg-surface/60 px-4 py-3 md:hidden">
 					<Logo />

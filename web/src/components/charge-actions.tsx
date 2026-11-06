@@ -46,26 +46,40 @@ export function ChargeActions({ charge, compact = false }: { charge: ChargeView;
 			</Button>
 		);
 	}
-	return (
-		<div className="flex items-center justify-end gap-1.5">
-			<Button
-				size="sm"
-				variant="secondary"
-				onClick={() => status.mutate({ data: { chargeId: charge.id, status: "paid" } })}
-			>
-				<Check className="text-ok" />
-				{!compact && "Paid"}
-			</Button>
-			{charge.daysUntil < 0 && (
+	const due = charge.daysUntil <= 0 || charge.status === "failed";
+	const markPaid = () => status.mutate({ data: { chargeId: charge.id, status: "paid" } });
+	if (due) {
+		// A due or overdue charge needs an answer: labeled actions, always visible.
+		return (
+			<div className="flex items-center justify-end gap-1.5">
+				<Button size="sm" variant="secondary" onClick={markPaid}>
+					<Check className="text-ok" /> Mark paid
+				</Button>
 				<Button
 					size="sm"
 					variant="ghost"
-					aria-label="Mark failed"
+					title="It failed"
+					aria-label="Mark as failed"
 					onClick={() => status.mutate({ data: { chargeId: charge.id, status: "failed" } })}
 				>
-					<X />
+					<X /> {!compact && "Failed"}
 				</Button>
-			)}
+				<MoveCharge charge={charge} />
+			</div>
+		);
+	}
+	// Future charges: quiet actions that appear on hover or keyboard focus.
+	return (
+		<div className="flex items-center justify-end gap-0.5 transition-opacity md:opacity-0 md:group-focus-within:opacity-100 md:group-hover:opacity-100">
+			<Button
+				size="icon"
+				variant="ghost"
+				title="Already paid"
+				aria-label={`Mark ${charge.subscriptionName} as paid`}
+				onClick={markPaid}
+			>
+				<Check />
+			</Button>
 			<MoveCharge charge={charge} />
 		</div>
 	);
@@ -91,7 +105,8 @@ function MoveCharge({ charge }: { charge: ChargeView }) {
 		<Popover.Root open={open} onOpenChange={setOpen}>
 			<Popover.Trigger
 				className="inline-flex size-8 items-center justify-center rounded-lg text-muted transition-colors hover:bg-raised hover:text-fg"
-				aria-label="Move charge"
+				aria-label={`Move ${charge.subscriptionName}`}
+				title="Move this charge"
 			>
 				<CalendarClock className="size-4" />
 			</Popover.Trigger>

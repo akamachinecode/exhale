@@ -91,8 +91,8 @@ export function SubscriptionDetail() {
 				</div>
 			</div>
 
-			<div className="grid gap-6 lg:grid-cols-[1fr_300px]">
-				<div className="grid content-start gap-6">
+			<div className="grid grid-cols-1 gap-6 lg:grid-cols-[minmax(0,1fr)_300px]">
+				<div className="grid min-w-0 content-start gap-6">
 					<Card>
 						<CardHeader
 							title="Upcoming charges"
@@ -143,7 +143,10 @@ function Charges({ charges, empty }: { charges: ChargeView[]; empty: string }) {
 	return (
 		<ul className="divide-y divide-line border-t border-line">
 			{charges.map((c) => (
-				<li key={c.id} className="flex items-center gap-3 px-5 py-3 text-sm">
+				<li
+					key={c.id}
+					className="group flex flex-wrap items-center gap-x-3 gap-y-2 px-5 py-3 text-sm sm:flex-nowrap"
+				>
 					<div className="min-w-0 flex-1">
 						<p className="font-medium">{date(c.dueDate, "long")}</p>
 						{c.delayed && <p className="text-xs text-muted">moved from {date(c.originalDate)}</p>}
