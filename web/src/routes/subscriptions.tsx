@@ -8,8 +8,8 @@ import { NewSubscription } from "@/components/subscription-form";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/field";
-import { type SubscriptionView, useListSubscriptions } from "@/gen/api";
-import { cn, date, money } from "@/lib/utils";
+import { type SubscriptionView, useListSubscriptions, useSpendingSummary } from "@/gen/api";
+import { cn, date, money, sumMain } from "@/lib/utils";
 
 const tabs = [
 	{ value: undefined, label: "All" },
@@ -27,12 +27,13 @@ const sorters: Record<Sort, (a: SubscriptionView, b: SubscriptionView) => number
 	monthly: (a, b) => a.monthlyCost.minor - b.monthlyCost.minor,
 };
 
-function totals(subs: SubscriptionView[]) {
-	const by = new Map<string, number>();
-	for (const s of subs)
-		if (s.status === "active")
-			by.set(s.monthlyCost.currency, (by.get(s.monthlyCost.currency) ?? 0) + s.monthlyCost.minor);
-	return [...by].map(([currency, minor]) => money({ currency, minor })).join(" + ");
+function useTotals() {
+	const summary = useSpendingSummary().data;
+	return (subs: SubscriptionView[]) => {
+		const active = subs.filter((s) => s.status === "active").map((s) => s.monthlyCost);
+		if (active.length === 0) return "";
+		return money(sumMain(active, summary?.rates, summary?.mainCurrency ?? active[0].currency));
+	};
 }
 
 export function Subscriptions() {
@@ -41,6 +42,7 @@ export function Subscriptions() {
 	const set = (patch: Partial<SearchParams>, replace = false) =>
 		navigate({ search: (s: SearchParams) => ({ ...s, ...patch }), replace });
 	const [creating, setCreating] = useState(false);
+	const totals = useTotals();
 	const list = useListSubscriptions({});
 	const all = list.data?.subscriptions ?? [];
 	const sort = (search.sort as Sort) in sorters ? (search.sort as Sort) : "next";

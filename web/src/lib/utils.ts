@@ -70,3 +70,31 @@ export function hue(name: string) {
 	for (const c of name) h = (h * 31 + c.charCodeAt(0)) % 360;
 	return h;
 }
+
+/** Converts for display using the summary's ECB rates (units of main per unit). */
+export function toMain(m: Money, rates: Record<string, string> | undefined, main: string): Money | undefined {
+	if (m.currency === main) return m;
+	const r = rates?.[m.currency];
+	if (!r) return undefined;
+	const from = 10 ** fractionDigits(m.currency);
+	const to = 10 ** fractionDigits(main);
+	return { currency: main, minor: Math.round((m.minor / from) * Number(r) * to) };
+}
+
+/** Sums amounts into the main currency; returns undefined if a rate is missing. */
+export function sumMain(
+	items: Money[],
+	rates: Record<string, string> | undefined,
+	main: string,
+): Money | undefined {
+	let minor = 0;
+	for (const m of items) {
+		const c = toMain(m, rates, main);
+		if (!c) return undefined;
+		minor += c.minor;
+	}
+	return { currency: main, minor };
+}
+
+/** A categorical palette with well separated hues, assigned by rank. */
+export const palette = [182, 262, 28, 85, 145, 320, 222, 52].map((h) => `oklch(0.66 0.13 ${h})`);

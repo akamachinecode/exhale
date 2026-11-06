@@ -175,13 +175,18 @@
           "category": {
             "type": "string"
           },
+          "count": {
+            "format": "int64",
+            "type": "integer"
+          },
           "monthly": {
             "$ref": "#/components/schemas/Money"
           }
         },
         "required": [
           "category",
-          "monthly"
+          "monthly",
+          "count"
         ],
         "type": "object"
       },
@@ -744,6 +749,27 @@
         ],
         "type": "object"
       },
+      "MethodSpend": {
+        "additionalProperties": false,
+        "properties": {
+          "count": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "monthly": {
+            "$ref": "#/components/schemas/Money"
+          },
+          "paymentMethod": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "paymentMethod",
+          "monthly",
+          "count"
+        ],
+        "type": "object"
+      },
       "Money": {
         "additionalProperties": false,
         "properties": {
@@ -1113,6 +1139,18 @@
               "null"
             ]
           },
+          "byPaymentMethod": {
+            "items": {
+              "$ref": "#/components/schemas/MethodSpend"
+            },
+            "type": [
+              "array",
+              "null"
+            ]
+          },
+          "converted": {
+            "type": "boolean"
+          },
           "mainCurrency": {
             "type": "string"
           },
@@ -1125,9 +1163,30 @@
               "null"
             ]
           },
+          "monthlyTotal": {
+            "$ref": "#/components/schemas/Money"
+          },
           "next7Days": {
             "items": {
               "$ref": "#/components/schemas/ChargeView"
+            },
+            "type": [
+              "array",
+              "null"
+            ]
+          },
+          "rates": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "type": "object"
+          },
+          "ratesDate": {
+            "type": "string"
+          },
+          "unconverted": {
+            "items": {
+              "type": "string"
             },
             "type": [
               "array",
@@ -1142,13 +1201,22 @@
               "array",
               "null"
             ]
+          },
+          "yearlyTotal": {
+            "$ref": "#/components/schemas/Money"
           }
         },
         "required": [
           "mainCurrency",
           "monthlyByCurrency",
           "yearlyByCurrency",
+          "monthlyTotal",
+          "yearlyTotal",
+          "converted",
+          "unconverted",
+          "rates",
           "byCategory",
+          "byPaymentMethod",
           "activeSubscriptions",
           "next7Days"
         ],

@@ -156,7 +156,7 @@ function Charges({ charges, empty }: { charges: ChargeView[]; empty: string }) {
 					</div>
 					<ChargeStatus charge={c} />
 					<span className="tnum w-20 text-right font-medium">{money(c.amount)}</span>
-					<ChargeActions charge={c} compact />
+					<ChargeActions charge={c} compact persistent />
 				</li>
 			))}
 		</ul>

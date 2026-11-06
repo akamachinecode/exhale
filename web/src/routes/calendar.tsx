@@ -4,8 +4,8 @@ import { PageHeader } from "@/components/layout";
 import { ServiceTile } from "@/components/service-tile";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import { type ChargeView, useListCharges } from "@/gen/api";
-import { cn, money, todayISO } from "@/lib/utils";
+import { type ChargeView, useListCharges, useSpendingSummary } from "@/gen/api";
+import { cn, money, sumMain, todayISO } from "@/lib/utils";
 
 const weekdays = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
 
@@ -31,10 +31,14 @@ export function Calendar() {
 	const q = useListCharges({ from: b.from, to: b.to });
 	const byDay = new Map<string, ChargeView[]>();
 	for (const c of q.data?.charges ?? []) byDay.set(c.dueDate, [...(byDay.get(c.dueDate) ?? []), c]);
-	const totals = new Map<string, number>();
-	for (const c of q.data?.charges ?? [])
-		totals.set(c.amount.currency, (totals.get(c.amount.currency) ?? 0) + c.amount.minor);
-	const monthTotal = [...totals].map(([currency, minor]) => money({ currency, minor })).join(" + ");
+	const summary = useSpendingSummary().data;
+	const monthTotal = money(
+		sumMain(
+			(q.data?.charges ?? []).map((c) => c.amount),
+			summary?.rates,
+			summary?.mainCurrency ?? "EUR",
+		),
+	);
 	const count = q.data?.charges?.length ?? 0;
 	const title = new Intl.DateTimeFormat(undefined, {
 		month: "long",

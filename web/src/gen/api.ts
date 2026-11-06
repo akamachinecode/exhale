@@ -133,6 +133,7 @@ export interface CategoryOut {
 
 export interface CategorySpend {
   category: string;
+  count: number;
   monthly: Money;
 }
 
@@ -359,6 +360,12 @@ export interface HouseholdInfo {
   today: string;
 }
 
+export interface MethodSpend {
+  count: number;
+  monthly: Money;
+  paymentMethod: string;
+}
+
 export interface PaymentMethodOut {
   /** A URL to the JSON Schema for this object. */
   readonly $schema?: string;
@@ -455,19 +462,30 @@ export interface SetSubscriptionStatusInput {
   id: string;
 }
 
+export type SpendingSummaryRates = {[key: string]: string};
+
 export interface SpendingSummary {
   /** A URL to the JSON Schema for this object. */
   readonly $schema?: string;
   activeSubscriptions: number;
   /** @nullable */
   byCategory: CategorySpend[] | null;
+  /** @nullable */
+  byPaymentMethod: MethodSpend[] | null;
+  converted: boolean;
   mainCurrency: string;
   /** @nullable */
   monthlyByCurrency: Money[] | null;
+  monthlyTotal: Money;
   /** @nullable */
   next7Days: ChargeView[] | null;
+  rates: SpendingSummaryRates;
+  ratesDate?: string;
+  /** @nullable */
+  unconverted: string[] | null;
   /** @nullable */
   yearlyByCurrency: Money[] | null;
+  yearlyTotal: Money;
 }
 
 export interface SubscriptionDetail {

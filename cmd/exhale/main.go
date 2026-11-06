@@ -22,6 +22,7 @@ import (
 	"github.com/akamachinecode/exhale/internal/auth"
 	"github.com/akamachinecode/exhale/internal/bus"
 	"github.com/akamachinecode/exhale/internal/channels/telegram"
+	"github.com/akamachinecode/exhale/internal/fx"
 	"github.com/akamachinecode/exhale/internal/httpapi"
 	"github.com/akamachinecode/exhale/internal/platform"
 	"github.com/akamachinecode/exhale/internal/scheduler"
@@ -145,6 +146,7 @@ func (s *serveCmd) Run(ctx context.Context, g *globals) error {
 		}
 	}
 	services = append(services,
+		&fx.Updater{St: e.st, Log: e.log},
 		scheduler.New(e.svc, e.log, eng),
 		platform.Func{Name: "message-sync", Fn: eng.Sync},
 	)

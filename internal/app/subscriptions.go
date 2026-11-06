@@ -342,11 +342,7 @@ func (s *Service) today(ctx context.Context, q *db.Queries, actor Actor) engine.
 func (s *Service) view(ctx context.Context, q *db.Queries, sub domain.Subscription, today engine.Date) SubscriptionView {
 	v := SubscriptionView{Subscription: sub}
 	rule := sub.Schedule.Current(today)
-	unit := string(rule.Unit)
-	if rule.Interval != 1 {
-		unit += "s"
-	}
-	v.Cadence = fmt.Sprintf("every %d %s", rule.Interval, unit)
+	v.Cadence = cadence(rule)
 	if sub.Status == domain.StatusActive {
 		if c, err := q.ListChargesForSubscription(ctx, db.ListChargesForSubscriptionParams{SubscriptionID: sub.ID, Limit: 400}); err == nil {
 			for _, r := range slices.Backward(c) {
@@ -417,6 +413,14 @@ func (s *Service) detail(ctx context.Context, q *db.Queries, actor Actor, id str
 		out.History = out.History[:24]
 	}
 	return out, nil
+}
+
+// cadence describes a rule in plain words: "monthly", "every 4 weeks".
+func cadence(r engine.Rule) string {
+	if r.Interval == 1 {
+		return map[engine.Unit]string{engine.Day: "daily", engine.Week: "weekly", engine.Month: "monthly", engine.Year: "yearly"}[r.Unit]
+	}
+	return fmt.Sprintf("every %d %ss", r.Interval, r.Unit)
 }
 
 // monthlyFactor converts one charge of rule into an average per month.

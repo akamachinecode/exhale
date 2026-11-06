@@ -23,7 +23,15 @@ function errorToast(e: unknown) {
 	toast.error(e instanceof ApiError ? e.detail : "Something went wrong");
 }
 
-export function ChargeActions({ charge, compact = false }: { charge: ChargeView; compact?: boolean }) {
+export function ChargeActions({
+	charge,
+	compact = false,
+	persistent = false,
+}: {
+	charge: ChargeView;
+	compact?: boolean;
+	persistent?: boolean;
+}) {
 	const qc = useQueryClient();
 	const done = useUndoToast();
 	const status = useSetChargeStatus({
@@ -70,7 +78,12 @@ export function ChargeActions({ charge, compact = false }: { charge: ChargeView;
 	}
 	// Future charges: quiet actions that appear on hover or keyboard focus.
 	return (
-		<div className="flex items-center justify-end gap-0.5 transition-opacity md:opacity-0 md:group-focus-within:opacity-100 md:group-hover:opacity-100">
+		<div
+			className={cn(
+				"flex items-center justify-end gap-0.5 transition-opacity",
+				!persistent && "md:opacity-0 md:group-focus-within:opacity-100 md:group-hover:opacity-100",
+			)}
+		>
 			<Button
 				size="icon"
 				variant="ghost"
@@ -85,7 +98,7 @@ export function ChargeActions({ charge, compact = false }: { charge: ChargeView;
 	);
 }
 
-function MoveCharge({ charge }: { charge: ChargeView }) {
+function MoveCharge({ charge, label = false }: { charge: ChargeView; label?: boolean }) {
 	const qc = useQueryClient();
 	const done = useUndoToast();
 	const [open, setOpen] = useState(false);
@@ -104,11 +117,15 @@ function MoveCharge({ charge }: { charge: ChargeView }) {
 	return (
 		<Popover.Root open={open} onOpenChange={setOpen}>
 			<Popover.Trigger
-				className="inline-flex size-8 items-center justify-center rounded-lg text-muted transition-colors hover:bg-raised hover:text-fg"
+				className={cn(
+					"inline-flex h-8 items-center justify-center gap-1.5 rounded-lg text-sm text-muted transition-colors hover:bg-raised hover:text-fg",
+					label ? "px-3" : "w-8",
+				)}
 				aria-label={`Move ${charge.subscriptionName}`}
 				title="Move this charge"
 			>
 				<CalendarClock className="size-4" />
+				{label && "Move"}
 			</Popover.Trigger>
 			<Popover.Portal>
 				<Popover.Positioner sideOffset={6} align="end">

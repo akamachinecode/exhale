@@ -186,22 +186,40 @@ func (s *Service) PreviewSchedule(_ context.Context, _ Actor, in PreviewSchedule
 
 // SpendingSummary totals recurring spend.
 type SpendingSummary struct {
-	MainCurrency string          `json:"mainCurrency"`
-	Monthly      []money.Money   `json:"monthlyByCurrency" jsonschema:"active subscriptions normalized per month, one entry per currency"`
-	Yearly       []money.Money   `json:"yearlyByCurrency"`
-	ByCategory   []CategorySpend `json:"byCategory" jsonschema:"monthly spend per category (per currency)"`
-	Active       int             `json:"activeSubscriptions"`
-	NextCharges  []ChargeView    `json:"next7Days"`
+	MainCurrency string        `json:"mainCurrency"`
+	Monthly      []money.Money `json:"monthlyByCurrency" jsonschema:"active subscriptions normalized per month, one entry per currency"`
+	Yearly       []money.Money `json:"yearlyByCurrency"`
+	// MonthlyTotal and YearlyTotal are in the main currency, converting other
+	// currencies at the latest ECB reference rate (see RatesDate).
+	MonthlyTotal money.Money       `json:"monthlyTotal"`
+	YearlyTotal  money.Money       `json:"yearlyTotal"`
+	Converted    bool              `json:"converted" jsonschema:"true when other currencies were converted into the main currency"`
+	Unconverted  []string          `json:"unconverted" jsonschema:"currencies without a known rate, left out of the totals"`
+	Rates        map[string]string `json:"rates" jsonschema:"units of the main currency per 1 unit of each currency"`
+	RatesDate    string            `json:"ratesDate,omitempty" jsonschema:"ECB reference date of the rates used"`
+	ByCategory   []CategorySpend   `json:"byCategory" jsonschema:"monthly spend per category, in the main currency"`
+	ByMethod     []MethodSpend     `json:"byPaymentMethod" jsonschema:"monthly spend per payment method, in the main currency"`
+	Active       int               `json:"activeSubscriptions"`
+	NextCharges  []ChargeView      `json:"next7Days"`
 }
 
-// CategorySpend is the monthly spend of one category in one currency.
+// CategorySpend is the monthly spend of one category.
 type CategorySpend struct {
 	Category string      `json:"category"`
-	Monthly  money.Money `json:"monthly"`
+	Monthly  money.Money `json:"monthly" jsonschema:"in the main currency"`
+	Count    int         `json:"count"`
 }
 
-// Summary returns recurring spend per month and year, per currency and per
-// category, plus the charges of the next 7 days.
+// MethodSpend is the monthly spend carried by one payment method.
+type MethodSpend struct {
+	PaymentMethod string      `json:"paymentMethod"`
+	Monthly       money.Money `json:"monthly" jsonschema:"in the main currency"`
+	Count         int         `json:"count"`
+}
+
+// Summary returns recurring spend per month and year (per currency and
+// converted into the main currency), per category and per payment method,
+// plus the charges of the next 7 days.
 func (s *Service) Summary(ctx context.Context, actor Actor, _ struct{}) (SpendingSummary, error) {
 	list, err := s.ListSubscriptions(ctx, actor, ListSubscriptionsInput{Status: string(domain.StatusActive)})
 	if err != nil {
@@ -211,29 +229,62 @@ func (s *Service) Summary(ctx context.Context, actor Actor, _ struct{}) (Spendin
 	if err != nil {
 		return SpendingSummary{}, err
 	}
+	today := s.today(ctx, s.st.Q, actor)
+	conv := s.converter(h.Currency, today.String())
+	zero := money.Money{Currency: h.Currency}
+	out := SpendingSummary{MainCurrency: h.Currency, Active: len(list.Subscriptions), Monthly: []money.Money{}, Yearly: []money.Money{},
+		ByCategory: []CategorySpend{}, ByMethod: []MethodSpend{}, Unconverted: []string{}, MonthlyTotal: zero}
 	monthly := map[string]money.Money{}
-	byCat := map[[2]string]money.Money{}
+	cats := map[string]*CategorySpend{}
+	methods := map[string]*MethodSpend{}
+	missing := map[string]bool{}
 	for _, v := range list.Subscriptions {
 		cur := v.MonthlyCost.Currency
 		monthly[cur], _ = addOrInit(monthly[cur], v.MonthlyCost)
+		mainCost, ok := conv.toMain(ctx, v.MonthlyCost)
+		if !ok {
+			missing[cur] = true
+			continue
+		}
+		if cur != h.Currency {
+			out.Converted = true
+		}
+		out.MonthlyTotal, _ = out.MonthlyTotal.Add(mainCost)
 		cat := v.CategoryName
 		if cat == "" {
 			cat = "Uncategorized"
 		}
-		k := [2]string{cat, cur}
-		byCat[k], _ = addOrInit(byCat[k], v.MonthlyCost)
+		if cats[cat] == nil {
+			cats[cat] = &CategorySpend{Category: cat, Monthly: zero}
+		}
+		cats[cat].Monthly, _ = cats[cat].Monthly.Add(mainCost)
+		cats[cat].Count++
+		pm := v.PaymentMethod
+		if pm == "" {
+			pm = "No payment method"
+		}
+		if methods[pm] == nil {
+			methods[pm] = &MethodSpend{PaymentMethod: pm, Monthly: zero}
+		}
+		methods[pm].Monthly, _ = methods[pm].Monthly.Add(mainCost)
+		methods[pm].Count++
 	}
-	out := SpendingSummary{MainCurrency: h.Currency, Active: len(list.Subscriptions), Monthly: []money.Money{}, Yearly: []money.Money{}, ByCategory: []CategorySpend{}}
 	for _, cur := range sortedKeys(monthly) {
 		out.Monthly = append(out.Monthly, monthly[cur])
 		y, _ := monthly[cur].Scale("12")
 		out.Yearly = append(out.Yearly, y)
 	}
-	for k, m := range byCat {
-		out.ByCategory = append(out.ByCategory, CategorySpend{Category: k[0], Monthly: m})
+	out.YearlyTotal, _ = out.MonthlyTotal.Scale("12")
+	for _, c := range cats {
+		out.ByCategory = append(out.ByCategory, *c)
 	}
 	slices.SortFunc(out.ByCategory, func(a, b CategorySpend) int { return int(b.Monthly.Minor - a.Monthly.Minor) })
-	today := s.today(ctx, s.st.Q, actor)
+	for _, m := range methods {
+		out.ByMethod = append(out.ByMethod, *m)
+	}
+	slices.SortFunc(out.ByMethod, func(a, b MethodSpend) int { return int(b.Monthly.Minor - a.Monthly.Minor) })
+	out.Unconverted = sortedKeys(missing)
+	out.Rates, out.RatesDate = conv.describe()
 	next, err := s.ListCharges(ctx, actor, ListChargesInput{From: today.String(), To: today.AddDays(7).String()})
 	if err != nil {
 		return out, err

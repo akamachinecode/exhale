@@ -10,6 +10,7 @@ import (
 	"github.com/akamachinecode/exhale/internal/bus"
 	"github.com/akamachinecode/exhale/internal/domain"
 	"github.com/akamachinecode/exhale/internal/store"
+	"github.com/akamachinecode/exhale/internal/store/db"
 )
 
 type fixture struct {
@@ -57,7 +58,7 @@ func TestCreateMaterializesUpcomingCharges(t *testing.T) {
 	if len(d.History) != 0 {
 		t.Fatalf("past charges must not be invented, got %d", len(d.History))
 	}
-	if d.Subscription.MonthlyCost.String() != "17.99 EUR" || d.Subscription.Cadence != "every 1 month" {
+	if d.Subscription.MonthlyCost.String() != "17.99 EUR" || d.Subscription.Cadence != "monthly" {
 		t.Fatalf("view = %+v", d.Subscription)
 	}
 }
@@ -168,4 +169,29 @@ func TestCancelAtPeriodEndAndContext(t *testing.T) {
 
 func contains(s, sub string) bool {
 	return strings.Contains(s, sub)
+}
+
+func TestSummaryConvertsToMainCurrency(t *testing.T) {
+	f := newFixture(t)
+	ctx := context.Background()
+	q := f.svc.Store().Q
+	for _, r := range [][2]string{{"USD", "1.1224"}, {"GBP", "0.83393"}} {
+		if err := q.UpsertFxRate(ctx, db.UpsertFxRateParams{Day: "2026-11-05", Currency: r[0], Rate: r[1], Source: "ecb"}); err != nil {
+			t.Fatal(err)
+		}
+	}
+	f.create(t, CreateSubscriptionInput{Name: "Netflix", Price: "19.99", Currency: "EUR", Unit: "month", FirstCharge: "2026-11-12"})
+	f.create(t, CreateSubscriptionInput{Name: "Copilot", Price: "11.22", Currency: "USD", Unit: "month", FirstCharge: "2026-11-20"})
+	f.create(t, CreateSubscriptionInput{Name: "Lira thing", Price: "100", Currency: "TRY", Unit: "month", FirstCharge: "2026-11-20"})
+	sum, err := f.svc.Summary(ctx, f.owner, struct{}{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	// 11.22 USD / 1.1224 USD per EUR = 9.996… → 10.00 EUR
+	if sum.MonthlyTotal.String() != "29.99 EUR" || !sum.Converted || sum.RatesDate != "2026-11-05" {
+		t.Fatalf("total = %s converted=%v date=%s", sum.MonthlyTotal, sum.Converted, sum.RatesDate)
+	}
+	if len(sum.Unconverted) != 1 || sum.Unconverted[0] != "TRY" {
+		t.Fatalf("unconverted = %v", sum.Unconverted)
+	}
 }

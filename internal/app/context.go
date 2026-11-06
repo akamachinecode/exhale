@@ -51,6 +51,9 @@ func (s *Service) BuildContext(ctx context.Context, actor Actor, _ struct{}) (Ag
 	for i, m := range sum.Monthly {
 		fmt.Fprintf(&b, " %s/month (%s/year).", m, sum.Yearly[i])
 	}
+	if sum.Converted {
+		fmt.Fprintf(&b, " Total ≈ %s/month in %s at ECB rates of %s.", sum.MonthlyTotal, sum.MainCurrency, sum.RatesDate)
+	}
 	b.WriteString("\n\n## Subscriptions\n\n| id | name | price | cadence | next charge | status | payment method | category |\n|---|---|---|---|---|---|---|---|\n")
 	for _, v := range subs.Subscriptions {
 		fmt.Fprintf(&b, "| %s | %s | %s | %s | %s | %s | %s | %s |\n", v.ID, v.Name, v.Price, v.Cadence, v.NextCharge, v.Status, v.PaymentMethod, v.CategoryName)

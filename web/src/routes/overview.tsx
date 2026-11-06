@@ -8,22 +8,8 @@ import { ChargeStatus } from "@/components/status";
 import { NewSubscription } from "@/components/subscription-form";
 import { Button } from "@/components/ui/button";
 import { Card, CardHeader } from "@/components/ui/card";
-import {
-	type ChargeView,
-	type Money,
-	useListCharges,
-	useListSubscriptions,
-	useNeedsAttention,
-	useSpendingSummary,
-} from "@/gen/api";
-import { addDaysISO, date, hue, money, todayISO } from "@/lib/utils";
-
-function sum(charges: ChargeView[], currency: string): Money {
-	return {
-		currency,
-		minor: charges.filter((c) => c.amount.currency === currency).reduce((a, c) => a + c.amount.minor, 0),
-	};
-}
+import { type ChargeView, useListCharges, useNeedsAttention, useSpendingSummary } from "@/gen/api";
+import { addDaysISO, date, money, palette, sumMain, todayISO } from "@/lib/utils";
 
 export function Overview() {
 	const [creating, setCreating] = useState(false);
@@ -33,32 +19,27 @@ export function Overview() {
 	const upcoming = useListCharges({ from: today, to: addDaysISO(today, 30) });
 	const s = summary.data;
 	const main = s?.mainCurrency ?? "EUR";
-	const monthly = s?.monthlyByCurrency ?? [];
-	const yearly = s?.yearlyByCurrency ?? [];
+	const rates = s?.rates;
 	const next7 = s?.next7Days ?? [];
 	const unconfirmed = attention.data?.unconfirmed ?? [];
 	const expiring = attention.data?.expiringPaymentMethods ?? [];
 	const charges = upcoming.data?.charges ?? [];
 	const byCat = s?.byCategory ?? [];
+	const methods = s?.byPaymentMethod ?? [];
 	const catTotal = Math.max(
 		1,
 		byCat.reduce((a, c) => a + c.monthly.minor, 0),
 	);
-	const subs = useListSubscriptions({ status: "active" }).data?.subscriptions ?? [];
-	const byMethod = new Map<string, Map<string, number>>();
-	for (const sub of subs) {
-		const key = sub.paymentMethod ?? "No payment method";
-		const m = byMethod.get(key) ?? new Map<string, number>();
-		m.set(sub.monthlyCost.currency, (m.get(sub.monthlyCost.currency) ?? 0) + sub.monthlyCost.minor);
-		byMethod.set(key, m);
-	}
-	const methods = [...byMethod].map(([name, m]) => ({
-		name,
-		count: subs.filter((x) => (x.paymentMethod ?? "No payment method") === name).length,
-		total: [...m].map(([currency, minor]) => money({ currency, minor })).join(" + "),
-	}));
-	const mainMonthly = monthly.find((m) => m.currency === main) ?? monthly[0];
-	const mainYearly = yearly.find((m) => m.currency === main) ?? yearly[0];
+	const sumCharges = (cs: ChargeView[]) =>
+		money(
+			sumMain(
+				cs.map((c) => c.amount),
+				rates,
+				main,
+			),
+		);
+	const fxNote = s?.converted ? `other currencies at ECB rates of ${date(s.ratesDate)}` : undefined;
+	const attentionCount = unconfirmed.length + expiring.length;
 	const empty = s && s.activeSubscriptions === 0;
 
 	return (
@@ -81,24 +62,24 @@ export function Overview() {
 			<div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
 				<Kpi
 					label="Monthly"
-					value={money(mainMonthly)}
-					hint={
-						monthly.length > 1
-							? `+ ${monthly.length - 1} other currencies`
-							: `${s?.activeSubscriptions ?? 0} active subscriptions`
-					}
+					value={money(s?.monthlyTotal)}
+					hint={fxNote ?? `${s?.activeSubscriptions ?? 0} active subscriptions`}
 				/>
-				<Kpi label="Yearly" value={money(mainYearly)} hint="at current prices" />
+				<Kpi
+					label="Yearly"
+					value={money(s?.yearlyTotal)}
+					hint={`${s?.activeSubscriptions ?? 0} active subscriptions`}
+				/>
 				<Kpi
 					label="Next 7 days"
-					value={money(sum(next7, main))}
+					value={sumCharges(next7)}
 					hint={`${next7.length} charge${next7.length === 1 ? "" : "s"}`}
 				/>
 				<Kpi
 					label="Needs attention"
-					value={String(unconfirmed.length + expiring.length)}
+					value={String(attentionCount)}
 					hint={unconfirmed.length ? "unconfirmed charges" : "all clear"}
-					tone={unconfirmed.length + expiring.length > 0 ? "warn" : undefined}
+					tone={attentionCount > 0 ? "warn" : undefined}
 				/>
 			</div>
 
@@ -115,7 +96,7 @@ export function Overview() {
 			) : (
 				<div className="mt-6 grid grid-cols-1 gap-6 lg:grid-cols-[minmax(0,1fr)_340px]">
 					<div className="grid min-w-0 content-start gap-6">
-						{(unconfirmed.length > 0 || expiring.length > 0) && (
+						{attentionCount > 0 && (
 							<Card className="border-warn/40">
 								<CardHeader
 									title={
@@ -145,7 +126,7 @@ export function Overview() {
 							<CardHeader
 								title="Next 30 days"
 								description={
-									charges.length ? `${charges.length} charges · ${money(sum(charges, main))}` : undefined
+									charges.length ? `${charges.length} charges · ${sumCharges(charges)}` : undefined
 								}
 								action={
 									<Link
@@ -171,30 +152,27 @@ export function Overview() {
 					</div>
 					<div className="grid content-start gap-6">
 						<Card>
-							<CardHeader title="By category" description="Share of monthly spend" />
+							<CardHeader title="By category" description={`Share of monthly spend, in ${main}`} />
 							<div className="border-t border-line px-5 py-4">
-								<div className="flex h-2.5 overflow-hidden rounded-full bg-raised" aria-hidden>
-									{byCat.map((c) => (
+								<div className="flex h-2.5 gap-0.5 overflow-hidden rounded-full" aria-hidden>
+									{byCat.map((c, i) => (
 										<div
-											key={`${c.category}${c.monthly.currency}`}
-											className="h-full first:rounded-l-full last:rounded-r-full"
+											key={c.category}
+											className="h-full"
 											style={{
 												width: `${(c.monthly.minor / catTotal) * 100}%`,
-												background: `oklch(0.68 0.12 ${hue(c.category)})`,
+												background: palette[i % palette.length],
 											}}
 										/>
 									))}
 								</div>
 								<ul className="mt-4 grid gap-2.5">
 									{byCat.length === 0 && <li className="text-sm text-muted">No data yet.</li>}
-									{byCat.map((c) => (
-										<li
-											key={`${c.category}${c.monthly.currency}`}
-											className="flex items-center gap-2.5 text-sm"
-										>
+									{byCat.map((c, i) => (
+										<li key={c.category} className="flex items-center gap-2.5 text-sm">
 											<span
 												className="size-2.5 shrink-0 rounded-full"
-												style={{ background: `oklch(0.68 0.12 ${hue(c.category)})` }}
+												style={{ background: palette[i % palette.length] }}
 											/>
 											<span className="min-w-0 flex-1 truncate">{c.category}</span>
 											<span className="tnum text-xs text-faint">
@@ -209,19 +187,19 @@ export function Overview() {
 						<Card>
 							<CardHeader
 								title="By payment method"
-								description="What each card or account carries per month"
+								description={`What each card or account carries per month, in ${main}`}
 							/>
 							<ul className="divide-y divide-line border-t border-line">
 								{methods.map((m) => (
-									<li key={m.name} className="flex items-center gap-3 px-5 py-3 text-sm">
+									<li key={m.paymentMethod} className="flex items-center gap-3 px-5 py-3 text-sm">
 										<CreditCard className="size-4 text-faint" />
 										<span className="min-w-0 flex-1">
-											<span className="block truncate font-medium">{m.name}</span>
+											<span className="block truncate font-medium">{m.paymentMethod}</span>
 											<span className="block text-xs text-muted">
 												{m.count} subscription{m.count === 1 ? "" : "s"}
 											</span>
 										</span>
-										<span className="tnum text-right text-muted">{m.total}</span>
+										<span className="tnum text-right text-muted">{money(m.monthly)}</span>
 									</li>
 								))}
 							</ul>
@@ -258,10 +236,15 @@ function ChargeRow({ charge }: { charge: ChargeView }) {
 				>
 					{charge.subscriptionName}
 				</Link>
-				<p className="truncate text-xs text-muted">
+				<p className="text-xs text-muted sm:truncate">
 					{date(charge.dueDate, "day")}
 					{charge.delayed && ` · moved from ${date(charge.originalDate)}`}
-					{charge.paymentMethod && ` · ${charge.paymentMethod}`}
+					{charge.paymentMethod && (
+						<span className="block sm:inline">
+							<span className="hidden sm:inline"> · </span>
+							{charge.paymentMethod}
+						</span>
+					)}
 				</p>
 			</div>
 			<div className="hidden sm:block">
