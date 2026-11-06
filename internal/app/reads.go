@@ -15,8 +15,8 @@ import (
 
 // ListSubscriptionsInput filters subscriptions.
 type ListSubscriptionsInput struct {
-	Status string `json:"status,omitempty" jsonschema:"active, paused, cancelled or empty for all" enum:"active,paused,cancelled,"`
-	Query  string `json:"query,omitempty" jsonschema:"case-insensitive name filter"`
+	Status string `json:"status,omitempty" query:"status" jsonschema:"active, paused or cancelled; empty for all"`
+	Query  string `json:"query,omitempty" query:"query" jsonschema:"case-insensitive name filter"`
 }
 
 // SubscriptionList is a list of subscriptions.
@@ -54,7 +54,7 @@ func (s *Service) ListSubscriptions(ctx context.Context, actor Actor, in ListSub
 
 // GetSubscriptionInput identifies a subscription.
 type GetSubscriptionInput struct {
-	ID string `json:"id" jsonschema:"subscription id (sub_…)"`
+	ID string `json:"id" path:"id" jsonschema:"subscription id (sub_…)"`
 }
 
 // GetSubscription returns a subscription with upcoming and past charges.
@@ -64,8 +64,8 @@ func (s *Service) GetSubscription(ctx context.Context, actor Actor, in GetSubscr
 
 // ListChargesInput selects charges by due date.
 type ListChargesInput struct {
-	From string `json:"from,omitempty" jsonschema:"first due date, YYYY-MM-DD (default today)"`
-	To   string `json:"to,omitempty" jsonschema:"last due date, YYYY-MM-DD (default from + 30 days)"`
+	From string `json:"from,omitempty" query:"from" jsonschema:"first due date, YYYY-MM-DD (default today)"`
+	To   string `json:"to,omitempty" query:"to" jsonschema:"last due date, YYYY-MM-DD (default from + 30 days)"`
 }
 
 // ChargeList is a list of charges.

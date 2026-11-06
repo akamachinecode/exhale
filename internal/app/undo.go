@@ -25,7 +25,7 @@ type AuditEntry struct {
 
 // AuditLogInput limits the audit log.
 type AuditLogInput struct {
-	Limit int `json:"limit,omitempty" jsonschema:"default 50" maximum:"500"`
+	Limit int `json:"limit,omitempty" query:"limit" jsonschema:"default 50" maximum:"500"`
 }
 
 // AuditLog is the list of recent changes.
