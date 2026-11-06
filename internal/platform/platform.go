@@ -60,7 +60,7 @@ func NewLogger(w io.Writer, level, format string) *slog.Logger {
 			noColor = true
 		}
 	}
-	return slog.New(tint.NewHandler(w, &tint.Options{Level: lvl, TimeFormat: time.TimeOnly, NoColor: noColor, ReplaceAttr: redact}))
+	return slog.New(tint.NewTextHandler(w, &tint.Options{Level: lvl, TimeFormat: time.TimeOnly, NoColor: noColor, ReplaceAttr: redact}))
 }
 
 // Service is a long-running piece supervised with restarts.

@@ -106,15 +106,15 @@ func TestReminderConversation(t *testing.T) {
 		t.Fatal(err)
 	}
 	deadline := time.Now().Add(2 * time.Second)
-	for len(ch.Log) < 2 && time.Now().Before(deadline) {
+	for ch.Count() < 2 && time.Now().Before(deadline) {
 		time.Sleep(10 * time.Millisecond)
 	}
 	cancel()
 	<-done
-	if len(ch.Log) < 2 {
+	if ch.Count() < 2 {
 		t.Fatal("the message was not re-edited after the agent's change")
 	}
-	script.WriteString("\n> Claude marks it paid over MCP\n" + ch.Log[len(ch.Log)-1])
+	script.WriteString("\n> Claude marks it paid over MCP\n" + ch.Last())
 
 	out := script.String()
 	// ids are random; make the transcript stable

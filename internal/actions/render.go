@@ -70,8 +70,9 @@ func statusTitle(c app.ChargeView, name string) string {
 		return fmt.Sprintf("⏭ %s skipped", name)
 	case domain.ChargeFailed:
 		return fmt.Sprintf("❌ %s failed", name)
+	default:
+		return name
 	}
-	return name
 }
 
 func details(c app.ChargeView, sub app.SubscriptionView, locale string) []string {
@@ -125,10 +126,10 @@ func calendar(chargeID string, month engine.Date, selected engine.Date, today en
 	for d := 1; d <= engine.DaysIn(first.Year(), first.Month()); d++ {
 		day := engine.MustDate(first.Year(), first.Month(), d)
 		label := fmt.Sprint(d)
-		switch {
-		case day == selected:
+		switch day {
+		case selected:
 			label = "•" + label
-		case day == today:
+		case today:
 			label = "(" + label + ")"
 		}
 		week = append(week, Button{Label: label, Data: data(vDatePick, chargeID, day.String())})

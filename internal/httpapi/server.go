@@ -241,7 +241,7 @@ func spa() http.Handler {
 		p := strings.TrimPrefix(r.URL.Path, "/")
 		if p != "" {
 			if f, err := dist.Open(p); err == nil {
-				f.Close()
+				_ = f.Close()
 				if strings.HasPrefix(p, "assets/") {
 					w.Header().Set("Cache-Control", "public, max-age=31536000, immutable")
 				}

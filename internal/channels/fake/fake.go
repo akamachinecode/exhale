@@ -83,3 +83,20 @@ func Button(m actions.Message, label string) string {
 	}
 	return ""
 }
+
+// Count returns how many sends and edits happened.
+func (c *Channel) Count() int {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	return len(c.Log)
+}
+
+// Last returns the latest send or edit.
+func (c *Channel) Last() string {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	if len(c.Log) == 0 {
+		return ""
+	}
+	return c.Log[len(c.Log)-1]
+}
