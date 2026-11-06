@@ -1,0 +1,48 @@
+SEND #1
+🔔 Spotify Family renews in 3 days
+  💶 €17.99 · Sun, 8 Nov 2026
+  💳 Revolut ••0937
+  [✅ Already paid](paid|chg_X) [📅 Change date](date|chg_X|2026-11)
+  [💳 Payment method](pm|chg_X) [✏️ Amount](amount|chg_X)
+  [⏭ Skip this one](skip|chg_X) [❌ Cancel subscription](cancel|chg_X)
+
+> press Change date
+📅 New date for Spotify Family
+  💶 €17.99 · Sun, 8 Nov 2026
+  💳 Revolut ••0937
+  [‹](date|chg_X|2026-10) [November 2026](date|chg_X|2026-11) [›](date|chg_X|2026-12)
+  [ ](date|chg_X|2026-11) [ ](date|chg_X|2026-11) [ ](date|chg_X|2026-11) [ ](date|chg_X|2026-11) [ ](date|chg_X|2026-11) [ ](date|chg_X|2026-11) [1](pick|chg_X|2026-11-01)
+  [2](pick|chg_X|2026-11-02) [3](pick|chg_X|2026-11-03) [4](pick|chg_X|2026-11-04) [(5)](pick|chg_X|2026-11-05) [6](pick|chg_X|2026-11-06) [7](pick|chg_X|2026-11-07) [•8](pick|chg_X|2026-11-08)
+  [9](pick|chg_X|2026-11-09) [10](pick|chg_X|2026-11-10) [11](pick|chg_X|2026-11-11) [12](pick|chg_X|2026-11-12) [13](pick|chg_X|2026-11-13) [14](pick|chg_X|2026-11-14) [15](pick|chg_X|2026-11-15)
+  [16](pick|chg_X|2026-11-16) [17](pick|chg_X|2026-11-17) [18](pick|chg_X|2026-11-18) [19](pick|chg_X|2026-11-19) [20](pick|chg_X|2026-11-20) [21](pick|chg_X|2026-11-21) [22](pick|chg_X|2026-11-22)
+  [23](pick|chg_X|2026-11-23) [24](pick|chg_X|2026-11-24) [25](pick|chg_X|2026-11-25) [26](pick|chg_X|2026-11-26) [27](pick|chg_X|2026-11-27) [28](pick|chg_X|2026-11-28) [29](pick|chg_X|2026-11-29)
+  [30](pick|chg_X|2026-11-30) [ ](date|chg_X|2026-11) [ ](date|chg_X|2026-11) [ ](date|chg_X|2026-11) [ ](date|chg_X|2026-11) [ ](date|chg_X|2026-11) [ ](date|chg_X|2026-11)
+  [↩︎ Back](back|chg_X)
+
+> press 10
+📅 Move Spotify Family to 2026-11-10?
+  Only this charge: a one-off delay; later charges keep their date.
+  This and following: the billing day changes from now on.
+  [● Only this charge](dscope|chg_X|2026-11-10|this) [This and following](dscope|chg_X|2026-11-10|following)
+  [↩︎ Back](date|chg_X|2026-11)
+
+> press Only this charge
+(toast: Date changed 📅)
+🔔 Spotify Family renews in 5 days
+  💶 €17.99 · Tue, 10 Nov 2026
+  ↪︎ moved from Sun, 8 Nov 2026
+  💳 Revolut ••0937
+  [✅ Already paid](paid|chg_X) [📅 Change date](date|chg_X|2026-11)
+  [💳 Payment method](pm|chg_X) [✏️ Amount](amount|chg_X)
+  [⏭ Skip this one](skip|chg_X) [❌ Cancel subscription](cancel|chg_X)
+  [↩︎ Undo](undo|chg_X|aud_X)
+
+> Claude marks it paid over MCP
+EDIT #1
+✅ Spotify Family paid
+  💶 €17.99 · Tue, 10 Nov 2026
+  ↪︎ moved from Sun, 8 Nov 2026
+  💳 Visa ••4421
+  [↩︎ Reopen](reopen|chg_X)
+  [↩︎ Undo](undo|chg_X|aud_X)
+  — Changed by Claude (MCP)

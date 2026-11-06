@@ -260,4 +260,3 @@ func spa() http.Handler {
 		w.Write(index)
 	})
 }
-
