@@ -1,0 +1,46 @@
+# https://goreleaser.com — run by the release workflow on tags.
+version: 2
+project_name: exhale
+before:
+  hooks:
+    - sh -c "cd web && pnpm install --frozen-lockfile && pnpm build"
+builds:
+  - main: ./cmd/exhale
+    env: [CGO_ENABLED=0]
+    flags: [-trimpath]
+    ldflags: ["-s -w -X main.version={{.Version}}"]
+    goos: [linux, darwin, windows]
+    goarch: [amd64, arm64, arm]
+    goarm: ["7"]
+    ignore:
+      - { goos: darwin, goarch: arm }
+      - { goos: windows, goarch: arm }
+archives:
+  - formats: [tar.gz]
+    format_overrides:
+      - { goos: windows, formats: [zip] }
+    files: [LICENSE, README.md]
+checksum:
+  name_template: checksums.txt
+sboms:
+  - artifacts: archive
+signs:
+  - cmd: cosign
+    signature: "${artifact}.sigstore.json"
+    args: [sign-blob, "--bundle=${signature}", "${artifact}", --yes]
+    artifacts: checksum
+nfpms:
+  - package_name: exhale
+    vendor: Exhale
+    homepage: https://github.com/akamachinecode/exhale
+    maintainer: akamachinecode
+    description: Self-hosted subscription manager where the notification is the interface.
+    license: AGPL-3.0-or-later
+    formats: [deb, rpm]
+dockers_v2:
+  - images: ["ghcr.io/akamachinecode/exhale", "docker.io/akamachinecode/exhale"]
+    dockerfile: deploy/Dockerfile
+    platforms: [linux/amd64, linux/arm64, linux/arm/v7]
+    tags: ["{{ .Version }}", "v{{ .Major }}.{{ .Minor }}", "v{{ .Major }}", latest]
+changelog:
+  disable: true # release-please writes CHANGELOG.md
