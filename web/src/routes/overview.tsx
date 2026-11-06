@@ -12,10 +12,11 @@ import {
 	type ChargeView,
 	type Money,
 	useListCharges,
+	useListSubscriptions,
 	useNeedsAttention,
 	useSpendingSummary,
 } from "@/gen/api";
-import { addDaysISO, date, money, todayISO } from "@/lib/utils";
+import { addDaysISO, date, hue, money, todayISO } from "@/lib/utils";
 
 function sum(charges: ChargeView[], currency: string): Money {
 	return {
@@ -39,7 +40,23 @@ export function Overview() {
 	const expiring = attention.data?.expiringPaymentMethods ?? [];
 	const charges = upcoming.data?.charges ?? [];
 	const byCat = s?.byCategory ?? [];
-	const catMax = Math.max(1, ...byCat.map((c) => c.monthly.minor));
+	const catTotal = Math.max(
+		1,
+		byCat.reduce((a, c) => a + c.monthly.minor, 0),
+	);
+	const subs = useListSubscriptions({ status: "active" }).data?.subscriptions ?? [];
+	const byMethod = new Map<string, Map<string, number>>();
+	for (const sub of subs) {
+		const key = sub.paymentMethod ?? "No payment method";
+		const m = byMethod.get(key) ?? new Map<string, number>();
+		m.set(sub.monthlyCost.currency, (m.get(sub.monthlyCost.currency) ?? 0) + sub.monthlyCost.minor);
+		byMethod.set(key, m);
+	}
+	const methods = [...byMethod].map(([name, m]) => ({
+		name,
+		count: subs.filter((x) => (x.paymentMethod ?? "No payment method") === name).length,
+		total: [...m].map(([currency, minor]) => money({ currency, minor })).join(" + "),
+	}));
 	const mainMonthly = monthly.find((m) => m.currency === main) ?? monthly[0];
 	const mainYearly = yearly.find((m) => m.currency === main) ?? yearly[0];
 	const empty = s && s.activeSubscriptions === 0;
@@ -152,26 +169,64 @@ export function Overview() {
 							)}
 						</Card>
 					</div>
-					<Card className="self-start">
-						<CardHeader title="By category" description="Monthly, normalized" />
-						<ul className="grid gap-3 border-t border-line px-5 py-4">
-							{byCat.length === 0 && <li className="text-sm text-muted">No data yet.</li>}
-							{byCat.map((c) => (
-								<li key={c.category + c.monthly.currency} className="grid gap-1.5">
-									<div className="flex items-baseline justify-between gap-3 text-sm">
-										<span className="truncate">{c.category}</span>
-										<span className="tnum text-muted">{money(c.monthly)}</span>
-									</div>
-									<div className="h-1.5 overflow-hidden rounded-full bg-raised">
+					<div className="grid content-start gap-6">
+						<Card>
+							<CardHeader title="By category" description="Share of monthly spend" />
+							<div className="border-t border-line px-5 py-4">
+								<div className="flex h-2.5 overflow-hidden rounded-full bg-raised" aria-hidden>
+									{byCat.map((c) => (
 										<div
-											className="h-full rounded-full bg-accent"
-											style={{ width: `${(c.monthly.minor / catMax) * 100}%` }}
+											key={`${c.category}${c.monthly.currency}`}
+											className="h-full first:rounded-l-full last:rounded-r-full"
+											style={{
+												width: `${(c.monthly.minor / catTotal) * 100}%`,
+												background: `oklch(0.68 0.12 ${hue(c.category)})`,
+											}}
 										/>
-									</div>
-								</li>
-							))}
-						</ul>
-					</Card>
+									))}
+								</div>
+								<ul className="mt-4 grid gap-2.5">
+									{byCat.length === 0 && <li className="text-sm text-muted">No data yet.</li>}
+									{byCat.map((c) => (
+										<li
+											key={`${c.category}${c.monthly.currency}`}
+											className="flex items-center gap-2.5 text-sm"
+										>
+											<span
+												className="size-2.5 shrink-0 rounded-full"
+												style={{ background: `oklch(0.68 0.12 ${hue(c.category)})` }}
+											/>
+											<span className="min-w-0 flex-1 truncate">{c.category}</span>
+											<span className="tnum text-xs text-faint">
+												{Math.round((c.monthly.minor / catTotal) * 100)}%
+											</span>
+											<span className="tnum w-20 text-right text-muted">{money(c.monthly)}</span>
+										</li>
+									))}
+								</ul>
+							</div>
+						</Card>
+						<Card>
+							<CardHeader
+								title="By payment method"
+								description="What each card or account carries per month"
+							/>
+							<ul className="divide-y divide-line border-t border-line">
+								{methods.map((m) => (
+									<li key={m.name} className="flex items-center gap-3 px-5 py-3 text-sm">
+										<CreditCard className="size-4 text-faint" />
+										<span className="min-w-0 flex-1">
+											<span className="block truncate font-medium">{m.name}</span>
+											<span className="block text-xs text-muted">
+												{m.count} subscription{m.count === 1 ? "" : "s"}
+											</span>
+										</span>
+										<span className="tnum text-right text-muted">{m.total}</span>
+									</li>
+								))}
+							</ul>
+						</Card>
+					</div>
 				</div>
 			)}
 		</>

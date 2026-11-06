@@ -31,6 +31,11 @@ export function Calendar() {
 	const q = useListCharges({ from: b.from, to: b.to });
 	const byDay = new Map<string, ChargeView[]>();
 	for (const c of q.data?.charges ?? []) byDay.set(c.dueDate, [...(byDay.get(c.dueDate) ?? []), c]);
+	const totals = new Map<string, number>();
+	for (const c of q.data?.charges ?? [])
+		totals.set(c.amount.currency, (totals.get(c.amount.currency) ?? 0) + c.amount.minor);
+	const monthTotal = [...totals].map(([currency, minor]) => money({ currency, minor })).join(" + ");
+	const count = q.data?.charges?.length ?? 0;
 	const title = new Intl.DateTimeFormat(undefined, {
 		month: "long",
 		year: "numeric",
@@ -42,7 +47,7 @@ export function Calendar() {
 		<>
 			<PageHeader
 				title="Calendar"
-				description="Every charge, on the day it happens."
+				description={count ? `${count} charges this month · ${monthTotal}` : "No charges this month."}
 				action={
 					<div className="flex items-center gap-1">
 						<Button
@@ -81,21 +86,31 @@ export function Calendar() {
 						const inMonth = day >= 1 && day <= b.days;
 						const iso = inMonth ? `${month}-${String(day).padStart(2, "0")}` : "";
 						const items = inMonth ? (byDay.get(iso) ?? []) : [];
+						const past = inMonth && iso < today;
+						const dayTotal =
+							items.length > 1 && items.every((c) => c.amount.currency === items[0].amount.currency)
+								? money({
+										currency: items[0].amount.currency,
+										minor: items.reduce((a, c) => a + c.amount.minor, 0),
+									})
+								: undefined;
 						return (
 							<div
 								// biome-ignore lint/suspicious/noArrayIndexKey: fixed grid positions
 								key={i}
 								className={cn(
-									"min-h-24 border-line p-1.5 sm:min-h-28 sm:p-2",
+									"flex min-h-24 flex-col border-line p-1.5 sm:min-h-32 sm:p-2",
 									i % 7 !== 6 && "border-r",
 									i < cells.length - 7 && "border-b",
 									!inMonth && "bg-raised/40",
+									past && "bg-raised/25",
 								)}
 							>
 								{inMonth && (
 									<span
 										className={cn(
 											"tnum inline-grid size-6 place-items-center rounded-full text-xs text-muted",
+											past && "text-faint",
 											iso === today && "bg-accent font-semibold text-accent-fg",
 										)}
 									>
@@ -110,8 +125,10 @@ export function Calendar() {
 											params={{ id: c.subscriptionId }}
 											title={`${c.subscriptionName} · ${money(c.amount)}`}
 											className={cn(
-												"flex items-center gap-1.5 rounded-md bg-raised px-1.5 py-1 text-[11px] leading-tight hover:bg-accent-soft",
-												c.status === "paid" && "opacity-60",
+												"flex items-center gap-2 rounded-lg border border-transparent bg-raised px-1.5 py-1.5 text-xs leading-tight transition-colors hover:border-accent/40",
+												c.status === "paid" && "bg-ok-soft",
+												c.status === "pending" && c.daysUntil < 0 && "bg-warn-soft",
+												c.status === "skipped" && "opacity-60",
 											)}
 										>
 											<ServiceTile name={c.subscriptionName} size="sm" />
@@ -122,6 +139,11 @@ export function Calendar() {
 										</Link>
 									))}
 								</div>
+								{dayTotal && (
+									<p className="tnum mt-auto pt-1 text-right text-[11px] font-medium text-muted">
+										{dayTotal}
+									</p>
+								)}
 							</div>
 						);
 					})}

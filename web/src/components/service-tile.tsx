@@ -22,7 +22,7 @@ export function ServiceTile({ name, size = "md" }: { name: string; size?: "sm" |
 				)}
 				style={{ background: `#${brand.hex}` }}
 			>
-				<svg viewBox="0 0 24 24" className={glyph[size]} fill={fg}>
+				<svg viewBox="0 0 24 24" className={glyph[size]} fill={fg} aria-hidden>
 					<path d={brand.path} />
 				</svg>
 			</span>
