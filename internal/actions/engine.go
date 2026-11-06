@@ -392,7 +392,10 @@ func (e *Engine) refresh(ctx context.Context, ev bus.Event) {
 		if err != nil {
 			continue
 		}
-		if ev.ActorLabel != "" && ev.ActorLabel != actor.Label {
+		if strings.HasPrefix(ev.ActorLabel, actor.Label) {
+			continue // the member's own action already updated the message they used
+		}
+		if ev.ActorLabel != "" {
 			m.Footer = "Changed by " + ev.ActorLabel
 			if ev.AuditID != "" {
 				m.Rows = append(m.Rows, []Button{{Label: "↩︎ Undo", Data: data(vUndo, ev.ChargeID, ev.AuditID)}})

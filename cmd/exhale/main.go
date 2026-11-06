@@ -16,10 +16,12 @@ import (
 	"github.com/alecthomas/kong"
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 
+	"github.com/akamachinecode/exhale/internal/actions"
 	"github.com/akamachinecode/exhale/internal/agents"
 	"github.com/akamachinecode/exhale/internal/app"
 	"github.com/akamachinecode/exhale/internal/auth"
 	"github.com/akamachinecode/exhale/internal/bus"
+	"github.com/akamachinecode/exhale/internal/channels/telegram"
 	"github.com/akamachinecode/exhale/internal/httpapi"
 	"github.com/akamachinecode/exhale/internal/platform"
 	"github.com/akamachinecode/exhale/internal/scheduler"
@@ -41,6 +43,7 @@ type cli struct {
 	Init    initCmd    `cmd:"" help:"Create the household on first run."`
 	Mcp     mcpCmd     `cmd:"" help:"Serve MCP over stdio, for local AI clients (Claude Desktop, Claude Code, Cursor…)."`
 	Token   tokenCmd   `cmd:"" help:"Manage personal access tokens for scripts and AI agents."`
+	Link    linkCmd    `cmd:"" help:"Link a chat account (Telegram) to the household owner."`
 	Backup  backupCmd  `cmd:"" help:"Write a consistent backup of the database."`
 	Openapi openapiCmd `cmd:"" help:"Print the OpenAPI document."`
 	Version versionCmd `cmd:"" help:"Print the version."`
@@ -54,7 +57,8 @@ func main() {
 	}
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
-	kctx.FatalIfErrorf(kctx.Run(ctx, &c.globals))
+	kctx.BindTo(ctx, (*context.Context)(nil))
+	kctx.FatalIfErrorf(kctx.Run(&c.globals))
 }
 
 type env struct {
@@ -83,9 +87,11 @@ func owner(ctx context.Context, e *env) (app.Actor, error) {
 // --- serve ---------------------------------------------------------------------
 
 type serveCmd struct {
-	Listen     string `env:"EXHALE_LISTEN" default:"127.0.0.1:8484" help:"Address to listen on (use 0.0.0.0:8484 in Docker)."`
-	TrustLocal bool   `name:"trust-local" env:"EXHALE_TRUST_LOCAL" default:"true" negatable:"" help:"Let requests from this machine act as the owner without a token."`
-	Dev        bool   `help:"Development mode."`
+	Listen        string `env:"EXHALE_LISTEN" default:"127.0.0.1:8484" help:"Address to listen on (use 0.0.0.0:8484 in Docker)."`
+	TelegramToken string `name:"telegram-token" env:"EXHALE_TELEGRAM_TOKEN" help:"Bot token from @BotFather. Enables Telegram reminders."`
+	TelegramAPI   string `name:"telegram-api" env:"EXHALE_TELEGRAM_API" hidden:"" help:"Bot API base URL (tests)."`
+	TrustLocal    bool   `name:"trust-local" env:"EXHALE_TRUST_LOCAL" default:"true" negatable:"" help:"Let requests from this machine act as the owner without a token."`
+	Dev           bool   `help:"Development mode."`
 }
 
 func (s *serveCmd) Run(ctx context.Context, g *globals) error {
@@ -119,8 +125,30 @@ func (s *serveCmd) Run(ctx context.Context, g *globals) error {
 			return err
 		}
 	}}
-	clock := scheduler.New(e.svc, e.log, nil)
-	return platform.Run(ctx, e.log, httpSvc, clock)
+	services := []platform.Service{httpSvc}
+	var channels []actions.Channel
+	if s.TelegramToken != "" {
+		tg, err := telegram.New(s.TelegramToken, s.TelegramAPI, e.svc, e.log)
+		if err != nil {
+			return err
+		}
+		channels = append(channels, tg)
+		services = append(services, tg)
+		e.log.Info("telegram enabled")
+	} else {
+		e.log.Info("telegram disabled: set EXHALE_TELEGRAM_TOKEN to enable reminders in Telegram")
+	}
+	eng := actions.New(e.svc, e.log, channels...)
+	for _, c := range channels {
+		if tg, ok := c.(*telegram.Adapter); ok {
+			tg.SetEngine(eng)
+		}
+	}
+	services = append(services,
+		scheduler.New(e.svc, e.log, eng),
+		platform.Func{Name: "message-sync", Fn: eng.Sync},
+	)
+	return platform.Run(ctx, e.log, services...)
 }
 
 // --- init ----------------------------------------------------------------------
@@ -231,6 +259,30 @@ func (t *tokenCreateCmd) Run(ctx context.Context, g *globals) error {
 	return nil
 }
 
+// --- link ------------------------------------------------------------------------
+
+type linkCmd struct {
+	Channel string `arg:"" enum:"telegram" help:"Channel to link."`
+}
+
+func (l *linkCmd) Run(ctx context.Context, g *globals) error {
+	e, err := open(ctx, g)
+	if err != nil {
+		return err
+	}
+	defer e.st.Close()
+	o, err := owner(ctx, e)
+	if err != nil {
+		return err
+	}
+	code, err := auth.CreateLinkCode(ctx, e.st, o.MemberID, l.Channel)
+	if err != nil {
+		return err
+	}
+	fmt.Printf("Send this message to your Telegram bot within 10 minutes:\n\n  /start %s\n\nor open https://t.me/<your_bot>?start=%s\n", code, code)
+	return nil
+}
+
 // --- backup / openapi / version --------------------------------------------------
 
 type backupCmd struct{}
@@ -272,4 +324,3 @@ func (openapiCmd) Run(ctx context.Context, _ *globals) error {
 type versionCmd struct{}
 
 func (versionCmd) Run() error { fmt.Println("exhale", version); return nil }
-

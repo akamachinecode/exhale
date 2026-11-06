@@ -17,6 +17,7 @@ require (
 	github.com/alecthomas/kong v1.17.0 // indirect
 	github.com/cockroachdb/apd/v3 v3.2.1 // indirect
 	github.com/dustin/go-humanize v1.1.0 // indirect
+	github.com/go-telegram/bot v1.27.0 // indirect
 	github.com/google/uuid v1.6.0 // indirect
 	github.com/lmittmann/tint v1.2.1 // indirect
 	github.com/mattn/go-isatty v0.0.24 // indirect
