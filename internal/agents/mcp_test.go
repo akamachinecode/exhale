@@ -30,7 +30,7 @@ func connect(t *testing.T, scope app.Scope) (*mcp.ClientSession, *app.Service, a
 	}
 	agent := owner
 	agent.Kind, agent.Scope, agent.Label = app.ActorAgent, scope, "test agent (MCP)"
-	srv, err := NewServer(svc, "test", func(context.Context, *mcp.CallToolRequest) (app.Actor, error) { return agent, nil })
+	srv, err := NewServer(svc, "test", func(context.Context, *mcp.RequestExtra, *mcp.ServerSession) (app.Actor, error) { return agent, nil })
 	if err != nil {
 		t.Fatal(err)
 	}

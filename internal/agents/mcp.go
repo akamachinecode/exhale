@@ -17,8 +17,23 @@ import (
 	"github.com/akamachinecode/exhale/internal/domain"
 )
 
-// ActorFunc resolves who is calling, from the request context.
-type ActorFunc func(ctx context.Context, req *mcp.CallToolRequest) (app.Actor, error)
+// ActorFunc resolves who is calling. extra carries the HTTP headers (bearer
+// token) for HTTP sessions; it is nil over stdio.
+type ActorFunc func(ctx context.Context, extra *mcp.RequestExtra, session *mcp.ServerSession) (app.Actor, error)
+
+// ClientName returns the name the MCP client announced, e.g. "claude-ai".
+func ClientName(session *mcp.ServerSession) string {
+	if session == nil {
+		return ""
+	}
+	if p := session.InitializeParams(); p != nil && p.ClientInfo != nil {
+		if p.ClientInfo.Title != "" {
+			return p.ClientInfo.Title
+		}
+		return p.ClientInfo.Name
+	}
+	return ""
+}
 
 // Instructions are sent to every MCP client on connection.
 const Instructions = `Exhale manages this household's recurring subscriptions and their charges.
@@ -69,7 +84,7 @@ func toolFor(b app.Binding) (*mcp.Tool, error) {
 
 func handlerFor(svc *app.Service, b app.Binding, actorFn ActorFunc) mcp.ToolHandler {
 	return func(ctx context.Context, req *mcp.CallToolRequest) (*mcp.CallToolResult, error) {
-		actor, err := actorFn(ctx, req)
+		actor, err := actorFn(ctx, req.Extra, req.Session)
 		if err != nil {
 			return toolError(err), nil
 		}
@@ -114,12 +129,11 @@ func toolError(err error) *mcp.CallToolResult {
 }
 
 func addResources(srv *mcp.Server, svc *app.Service, actorFn ActorFunc) {
-	actor := func(ctx context.Context) (app.Actor, error) { return actorFn(ctx, nil) }
 	srv.AddResource(&mcp.Resource{
 		URI: "exhale://context", Name: "context", Title: "Household briefing", MIMEType: "text/markdown",
 		Description: "Live briefing: members, subscriptions with ids, next 30 days, what needs attention and the editing rules. Read it first.",
 	}, func(ctx context.Context, req *mcp.ReadResourceRequest) (*mcp.ReadResourceResult, error) {
-		a, err := actor(ctx)
+		a, err := actorFn(ctx, req.Extra, req.Session)
 		if err != nil {
 			return nil, err
 		}
@@ -133,7 +147,7 @@ func addResources(srv *mcp.Server, svc *app.Service, actorFn ActorFunc) {
 		URITemplate: "exhale://subscriptions/{id}", Name: "subscription", Title: "Subscription", MIMEType: "application/json",
 		Description: "A subscription with its upcoming charges and history.",
 	}, func(ctx context.Context, req *mcp.ReadResourceRequest) (*mcp.ReadResourceResult, error) {
-		a, err := actor(ctx)
+		a, err := actorFn(ctx, req.Extra, req.Session)
 		if err != nil {
 			return nil, err
 		}
