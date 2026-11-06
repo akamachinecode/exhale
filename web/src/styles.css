@@ -1,0 +1,77 @@
+@import "tailwindcss";
+@import "@fontsource-variable/inter";
+@import "@fontsource-variable/geist-mono";
+
+@custom-variant dark (&:where(.dark, .dark *));
+
+@theme {
+	--font-sans: "Inter Variable", ui-sans-serif, system-ui, sans-serif;
+	--font-mono: "Geist Mono Variable", ui-monospace, monospace;
+	--color-bg: var(--bg);
+	--color-surface: var(--surface);
+	--color-raised: var(--raised);
+	--color-line: var(--line);
+	--color-fg: var(--fg);
+	--color-muted: var(--muted);
+	--color-faint: var(--faint);
+	--color-accent: var(--accent);
+	--color-accent-fg: var(--accent-fg);
+	--color-accent-soft: var(--accent-soft);
+	--color-ok: var(--ok);
+	--color-ok-soft: var(--ok-soft);
+	--color-warn: var(--warn);
+	--color-warn-soft: var(--warn-soft);
+	--color-bad: var(--bad);
+	--color-bad-soft: var(--bad-soft);
+}
+
+:root {
+	--bg: oklch(0.985 0.002 250);
+	--surface: oklch(1 0 0);
+	--raised: oklch(0.97 0.003 250);
+	--line: oklch(0.91 0.005 250);
+	--fg: oklch(0.21 0.01 255);
+	--muted: oklch(0.5 0.012 255);
+	--faint: oklch(0.65 0.01 255);
+	--accent: oklch(0.56 0.1 182);
+	--accent-fg: oklch(0.99 0.01 180);
+	--accent-soft: oklch(0.95 0.035 182);
+	--ok: oklch(0.55 0.13 152);
+	--ok-soft: oklch(0.95 0.04 152);
+	--warn: oklch(0.6 0.13 70);
+	--warn-soft: oklch(0.96 0.05 85);
+	--bad: oklch(0.56 0.18 25);
+	--bad-soft: oklch(0.95 0.035 25);
+	color-scheme: light;
+}
+
+.dark {
+	--bg: oklch(0.16 0.006 255);
+	--surface: oklch(0.195 0.007 255);
+	--raised: oklch(0.235 0.008 255);
+	--line: oklch(0.29 0.008 255);
+	--fg: oklch(0.94 0.004 255);
+	--muted: oklch(0.7 0.01 255);
+	--faint: oklch(0.55 0.01 255);
+	--accent: oklch(0.76 0.11 180);
+	--accent-fg: oklch(0.2 0.03 185);
+	--accent-soft: oklch(0.3 0.05 182);
+	--ok: oklch(0.76 0.14 152);
+	--ok-soft: oklch(0.3 0.05 152);
+	--warn: oklch(0.8 0.13 80);
+	--warn-soft: oklch(0.32 0.05 75);
+	--bad: oklch(0.72 0.15 25);
+	--bad-soft: oklch(0.32 0.06 25);
+	color-scheme: dark;
+}
+
+@layer base {
+	html,
+	body {
+		@apply bg-bg text-fg antialiased;
+		font-feature-settings: "cv11", "ss01";
+	}
+	.tnum {
+		font-variant-numeric: tabular-nums;
+	}
+}

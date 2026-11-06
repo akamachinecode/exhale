@@ -1,0 +1,6 @@
+packages:
+  - web
+# Supply-chain guard (ADR 0015): never install a version published less than 7 days ago.
+minimumReleaseAge: 10080
+allowBuilds:
+  esbuild: true
