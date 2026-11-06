@@ -1,0 +1,52 @@
+diff --git a/web/src/components/ui/badge.tsx b/web/src/components/ui/badge.tsx
+index c5cc4e9..8da8528 100644
+--- a/web/src/components/ui/badge.tsx
++++ b/web/src/components/ui/badge.tsx
+@@ -7,7 +7,7 @@ const badge = cva(
+ 	{
+ 		variants: {
+ 			tone: {
+-				neutral: "bg-raised text-muted",
++				neutral: "bg-raised text-fg/75 ring-1 ring-line ring-inset",
+ 				accent: "bg-accent-soft text-accent",
+ 				ok: "bg-ok-soft text-ok",
+ 				warn: "bg-warn-soft text-warn",
+diff --git a/web/src/styles.css b/web/src/styles.css
+index d567dcd..6cced61 100644
+--- a/web/src/styles.css
++++ b/web/src/styles.css
+@@ -31,8 +31,8 @@
+ 	--raised: oklch(0.97 0.003 250);
+ 	--line: oklch(0.91 0.005 250);
+ 	--fg: oklch(0.21 0.01 255);
+-	--muted: oklch(0.5 0.012 255);
+-	--faint: oklch(0.65 0.01 255);
++	--muted: oklch(0.46 0.014 255);
++	--faint: oklch(0.56 0.012 255);
+ 	--accent: oklch(0.56 0.1 182);
+ 	--accent-fg: oklch(0.99 0.01 180);
+ 	--accent-soft: oklch(0.95 0.035 182);
+@@ -46,15 +46,15 @@
+ }
+ 
+ .dark {
+-	--bg: oklch(0.16 0.006 255);
+-	--surface: oklch(0.195 0.007 255);
+-	--raised: oklch(0.235 0.008 255);
+-	--line: oklch(0.29 0.008 255);
++	--bg: oklch(0.145 0.006 255);
++	--surface: oklch(0.2 0.008 255);
++	--raised: oklch(0.255 0.009 255);
++	--line: oklch(0.31 0.009 255);
+ 	--fg: oklch(0.94 0.004 255);
+-	--muted: oklch(0.7 0.01 255);
+-	--faint: oklch(0.55 0.01 255);
+-	--accent: oklch(0.76 0.11 180);
+-	--accent-fg: oklch(0.2 0.03 185);
++	--muted: oklch(0.77 0.01 255);
++	--faint: oklch(0.64 0.01 255);
++	--accent: oklch(0.78 0.12 180);
++	--accent-fg: oklch(0.17 0.03 185);
+ 	--accent-soft: oklch(0.3 0.05 182);
+ 	--ok: oklch(0.76 0.14 152);
+ 	--ok-soft: oklch(0.3 0.05 152);
