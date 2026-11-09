@@ -1,0 +1,14 @@
+# docker compose -f deploy/compose.yaml up -d
+services:
+  exhale:
+    image: ghcr.io/akamachinecode/exhale:latest
+    restart: unless-stopped
+    ports:
+      - "8484:8484"
+    volumes:
+      - exhale-data:/data
+    environment:
+      TZ: Europe/Madrid
+      # EXHALE_TELEGRAM_TOKEN: "123456:ABC..."   # from @BotFather
+volumes:
+  exhale-data:

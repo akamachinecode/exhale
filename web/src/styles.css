@@ -1,0 +1,104 @@
+@import "tailwindcss";
+@import "@fontsource-variable/geist";
+@import "@fontsource-variable/geist-mono";
+
+@custom-variant dark (&:where(.dark, .dark *));
+
+@theme {
+	--font-sans: "Geist Variable", ui-sans-serif, system-ui, sans-serif;
+	--font-mono: "Geist Mono Variable", ui-monospace, monospace;
+	--color-bg: var(--bg);
+	--color-surface: var(--surface);
+	--color-raised: var(--raised);
+	--color-line: var(--line);
+	--color-fg: var(--fg);
+	--color-muted: var(--muted);
+	--color-faint: var(--faint);
+	--color-accent: var(--accent);
+	--color-accent-fg: var(--accent-fg);
+	--color-accent-soft: var(--accent-soft);
+	--color-ok: var(--ok);
+	--color-ok-soft: var(--ok-soft);
+	--color-warn: var(--warn);
+	--color-warn-soft: var(--warn-soft);
+	--color-bad: var(--bad);
+	--color-bad-soft: var(--bad-soft);
+}
+
+:root {
+	/* Monochrome: black, white and greys. Color only means something
+	   (paid, due, failed); the brand gradient is used in very few places. */
+	--bg: oklch(0.985 0 0);
+	--surface: oklch(1 0 0);
+	--raised: oklch(0.965 0 0);
+	--line: oklch(0.915 0 0);
+	--fg: oklch(0.16 0 0);
+	--muted: oklch(0.47 0 0);
+	--faint: oklch(0.62 0 0);
+	--accent: oklch(0.16 0 0);
+	--accent-fg: oklch(0.99 0 0);
+	--accent-soft: oklch(0.95 0 0);
+	--ok: oklch(0.55 0.12 155);
+	--ok-soft: oklch(0.955 0.03 155);
+	--warn: oklch(0.6 0.12 70);
+	--warn-soft: oklch(0.96 0.04 85);
+	--bad: oklch(0.56 0.17 25);
+	--bad-soft: oklch(0.955 0.03 25);
+	--glow: 0 0 0 1px oklch(0 0 0 / 0.04), 0 1px 2px oklch(0 0 0 / 0.04), 0 8px 24px -12px oklch(0 0 0 / 0.12);
+	color-scheme: light;
+}
+
+.dark {
+	--bg: oklch(0.13 0 0);
+	--surface: oklch(0.165 0 0);
+	--raised: oklch(0.205 0 0);
+	--line: oklch(0.255 0 0);
+	--fg: oklch(0.97 0 0);
+	--muted: oklch(0.7 0 0);
+	--faint: oklch(0.52 0 0);
+	--accent: oklch(0.97 0 0);
+	--accent-fg: oklch(0.13 0 0);
+	--accent-soft: oklch(0.24 0 0);
+	--ok: oklch(0.78 0.12 155);
+	--ok-soft: oklch(0.27 0.04 155);
+	--warn: oklch(0.82 0.11 80);
+	--warn-soft: oklch(0.28 0.04 75);
+	--bad: oklch(0.72 0.14 25);
+	--bad-soft: oklch(0.28 0.05 25);
+	--glow: 0 0 0 1px oklch(1 0 0 / 0.04), 0 8px 32px -12px oklch(0 0 0 / 0.6);
+	color-scheme: dark;
+}
+
+/* The brand gradient ("breathing out"): logo, hero numbers and the active
+   onboarding step. Nowhere else. */
+:root {
+	--brand: linear-gradient(120deg, oklch(0.78 0.12 300), oklch(0.8 0.1 230) 50%, oklch(0.85 0.12 175));
+}
+
+@layer base {
+	html,
+	body {
+		@apply bg-bg text-fg antialiased;
+		font-feature-settings: "ss01";
+		letter-spacing: -0.006em;
+	}
+	.tnum {
+		font-variant-numeric: tabular-nums;
+	}
+	.text-brand {
+		background: var(--brand);
+		-webkit-background-clip: text;
+		background-clip: text;
+		color: transparent;
+	}
+	.bg-brand {
+		background: var(--brand);
+	}
+	/* A 1px gradient border around a card. */
+	.ring-brand {
+		border: 1px solid transparent;
+		background:
+			linear-gradient(var(--surface), var(--surface)) padding-box,
+			var(--brand) border-box;
+	}
+}

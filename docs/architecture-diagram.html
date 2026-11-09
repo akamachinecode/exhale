@@ -1,0 +1,241 @@
+<!doctype html>
+<html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<style>
+  .wrap{font-family:var(--font-sans);color:var(--foreground);display:flex;flex-direction:column;gap:10px}
+  .bar{display:flex;flex-wrap:wrap;gap:6px;align-items:center}
+  .bar .lab{font-size:11px;letter-spacing:.07em;text-transform:uppercase;color:var(--muted-foreground);font-weight:600;margin-right:4px}
+  .btn{font:inherit;font-size:12.5px;padding:5px 10px;border-radius:999px;border:1px solid var(--border);background:var(--card);color:var(--foreground);cursor:pointer}
+  .btn:hover{border-color:var(--ring)}
+  .btn.on{background:var(--primary);border-color:var(--primary);color:var(--primary-foreground)}
+  .btn.play{margin-left:auto}
+  svg{width:100%;height:auto;display:block}
+  svg text{font-family:var(--font-sans)}
+  .proc{fill:color-mix(in srgb,var(--secondary) 40%,transparent);stroke:var(--border);stroke-width:1.5}
+  .proc-t{font-size:12px;fill:var(--muted-foreground)}
+  .proc-t tspan.k{fill:var(--primary);font-family:var(--font-mono);font-weight:600}
+  .node{cursor:pointer;transition:opacity .25s}
+  .node rect.box{fill:var(--card);stroke:var(--border);stroke-width:1;transition:stroke .2s}
+  .node:hover rect.box{stroke:var(--ring)}
+  .node.ext rect.box{fill:transparent;stroke-dasharray:4 3}
+  .node.hl rect.box{fill:color-mix(in srgb,var(--primary) 13%,var(--card));stroke:var(--primary)}
+  .node.hl .t{fill:var(--primary)}
+  .node.base rect.box{stroke-dasharray:5 3}
+  .node.sel rect.box{stroke:var(--primary);stroke-width:2}
+  .node .t{font-size:12.5px;font-weight:600;fill:var(--foreground)}
+  .node .s{font-size:11px;fill:var(--muted-foreground)}
+  .node.ext .s{font-size:10.5px}
+  .edge{stroke:var(--border);stroke-width:1.5;fill:none;transition:opacity .25s}
+  .elab{font-size:9.5px;fill:var(--muted-foreground);font-family:var(--font-mono);transition:opacity .25s}
+  .dim .node:not(.on){opacity:.28}
+  .dim .edge,.dim .elab{opacity:.3}
+  .fl{stroke:var(--primary);stroke-width:2.5;fill:none;stroke-dasharray:6 5;stroke-linecap:round;animation:dash .7s linear infinite;transition:opacity .3s}
+  @keyframes dash{to{stroke-dashoffset:-11}}
+  .fl.fut,.bdg.fut{opacity:.12}
+  .fl.past,.bdg.past{opacity:.45}
+  .bdg{transition:opacity .3s}
+  .bdg circle{fill:var(--primary)}
+  .bdg text{font-size:9.5px;font-weight:700;fill:var(--primary-foreground);text-anchor:middle}
+  .panel{display:grid;grid-template-columns:1.25fr 1fr;gap:10px}
+  @media (max-width:600px){.panel{grid-template-columns:1fr}}
+  .card{border:1px solid var(--border);background:var(--card);border-radius:var(--radius);padding:12px 14px}
+  .card h3{font-size:13.5px;margin:0 0 8px;font-weight:600}
+  .steps{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:4px}
+  .steps li{display:flex;gap:8px;align-items:flex-start;font-size:12.5px;line-height:1.4;padding:4px 6px;border-radius:6px;cursor:default;transition:background .2s,opacity .2s}
+  .steps li .n{flex:none;width:18px;height:18px;border-radius:999px;background:var(--primary);color:var(--primary-foreground);font-size:10px;font-weight:700;display:grid;place-items:center;margin-top:1px}
+  .steps li.cur{background:color-mix(in srgb,var(--primary) 14%,transparent)}
+  .steps.playing li:not(.cur){opacity:.5}
+  .det .tech{display:flex;flex-wrap:wrap;gap:5px;margin-top:8px}
+  .det .tech span{font-family:var(--font-mono);font-size:11px;border:1px solid var(--border);border-radius:6px;padding:1px 6px;color:var(--muted-foreground)}
+  .det p{font-size:12.5px;line-height:1.5;margin:0;color:var(--foreground)}
+  .det .q{margin-top:8px;font-size:12px;color:var(--warning);}
+  .det .hint{color:var(--muted-foreground)}
+  .lbl{font-size:11px;letter-spacing:.07em;text-transform:uppercase;color:var(--muted-foreground);font-weight:600;margin:4px 0 6px}
+  .flow{display:flex;flex-wrap:wrap;align-items:center;gap:5px 6px;font-size:12px}
+  .flow .c{border:1px solid var(--border);border-radius:6px;padding:2px 8px;background:var(--card);white-space:nowrap}
+  .flow .a{color:var(--muted-foreground)}
+  .chips{display:flex;flex-wrap:wrap;gap:6px}
+  .chips .c{font-size:12px;border:1px dashed var(--border);border-radius:6px;padding:3px 8px;color:var(--muted-foreground)}
+  .legend{display:flex;flex-wrap:wrap;gap:14px;font-size:11.5px;color:var(--muted-foreground)}
+  .legend i{display:inline-block;width:14px;height:10px;border-radius:3px;margin-right:5px;vertical-align:-1px;border:1px solid var(--border)}
+  .legend i.hl{border-color:var(--primary);background:color-mix(in srgb,var(--primary) 20%,transparent)}
+  .legend i.ex{border-style:dashed}
+  .legend i.fl{border:none;height:0;border-top:2.5px dashed var(--primary);border-radius:0;vertical-align:3px}
+</style></head><body>
+<div class="wrap">
+  <div class="bar" id="bar"><span class="lab">Flujo</span></div>
+
+  <svg id="svg" viewBox="0 0 704 652" role="img" aria-label="Diagrama de arquitectura">
+    <rect class="proc" x="1" y="74" width="702" height="574" rx="14"/>
+    <text class="proc-t" x="16" y="636"><tspan class="k">exhale</tspan> · un binario, un proceso (Go) — todo lo de dentro corre junto</text>
+    <g id="edges"></g><g id="nodes"></g><g id="flow"></g>
+  </svg>
+
+  <div class="legend">
+    <span><i class="hl"></i>lo que te diferencia</span>
+    <span><i class="ex"></i>fuera de tu máquina</span>
+    <span><i class="fl"></i>flujo activo</span>
+    <span>Pulsa cualquier pieza para ver qué hace</span>
+  </div>
+
+  <div class="panel">
+    <div class="card"><h3 id="flowTitle"></h3><ol class="steps" id="steps"></ol></div>
+    <div class="card det" id="det"></div>
+  </div>
+
+  <div>
+    <div class="lbl">En compilación — no corre en la máquina del usuario</div>
+    <div class="flow">
+      <span class="c">spec OpenAPI (de ①)</span><span class="a">→</span><span class="c">orval: cliente TS + zod</span><span class="a">→</span><span class="c">React · Vite · Tailwind · shadcn</span><span class="a">→</span><span class="c">embed.FS</span><span class="a">→</span><span class="c">goreleaser</span><span class="a">→</span><span class="c">binarios · Docker · Homebrew</span>
+    </div>
+  </div>
+  <div>
+    <div class="lbl">Más adelante</div>
+    <div class="chips">
+      <span class="c">App de bandeja (macOS, cgo)</span><span class="c">Mini App de Telegram (HTTPS)</span><span class="c">Discord</span><span class="c">Importar Wallos · CSV Revolut</span><span class="c">Signal (solo texto)</span>
+    </div>
+  </div>
+</div>
+
+<script>
+const N={
+ nav:{x:2,y:8,w:110,h:48,t:'Navegador',s:['web · PWA'],c:'ext'},
+ cal:{x:120,y:8,w:110,h:48,t:'Calendario',s:['suscripción ICS'],c:'ext'},
+ tg:{x:238,y:8,w:110,h:48,t:'Telegram',s:['servidores'],c:'ext'},
+ sl:{x:356,y:8,w:110,h:48,t:'Slack',s:['servidores'],c:'ext'},
+ nt:{x:474,y:8,w:110,h:48,t:'Email · ntfy',s:['webhooks'],c:'ext'},
+ bce:{x:592,y:8,w:110,h:48,t:'BCE',s:['tipos de cambio'],c:'ext'},
+ n1:{x:12,y:104,w:218,h:54,t:'① Servidor HTTP',s:['web · API · SSE · ICS · auth']},
+ n2:{x:238,y:104,w:110,h:54,t:'② Telegram',s:['long polling']},
+ n3:{x:356,y:104,w:110,h:54,t:'③ Slack',s:['Socket Mode']},
+ n4:{x:474,y:104,w:110,h:54,t:'④ Avisos',s:['SMTP · ntfy']},
+ n5:{x:592,y:104,w:100,h:54,t:'⑤ Divisas',s:['BCE · caché']},
+ n12:{x:40,y:192,w:172,h:56,t:'⑫ Bus de eventos',s:['SSE · re-editar avisos']},
+ n6:{x:238,y:192,w:330,h:56,t:'⑥ Capa de acciones',s:['botones y flujos · estado guardado en servidor'],c:'hl'},
+ n11:{x:592,y:192,w:100,h:56,t:'⑪ Reloj',s:['timer · cola']},
+ n7:{x:12,y:282,w:680,h:50,t:'⑦ Casos de uso',s:['marcar pagado · cambiar fecha · método de pago · cancelar · editar aviso — iguales para web y chat']},
+ n8:{x:12,y:366,w:218,h:62,t:'⑧ Dominio',s:['Suscripción · Cobro (estado)','Método · Categoría · Regla']},
+ n9:{x:243,y:366,w:218,h:62,t:'⑨ Motor de tiempo',s:['ancla · fin de mes · sin deriva','zonas horarias · cambio de hora']},
+ n10:{x:474,y:366,w:218,h:62,t:'⑩ Dinero',s:['céntimos int64 · ISO 4217','conversión exacta']},
+ n13:{x:12,y:462,w:330,h:58,t:'⑬ Repositorio',s:['sqlc: SQL → Go tipado · goose']},
+ n14:{x:372,y:462,w:320,h:58,t:'⑭ Carpeta de datos',s:['SQLite (WAL) · logos · backups'],db:1},
+ n15:{x:12,y:548,w:330,h:62,t:'⑮ Arranque y sistema',s:['supervisor · config · logs','servicio del SO · keep-awake · backups'],c:'base'},
+ n16:{x:372,y:548,w:320,h:62,t:'⑯ Observabilidad',s:['estado · historia de cada aviso · alertas','latido externo · /metrics · OTLP'],c:'hl'}
+};
+const E={
+ 'nav-n1':[[57,56],[57,104],'LAN'],'cal-n1':[[175,56],[175,104],'webcal'],
+ 'tg-n2':[[293,56],[293,104],'saliente'],'sl-n3':[[411,56],[411,104],'saliente'],
+ 'nt-n4':[[529,56],[529,104],'envío'],'bce-n5':[[645,56],[645,104],'descarga'],
+ 'n1-n12':[[126,158],[126,192],'SSE'],'n2-n6':[[293,158],[293,192]],'n3-n6':[[411,158],[411,192]],
+ 'n4-n6':[[529,158],[529,192]],'n5-n11':[[642,158],[642,192],'cada día'],
+ 'n1-n7':[[24,158],[24,282]],'n12-n6':[[212,220],[238,220]],'n11-n6':[[592,220],[568,220]],
+ 'n12-n7':[[126,248],[126,282],'eventos'],'n6-n7':[[411,248],[411,282]],'n11-n7':[[642,248],[642,282],'vencidos'],
+ 'n7-n8':[[121,332],[121,366]],'n7-n9':[[352,332],[352,366]],'n7-n10':[[583,332],[583,366]],
+ 'n7-n13':[[236.5,332],[236.5,462]],'n13-n14':[[342,491],[372,491]]
+};
+const D={
+ nav:['Navegador / PWA','Dashboard completo en escritorio y móvil, instalable como PWA. Habla solo con ① por tu red local.',['React','Vite','Tailwind','shadcn/ui','TanStack']],
+ cal:['Apps de calendario','Apple Calendar, Google o Thunderbird se suscriben a un feed ICS y muestran tus cobros sin integraciones: un evento por cobro, retrasos incluidos.',['golang-ical','webcal://']],
+ tg:['Servidores de Telegram','Tu servidor les pregunta continuamente si hay novedades. Si estás caído, guardan mensajes y pulsaciones hasta 24 h.',['Bot API']],
+ sl:['Servidores de Slack','Empujan clics y formularios por un WebSocket que abre tu servidor. No guardan cola y exigen respuesta en menos de 3 s.',['Socket Mode','Block Kit']],
+ nt:['Correo · ntfy · webhooks','Canales de solo aviso para quien no usa Telegram ni Slack.',['SMTP','ntfy','Gotify','Pushover','Discord']],
+ bce:['Banco Central Europeo','Tipos de cambio oficiales cada día, gratis y sin API key (~30 divisas).',['XML diario']],
+ n1:['① Servidor HTTP','Sirve la web embebida, la API REST, los eventos en vivo (SSE), el feed ICS y el login.',['net/http','huma v2','OpenAPI','scs','argon2id','OIDC']],
+ n2:['② Adaptador de Telegram','Recibe pulsaciones por long polling y pinta las acciones de ⑥ como botones bajo el mensaje, que edita en el sitio. Telegram solo deja 64 bytes por botón: el estado vive en el servidor.',['go-telegram/bot (0 deps)']],
+ n3:['③ Adaptador de Slack','Mantiene el WebSocket con Slack y pinta las acciones como botones y modales nativos (selector de fecha, desplegables). Entra en la v1.0 como hito 2.',['slack-go (versión fijada)','socketmode']],
+ n4:['④ Avisos simples','Envía avisos sin interacción: email, ntfy y webhooks.',['go-mail','net/http']],
+ n5:['⑤ Divisas','Descarga los tipos del BCE cada día y guarda el último valor. Si falla, la app sigue con la caché.',['net/http','encoding/xml']],
+ n6:['⑥ Capa de acciones','El corazón del producto. Define qué acciones lleva cada aviso y los flujos de varios pasos (elige fecha → ¿solo este cobro o los siguientes? → confirma). No sabe nada de Telegram ni Slack: los adaptadores lo pintan.',['código propio','estado de flujos en SQLite'],'Cambiar la fecha: ¿solo este cobro o toda la serie?'],
+ n7:['⑦ Casos de uso','Las operaciones del negocio: marcar pagado, cambiar fecha, cambiar método, cancelar, editar aviso. Las mismas para la web y el chat. Cada una publica un evento en ⑫.',['Go','transacciones']],
+ n8:['⑧ Dominio','Entidades y reglas: Suscripción, Cobro (pendiente, pagado, retrasado, saltado, fallido), Método de pago, Categoría, Hogar, Canal y Regla de aviso.',['Go puro','linter exhaustive']],
+ n9:['⑨ Motor de tiempo','Motor propio con semántica de facturación: cada cobro se calcula desde el ancla (sin deriva), el día 31 cae el último día del mes, la regla tiene versiones y cada cobro guarda fecha original y real. Código puro: el más testeado.',['motor propio','Date propio','time/tzdata','rapid']],
+ n10:['⑩ Dinero','Importes en céntimos (int64) con divisa ISO 4217. Conversión exacta; se redondea solo al mostrar. Puedes apuntar el importe real que te cargaron.',['bojanz/currency','INTEGER en SQLite']],
+ n11:['⑪ Reloj (planificador)','Calcula el próximo aviso, duerme hasta entonces y procesa lo vencido. Cola de salida con clave única: sin duplicados y recupera lo pendiente tras un apagado.',['time.Timer','sin cron']],
+ n12:['⑫ Bus de eventos','Difunde cada cambio: la web se actualiza en vivo (SSE) y ⑥ re-edita los mensajes ya enviados.',['canales de Go','en memoria']],
+ n13:['⑬ Repositorio','Acceso a datos con SQL escrito a mano y código Go tipado generado. Migraciones automáticas al arrancar.',['sqlc','goose']],
+ n14:['⑭ Carpeta de datos','Un solo directorio con la base de datos, los logos y las copias automáticas. Copiarlo es un backup completo.',['SQLite WAL','modernc (sin C)']],
+ n15:['⑮ Arranque y sistema','Arranca y supervisa todas las piezas y las para de forma ordenada. Config por variables de entorno y asistente web, logs, servicio del SO, keep-awake opcional y backups consistentes.',['suture v4','kong','slog + tint','kardianos/service','VACUUM INTO']],
+ n16:['⑯ Observabilidad','Página Estado con la salud de cada pieza y la historia de cada aviso (trazas contadas para humanos). Alertas por tus propios canales, con canal alternativo si uno cae, y latido externo para cuando la app entera está caída. Exporta a Grafana si quieres.',['OpenTelemetry SDK','SQLite (30 días)','VictoriaMetrics/metrics','OTLP/HTTP JSON propio','grafana/otel-lgtm']]
+};
+const F={
+ boton:{name:'Pulsas un botón',steps:[
+  {e:[['tg','n2']],t:'Pulsas «📅 Cambiar fecha». Llega a ② por la conexión que ya estaba abierta.'},
+  {e:[['n2','n6']],t:'⑥ reconoce la acción y en qué paso del flujo estás.'},
+  {e:[['n6','n7']],t:'Al confirmar, ⑥ llama al caso de uso «cambiar fecha».'},
+  {e:[['n7','n8'],['n7','n9']],t:'⑧ valida y ⑨ recalcula los próximos cobros.'},
+  {e:[['n7','n13'],['n13','n14']],t:'Se guarda todo en una sola transacción.'},
+  {e:[['n7','n12']],t:'⑦ publica «cobro cambiado» en el bus.'},
+  {e:[['n12','n6'],['n6','n2'],['n2','tg']],t:'⑥ re-edita el mismo mensaje: ves la fecha nueva en el aviso.'},
+  {e:[['n12','n1'],['n1','nav']],t:'La web abierta se actualiza sola por SSE.'}]},
+ aviso:{name:'Sale un aviso',steps:[
+  {e:[['n11','n7'],['n7','n13'],['n13','n14']],t:'⑪ despierta a su hora y, vía ⑦, lee el cobro, la regla y el canal.'},
+  {e:[['n11','n6']],t:'⑪ entrega el aviso a ⑥, que decide qué acciones lleva.'},
+  {e:[['n6','n2'],['n6','n3']],t:'⑥ lo pinta para cada canal: botones en Telegram, Block Kit en Slack.'},
+  {e:[['n2','tg'],['n3','sl']],t:'② y ③ lo envían por su conexión saliente. Queda marcado como enviado: nunca se duplica.'}]},
+ web:{name:'Editas en la web',steps:[
+  {e:[['nav','n1']],t:'Cambias el método de pago en la web y ① recibe la petición.'},
+  {e:[['n1','n7']],t:'① llama al mismo caso de uso que usa el chat.'},
+  {e:[['n7','n8'],['n7','n10']],t:'⑧ valida y ⑩ recalcula los importes en tu divisa.'},
+  {e:[['n7','n13'],['n13','n14']],t:'Se guarda.'},
+  {e:[['n7','n12']],t:'⑦ publica el evento en el bus.'},
+  {e:[['n12','n6'],['n6','n2'],['n6','n3'],['n2','tg'],['n3','sl']],t:'Los avisos ya enviados en Telegram y Slack se re-editan con el dato nuevo.'},
+  {e:[['n12','n1'],['n1','nav']],t:'Otras pestañas y el móvil se actualizan al momento.'}]},
+ apagado:{name:'Tras un apagado',steps:[
+  {e:[['n13','n14']],n:['n15','n13'],t:'⑮ arranca todo y ⑬ aplica las migraciones pendientes.'},
+  {e:[['n11','n7'],['n7','n13']],t:'⑪ busca los avisos que no salieron mientras estaba apagado.'},
+  {e:[['n11','n6'],['n6','n2'],['n2','tg']],t:'…y los envía ahora, una sola vez.'},
+  {e:[['tg','n2']],t:'② recoge las pulsaciones que Telegram guardó (hasta 24 h).'},
+  {e:[['n3','sl']],t:'③ reconecta con Slack. Lo pulsado mientras estaba caído se pierde: Slack no guarda cola.'},
+  {e:[['n11','n5'],['n5','bce']],t:'⑪ pide a ⑤ refrescar los tipos de cambio si han caducado.'}]},
+ falla:{name:'Algo falla',steps:[
+  {e:[['tg','n2']],t:'Telegram deja de responder y ② no consigue reconectar.'},
+  {e:[],n:['n2','n16'],t:'② lo reporta a ⑯, que abre la alerta «Telegram desconectado» pasados 10 min.'},
+  {e:[['n6','n4'],['n4','nt']],n:['n16'],t:'La alerta sale por otro canal (email o ntfy), nunca por el que ha caído.'},
+  {e:[['tg','n2']],n:['n15','n16'],t:'Cuando Telegram vuelve, ⑮ reinicia ② solo y ⑯ envía «resuelto».'},
+  {e:[],n:['n15','n16'],t:'Si cae la app entera, deja de llegar el latido a tu Healthchecks o Uptime Kuma, y es él quien te avisa.'}]}
+};
+const NS='http://www.w3.org/2000/svg';
+const el=(t,a={},p)=>{const e=document.createElementNS(NS,t);for(const k in a)e.setAttribute(k,a[k]);if(p)p.appendChild(e);return e};
+const svg=document.getElementById('svg'),gE=document.getElementById('edges'),gN=document.getElementById('nodes'),gF=document.getElementById('flow');
+for(const k in E){const [a,b,l]=E[k];el('path',{class:'edge',d:`M${a[0]} ${a[1]}L${b[0]} ${b[1]}`},gE);
+ if(l){const t=el('text',{class:'elab',x:a[0]+11,y:/^n\d/.test(k)?(a[1]+b[1])/2+3:68},gE);t.textContent=l}}
+const nodeEls={};
+for(const k in N){const n=N[k];const g=el('g',{class:'node '+(n.c||''),'data-k':k},gN);nodeEls[k]=g;
+ el('rect',{class:'box',x:n.x,y:n.y,width:n.w,height:n.h,rx:8},g);
+ const t=el('text',{class:'t',x:n.x+10,y:n.inline?n.y+25:n.y+20},g);t.textContent=n.t;
+ if(n.inline){const s=el('text',{class:'s',x:n.x+150,y:n.y+25},g);s.textContent=n.s[0]}
+ else n.s.forEach((s,i)=>{const x=el('text',{class:'s',x:n.x+10,y:n.y+(n.c==='ext'?36:37)+i*15},g);x.textContent=s});
+ if(n.db){const cx=n.x+n.w-26,cy=n.y+18;el('path',{d:`M${cx-9} ${cy}v18a9 3.5 0 0 0 18 0v-18`,fill:'none',stroke:'var(--muted-foreground)','stroke-width':1.3},g);el('ellipse',{cx,cy,rx:9,ry:3.5,fill:'none',stroke:'var(--muted-foreground)','stroke-width':1.3},g);el('path',{d:`M${cx-9} ${cy+9}a9 3.5 0 0 0 18 0`,fill:'none',stroke:'var(--muted-foreground)','stroke-width':1.3},g)}
+ g.addEventListener('click',()=>showDet(k));}
+function showDet(k){const det=document.getElementById('det');Object.values(nodeEls).forEach(g=>g.classList.remove('sel'));
+ if(!k){det.innerHTML='<h3>Detalle</h3><p class="hint">Pulsa una pieza del diagrama para ver qué hace, con qué se construye y qué queda por decidir.</p>';return}
+ nodeEls[k].classList.add('sel');const [t,p,tech,q]=D[k];
+ det.innerHTML=`<h3>${t}</h3><p>${p}</p><div class="tech">${tech.map(x=>`<span>${x}</span>`).join('')}</div>${q?`<div class="q">Por decidir: ${q}</div>`:''}`}
+let cur=null,timer=null,paths=[];
+function key(a,b){return E[a+'-'+b]?[a+'-'+b,false]:[b+'-'+a,true]}
+function setFlow(f){stop();cur=f;gF.innerHTML='';paths=[];
+ document.querySelectorAll('.bar .btn[data-f]').forEach(b=>b.classList.toggle('on',b.dataset.f===f));
+ Object.values(nodeEls).forEach(g=>g.classList.remove('on'));svg.classList.add('dim');
+ const seen=new Set();const badges=[];
+ F[f].steps.forEach((s,i)=>{(s.n||[]).forEach(n=>nodeEls[n].classList.add('on'));
+  s.e.forEach(([a,b])=>{nodeEls[a].classList.add('on');nodeEls[b].classList.add('on');
+   const [k,rev]=key(a,b);let [p,q]=E[k];if(rev)[p,q]=[q,p];
+   paths.push([el('path',{class:'fl',d:`M${p[0]} ${p[1]}L${q[0]} ${q[1]}`},gF),i]);
+   if(!seen.has(k)){seen.add(k);badges.push([(p[0]+q[0])/2,(p[1]+q[1])/2,i])}})});
+ badges.forEach(([x,y,i])=>{const g=el('g',{class:'bdg'},gF);el('circle',{cx:x,cy:y,r:8},g);const t=el('text',{x,y:y+3.3},g);t.textContent=i+1;paths.push([g,i])});
+ document.getElementById('flowTitle').textContent=F[f].name;
+ const ol=document.getElementById('steps');ol.innerHTML='';ol.classList.remove('playing');
+ F[f].steps.forEach((s,i)=>{const li=document.createElement('li');li.innerHTML=`<span class="n">${i+1}</span><span>${s.t}</span>`;
+  li.addEventListener('mouseenter',()=>{if(!timer)focusStep(i)});li.addEventListener('mouseleave',()=>{if(!timer)focusStep(null)});ol.appendChild(li)});
+ focusStep(null)}
+function focusStep(i){paths.forEach(([e,s])=>{e.classList.remove('past','fut');if(i!==null){if(s<i)e.classList.add('past');else if(s>i)e.classList.add('fut')}});
+ document.querySelectorAll('#steps li').forEach((li,j)=>li.classList.toggle('cur',j===i))}
+function stop(){if(timer){clearInterval(timer);timer=null}document.getElementById('play').textContent='▶ Paso a paso';document.getElementById('steps').classList.remove('playing')}
+function play(){if(timer){stop();focusStep(null);return}let i=0;const n=F[cur].steps.length;
+ document.getElementById('play').textContent='■ Parar';document.getElementById('steps').classList.add('playing');focusStep(0);
+ timer=setInterval(()=>{i++;if(i>=n){stop();focusStep(null);return}focusStep(i)},1700)}
+const bar=document.getElementById('bar');
+for(const f in F){const b=document.createElement('button');b.className='btn';b.dataset.f=f;b.textContent=F[f].name;b.onclick=()=>setFlow(f);bar.appendChild(b)}
+const pb=document.createElement('button');pb.className='btn play';pb.id='play';pb.textContent='▶ Paso a paso';pb.onclick=play;bar.appendChild(pb);
+setFlow('boton');showDet('n6');
+</script>
+</body></html>

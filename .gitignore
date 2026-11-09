@@ -1,0 +1,25 @@
+# build
+/bin/
+/dist/
+/web/dist/*
+!/web/dist/.keep
+/web/node_modules/
+node_modules/
+*.test
+coverage.*
+# local data
+/data/
+*.db
+*.db-wal
+*.db-shm
+# editors / os
+.DS_Store
+.idea/
+.vscode/
+# env
+.env
+.env.*
+!.env.example
+
+# UI hill-climb screenshots (CLIMB.md and the ledger are committed)
+/.ui-climb/round-*/

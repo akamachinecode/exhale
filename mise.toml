@@ -1,0 +1,46 @@
+# Toolchain and tasks for Exhale. Run `mise install`, then `mise run dev`.
+[tools]
+go = "1.27.3"
+node = "26"
+pnpm = "12"
+sqlc = "latest"
+golangci-lint = "latest"
+
+[env]
+CGO_ENABLED = "0"
+
+[tasks.gen]
+description = "Regenerate code (sqlc, OpenAPI spec, web client)"
+run = [
+  "sqlc generate",
+  "go run ./cmd/exhale openapi > web/openapi.json",
+]
+
+[tasks.test]
+description = "Run Go tests with the race detector"
+env = { CGO_ENABLED = "1" }
+run = "go test -race ./..."
+
+[tasks."test:quick"]
+description = "Run Go tests without the race detector"
+run = "go test ./..."
+
+[tasks.lint]
+description = "Lint Go code"
+run = "golangci-lint run ./..."
+
+[tasks.build]
+description = "Build the web UI and the exhale binary"
+run = [
+  "cd web && pnpm install --frozen-lockfile && pnpm build",
+  "go build -trimpath -ldflags='-s -w' -o bin/exhale ./cmd/exhale",
+]
+
+[tasks."dev:api"]
+description = "Run the API server and rebuild on changes"
+run = "mise watch --restart -g '**/*.go' -g '**/*.sql' -- go run ./cmd/exhale serve --dev"
+
+[tasks."dev:web"]
+description = "Run the Vite dev server (proxies /api to dev:api)"
+dir = "web"
+run = "pnpm dev"

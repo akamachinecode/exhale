@@ -1,0 +1,64 @@
+name: CI
+on:
+  pull_request:
+  push:
+    branches: [main]
+permissions:
+  contents: read
+jobs:
+  go:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v5 # pin by SHA via Renovate
+      - uses: jdx/mise-action@v3
+      # Through mise tasks: mise.toml sets CGO_ENABLED=0 for builds, and only
+      # a task's own env overrides it (an inline CGO_ENABLED=1 does not).
+      - name: Test (race detector)
+        if: runner.os != 'Windows'
+        run: mise run test
+      - name: Test
+        if: runner.os == 'Windows' # the race detector would also need a C toolchain
+        run: mise run test:quick
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: jdx/mise-action@v3
+      - run: golangci-lint run ./...
+      - name: Generated code is up to date
+        run: |
+          sqlc generate
+          git diff --exit-code -- internal/store/db
+  security:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: google/osv-scanner-action/osv-scanner-action@v2.7.0 # pin by SHA via Renovate
+        with:
+          scan-args: --recursive ./
+  pr-title:
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Conventional Commit title
+        env:
+          TITLE: ${{ github.event.pull_request.title }}
+        run: |
+          echo "$TITLE" | grep -Eq '^(feat|fix|docs|refactor|perf|test|build|ci|chore|revert)(\([a-z0-9-]+\))?!?: .+' \
+            || { echo "PR title must follow Conventional Commits, e.g. 'feat(engine): add yearly rules'"; exit 1; }
+  dco:
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+      - name: Every commit is signed off (DCO)
+        run: |
+          for c in $(git rev-list ${{ github.event.pull_request.base.sha }}..${{ github.event.pull_request.head.sha }}); do
+            git show -s --format=%B "$c" | grep -q '^Signed-off-by: ' || { echo "Commit $c is missing Signed-off-by (use git commit -s)"; exit 1; }
+          done

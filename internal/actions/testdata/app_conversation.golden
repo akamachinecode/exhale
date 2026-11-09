@@ -1,0 +1,186 @@
+> /subs
+> /home
+SEND #1
+📋 Subscriptions (3)
+  Tap one to open it.
+  [Spotify Family · €17.99/mo](a|sub|sub_1)
+  [iCloud+ · €2.99/mo](a|sub|sub_2)
+  [Netflix · €13.99/mo](a|sub|sub_3)
+  [🏠 Home](a|home)
+
+SEND #2
+🏠 Home
+  💶 €34.97 / month · €419.64 / year
+  📦 3 active subscriptions
+  ## Next 7 days
+  1 charge — tap one to manage it.
+  [⚠️ 1 charge to confirm](a|att)
+  [Tomorrow · Spotify Family · €17.99](a|chg|chg_1)
+  [📋 Subscriptions](a|subs|0) [📅 Upcoming](a|next)
+  [📊 Summary](a|sum) [🔄 Refresh](a|home)
+
+EDIT #1
+↓ Exhale moved to a newer message
+
+> press 1 charge to confirm
+⚠️ Needs attention
+  These dates passed. Tap one to say whether it was charged.
+  [❓ Fri 6 Nov · Netflix · €13.99](a|chg|chg_2)
+  [🏠 Home](a|home)
+
+> press Netflix
+❓ Was Netflix charged?
+  💶 €13.99 · Fri, 6 Nov 2026
+  💳 Visa ••4421
+  🏷 Streaming
+  [✅ Paid](paid|chg_2) [⏳ Not yet](notyet|chg_2) [❌ Failed](failed|chg_2)
+  [📅 New date](date|chg_2|2026-11) [⏭ Skip](skip|chg_2)
+  [‹ Netflix](a|sub|sub_3) [🏠 Home](a|home)
+
+> press Paid
+(toast: Marked as paid ✅)
+✅ Netflix paid
+  💶 €13.99 · Fri, 6 Nov 2026
+  💳 Visa ••4421
+  🏷 Streaming
+  [↩︎ Reopen](reopen|chg_2)
+  [↩︎ Undo](undo|chg_2|aud_1)
+  [‹ Netflix](a|sub|sub_3) [🏠 Home](a|home)
+
+> press Home
+🏠 Home
+  💶 €34.97 / month · €419.64 / year
+  📦 3 active subscriptions
+  ## Next 7 days
+  1 charge — tap one to manage it.
+  [Tomorrow · Spotify Family · €17.99](a|chg|chg_1)
+  [📋 Subscriptions](a|subs|0) [📅 Upcoming](a|next)
+  [📊 Summary](a|sum) [🔄 Refresh](a|home)
+
+> press Subscriptions
+📋 Subscriptions (3)
+  Tap one to open it.
+  [Spotify Family · €17.99/mo](a|sub|sub_1)
+  [iCloud+ · €2.99/mo](a|sub|sub_2)
+  [Netflix · €13.99/mo](a|sub|sub_3)
+  [🏠 Home](a|home)
+
+> press Spotify Family
+Spotify Family
+  💶 €17.99 · monthly
+  📅 Next charge Sun, 8 Nov 2026
+  💳 Revolut ••0937
+  🏷 Music
+  👤 Alex
+  [🔔 Next charge · Sun 8 Nov](a|chg|chg_1)
+  [⏸ Pause](a|st|sub_1|pause) [❌ Cancel](a|cx|sub_1)
+  [‹ Subscriptions](a|subs|0) [🏠 Home](a|home)
+
+> press Next charge
+🔔 Spotify Family renews tomorrow
+  💶 €17.99 · Sun, 8 Nov 2026
+  💳 Revolut ••0937
+  🏷 Music
+  [✅ Already paid](paid|chg_1) [📅 Change date](date|chg_1|2026-11)
+  [💳 Payment method](pm|chg_1) [✏️ Amount](amount|chg_1)
+  [⏭ Skip this one](skip|chg_1) [❌ Cancel subscription](cancel|chg_1)
+  [‹ Spotify Family](a|sub|sub_1) [🏠 Home](a|home)
+
+> press Change date
+📅 New date for Spotify Family
+  💶 €17.99 · Sun, 8 Nov 2026
+  💳 Revolut ••0937
+  🏷 Music
+  [‹](date|chg_1|2026-10) [November 2026](date|chg_1|2026-11) [›](date|chg_1|2026-12)
+  [ ](date|chg_1|2026-11) [ ](date|chg_1|2026-11) [ ](date|chg_1|2026-11) [ ](date|chg_1|2026-11) [ ](date|chg_1|2026-11) [ ](date|chg_1|2026-11) [1](pick|chg_1|2026-11-01)
+  [2](pick|chg_1|2026-11-02) [3](pick|chg_1|2026-11-03) [4](pick|chg_1|2026-11-04) [5](pick|chg_1|2026-11-05) [6](pick|chg_1|2026-11-06) [(7)](pick|chg_1|2026-11-07) [•8](pick|chg_1|2026-11-08)
+  [9](pick|chg_1|2026-11-09) [10](pick|chg_1|2026-11-10) [11](pick|chg_1|2026-11-11) [12](pick|chg_1|2026-11-12) [13](pick|chg_1|2026-11-13) [14](pick|chg_1|2026-11-14) [15](pick|chg_1|2026-11-15)
+  [16](pick|chg_1|2026-11-16) [17](pick|chg_1|2026-11-17) [18](pick|chg_1|2026-11-18) [19](pick|chg_1|2026-11-19) [20](pick|chg_1|2026-11-20) [21](pick|chg_1|2026-11-21) [22](pick|chg_1|2026-11-22)
+  [23](pick|chg_1|2026-11-23) [24](pick|chg_1|2026-11-24) [25](pick|chg_1|2026-11-25) [26](pick|chg_1|2026-11-26) [27](pick|chg_1|2026-11-27) [28](pick|chg_1|2026-11-28) [29](pick|chg_1|2026-11-29)
+  [30](pick|chg_1|2026-11-30) [ ](date|chg_1|2026-11) [ ](date|chg_1|2026-11) [ ](date|chg_1|2026-11) [ ](date|chg_1|2026-11) [ ](date|chg_1|2026-11) [ ](date|chg_1|2026-11)
+  [↩︎ Back](back|chg_1)
+  [🏠 Home](a|home)
+
+> press Home
+🏠 Home
+  💶 €34.97 / month · €419.64 / year
+  📦 3 active subscriptions
+  ## Next 7 days
+  1 charge — tap one to manage it.
+  [Tomorrow · Spotify Family · €17.99](a|chg|chg_1)
+  [📋 Subscriptions](a|subs|0) [📅 Upcoming](a|next)
+  [📊 Summary](a|sum) [🔄 Refresh](a|home)
+
+> press Summary
+📊 Summary
+  💶 €34.97 / month · €419.64 / year
+  📦 3 active subscriptions
+  ## Per month by category
+  | Music        €17.99  1
+  | Streaming    €13.99  1
+  | Cloud & Dev   €2.99  1
+  ## Per month by payment method
+  | Revolut ••0937  €20.98  2
+  | Visa ••4421     €13.99  1
+  [🏠 Home](a|home)
+
+> press Home
+🏠 Home
+  💶 €34.97 / month · €419.64 / year
+  📦 3 active subscriptions
+  ## Next 7 days
+  1 charge — tap one to manage it.
+  [Tomorrow · Spotify Family · €17.99](a|chg|chg_1)
+  [📋 Subscriptions](a|subs|0) [📅 Upcoming](a|next)
+  [📊 Summary](a|sum) [🔄 Refresh](a|home)
+
+> press Subscriptions
+📋 Subscriptions (3)
+  Tap one to open it.
+  [Spotify Family · €17.99/mo](a|sub|sub_1)
+  [iCloud+ · €2.99/mo](a|sub|sub_2)
+  [Netflix · €13.99/mo](a|sub|sub_3)
+  [🏠 Home](a|home)
+
+> press iCloud+
+iCloud+
+  💶 €35.88 · yearly
+  📅 Next charge Wed, 25 Nov 2026
+  💳 Revolut ••0937
+  🏷 Cloud & Dev
+  👤 Alex
+  [🔔 Next charge · Wed 25 Nov](a|chg|chg_3)
+  [⏸ Pause](a|st|sub_2|pause) [❌ Cancel](a|cx|sub_2)
+  [‹ Subscriptions](a|subs|0) [🏠 Home](a|home)
+
+> press Pause
+(toast: Paused ⏸)
+⏸ iCloud+ (paused)
+  💶 €35.88 · yearly
+  💳 Revolut ••0937
+  🏷 Cloud & Dev
+  👤 Alex
+  [▶️ Resume](a|st|sub_2|resume) [❌ Cancel](a|cx|sub_2)
+  [‹ Subscriptions](a|subs|0) [🏠 Home](a|home)
+
+> press Home
+🏠 Home
+  💶 €31.98 / month · €383.76 / year
+  📦 2 active subscriptions
+  ## Next 7 days
+  1 charge — tap one to manage it.
+  [Tomorrow · Spotify Family · €17.99](a|chg|chg_1)
+  [📋 Subscriptions](a|subs|0) [📅 Upcoming](a|next)
+  [📊 Summary](a|sum) [🔄 Refresh](a|home)
+
+> Claude adds ChatGPT Plus over MCP
+EDIT #2
+🏠 Home
+  💶 €54.98 / month · €659.76 / year
+  📦 3 active subscriptions
+  ## Next 7 days
+  2 charges — tap one to manage it.
+  [Tomorrow · Spotify Family · €17.99](a|chg|chg_1)
+  [Mon 9 Nov · ChatGPT Plus · €23.00](a|chg|chg_4)
+  [📋 Subscriptions](a|subs|0) [📅 Upcoming](a|next)
+  [📊 Summary](a|sum) [🔄 Refresh](a|home)
