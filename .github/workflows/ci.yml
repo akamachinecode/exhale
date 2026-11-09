@@ -15,9 +15,14 @@ jobs:
     steps:
       - uses: actions/checkout@v5 # pin by SHA via Renovate
       - uses: jdx/mise-action@v3
+      # Through mise tasks: mise.toml sets CGO_ENABLED=0 for builds, and only
+      # a task's own env overrides it (an inline CGO_ENABLED=1 does not).
       - name: Test (race detector)
-        shell: bash
-        run: CGO_ENABLED=1 go test -race ./...
+        if: runner.os != 'Windows'
+        run: mise run test
+      - name: Test
+        if: runner.os == 'Windows' # the race detector would also need a C toolchain
+        run: mise run test:quick
   lint:
     runs-on: ubuntu-latest
     steps:
@@ -32,7 +37,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5
-      - uses: google/osv-scanner-action/osv-scanner-action@v2
+      - uses: google/osv-scanner-action/osv-scanner-action@v2.7.0 # pin by SHA via Renovate
         with:
           scan-args: --recursive ./
   pr-title:
