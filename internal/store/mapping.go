@@ -91,17 +91,26 @@ func SubscriptionFromRow(r db.Subscription) (domain.Subscription, error) {
 	if err := json.Unmarshal([]byte(r.Reminders), &s.Reminders); err != nil {
 		return s, fmt.Errorf("subscription %s: reminders: %w", r.ID, err)
 	}
+	if r.Details != "" {
+		if err := json.Unmarshal([]byte(r.Details), &s.Details); err != nil {
+			return s, fmt.Errorf("subscription %s: details: %w", r.ID, err)
+		}
+	}
 	return s, nil
 }
 
 // SubscriptionJSON returns the JSON columns of a subscription.
-func SubscriptionJSON(s domain.Subscription) (schedule, reminders string, err error) {
+func SubscriptionJSON(s domain.Subscription) (schedule, reminders, details string, err error) {
 	sb, err := json.Marshal(s.Schedule)
 	if err != nil {
-		return "", "", err
+		return "", "", "", err
 	}
 	rb, err := json.Marshal(s.Reminders)
-	return string(sb), string(rb), err
+	if err != nil {
+		return "", "", "", err
+	}
+	db, err := json.Marshal(s.Details)
+	return string(sb), string(rb), string(db), err
 }
 
 func ChargeFromRow(r db.Charge) domain.Charge {
@@ -109,7 +118,7 @@ func ChargeFromRow(r db.Charge) domain.Charge {
 		ID: r.ID, SubscriptionID: r.SubscriptionID,
 		OriginalDate: mustDate(r.OriginalDate), DueDate: mustDate(r.DueDate),
 		Amount: money.Money{Minor: r.AmountMinor, Currency: r.Currency},
-		Status: domain.ChargeStatus(r.Status), Note: r.Note,
+		Status: domain.ChargeStatus(r.Status), Note: r.Note, Decision: r.Decision,
 		UpdatedAt: ParseTime(r.UpdatedAt), Version: int(r.Version),
 	}
 	if r.ChargedMinor != nil && r.ChargedCurrency != nil {
@@ -127,7 +136,7 @@ func ChargeFromRow(r db.Charge) domain.Charge {
 func ChargeUpdate(c domain.Charge, now time.Time) db.UpdateChargeParams {
 	p := db.UpdateChargeParams{
 		DueDate: c.DueDate.String(), AmountMinor: c.Amount.Minor, Currency: c.Amount.Currency,
-		Status: string(c.Status), Note: c.Note, UpdatedAt: FormatTime(now), ID: c.ID, Version: int64(c.Version),
+		Status: string(c.Status), Note: c.Note, Decision: c.Decision, UpdatedAt: FormatTime(now), ID: c.ID, Version: int64(c.Version),
 	}
 	if !c.ChargedAmount.IsZero() {
 		m, cur := c.ChargedAmount.Minor, c.ChargedAmount.Currency

@@ -32,8 +32,11 @@ type Charge struct {
 	Status         ChargeStatus `json:"status"`
 	ResolvedAt     *time.Time   `json:"resolvedAt,omitempty"`
 	Note           string       `json:"note,omitempty"`
-	UpdatedAt      time.Time    `json:"updatedAt"`
-	Version        int          `json:"version"`
+	// Decision records that the member chose to keep this renewal ("keep"),
+	// so Exhale stops asking before the cancellation deadline.
+	Decision  string    `json:"decision,omitempty"`
+	UpdatedAt time.Time `json:"updatedAt"`
+	Version   int       `json:"version"`
 }
 
 // Delayed reports whether the charge was moved away from its scheduled date.

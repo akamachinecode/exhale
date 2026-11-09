@@ -8,6 +8,8 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"reflect"
+	"strconv"
 	"strings"
 
 	"github.com/google/jsonschema-go/jsonschema"
@@ -64,6 +66,7 @@ func toolFor(b app.Binding) (*mcp.Tool, error) {
 	if in.Properties == nil {
 		in.Properties = map[string]*jsonschema.Schema{}
 	}
+	applyTags(in, b.In)
 	if b.Destructive {
 		in.Properties["confirm"] = &jsonschema.Schema{Type: "boolean", Description: "Set to true to apply after showing the user the preview. Without it (and without a trusted token) the call only previews."}
 	}
@@ -80,6 +83,45 @@ func toolFor(b app.Binding) (*mcp.Tool, error) {
 			IdempotentHint: b.Idempotent || !b.Write, OpenWorldHint: &openWorld,
 		},
 	}, nil
+}
+
+// applyTags copies the constraints declared as struct tags for the REST API
+// (enum, minimum, maximum, maxLength) into the tool's input schema, so an
+// agent sees the allowed values instead of guessing them.
+func applyTags(schema *jsonschema.Schema, t reflect.Type) {
+	for t.Kind() == reflect.Pointer {
+		t = t.Elem()
+	}
+	if t.Kind() != reflect.Struct {
+		return
+	}
+	for i := range t.NumField() {
+		f := t.Field(i)
+		if f.Anonymous {
+			applyTags(schema, f.Type)
+			continue
+		}
+		name, _, _ := strings.Cut(f.Tag.Get("json"), ",")
+		prop := schema.Properties[name]
+		if name == "" || name == "-" || prop == nil {
+			continue
+		}
+		if v := f.Tag.Get("enum"); v != "" {
+			prop.Enum = nil
+			for _, e := range strings.Split(v, ",") {
+				prop.Enum = append(prop.Enum, e)
+			}
+		}
+		if v, err := strconv.ParseFloat(f.Tag.Get("minimum"), 64); err == nil {
+			prop.Minimum = &v
+		}
+		if v, err := strconv.ParseFloat(f.Tag.Get("maximum"), 64); err == nil {
+			prop.Maximum = &v
+		}
+		if v, err := strconv.Atoi(f.Tag.Get("maxLength")); err == nil {
+			prop.MaxLength = &v
+		}
+	}
 }
 
 func handlerFor(svc *app.Service, b app.Binding, actorFn ActorFunc) mcp.ToolHandler {

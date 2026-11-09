@@ -26,22 +26,37 @@ const (
 	vCancel    = "cancel" // cancel|chg        (confirmation)
 	vCancelOK  = "cancelok"
 	vBack      = "back"
-	vUndo      = "undo" // undo|chg|aud_id
+	vUndo      = "undo"   // undo|chg|aud_id
+	vKeep      = "keep"   // keep|chg     (keep this renewal: stop asking)
+	vExpire    = "expire" // expire|chg   (manual renewal: let it expire)
 )
 
 func data(parts ...string) string { return strings.Join(parts, "|") }
 
-// chargeMessage renders the main message of a charge for a reminder or a
-// confirmation question, with the buttons that fit its state.
+// chargeMessage renders the main message of a charge for a reminder, a
+// "keep or cancel?" question or a confirmation, with the buttons that fit
+// its state and what the date means (a renewal, the end of a free trial or
+// something that expires unless renewed).
 func chargeMessage(kind string, r app.ChargeResult, today engine.Date, locale string) Message {
 	c := r.Charge
 	sub := r.Subscription
 	m := Message{Lines: details(c, sub, locale)}
 	id := c.ID
+	days := today.DaysUntil(c.DueDate)
+	edit := [][]Button{
+		{{Label: "📅 Change date", Data: data(vDateMenu, id, c.DueDate.String()[:7])}, {Label: "✏️ Amount", Data: data(vAmount, id)}},
+		{{Label: "💳 Payment method", Data: data(vMethod, id)}, {Label: "⏭ Skip this one", Data: data(vSkip, id)}},
+	}
 	switch {
 	case c.Status != domain.ChargePending && c.Status != domain.ChargeFailed:
 		m.Title = statusTitle(c, sub.Name)
 		m.Rows = [][]Button{{{Label: "↩︎ Reopen", Data: data(vReopen, id)}}}
+	case c.Kind == app.ChargeExpiry && (kind == app.KindConfirm || c.DueDate.Before(today)):
+		m.Title = fmt.Sprintf("❓ Did you renew %s?", sub.Name)
+		m.Rows = [][]Button{
+			{{Label: "✅ Renewed", Data: data(vPaid, id)}, {Label: "⏳ Not yet", Data: data(vNotYet, id)}, {Label: "⌛ It expired", Data: data(vExpire, id)}},
+			{{Label: "📅 New date", Data: data(vDateMenu, id, c.DueDate.String()[:7])}},
+		}
 	case kind == app.KindConfirm || c.DueDate.Before(today) || c.Status == domain.ChargeFailed:
 		m.Title = fmt.Sprintf("❓ Was %s charged?", sub.Name)
 		if c.Status == domain.ChargeFailed {
@@ -51,15 +66,45 @@ func chargeMessage(kind string, r app.ChargeResult, today engine.Date, locale st
 			{{Label: "✅ Paid", Data: data(vPaid, id)}, {Label: "⏳ Not yet", Data: data(vNotYet, id)}, {Label: "❌ Failed", Data: data(vFailed, id)}},
 			{{Label: "📅 New date", Data: data(vDateMenu, id, c.DueDate.String()[:7])}, {Label: "⏭ Skip", Data: data(vSkip, id)}},
 		}
+	case c.Kind == app.ChargeExpiry:
+		m.Title = fmt.Sprintf("⌛ %s expires %s", sub.Name, when(days))
+		m.Rows = [][]Button{
+			{{Label: "✅ Renewed", Data: data(vPaid, id)}, {Label: "📅 Change date", Data: data(vDateMenu, id, c.DueDate.String()[:7])}},
+			{{Label: "✏️ Amount", Data: data(vAmount, id)}, {Label: "💳 Payment method", Data: data(vMethod, id)}},
+			{{Label: "⌛ Let it expire", Data: data(vExpire, id)}},
+		}
+	case kind == app.KindDecision && !c.CancelBy.IsZero() && c.Decision == "":
+		left := today.DaysUntil(c.CancelBy)
+		m.Title = fmt.Sprintf("⏰ Last day to cancel %s: %s", sub.Name, strings.TrimPrefix(when(left), "in "))
+		if left > 1 {
+			m.Title = fmt.Sprintf("⏰ %d days left to cancel %s", left, sub.Name)
+		}
+		m.Lines = append(m.Lines, fmt.Sprintf("After that it renews for %s.", c.Amount.Format(locale)))
+		m.Rows = [][]Button{{{Label: "👍 Keep it", Data: data(vKeep, id)}, {Label: "❌ Cancel", Data: data(vCancel, id)}}}
+	case c.Kind == app.ChargeTrial:
+		m.Title = fmt.Sprintf("⏳ %s free trial ends %s", sub.Name, when(days))
+		m.Lines = append([]string{fmt.Sprintf("Then %s %s.", c.Amount.Format(locale), sub.Cadence)}, m.Lines[1:]...)
+		m.Rows = append([][]Button{{{Label: "👍 Keep it", Data: data(vKeep, id)}, {Label: "❌ Cancel before it charges", Data: data(vCancel, id)}}}, edit...)
 	default:
-		m.Title = fmt.Sprintf("🔔 %s renews %s", sub.Name, when(today.DaysUntil(c.DueDate)))
+		m.Title = fmt.Sprintf("🔔 %s renews %s", sub.Name, when(days))
 		m.Rows = [][]Button{
 			{{Label: "✅ Already paid", Data: data(vPaid, id)}, {Label: "📅 Change date", Data: data(vDateMenu, id, c.DueDate.String()[:7])}},
 			{{Label: "💳 Payment method", Data: data(vMethod, id)}, {Label: "✏️ Amount", Data: data(vAmount, id)}},
 			{{Label: "⏭ Skip this one", Data: data(vSkip, id)}, {Label: "❌ Cancel subscription", Data: data(vCancel, id)}},
 		}
 	}
+	if c.Decision == "keep" && c.Status == domain.ChargePending {
+		m.Footer = "You chose to keep it."
+	}
 	return m
+}
+
+// cancelPage is the link button to where a subscription is cancelled.
+func cancelPage(sub app.SubscriptionView) []Button {
+	if sub.CancelURL == "" {
+		return nil
+	}
+	return []Button{{Label: "🔗 Open the cancel page", URL: sub.CancelURL}}
 }
 
 func statusTitle(c app.ChargeView, name string) string {
@@ -85,6 +130,9 @@ func details(c app.ChargeView, sub app.SubscriptionView, locale string) []string
 	}
 	if sub.CategoryName != "" {
 		lines = append(lines, "🏷 "+sub.CategoryName)
+	}
+	if !c.CancelBy.IsZero() && c.Status == domain.ChargePending {
+		lines = append(lines, "⏰ Cancel by "+longDate(c.CancelBy))
 	}
 	if !c.ChargedAmount.IsZero() && c.ChargedAmount != c.Amount {
 		lines = append(lines, "🏦 charged "+c.ChargedAmount.Format(locale))

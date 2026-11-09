@@ -42,6 +42,19 @@ SELECT * FROM payment_methods WHERE id = ? AND household_id = ?;
 -- name: ListPaymentMethods :many
 SELECT * FROM payment_methods WHERE household_id = ? ORDER BY name;
 
+-- name: DeletePaymentMethod :exec
+DELETE FROM payment_methods WHERE id = ? AND household_id = ?;
+
+-- name: ReassignPaymentMethod :execrows
+UPDATE subscriptions SET payment_method_id = sqlc.narg(to_id), updated_at = sqlc.arg(updated_at), version = version + 1
+WHERE household_id = sqlc.arg(household_id) AND payment_method_id = sqlc.arg(from_id);
+
+-- name: UpdateCategory :exec
+UPDATE categories SET name = ?, color = ? WHERE id = ? AND household_id = ?;
+
+-- name: DeleteCategory :exec
+DELETE FROM categories WHERE id = ? AND household_id = ?;
+
 -- name: GetSetting :one
 SELECT value FROM settings WHERE key = ?;
 

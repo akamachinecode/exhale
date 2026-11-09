@@ -58,6 +58,7 @@ type Charge struct {
 	Note            string
 	UpdatedAt       string
 	Version         int64
+	Decision        string
 }
 
 type Flow struct {
@@ -180,4 +181,5 @@ type Subscription struct {
 	CreatedAt       string
 	UpdatedAt       string
 	Version         int64
+	Details         string
 }

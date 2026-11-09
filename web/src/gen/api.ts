@@ -73,13 +73,25 @@ export interface Money {
   minor: number;
 }
 
+export type ChargeViewKind = typeof ChargeViewKind[keyof typeof ChargeViewKind];
+
+
+export const ChargeViewKind = {
+  renewal: 'renewal',
+  trial: 'trial',
+  expiry: 'expiry',
+} as const;
+
 export interface ChargeView {
   amount: Money;
+  cancelBy?: string;
   chargedAmount?: Money;
   daysUntil: number;
+  decision?: string;
   delayed: boolean;
   dueDate: string;
   id: string;
+  kind: ChargeViewKind;
   note?: string;
   originalDate: string;
   paymentMethod?: string;
@@ -232,6 +244,11 @@ export interface ChargeList {
   to: string;
 }
 
+export interface PriceChange {
+  from: string;
+  price: Money;
+}
+
 export interface ReminderPolicy {
   confirmAfterDays: number;
   /** @nullable */
@@ -258,32 +275,56 @@ export interface Schedule {
   versions: Version[] | null;
 }
 
+export interface Share {
+  memberId: string;
+  weight: number;
+}
+
+export interface Usage {
+  at: string;
+  using: boolean;
+}
+
 export interface SubscriptionView {
+  account?: string;
   autoConfirm: boolean;
   cadence: string;
+  cancelBy?: string;
+  cancelUrl?: string;
   categoryId?: string;
   categoryName?: string;
   createdAt: string;
   createdBy?: string;
+  expires: boolean;
   householdId: string;
   id: string;
+  inTrial: boolean;
   monthlyCost: Money;
   name: string;
   nextCharge?: string;
+  nextPrice?: PriceChange;
   notes?: string;
+  noticeDays?: number;
   payerId?: string;
   payerName?: string;
   paymentMethod?: string;
   paymentMethodId?: string;
   price: Money;
   reminders: ReminderPolicy;
+  renewal?: string;
   schedule: Schedule;
   serviceUntil?: string;
+  /** @nullable */
+  shares?: Share[] | null;
+  startedOn?: string;
   status: string;
+  trialEndsOn?: string;
   updatedAt: string;
   url?: string;
+  usage?: Usage;
   version: number;
   visibility: string;
+  yearlyCost: Money;
 }
 
 export interface ChargeResult {
@@ -303,6 +344,23 @@ export interface CreateCategoryInput {
   name: string;
 }
 
+export type CreateSubscriptionInputRenewal = typeof CreateSubscriptionInputRenewal[keyof typeof CreateSubscriptionInputRenewal];
+
+
+export const CreateSubscriptionInputRenewal = {
+  auto: 'auto',
+  manual: 'manual',
+} as const;
+
+export type CreateSubscriptionInputStatus = typeof CreateSubscriptionInputStatus[keyof typeof CreateSubscriptionInputStatus];
+
+
+export const CreateSubscriptionInputStatus = {
+  active: 'active',
+  paused: 'paused',
+  cancelled: 'cancelled',
+} as const;
+
 export type CreateSubscriptionInputUnit = typeof CreateSubscriptionInputUnit[keyof typeof CreateSubscriptionInputUnit];
 
 
@@ -316,12 +374,14 @@ export const CreateSubscriptionInputUnit = {
 export interface CreateSubscriptionInput {
   /** A URL to the JSON Schema for this object. */
   readonly $schema?: string;
+  account?: string;
   autoConfirm?: boolean;
+  cancelUrl?: string;
   categoryId?: string;
   currency: string;
   dryRun?: boolean;
   endDate?: string;
-  firstCharge: string;
+  firstCharge?: string;
   /** @minimum 1 */
   interval: number;
   /**
@@ -330,14 +390,41 @@ export interface CreateSubscriptionInput {
      */
   name: string;
   notes?: string;
+  /**
+     * @minimum 0
+     * @maximum 366
+     */
+  noticeDays?: number;
   payerId?: string;
   paymentMethodId?: string;
   price: string;
   private?: boolean;
   /** @nullable */
   reminderDays?: number[] | null;
+  renewal?: CreateSubscriptionInputRenewal;
+  /** @nullable */
+  shares?: Share[] | null;
+  startedOn?: string;
+  status?: CreateSubscriptionInputStatus;
+  trialEndsOn?: string;
   unit: CreateSubscriptionInputUnit;
   url?: string;
+}
+
+export type DecideRenewalInputDecision = typeof DecideRenewalInputDecision[keyof typeof DecideRenewalInputDecision];
+
+
+export const DecideRenewalInputDecision = {
+  keep: 'keep',
+  undecided: 'undecided',
+} as const;
+
+export interface DecideRenewalInput {
+  /** A URL to the JSON Schema for this object. */
+  readonly $schema?: string;
+  chargeId: string;
+  decision: DecideRenewalInputDecision;
+  dryRun?: boolean;
 }
 
 export interface DeleteResult {
@@ -736,23 +823,41 @@ export interface UpdateHouseholdInput {
   timezone?: string;
 }
 
+export type UpdateSubscriptionInputRenewal = typeof UpdateSubscriptionInputRenewal[keyof typeof UpdateSubscriptionInputRenewal];
+
+
+export const UpdateSubscriptionInputRenewal = {
+  auto: 'auto',
+  manual: 'manual',
+} as const;
+
 export interface UpdateSubscriptionInput {
   /** A URL to the JSON Schema for this object. */
   readonly $schema?: string;
+  account?: string;
   autoConfirm?: boolean;
+  cancelUrl?: string;
   categoryId?: string;
   dryRun?: boolean;
   id: string;
   name?: string;
   notes?: string;
+  noticeDays?: number;
   payerId?: string;
   paymentMethodId?: string;
   price?: string;
+  priceFrom?: string;
   private?: boolean;
   /** @nullable */
   reminderDays?: number[] | null;
   reminderHour?: number;
+  renewal?: UpdateSubscriptionInputRenewal;
+  /** @nullable */
+  shares?: Share[] | null;
+  startedOn?: string;
+  trialEndsOn?: string;
   url?: string;
+  using?: boolean;
 }
 
 export type ListChangesParams = {
@@ -2634,6 +2739,95 @@ export const useChangeChargeAmount = <TError = ErrorModel,
       return useMutation(getChangeChargeAmountMutationOptions(options), queryClient);
     }
 
+export const getDecideRenewalUrl = () => {
+
+
+
+
+  return `/api/v1/charges/decide`
+}
+
+/**
+ * For subscriptions with a notice period: records that the member wants to keep this renewal, so Exhale stops asking before the last day to cancel. To cancel instead, use set_subscription_status.
+ * @summary Keep a renewal
+ */
+export const decideRenewal = async (decideRenewalInput: NonReadonly<DecideRenewalInput>, options?: Parameters<typeof fetcher>[1]): Promise<ChargeResult> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return fetcher<ChargeResult>(getDecideRenewalUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(decideRenewalInput)
+  }
+);}
+
+
+
+
+
+export const getDecideRenewalMutationKey = () => ['decideRenewal'] as const;
+
+export const getDecideRenewalMutationOptions = <TError = ErrorModel,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof decideRenewal>>, TError,DecideRenewalMutationVariables, TContext>, request?: SecondParameter<typeof fetcher>}
+): UseMutationOptions<Awaited<ReturnType<typeof decideRenewal>>, TError,DecideRenewalMutationVariables, TContext> => {
+
+const mutationKey = getDecideRenewalMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof decideRenewal>>, DecideRenewalMutationVariables> = (props) => {
+          const {data} = props ?? {};
+
+          return  decideRenewal(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type DecideRenewalMutationResult = NonNullable<Awaited<ReturnType<typeof decideRenewal>>>
+    export type DecideRenewalMutationBody = NonReadonly<DecideRenewalInput>
+    export type DecideRenewalMutationError = ErrorModel
+    export type DecideRenewalMutationVariables = {data: NonReadonly<DecideRenewalInput>}
+
+    /**
+ * @summary Keep a renewal
+ */
+export const useDecideRenewal = <TError = ErrorModel,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof decideRenewal>>, TError,DecideRenewalMutationVariables, TContext>, request?: SecondParameter<typeof fetcher>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof decideRenewal>>,
+        TError,
+        DecideRenewalMutationVariables,
+        TContext
+      > => {
+      return useMutation(getDecideRenewalMutationOptions(options), queryClient);
+    }
+
 export const getChangeChargeDateUrl = () => {
 
 
@@ -3664,7 +3858,7 @@ export const getCreateSubscriptionUrl = () => {
 }
 
 /**
- * Adds a recurring subscription and computes its upcoming charges. Use dryRun to preview the charge dates first.
+ * Adds a recurring subscription and computes its upcoming charges. Also covers a free trial (trialEndsOn + the price it becomes), a notice period (noticeDays), things that expire unless renewed (renewal=manual) and subscriptions that already ended (status=cancelled). Use dryRun to preview the charge dates first.
  * @summary Create a subscription
  */
 export const createSubscription = async (createSubscriptionInput: NonReadonly<CreateSubscriptionInput>, options?: Parameters<typeof fetcher>[1]): Promise<SubscriptionDetail> => {
@@ -3931,7 +4125,7 @@ export const getUpdateSubscriptionUrl = () => {
 }
 
 /**
- * Changes name, price (from the next open charge on), category, payment method, payer, privacy, URL, notes, auto-confirm or reminder settings. Only the fields you pass change.
+ * Changes name, price (from the next open charge on, or from priceFrom for a change announced in advance), category, payment method, payer, cost shares, privacy, URL, notes, auto-confirm, reminders, or the contract terms (start date, trial end, notice period, renewal, cancel link, account). Only the fields you pass change.
  * @summary Update a subscription
  */
 export const updateSubscription = async (updateSubscriptionInput: NonReadonly<UpdateSubscriptionInput>, options?: Parameters<typeof fetcher>[1]): Promise<SubscriptionDetail> => {

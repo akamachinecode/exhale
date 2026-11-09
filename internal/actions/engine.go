@@ -234,12 +234,15 @@ func (e *Engine) handleCharge(ctx context.Context, actor app.Actor, chat ChatRef
 		}
 		m := Message{
 			Title: "❌ Cancel " + r.Subscription.Name + "?",
-			Lines: []string{"At period end: no more charges; you keep the service until the day before the next one."},
+			Lines: []string{"At period end: no more charges; you keep the service until the day before the next one.", cancelHint},
 			Rows: [][]Button{
 				{{Label: "At period end", Data: data(vCancelOK, chargeID, "cancel_at_period_end")}, {Label: "Right now", Data: data(vCancelOK, chargeID, "cancel_now")}},
-				{{Label: "↩︎ Keep it", Data: data(vBack, chargeID)}},
 			},
 		}
+		if link := cancelPage(r.Subscription); link != nil {
+			m.Rows = append(m.Rows, link)
+		}
+		m.Rows = append(m.Rows, []Button{{Label: "↩︎ Keep it", Data: data(vBack, chargeID)}})
 		return Reply{Edit: &m}, nil
 	case vCancelOK:
 		r, err := e.chargeResult(ctx, actor, chargeID)
@@ -254,7 +257,30 @@ func (e *Engine) handleCharge(ctx context.Context, actor app.Actor, chat ChatRef
 		if !d.Subscription.CancelledUntil.IsZero() {
 			m.Lines = []string{"Service until " + longDate(d.Subscription.CancelledUntil) + ". No more charges."}
 		}
+		m.Lines = append(m.Lines, cancelHint)
+		if link := cancelPage(d.Subscription); link != nil {
+			m.Rows = append(m.Rows, link)
+		}
 		return Reply{Edit: &m, Toast: "Cancelled"}, nil
+	case vKeep:
+		res, err := e.svc.DecideRenewal(ctx, actor, app.DecideRenewalInput{ChargeID: chargeID, Decision: "keep"})
+		if err != nil {
+			return e.fail(err)
+		}
+		return done(res, "Kept 👍")
+	case vExpire:
+		r, err := e.chargeResult(ctx, actor, chargeID)
+		if err != nil {
+			return e.fail(err)
+		}
+		if _, err := e.svc.SetChargeStatus(ctx, actor, app.SetChargeStatusInput{ChargeID: chargeID, Status: string(domain.ChargeSkipped), Note: "expired"}); err != nil {
+			return e.fail(err)
+		}
+		if _, err := e.svc.SetSubscriptionStatus(ctx, actor, app.SetSubscriptionStatusInput{ID: r.Subscription.ID, Action: "cancel_now"}); err != nil {
+			return e.fail(err)
+		}
+		m := Message{Title: "⌛ " + r.Subscription.Name + " expired", Lines: []string{"No more reminders."}}
+		return Reply{Edit: &m, Toast: "Expired"}, nil
 	case vUndo:
 		if _, err := e.svc.Undo(ctx, actor, app.UndoInput{AuditID: arg(2)}); err != nil {
 			return e.fail(err)
@@ -278,6 +304,10 @@ func (e *Engine) fail(err error) (Reply, error) {
 	}
 	return Reply{}, err
 }
+
+// cancelHint reminds that Exhale tracks subscriptions; it does not cancel
+// them with the provider.
+const cancelHint = "Exhale only stops tracking it: cancel it with the provider too."
 
 // ChatRef identifies a conversation on a channel and, for button presses,
 // the message the button belongs to.

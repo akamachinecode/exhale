@@ -216,6 +216,50 @@ func (s *Service) SetChargeStatus(ctx context.Context, actor Actor, in SetCharge
 	return out, err
 }
 
+// DecideRenewalInput records what the member decided about a renewal.
+type DecideRenewalInput struct {
+	ChargeID string `json:"chargeId"`
+	Decision string `json:"decision" jsonschema:"keep: stop asking before the last day to cancel; undecided: ask again" enum:"keep,undecided"`
+	DryRun   bool   `json:"dryRun,omitempty"`
+}
+
+// DecideRenewal records that the member wants to keep a renewal (or takes
+// that back), so the "keep or cancel?" reminders stop. To cancel instead,
+// use SetSubscriptionStatus.
+func (s *Service) DecideRenewal(ctx context.Context, actor Actor, in DecideRenewalInput) (ChargeResult, error) {
+	var out ChargeResult
+	err := s.write(ctx, actor, in.DryRun, func(q *db.Queries, c *change) error {
+		ch, sub, err := s.charge(ctx, q, actor, in.ChargeID)
+		if err != nil {
+			return err
+		}
+		before := ch
+		switch in.Decision {
+		case "keep":
+			ch.Decision = "keep"
+		case "undecided":
+			ch.Decision = ""
+		default:
+			return fmt.Errorf("%w: decision must be keep or undecided", domain.ErrValidation)
+		}
+		if err := s.saveCharge(ctx, q, ch); err != nil {
+			return err
+		}
+		if ch.Decision != "" {
+			if err := q.CancelOutboxKindForCharge(ctx, db.CancelOutboxKindForChargeParams{ChargeID: store.Ptr(ch.ID), Kind: KindDecision}); err != nil {
+				return err
+			}
+		}
+		if out.AuditID, err = c.record(q, "charge.decide", "charge", ch.ID, before, ch); err != nil {
+			return err
+		}
+		c.emit(bus.Event{Type: bus.ChargeUpdated, HouseholdID: sub.HouseholdID, SubscriptionID: sub.ID, ChargeID: ch.ID})
+		return s.fillResult(ctx, q, actor, ch.ID, &out)
+	})
+	out.DryRun = in.DryRun
+	return out, err
+}
+
 func (s *Service) saveCharge(ctx context.Context, q *db.Queries, ch domain.Charge) error {
 	n, err := q.UpdateCharge(ctx, store.ChargeUpdate(ch, s.now()))
 	if err != nil {

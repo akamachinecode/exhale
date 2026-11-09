@@ -112,6 +112,34 @@ func (q *Queries) CreatePaymentMethod(ctx context.Context, arg CreatePaymentMeth
 	return err
 }
 
+const deleteCategory = `-- name: DeleteCategory :exec
+DELETE FROM categories WHERE id = ? AND household_id = ?
+`
+
+type DeleteCategoryParams struct {
+	ID          string
+	HouseholdID string
+}
+
+func (q *Queries) DeleteCategory(ctx context.Context, arg DeleteCategoryParams) error {
+	_, err := q.db.ExecContext(ctx, deleteCategory, arg.ID, arg.HouseholdID)
+	return err
+}
+
+const deletePaymentMethod = `-- name: DeletePaymentMethod :exec
+DELETE FROM payment_methods WHERE id = ? AND household_id = ?
+`
+
+type DeletePaymentMethodParams struct {
+	ID          string
+	HouseholdID string
+}
+
+func (q *Queries) DeletePaymentMethod(ctx context.Context, arg DeletePaymentMethodParams) error {
+	_, err := q.db.ExecContext(ctx, deletePaymentMethod, arg.ID, arg.HouseholdID)
+	return err
+}
+
 const firstHousehold = `-- name: FirstHousehold :one
 SELECT id, name, currency, timezone, locale, created_at, reminder_hour, reminder_minute FROM households ORDER BY created_at LIMIT 1
 `
@@ -322,6 +350,52 @@ type PutSettingParams struct {
 
 func (q *Queries) PutSetting(ctx context.Context, arg PutSettingParams) error {
 	_, err := q.db.ExecContext(ctx, putSetting, arg.Key, arg.Value)
+	return err
+}
+
+const reassignPaymentMethod = `-- name: ReassignPaymentMethod :execrows
+UPDATE subscriptions SET payment_method_id = ?1, updated_at = ?2, version = version + 1
+WHERE household_id = ?3 AND payment_method_id = ?4
+`
+
+type ReassignPaymentMethodParams struct {
+	ToID        *string
+	UpdatedAt   string
+	HouseholdID string
+	FromID      *string
+}
+
+func (q *Queries) ReassignPaymentMethod(ctx context.Context, arg ReassignPaymentMethodParams) (int64, error) {
+	result, err := q.db.ExecContext(ctx, reassignPaymentMethod,
+		arg.ToID,
+		arg.UpdatedAt,
+		arg.HouseholdID,
+		arg.FromID,
+	)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected()
+}
+
+const updateCategory = `-- name: UpdateCategory :exec
+UPDATE categories SET name = ?, color = ? WHERE id = ? AND household_id = ?
+`
+
+type UpdateCategoryParams struct {
+	Name        string
+	Color       string
+	ID          string
+	HouseholdID string
+}
+
+func (q *Queries) UpdateCategory(ctx context.Context, arg UpdateCategoryParams) error {
+	_, err := q.db.ExecContext(ctx, updateCategory,
+		arg.Name,
+		arg.Color,
+		arg.ID,
+		arg.HouseholdID,
+	)
 	return err
 }
 

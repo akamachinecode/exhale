@@ -11,10 +11,12 @@ import (
 )
 
 // Button is an action attached to a message. Data is opaque to channels and
-// at most 64 bytes, Telegram's limit for callback data.
+// at most 64 bytes, Telegram's limit for callback data. A button with a URL
+// opens that page instead of running an action.
 type Button struct {
 	Label string
 	Data  string
+	URL   string
 }
 
 // Message is a channel-agnostic screen: a title, detail lines, sections and

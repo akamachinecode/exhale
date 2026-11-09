@@ -73,7 +73,7 @@ func Render(m actions.Message) string {
 	for _, row := range m.Rows {
 		parts := make([]string, len(row))
 		for i, btn := range row {
-			parts[i] = fmt.Sprintf("[%s](%s)", btn.Label, btn.Data)
+			parts[i] = fmt.Sprintf("[%s](%s)", btn.Label, btn.Data+btn.URL)
 		}
 		b.WriteString("  " + strings.Join(parts, " ") + "\n")
 	}

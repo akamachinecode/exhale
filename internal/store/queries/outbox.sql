@@ -23,6 +23,9 @@ WHERE id = ?;
 -- name: CancelOutboxForCharge :exec
 UPDATE outbox SET status = 'cancelled' WHERE charge_id = ? AND status = 'pending';
 
+-- name: CancelOutboxKindForCharge :exec
+UPDATE outbox SET status = 'cancelled' WHERE charge_id = ? AND kind = ? AND status = 'pending';
+
 -- name: ListOutbox :many
 SELECT * FROM outbox ORDER BY due_at DESC LIMIT ?;
 

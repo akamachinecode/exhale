@@ -17,6 +17,10 @@ type SubscriptionView struct {
 	PaymentMethod  string      `json:"paymentMethod,omitempty" jsonschema:"payment method label, e.g. Revolut ••0937"`
 	PayerName      string      `json:"payerName,omitempty"`
 	CancelledUntil engine.Date `json:"serviceUntil,omitzero" jsonschema:"for cancelled subscriptions: last day of service"`
+	YearlyCost     money.Money `json:"yearlyCost" jsonschema:"price normalized to one year, in the subscription currency"`
+	InTrial        bool        `json:"inTrial" jsonschema:"the free trial is still running; the next charge is the first paid one"`
+	CancelBy       engine.Date `json:"cancelBy,omitzero" jsonschema:"last day to cancel before the next charge (next charge minus the notice period); empty when there is no notice period"`
+	Expires        bool        `json:"expires" jsonschema:"manual renewal: the next charge date is when it expires unless renewed"`
 }
 
 // ChargeView is a charge with its subscription context.
@@ -26,7 +30,17 @@ type ChargeView struct {
 	PaymentMethod    string `json:"paymentMethod,omitempty"`
 	Delayed          bool   `json:"delayed" jsonschema:"true when the charge was moved from its scheduled date"`
 	DaysUntil        int    `json:"daysUntil" jsonschema:"days from today to the due date (negative if overdue)"`
+	// Kind tells what this date means to the member.
+	Kind     string      `json:"kind" jsonschema:"renewal (a normal charge), trial (the first charge after a free trial) or expiry (manual renewal: it expires on this date unless renewed)" enum:"renewal,trial,expiry"`
+	CancelBy engine.Date `json:"cancelBy,omitzero" jsonschema:"last day to cancel before this charge, when the subscription has a notice period"`
 }
+
+// Charge kinds.
+const (
+	ChargeRenewal = "renewal"
+	ChargeTrial   = "trial"
+	ChargeExpiry  = "expiry"
+)
 
 // SubscriptionDetail is a subscription with its upcoming and past charges.
 type SubscriptionDetail struct {

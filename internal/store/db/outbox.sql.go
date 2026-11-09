@@ -18,6 +18,20 @@ func (q *Queries) CancelOutboxForCharge(ctx context.Context, chargeID *string) e
 	return err
 }
 
+const cancelOutboxKindForCharge = `-- name: CancelOutboxKindForCharge :exec
+UPDATE outbox SET status = 'cancelled' WHERE charge_id = ? AND kind = ? AND status = 'pending'
+`
+
+type CancelOutboxKindForChargeParams struct {
+	ChargeID *string
+	Kind     string
+}
+
+func (q *Queries) CancelOutboxKindForCharge(ctx context.Context, arg CancelOutboxKindForChargeParams) error {
+	_, err := q.db.ExecContext(ctx, cancelOutboxKindForCharge, arg.ChargeID, arg.Kind)
+	return err
+}
+
 const channelLinksForMember = `-- name: ChannelLinksForMember :many
 SELECT id, member_id, channel, external_id, created_at FROM channel_links WHERE member_id = ?
 `

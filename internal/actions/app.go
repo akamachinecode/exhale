@@ -152,7 +152,7 @@ func (e *Engine) handleApp(ctx context.Context, actor app.Actor, chat ChatRef, r
 }
 
 // settled charge verbs end on the charge's main screen, which can stay live.
-var settled = map[string]bool{vPaid: true, vFailed: true, vSkip: true, vReopen: true, vBack: true, vDateScope: true, vMethodSet: true, vUndo: true, vNotYet: true}
+var settled = map[string]bool{vKeep: true, vPaid: true, vFailed: true, vSkip: true, vReopen: true, vBack: true, vDateScope: true, vMethodSet: true, vUndo: true, vNotYet: true}
 
 // inApp adapts the reply of a charge button pressed inside an app message:
 // settled screens become the app's charge screen (with navigation), and
@@ -241,14 +241,18 @@ func (e *Engine) screen(ctx context.Context, actor app.Actor, r string) (Message
 		if err != nil {
 			return Message{}, "", err
 		}
-		return Message{
+		m := Message{
 			Title: "❌ Cancel " + d.Subscription.Name + "?",
-			Lines: []string{"At period end: no more charges; you keep the service until the day before the next one."},
+			Lines: []string{"At period end: no more charges; you keep the service until the day before the next one.", cancelHint},
 			Rows: [][]Button{
 				{{Label: "At period end", Data: route(actStatus, arg(2), "cancel_at_period_end")}, {Label: "Right now", Data: route(actStatus, arg(2), "cancel_now")}},
-				{{Label: "↩︎ Keep it", Data: route(scrSub, arg(2))}},
 			},
-		}, "", nil
+		}
+		if link := cancelPage(d.Subscription); link != nil {
+			m.Rows = append(m.Rows, link)
+		}
+		m.Rows = append(m.Rows, []Button{{Label: "↩︎ Keep it", Data: route(scrSub, arg(2))}})
+		return m, "", nil
 	case actStatus:
 		if _, err := e.svc.SetSubscriptionStatus(ctx, actor, app.SetSubscriptionStatusInput{ID: arg(2), Action: arg(3)}); err != nil {
 			return Message{}, "", err
@@ -387,8 +391,17 @@ func (e *Engine) subScreen(ctx context.Context, actor app.Actor, id, locale stri
 			m.Lines = append(m.Lines, "Service until "+longDate(s.CancelledUntil))
 		}
 	}
-	if !s.NextCharge.IsZero() {
+	switch {
+	case s.NextCharge.IsZero():
+	case s.Expires:
+		m.Lines = append(m.Lines, "⌛ Expires "+longDate(s.NextCharge))
+	case s.InTrial:
+		m.Lines = append(m.Lines, "⏳ Free trial until "+longDate(s.NextCharge))
+	default:
 		m.Lines = append(m.Lines, "📅 Next charge "+longDate(s.NextCharge))
+	}
+	if !s.CancelBy.IsZero() {
+		m.Lines = append(m.Lines, "⏰ Cancel by "+longDate(s.CancelBy))
 	}
 	if s.PaymentMethod != "" {
 		m.Lines = append(m.Lines, "💳 "+s.PaymentMethod)
@@ -398,6 +411,12 @@ func (e *Engine) subScreen(ctx context.Context, actor app.Actor, id, locale stri
 	}
 	if s.PayerName != "" {
 		m.Lines = append(m.Lines, "👤 "+s.PayerName)
+	}
+	if s.Account != "" {
+		m.Lines = append(m.Lines, "🔑 "+s.Account)
+	}
+	if !s.StartedOn.IsZero() {
+		m.Lines = append(m.Lines, "🌱 Since "+longDate(s.StartedOn))
 	}
 	if len(d.History) > 0 {
 		h := d.History[0]
@@ -419,6 +438,10 @@ func (e *Engine) subScreen(ctx context.Context, actor app.Actor, id, locale stri
 	case domain.StatusPaused:
 		m.Rows = append(m.Rows, []Button{{Label: "▶️ Resume", Data: route(actStatus, s.ID, "resume")}, {Label: "❌ Cancel", Data: route(actCancel, s.ID)}})
 	case domain.StatusCancelled: // nothing left to do from chat
+	}
+	if link := cancelPage(s); link != nil {
+		link[0].Label = "🔗 Manage or cancel page"
+		m.Rows = append(m.Rows, link)
 	}
 	m.Rows = append(m.Rows, []Button{{Label: "‹ Subscriptions", Data: route(scrSubs, "0")}, {Label: "🏠 Home", Data: RouteHome}})
 	return m, nil

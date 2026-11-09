@@ -149,6 +149,61 @@ func (p ReminderPolicy) Validate() error {
 	return nil
 }
 
+// Renewal says what happens when a period ends.
+type Renewal string
+
+const (
+	// RenewalAuto: the provider charges again by itself (the default).
+	RenewalAuto Renewal = "auto"
+	// RenewalManual: it expires unless someone renews it (domains bought for
+	// one year, licences, prepaid plans, a passport).
+	RenewalManual Renewal = "manual"
+)
+
+// Share is the part of a subscription's cost one member carries.
+type Share struct {
+	MemberID string `json:"memberId"`
+	// Weight is relative: two members with weight 1 pay half each; weights 2
+	// and 1 split two thirds and one third.
+	Weight int `json:"weight"`
+}
+
+// PriceChange is a price that starts applying on a known date.
+type PriceChange struct {
+	From  engine.Date `json:"from"`
+	Price money.Money `json:"price"`
+}
+
+// Usage is the member's last answer to "still using this?".
+type Usage struct {
+	Using bool      `json:"using"`
+	At    time.Time `json:"at"`
+}
+
+// Details are the contract facts of a subscription beyond price and
+// schedule. They decide which dates matter: the end of a free trial, the
+// last day to cancel, the day something expires.
+type Details struct {
+	// StartedOn is when the member first subscribed (may be long before the
+	// first charge Exhale knows about).
+	StartedOn engine.Date `json:"startedOn,omitzero"`
+	// TrialEndsOn is the day a free trial turns into the first paid charge.
+	TrialEndsOn engine.Date `json:"trialEndsOn,omitzero"`
+	// NoticeDays is how many days before a renewal the provider must be told
+	// to cancel (0: cancel any time before the charge).
+	NoticeDays int     `json:"noticeDays,omitempty"`
+	Renewal    Renewal `json:"renewal,omitempty"`
+	// CancelURL is where the subscription is cancelled or managed.
+	CancelURL string `json:"cancelUrl,omitempty"`
+	// Account is the login the subscription lives under ("ana@work.com").
+	Account string `json:"account,omitempty"`
+	// Shares split the cost between members; empty means the payer carries it.
+	Shares []Share `json:"shares,omitempty"`
+	// NextPrice is a scheduled price change.
+	NextPrice *PriceChange `json:"nextPrice,omitempty"`
+	Usage     *Usage       `json:"usage,omitempty"`
+}
+
 // Subscription is a recurring payment.
 type Subscription struct {
 	ID              string             `json:"id"`
@@ -165,10 +220,52 @@ type Subscription struct {
 	Notes           string             `json:"notes,omitempty"`
 	AutoConfirm     bool               `json:"autoConfirm"` // mark charges paid automatically on the due date
 	Reminders       ReminderPolicy     `json:"reminders"`
-	CreatedBy       string             `json:"createdBy,omitempty"`
-	CreatedAt       time.Time          `json:"createdAt"`
-	UpdatedAt       time.Time          `json:"updatedAt"`
-	Version         int                `json:"version"` // optimistic locking
+	Details
+	CreatedBy string    `json:"createdBy,omitempty"`
+	CreatedAt time.Time `json:"createdAt"`
+	UpdatedAt time.Time `json:"updatedAt"`
+	Version   int       `json:"version"` // optimistic locking
+}
+
+// ManualRenewal reports whether the subscription expires unless renewed.
+func (s Subscription) ManualRenewal() bool { return s.Renewal == RenewalManual }
+
+// InTrial reports whether the free trial is still running on day d.
+func (s Subscription) InTrial(d engine.Date) bool {
+	return !s.TrialEndsOn.IsZero() && d.Before(s.TrialEndsOn)
+}
+
+// CancelDeadline returns the last day to cancel before the charge due on day d.
+func (s Subscription) CancelDeadline(d engine.Date) engine.Date { return d.AddDays(-s.NoticeDays) }
+
+// PriceOn returns the price of a charge scheduled on day d.
+func (s Subscription) PriceOn(d engine.Date) money.Money {
+	if s.NextPrice != nil && !d.Before(s.NextPrice.From) {
+		return s.NextPrice.Price
+	}
+	return s.Price
+}
+
+// Validate checks the contract facts.
+func (d Details) Validate() error {
+	switch {
+	case d.NoticeDays < 0 || d.NoticeDays > 366:
+		return invalid("notice period must be between 0 and 366 days")
+	case d.Renewal != "" && d.Renewal != RenewalAuto && d.Renewal != RenewalManual:
+		return invalid("renewal must be auto or manual, got %q", d.Renewal)
+	case len(d.CancelURL) > 500 || len(d.Account) > 200:
+		return invalid("cancel link or account is too long")
+	case d.CancelURL != "" && !strings.HasPrefix(d.CancelURL, "https://") && !strings.HasPrefix(d.CancelURL, "http://"):
+		return invalid("cancel link must start with https:// or http://")
+	}
+	seen := map[string]bool{}
+	for _, sh := range d.Shares {
+		if sh.MemberID == "" || sh.Weight < 1 || sh.Weight > 1000 || seen[sh.MemberID] {
+			return invalid("each share needs a different member and a weight between 1 and 1000")
+		}
+		seen[sh.MemberID] = true
+	}
+	return nil
 }
 
 // Validate checks the subscription's own fields.
@@ -189,6 +286,12 @@ func (s Subscription) Validate() error {
 	}
 	if err := s.Schedule.Validate(); err != nil {
 		return fmt.Errorf("%w: %v", ErrValidation, err)
+	}
+	if err := s.Details.Validate(); err != nil {
+		return err
+	}
+	if s.NextPrice != nil && s.NextPrice.Price.Currency != s.Price.Currency {
+		return invalid("a scheduled price must be in %s", s.Price.Currency)
 	}
 	return s.Reminders.Validate()
 }

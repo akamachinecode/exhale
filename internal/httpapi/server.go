@@ -163,6 +163,7 @@ func registerAll(api huma.API, svc *app.Service) {
 	register(api, svc, app.OpChangeChargeDate)
 	register(api, svc, app.OpChangeChargeAmount)
 	register(api, svc, app.OpSetChargeStatus)
+	register(api, svc, app.OpDecideRenewal)
 	register(api, svc, app.OpPreviewSchedule)
 	register(api, svc, app.OpSummary)
 	register(api, svc, app.OpSavePaymentMethod)

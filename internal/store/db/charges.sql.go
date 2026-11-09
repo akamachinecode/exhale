@@ -82,7 +82,7 @@ func (q *Queries) GetAudit(ctx context.Context, id string) (AuditLog, error) {
 }
 
 const getCharge = `-- name: GetCharge :one
-SELECT id, subscription_id, original_date, due_date, amount_minor, currency, charged_minor, charged_currency, status, resolved_at, note, updated_at, version FROM charges WHERE id = ?
+SELECT id, subscription_id, original_date, due_date, amount_minor, currency, charged_minor, charged_currency, status, resolved_at, note, updated_at, version, decision FROM charges WHERE id = ?
 `
 
 func (q *Queries) GetCharge(ctx context.Context, id string) (Charge, error) {
@@ -102,12 +102,13 @@ func (q *Queries) GetCharge(ctx context.Context, id string) (Charge, error) {
 		&i.Note,
 		&i.UpdatedAt,
 		&i.Version,
+		&i.Decision,
 	)
 	return i, err
 }
 
 const getChargeByOriginalDate = `-- name: GetChargeByOriginalDate :one
-SELECT id, subscription_id, original_date, due_date, amount_minor, currency, charged_minor, charged_currency, status, resolved_at, note, updated_at, version FROM charges WHERE subscription_id = ? AND original_date = ?
+SELECT id, subscription_id, original_date, due_date, amount_minor, currency, charged_minor, charged_currency, status, resolved_at, note, updated_at, version, decision FROM charges WHERE subscription_id = ? AND original_date = ?
 `
 
 type GetChargeByOriginalDateParams struct {
@@ -132,6 +133,7 @@ func (q *Queries) GetChargeByOriginalDate(ctx context.Context, arg GetChargeByOr
 		&i.Note,
 		&i.UpdatedAt,
 		&i.Version,
+		&i.Decision,
 	)
 	return i, err
 }
@@ -207,7 +209,7 @@ func (q *Queries) ListAudit(ctx context.Context, limit int64) ([]AuditLog, error
 }
 
 const listChargesBetween = `-- name: ListChargesBetween :many
-SELECT c.id, c.subscription_id, c.original_date, c.due_date, c.amount_minor, c.currency, c.charged_minor, c.charged_currency, c.status, c.resolved_at, c.note, c.updated_at, c.version FROM charges c
+SELECT c.id, c.subscription_id, c.original_date, c.due_date, c.amount_minor, c.currency, c.charged_minor, c.charged_currency, c.status, c.resolved_at, c.note, c.updated_at, c.version, c.decision FROM charges c
 JOIN subscriptions s ON s.id = c.subscription_id
 WHERE s.household_id = ?1
   AND c.due_date >= ?2 AND c.due_date <= ?3
@@ -243,6 +245,52 @@ func (q *Queries) ListChargesBetween(ctx context.Context, arg ListChargesBetween
 			&i.Note,
 			&i.UpdatedAt,
 			&i.Version,
+			&i.Decision,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listChargesForHousehold = `-- name: ListChargesForHousehold :many
+SELECT c.id, c.subscription_id, c.original_date, c.due_date, c.amount_minor, c.currency, c.charged_minor, c.charged_currency, c.status, c.resolved_at, c.note, c.updated_at, c.version, c.decision FROM charges c
+JOIN subscriptions s ON s.id = c.subscription_id
+WHERE s.household_id = ?
+ORDER BY c.subscription_id, c.original_date
+`
+
+func (q *Queries) ListChargesForHousehold(ctx context.Context, householdID string) ([]Charge, error) {
+	rows, err := q.db.QueryContext(ctx, listChargesForHousehold, householdID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []Charge{}
+	for rows.Next() {
+		var i Charge
+		if err := rows.Scan(
+			&i.ID,
+			&i.SubscriptionID,
+			&i.OriginalDate,
+			&i.DueDate,
+			&i.AmountMinor,
+			&i.Currency,
+			&i.ChargedMinor,
+			&i.ChargedCurrency,
+			&i.Status,
+			&i.ResolvedAt,
+			&i.Note,
+			&i.UpdatedAt,
+			&i.Version,
+			&i.Decision,
 		); err != nil {
 			return nil, err
 		}
@@ -258,7 +306,7 @@ func (q *Queries) ListChargesBetween(ctx context.Context, arg ListChargesBetween
 }
 
 const listChargesForSubscription = `-- name: ListChargesForSubscription :many
-SELECT id, subscription_id, original_date, due_date, amount_minor, currency, charged_minor, charged_currency, status, resolved_at, note, updated_at, version FROM charges WHERE subscription_id = ? ORDER BY original_date DESC LIMIT ?
+SELECT id, subscription_id, original_date, due_date, amount_minor, currency, charged_minor, charged_currency, status, resolved_at, note, updated_at, version, decision FROM charges WHERE subscription_id = ? ORDER BY original_date DESC LIMIT ?
 `
 
 type ListChargesForSubscriptionParams struct {
@@ -289,6 +337,7 @@ func (q *Queries) ListChargesForSubscription(ctx context.Context, arg ListCharge
 			&i.Note,
 			&i.UpdatedAt,
 			&i.Version,
+			&i.Decision,
 		); err != nil {
 			return nil, err
 		}
@@ -304,7 +353,7 @@ func (q *Queries) ListChargesForSubscription(ctx context.Context, arg ListCharge
 }
 
 const listOpenChargesDueBefore = `-- name: ListOpenChargesDueBefore :many
-SELECT c.id, c.subscription_id, c.original_date, c.due_date, c.amount_minor, c.currency, c.charged_minor, c.charged_currency, c.status, c.resolved_at, c.note, c.updated_at, c.version FROM charges c
+SELECT c.id, c.subscription_id, c.original_date, c.due_date, c.amount_minor, c.currency, c.charged_minor, c.charged_currency, c.status, c.resolved_at, c.note, c.updated_at, c.version, c.decision FROM charges c
 JOIN subscriptions s ON s.id = c.subscription_id
 WHERE s.household_id = ?1
   AND c.status IN ('pending', 'failed') AND c.due_date < ?2
@@ -339,6 +388,59 @@ func (q *Queries) ListOpenChargesDueBefore(ctx context.Context, arg ListOpenChar
 			&i.Note,
 			&i.UpdatedAt,
 			&i.Version,
+			&i.Decision,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listPaidChargesBetween = `-- name: ListPaidChargesBetween :many
+SELECT c.id, c.subscription_id, c.original_date, c.due_date, c.amount_minor, c.currency, c.charged_minor, c.charged_currency, c.status, c.resolved_at, c.note, c.updated_at, c.version, c.decision FROM charges c
+JOIN subscriptions s ON s.id = c.subscription_id
+WHERE s.household_id = ?1 AND c.status = 'paid'
+  AND c.due_date >= ?2 AND c.due_date <= ?3
+ORDER BY c.due_date
+`
+
+type ListPaidChargesBetweenParams struct {
+	HouseholdID string
+	FromDate    string
+	ToDate      string
+}
+
+func (q *Queries) ListPaidChargesBetween(ctx context.Context, arg ListPaidChargesBetweenParams) ([]Charge, error) {
+	rows, err := q.db.QueryContext(ctx, listPaidChargesBetween, arg.HouseholdID, arg.FromDate, arg.ToDate)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []Charge{}
+	for rows.Next() {
+		var i Charge
+		if err := rows.Scan(
+			&i.ID,
+			&i.SubscriptionID,
+			&i.OriginalDate,
+			&i.DueDate,
+			&i.AmountMinor,
+			&i.Currency,
+			&i.ChargedMinor,
+			&i.ChargedCurrency,
+			&i.Status,
+			&i.ResolvedAt,
+			&i.Note,
+			&i.UpdatedAt,
+			&i.Version,
+			&i.Decision,
 		); err != nil {
 			return nil, err
 		}
@@ -370,8 +472,8 @@ func (q *Queries) MarkAuditUndone(ctx context.Context, arg MarkAuditUndoneParams
 const updateCharge = `-- name: UpdateCharge :execrows
 UPDATE charges SET
     due_date = ?, amount_minor = ?, currency = ?, charged_minor = ?,
-    charged_currency = ?, status = ?, resolved_at = ?, note = ?, updated_at = ?,
-    version = version + 1
+    charged_currency = ?, status = ?, resolved_at = ?, note = ?, decision = ?,
+    updated_at = ?, version = version + 1
 WHERE id = ? AND version = ?
 `
 
@@ -384,6 +486,7 @@ type UpdateChargeParams struct {
 	Status          string
 	ResolvedAt      *string
 	Note            string
+	Decision        string
 	UpdatedAt       string
 	ID              string
 	Version         int64
@@ -399,6 +502,7 @@ func (q *Queries) UpdateCharge(ctx context.Context, arg UpdateChargeParams) (int
 		arg.Status,
 		arg.ResolvedAt,
 		arg.Note,
+		arg.Decision,
 		arg.UpdatedAt,
 		arg.ID,
 		arg.Version,

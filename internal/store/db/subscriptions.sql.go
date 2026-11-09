@@ -13,8 +13,8 @@ const createSubscription = `-- name: CreateSubscription :exec
 INSERT INTO subscriptions (
     id, household_id, name, price_minor, currency, schedule, category_id,
     payment_method_id, payer_id, visibility, status, url, notes, auto_confirm,
-    reminders, created_by, created_at, updated_at, version
-) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1)
+    reminders, details, created_by, created_at, updated_at, version
+) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1)
 `
 
 type CreateSubscriptionParams struct {
@@ -33,6 +33,7 @@ type CreateSubscriptionParams struct {
 	Notes           string
 	AutoConfirm     int64
 	Reminders       string
+	Details         string
 	CreatedBy       string
 	CreatedAt       string
 	UpdatedAt       string
@@ -55,6 +56,7 @@ func (q *Queries) CreateSubscription(ctx context.Context, arg CreateSubscription
 		arg.Notes,
 		arg.AutoConfirm,
 		arg.Reminders,
+		arg.Details,
 		arg.CreatedBy,
 		arg.CreatedAt,
 		arg.UpdatedAt,
@@ -77,7 +79,7 @@ func (q *Queries) DeleteSubscription(ctx context.Context, arg DeleteSubscription
 }
 
 const getSubscription = `-- name: GetSubscription :one
-SELECT id, household_id, name, price_minor, currency, schedule, category_id, payment_method_id, payer_id, visibility, status, url, notes, auto_confirm, reminders, created_by, created_at, updated_at, version FROM subscriptions WHERE id = ? AND household_id = ?
+SELECT id, household_id, name, price_minor, currency, schedule, category_id, payment_method_id, payer_id, visibility, status, url, notes, auto_confirm, reminders, created_by, created_at, updated_at, version, details FROM subscriptions WHERE id = ? AND household_id = ?
 `
 
 type GetSubscriptionParams struct {
@@ -108,12 +110,13 @@ func (q *Queries) GetSubscription(ctx context.Context, arg GetSubscriptionParams
 		&i.CreatedAt,
 		&i.UpdatedAt,
 		&i.Version,
+		&i.Details,
 	)
 	return i, err
 }
 
 const listActiveSubscriptions = `-- name: ListActiveSubscriptions :many
-SELECT id, household_id, name, price_minor, currency, schedule, category_id, payment_method_id, payer_id, visibility, status, url, notes, auto_confirm, reminders, created_by, created_at, updated_at, version FROM subscriptions WHERE status = 'active'
+SELECT id, household_id, name, price_minor, currency, schedule, category_id, payment_method_id, payer_id, visibility, status, url, notes, auto_confirm, reminders, created_by, created_at, updated_at, version, details FROM subscriptions WHERE status = 'active'
 `
 
 func (q *Queries) ListActiveSubscriptions(ctx context.Context) ([]Subscription, error) {
@@ -145,6 +148,7 @@ func (q *Queries) ListActiveSubscriptions(ctx context.Context) ([]Subscription, 
 			&i.CreatedAt,
 			&i.UpdatedAt,
 			&i.Version,
+			&i.Details,
 		); err != nil {
 			return nil, err
 		}
@@ -160,7 +164,7 @@ func (q *Queries) ListActiveSubscriptions(ctx context.Context) ([]Subscription, 
 }
 
 const listSubscriptions = `-- name: ListSubscriptions :many
-SELECT id, household_id, name, price_minor, currency, schedule, category_id, payment_method_id, payer_id, visibility, status, url, notes, auto_confirm, reminders, created_by, created_at, updated_at, version FROM subscriptions WHERE household_id = ? ORDER BY name COLLATE NOCASE
+SELECT id, household_id, name, price_minor, currency, schedule, category_id, payment_method_id, payer_id, visibility, status, url, notes, auto_confirm, reminders, created_by, created_at, updated_at, version, details FROM subscriptions WHERE household_id = ? ORDER BY name COLLATE NOCASE
 `
 
 func (q *Queries) ListSubscriptions(ctx context.Context, householdID string) ([]Subscription, error) {
@@ -192,6 +196,7 @@ func (q *Queries) ListSubscriptions(ctx context.Context, householdID string) ([]
 			&i.CreatedAt,
 			&i.UpdatedAt,
 			&i.Version,
+			&i.Details,
 		); err != nil {
 			return nil, err
 		}
@@ -210,7 +215,7 @@ const updateSubscription = `-- name: UpdateSubscription :execrows
 UPDATE subscriptions SET
     name = ?, price_minor = ?, currency = ?, schedule = ?, category_id = ?,
     payment_method_id = ?, payer_id = ?, visibility = ?, status = ?, url = ?,
-    notes = ?, auto_confirm = ?, reminders = ?, updated_at = ?, version = version + 1
+    notes = ?, auto_confirm = ?, reminders = ?, details = ?, updated_at = ?, version = version + 1
 WHERE id = ? AND household_id = ? AND version = ?
 `
 
@@ -228,6 +233,7 @@ type UpdateSubscriptionParams struct {
 	Notes           string
 	AutoConfirm     int64
 	Reminders       string
+	Details         string
 	UpdatedAt       string
 	ID              string
 	HouseholdID     string
@@ -249,6 +255,7 @@ func (q *Queries) UpdateSubscription(ctx context.Context, arg UpdateSubscription
 		arg.Notes,
 		arg.AutoConfirm,
 		arg.Reminders,
+		arg.Details,
 		arg.UpdatedAt,
 		arg.ID,
 		arg.HouseholdID,

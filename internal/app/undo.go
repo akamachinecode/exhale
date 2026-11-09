@@ -122,17 +122,7 @@ func (s *Service) undoSubscription(ctx context.Context, q *db.Queries, actor Act
 		if err := json.Unmarshal([]byte(a.Before), &sub); err != nil {
 			return err
 		}
-		sched, rem, err := store.SubscriptionJSON(sub)
-		if err != nil {
-			return err
-		}
-		if err := q.CreateSubscription(ctx, db.CreateSubscriptionParams{
-			ID: sub.ID, HouseholdID: sub.HouseholdID, Name: sub.Name, PriceMinor: sub.Price.Minor, Currency: sub.Price.Currency,
-			Schedule: sched, CategoryID: store.Ptr(sub.CategoryID), PaymentMethodID: store.Ptr(sub.PaymentMethodID),
-			PayerID: store.Ptr(sub.PayerID), Visibility: string(sub.Visibility), Status: string(sub.Status), Url: sub.URL,
-			Notes: sub.Notes, AutoConfirm: boolInt(sub.AutoConfirm), Reminders: rem, CreatedBy: sub.CreatedBy,
-			CreatedAt: store.FormatTime(sub.CreatedAt), UpdatedAt: store.FormatTime(s.now()),
-		}); err != nil {
+		if err := s.insertSubscription(ctx, q, sub); err != nil {
 			return err
 		}
 		c.emit(bus.Event{Type: bus.SubscriptionCreated, HouseholdID: sub.HouseholdID, SubscriptionID: sub.ID})

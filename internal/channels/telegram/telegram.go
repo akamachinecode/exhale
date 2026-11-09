@@ -135,6 +135,10 @@ func keyboard(m actions.Message) models.ReplyMarkup {
 	for _, r := range m.Rows {
 		row := make([]models.InlineKeyboardButton, 0, len(r))
 		for _, btn := range r {
+			if btn.URL != "" {
+				row = append(row, models.InlineKeyboardButton{Text: btn.Label, URL: btn.URL})
+				continue
+			}
 			row = append(row, models.InlineKeyboardButton{Text: btn.Label, CallbackData: btn.Data})
 		}
 		rows = append(rows, row)

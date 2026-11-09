@@ -77,11 +77,11 @@ var (
 	}, (*Service).GetSubscription}
 	OpCreateSubscription = Op[CreateSubscriptionInput, SubscriptionDetail]{Meta{
 		Name: "create_subscription", Title: "Create a subscription", Tag: "Subscriptions", Method: "POST", Path: "/subscriptions", Write: true,
-		Description: "Adds a recurring subscription and computes its upcoming charges. Use dryRun to preview the charge dates first.",
+		Description: "Adds a recurring subscription and computes its upcoming charges. Also covers a free trial (trialEndsOn + the price it becomes), a notice period (noticeDays), things that expire unless renewed (renewal=manual) and subscriptions that already ended (status=cancelled). Use dryRun to preview the charge dates first.",
 	}, (*Service).CreateSubscription}
 	OpUpdateSubscription = Op[UpdateSubscriptionInput, SubscriptionDetail]{Meta{
 		Name: "update_subscription", Title: "Update a subscription", Tag: "Subscriptions", Method: "POST", Path: "/subscriptions/update", Write: true, Idempotent: true,
-		Description: "Changes name, price (from the next open charge on), category, payment method, payer, privacy, URL, notes, auto-confirm or reminder settings. Only the fields you pass change.",
+		Description: "Changes name, price (from the next open charge on, or from priceFrom for a change announced in advance), category, payment method, payer, cost shares, privacy, URL, notes, auto-confirm, reminders, or the contract terms (start date, trial end, notice period, renewal, cancel link, account). Only the fields you pass change.",
 	}, (*Service).UpdateSubscription}
 	OpSetSubscriptionStatus = Op[SetSubscriptionStatusInput, SubscriptionDetail]{Meta{
 		Name: "set_subscription_status", Title: "Pause, resume or cancel", Tag: "Subscriptions", Method: "POST", Path: "/subscriptions/status", Write: true, Destructive: true, Idempotent: true,
@@ -111,6 +111,10 @@ var (
 		Name: "set_charge_status", Title: "Mark a charge paid, failed or skipped", Tag: "Charges", Method: "POST", Path: "/charges/status", Write: true, Idempotent: true,
 		Description: "Resolves a charge: paid (optionally with the amount the bank actually took, in any currency), failed, skipped, or pending to reopen it.",
 	}, (*Service).SetChargeStatus}
+	OpDecideRenewal = Op[DecideRenewalInput, ChargeResult]{Meta{
+		Name: "decide_renewal", Title: "Keep a renewal", Tag: "Charges", Method: "POST", Path: "/charges/decide", Write: true, Idempotent: true,
+		Description: "For subscriptions with a notice period: records that the member wants to keep this renewal, so Exhale stops asking before the last day to cancel. To cancel instead, use set_subscription_status.",
+	}, (*Service).DecideRenewal}
 	OpPreviewSchedule = Op[PreviewScheduleInput, SchedulePreview]{Meta{
 		Name: "preview_schedule", Title: "Preview charge dates", Tag: "Charges", Method: "POST", Path: "/schedule/preview", Idempotent: true,
 		Description: "Computes the charge dates of a billing rule with Exhale's engine (month-end and leap-day aware) without saving anything.",
@@ -143,7 +147,7 @@ func Catalog() []Binding {
 		OpGetContext.Binding(), OpGetHousehold.Binding(), OpUpdateHousehold.Binding(), OpListSubscriptions.Binding(), OpGetSubscription.Binding(),
 		OpCreateSubscription.Binding(), OpUpdateSubscription.Binding(), OpSetSubscriptionStatus.Binding(),
 		OpDeleteSubscription.Binding(), OpListCharges.Binding(), OpNeedsAttention.Binding(), OpChangeChargeDate.Binding(),
-		OpChangeChargeAmount.Binding(), OpSetChargeStatus.Binding(), OpPreviewSchedule.Binding(), OpSummary.Binding(),
+		OpChangeChargeAmount.Binding(), OpSetChargeStatus.Binding(), OpDecideRenewal.Binding(), OpPreviewSchedule.Binding(), OpSummary.Binding(),
 		OpSavePaymentMethod.Binding(), OpCreateCategory.Binding(), OpListAudit.Binding(), OpUndo.Binding(),
 	}
 }

@@ -434,12 +434,18 @@
           "amount": {
             "$ref": "#/components/schemas/Money"
           },
+          "cancelBy": {
+            "type": "string"
+          },
           "chargedAmount": {
             "$ref": "#/components/schemas/Money"
           },
           "daysUntil": {
             "format": "int64",
             "type": "integer"
+          },
+          "decision": {
+            "type": "string"
           },
           "delayed": {
             "type": "boolean"
@@ -448,6 +454,14 @@
             "type": "string"
           },
           "id": {
+            "type": "string"
+          },
+          "kind": {
+            "enum": [
+              "renewal",
+              "trial",
+              "expiry"
+            ],
             "type": "string"
           },
           "note": {
@@ -485,6 +499,7 @@
           "subscriptionName",
           "delayed",
           "daysUntil",
+          "kind",
           "id",
           "subscriptionId",
           "originalDate",
@@ -535,8 +550,14 @@
             "readOnly": true,
             "type": "string"
           },
+          "account": {
+            "type": "string"
+          },
           "autoConfirm": {
             "type": "boolean"
+          },
+          "cancelUrl": {
+            "type": "string"
           },
           "categoryId": {
             "type": "string"
@@ -566,6 +587,12 @@
           "notes": {
             "type": "string"
           },
+          "noticeDays": {
+            "format": "int64",
+            "maximum": 366,
+            "minimum": 0,
+            "type": "integer"
+          },
           "payerId": {
             "type": "string"
           },
@@ -588,6 +615,36 @@
               "null"
             ]
           },
+          "renewal": {
+            "enum": [
+              "auto",
+              "manual"
+            ],
+            "type": "string"
+          },
+          "shares": {
+            "items": {
+              "$ref": "#/components/schemas/Share"
+            },
+            "type": [
+              "array",
+              "null"
+            ]
+          },
+          "startedOn": {
+            "type": "string"
+          },
+          "status": {
+            "enum": [
+              "active",
+              "paused",
+              "cancelled"
+            ],
+            "type": "string"
+          },
+          "trialEndsOn": {
+            "type": "string"
+          },
           "unit": {
             "enum": [
               "day",
@@ -606,8 +663,39 @@
           "price",
           "currency",
           "interval",
-          "unit",
-          "firstCharge"
+          "unit"
+        ],
+        "type": "object"
+      },
+      "DecideRenewalInput": {
+        "additionalProperties": false,
+        "properties": {
+          "$schema": {
+            "description": "A URL to the JSON Schema for this object.",
+            "examples": [
+              "https://example.com/api/schemas/DecideRenewalInput.json"
+            ],
+            "format": "uri",
+            "readOnly": true,
+            "type": "string"
+          },
+          "chargeId": {
+            "type": "string"
+          },
+          "decision": {
+            "enum": [
+              "keep",
+              "undecided"
+            ],
+            "type": "string"
+          },
+          "dryRun": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "chargeId",
+          "decision"
         ],
         "type": "object"
       },
@@ -1285,6 +1373,22 @@
         ],
         "type": "object"
       },
+      "PriceChange": {
+        "additionalProperties": false,
+        "properties": {
+          "from": {
+            "type": "string"
+          },
+          "price": {
+            "$ref": "#/components/schemas/Money"
+          }
+        },
+        "required": [
+          "from",
+          "price"
+        ],
+        "type": "object"
+      },
       "ReminderPolicy": {
         "additionalProperties": false,
         "properties": {
@@ -1585,6 +1689,23 @@
         ],
         "type": "object"
       },
+      "Share": {
+        "additionalProperties": false,
+        "properties": {
+          "memberId": {
+            "type": "string"
+          },
+          "weight": {
+            "format": "int64",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "memberId",
+          "weight"
+        ],
+        "type": "object"
+      },
       "SpendingSummary": {
         "additionalProperties": false,
         "properties": {
@@ -1764,10 +1885,19 @@
       "SubscriptionView": {
         "additionalProperties": false,
         "properties": {
+          "account": {
+            "type": "string"
+          },
           "autoConfirm": {
             "type": "boolean"
           },
           "cadence": {
+            "type": "string"
+          },
+          "cancelBy": {
+            "type": "string"
+          },
+          "cancelUrl": {
             "type": "string"
           },
           "categoryId": {
@@ -1783,11 +1913,17 @@
           "createdBy": {
             "type": "string"
           },
+          "expires": {
+            "type": "boolean"
+          },
           "householdId": {
             "type": "string"
           },
           "id": {
             "type": "string"
+          },
+          "inTrial": {
+            "type": "boolean"
           },
           "monthlyCost": {
             "$ref": "#/components/schemas/Money"
@@ -1798,8 +1934,15 @@
           "nextCharge": {
             "type": "string"
           },
+          "nextPrice": {
+            "$ref": "#/components/schemas/PriceChange"
+          },
           "notes": {
             "type": "string"
+          },
+          "noticeDays": {
+            "format": "int64",
+            "type": "integer"
           },
           "payerId": {
             "type": "string"
@@ -1819,13 +1962,31 @@
           "reminders": {
             "$ref": "#/components/schemas/ReminderPolicy"
           },
+          "renewal": {
+            "type": "string"
+          },
           "schedule": {
             "$ref": "#/components/schemas/Schedule"
           },
           "serviceUntil": {
             "type": "string"
           },
+          "shares": {
+            "items": {
+              "$ref": "#/components/schemas/Share"
+            },
+            "type": [
+              "array",
+              "null"
+            ]
+          },
+          "startedOn": {
+            "type": "string"
+          },
           "status": {
+            "type": "string"
+          },
+          "trialEndsOn": {
             "type": "string"
           },
           "updatedAt": {
@@ -1835,17 +1996,26 @@
           "url": {
             "type": "string"
           },
+          "usage": {
+            "$ref": "#/components/schemas/Usage"
+          },
           "version": {
             "format": "int64",
             "type": "integer"
           },
           "visibility": {
             "type": "string"
+          },
+          "yearlyCost": {
+            "$ref": "#/components/schemas/Money"
           }
         },
         "required": [
           "cadence",
           "monthlyCost",
+          "yearlyCost",
+          "inTrial",
+          "expires",
           "id",
           "householdId",
           "name",
@@ -2065,8 +2235,14 @@
             "readOnly": true,
             "type": "string"
           },
+          "account": {
+            "type": "string"
+          },
           "autoConfirm": {
             "type": "boolean"
+          },
+          "cancelUrl": {
+            "type": "string"
           },
           "categoryId": {
             "type": "string"
@@ -2083,6 +2259,10 @@
           "notes": {
             "type": "string"
           },
+          "noticeDays": {
+            "format": "int64",
+            "type": "integer"
+          },
           "payerId": {
             "type": "string"
           },
@@ -2090,6 +2270,9 @@
             "type": "string"
           },
           "price": {
+            "type": "string"
+          },
+          "priceFrom": {
             "type": "string"
           },
           "private": {
@@ -2109,12 +2292,54 @@
             "format": "int64",
             "type": "integer"
           },
+          "renewal": {
+            "enum": [
+              "auto",
+              "manual"
+            ],
+            "type": "string"
+          },
+          "shares": {
+            "items": {
+              "$ref": "#/components/schemas/Share"
+            },
+            "type": [
+              "array",
+              "null"
+            ]
+          },
+          "startedOn": {
+            "type": "string"
+          },
+          "trialEndsOn": {
+            "type": "string"
+          },
           "url": {
             "type": "string"
+          },
+          "using": {
+            "type": "boolean"
           }
         },
         "required": [
           "id"
+        ],
+        "type": "object"
+      },
+      "Usage": {
+        "additionalProperties": false,
+        "properties": {
+          "at": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "using": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "using",
+          "at"
         ],
         "type": "object"
       },
@@ -2954,6 +3179,53 @@
         ]
       }
     },
+    "/api/v1/charges/decide": {
+      "post": {
+        "description": "For subscriptions with a notice period: records that the member wants to keep this renewal, so Exhale stops asking before the last day to cancel. To cancel instead, use set_subscription_status.",
+        "operationId": "decide_renewal",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DecideRenewalInput"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ChargeResult"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorModel"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Keep a renewal",
+        "tags": [
+          "Charges"
+        ]
+      }
+    },
     "/api/v1/charges/move": {
       "post": {
         "description": "Moves a charge to another date. scope=this (default) for a one-off delay; scope=following to change the billing day from this charge on.",
@@ -3417,7 +3689,7 @@
         ]
       },
       "post": {
-        "description": "Adds a recurring subscription and computes its upcoming charges. Use dryRun to preview the charge dates first.",
+        "description": "Adds a recurring subscription and computes its upcoming charges. Also covers a free trial (trialEndsOn + the price it becomes), a notice period (noticeDays), things that expire unless renewed (renewal=manual) and subscriptions that already ended (status=cancelled). Use dryRun to preview the charge dates first.",
         "operationId": "create_subscription",
         "requestBody": {
           "content": {
@@ -3558,7 +3830,7 @@
     },
     "/api/v1/subscriptions/update": {
       "post": {
-        "description": "Changes name, price (from the next open charge on), category, payment method, payer, privacy, URL, notes, auto-confirm or reminder settings. Only the fields you pass change.",
+        "description": "Changes name, price (from the next open charge on, or from priceFrom for a change announced in advance), category, payment method, payer, cost shares, privacy, URL, notes, auto-confirm, reminders, or the contract terms (start date, trial end, notice period, renewal, cancel link, account). Only the fields you pass change.",
         "operationId": "update_subscription",
         "requestBody": {
           "content": {

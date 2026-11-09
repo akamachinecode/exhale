@@ -15,7 +15,12 @@ import (
 const (
 	KindReminder = "reminder" // "Netflix renews in 3 days"
 	KindConfirm  = "confirm"  // "Was Netflix charged?"
+	KindDecision = "decision" // "Last day to cancel the gym is in 7 days: keep or cancel?"
 )
+
+// DecisionDaysBefore is when to ask "keep or cancel?" before the last day to
+// cancel a subscription with a notice period: a week ahead and on the day.
+var DecisionDaysBefore = []int{7, 0}
 
 // System is the actor used by the scheduler.
 func System(householdID string) Actor {
@@ -44,6 +49,15 @@ func (s *Service) Plan(ctx context.Context) error {
 		}
 		loc := h.Location()
 		today := engine.DateOf(now.In(loc))
+		if sub.NextPrice != nil && !today.Before(sub.NextPrice.From) {
+			// A price change announced in advance has arrived.
+			sub.Price, sub.NextPrice = sub.NextPrice.Price, nil
+			if err := s.st.Tx(ctx, func(q *db.Queries) error { return s.saveSubscription(ctx, q, sub) }); err != nil {
+				s.log.Error("plan: applying the scheduled price failed", "id", sub.ID, "err", err)
+				continue
+			}
+			sub.Version++
+		}
 		if err := s.st.Tx(ctx, func(q *db.Queries) error { return s.materialize(ctx, q, sub, today) }); err != nil {
 			return err
 		}
@@ -56,7 +70,7 @@ func (s *Service) Plan(ctx context.Context) error {
 			if !ch.Open() || today.DaysUntil(ch.DueDate) > 60 {
 				continue
 			}
-			if sub.AutoConfirm && ch.Status == domain.ChargePending && !ch.DueDate.After(today) {
+			if sub.AutoConfirm && !sub.ManualRenewal() && ch.Status == domain.ChargePending && !ch.DueDate.After(today) {
 				if _, err := s.SetChargeStatus(ctx, System(sub.HouseholdID), SetChargeStatusInput{ChargeID: ch.ID, Status: string(domain.ChargePaid), Note: "auto-confirmed"}); err != nil {
 					s.log.Error("auto-confirm failed", "charge", ch.ID, "err", err)
 				}
@@ -95,6 +109,21 @@ func (s *Service) enqueue(ctx context.Context, sub domain.Subscription, ch domai
 				continue // a later reminder for this charge is still ahead; skip stale ones
 			}
 			if err := add(KindReminder, fmt.Sprintf("%s:%s:%s:%d", KindReminder, ch.ID, ch.DueDate, days), at); err != nil {
+				return err
+			}
+		}
+	}
+	if sub.NoticeDays > 0 && ch.Status == domain.ChargePending && ch.Decision == "" {
+		cancelBy := sub.CancelDeadline(ch.DueDate)
+		for _, days := range DecisionDaysBefore {
+			if cancelBy.Before(today) {
+				break // too late to cancel this one
+			}
+			at := cancelBy.AddDays(-days).At(p.Hour, p.Minute, loc)
+			if at.Before(now) && days != 0 {
+				continue // the "last day" reminder is still ahead
+			}
+			if err := add(KindDecision, fmt.Sprintf("%s:%s:%s:%d", KindDecision, ch.ID, cancelBy, days), at); err != nil {
 				return err
 			}
 		}
