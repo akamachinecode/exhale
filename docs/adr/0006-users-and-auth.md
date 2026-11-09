@@ -34,6 +34,24 @@ We design **as if the instance could be exposed to the internet**.
 | **OIDC (v1)** | `coreos/go-oidc` + `x/oauth2`: Authelia, Authentik, Pocket ID, Kanidm users get passkeys, 2FA and SSO from their IdP on day one |
 | Later | Trusted proxy header auth (v1.x), TOTP with `pquerna/otp` (v1.x), passkeys with `go-webauthn` (v2) |
 
+## Implementation notes (2026-11-09)
+
+What shipped first, and the details the table above leaves open:
+
+- **Sign-in is by email and password.** Emails are stored lowercase and unique. Nothing is ever sent to them; recovery is `exhale user reset-password --email …` on the server.
+- **First run:** the web shows a two-step wizard (your account, then the household). The setup code is printed in the log on every start while nobody can sign in, and `exhale setup-code` prints a new one. **It is only asked when the wizard is opened from another machine**: from the server's own machine (loopback, no `X-Forwarded-For`) it is skipped. A household made with `exhale init` keeps its data and the wizard only creates the owner's login.
+- **Sessions:** scs with our own SQLite store (the upstream `sqlite3store` needs cgo). 30-day lifetime, 14-day idle timeout, `HttpOnly`, `SameSite=Lax`, `Secure` with `--secure-cookies`. Each session stores the member's `session_version`; a password change or reset bumps it, which signs out every other session. The session that changed it is renewed.
+- **CSRF:** `http.CrossOriginProtection` wraps the whole server. Bearer-token clients (agents, scripts) send no browser headers and are not affected.
+- **Brute force:** 10 attempts at once, then one every 6 s, per IP and per email, on sign-in, setup, join and password change. Unknown emails take as long as wrong passwords (argon2id against a dummy hash). No lockout.
+- **Passwords:** argon2id, 64 MiB, 1 pass, 2 lanes. At least 10 characters, no composition rules (NIST SP 800-63B).
+- **Invites:** owners create a one-time link (`/join/<code>`, 7 days, hashed) for a member or a co-owner.
+- **Tokens and chat links** are managed from Settings; the Telegram link is a `t.me/<bot>?start=<code>` deep link (the bot name comes from `getMe`).
+- **`--trust-local` is now off by default.** It remains for development and scripts.
+- The auth endpoints live under `/api/v1/auth` and are deliberately **not** in the op catalog: AI agents cannot create tokens, invite people or change passwords.
+- Fixed on the way: an empty request on a fresh instance used to create a household with no name or currency. Migration 00003 removes such empty households.
+
+Still pending from this ADR: OIDC (v1), member management (remove a member, change roles), TOTP and passkeys (later).
+
 ## Options rejected
 
 - **Authboss:** maintained and the closest thing to Better Auth in Go, but it covers only the easy parts, imposes its own flows and email-centric modules, sits outside the OpenAPI contract, and has no passkeys.

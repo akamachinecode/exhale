@@ -14,6 +14,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/alexedwards/scs/v2"
 	"github.com/danielgtaylor/huma/v2"
 	"github.com/danielgtaylor/huma/v2/adapters/humago"
 	"github.com/modelcontextprotocol/go-sdk/mcp"
@@ -29,10 +30,16 @@ import (
 type Config struct {
 	Version string
 	// TrustLocal lets requests from this machine act as the household owner
-	// without a token. Until web sign-in ships this is how the UI works
-	// locally; remote callers always need a token.
+	// without signing in (development and scripts). Off by default since web
+	// sign-in shipped.
 	TrustLocal bool
-	Log        *slog.Logger
+	// SecureCookies marks the session cookie Secure; set it when Exhale is
+	// served over HTTPS (behind a reverse proxy).
+	SecureCookies bool
+	// TelegramBot returns the bot's username for deep links (nil or "" when
+	// Telegram is off).
+	TelegramBot func() string
+	Log         *slog.Logger
 }
 
 type ctxKey struct{}
@@ -51,6 +58,8 @@ func New(svc *app.Service, cfg Config) (http.Handler, huma.API, error) {
 	hc.Components.SecuritySchemes = map[string]*huma.SecurityScheme{"bearer": {Type: "http", Scheme: "bearer", Description: "Personal access token (exhale_pat_…)"}}
 	api := humago.New(mux, hc)
 	registerAll(api, svc)
+	sm := auth.NewSessions(svc.Store(), cfg.SecureCookies)
+	registerAuth(api, &authAPI{svc: svc, sm: sm, cfg: cfg})
 
 	mux.HandleFunc("GET /healthz", func(w http.ResponseWriter, _ *http.Request) { w.Write([]byte("ok")) })
 	mux.HandleFunc("GET /api/v1/events", events(svc))
@@ -71,38 +80,52 @@ func New(svc *app.Service, cfg Config) (http.Handler, huma.API, error) {
 	mux.Handle("/mcp", mcp.NewStreamableHTTPHandler(func(*http.Request) *mcp.Server { return mcpSrv }, nil))
 	mux.Handle("/", spa())
 
-	return authenticate(svc, cfg, mux), api, nil
+	// CSRF: browsers' cross-origin writes are rejected (Sec-Fetch-Site and
+	// Origin checks); the session cookie is also SameSite=Lax.
+	csrf := http.NewCrossOriginProtection()
+	return csrf.Handler(sm.LoadAndSave(authenticate(svc, sm, cfg, mux))), api, nil
 }
 
-// authenticate resolves the actor of every API and MCP request.
-func authenticate(svc *app.Service, cfg Config, next http.Handler) http.Handler {
+// authenticate resolves the actor of every API and MCP request: an API
+// token (agents, scripts), else the web session, else (with TrustLocal) the
+// owner for requests from this machine.
+func authenticate(svc *app.Service, sm *scs.SessionManager, cfg Config, next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		ctx := context.WithValue(r.Context(), localKey{}, isLoopback(r))
+		host, _, _ := net.SplitHostPort(r.RemoteAddr)
+		ctx = context.WithValue(ctx, ipKey{}, host)
+		r = r.WithContext(ctx)
 		protected := strings.HasPrefix(r.URL.Path, "/api/v1") || r.URL.Path == "/mcp"
 		if !protected {
 			next.ServeHTTP(w, r)
 			return
 		}
 		var actor app.Actor
+		ok := false
 		if tok := auth.BearerToken(r.Header); tok != "" {
-			a, err := auth.ResolveToken(r.Context(), svc.Store(), tok)
+			a, err := auth.ResolveToken(ctx, svc.Store(), tok)
 			if err != nil {
 				writeProblem(w, http.StatusUnauthorized, "invalid token")
 				return
 			}
-			actor = a
+			actor, ok = a, true
+		} else if a, found := auth.SessionActor(ctx, sm, svc.Store()); found {
+			actor, ok = a, true
 		} else if cfg.TrustLocal && isLoopback(r) {
-			a, err := svc.Bootstrap(r.Context(), app.BootstrapInput{})
-			if err != nil {
-				writeProblem(w, http.StatusServiceUnavailable, "household not initialized: run `exhale init`")
-				return
+			if a, err := svc.Owner(ctx); err == nil {
+				actor, ok = a, true
 			}
-			actor = a
-		} else {
-			w.Header().Set("WWW-Authenticate", `Bearer realm="exhale"`)
-			writeProblem(w, http.StatusUnauthorized, "missing bearer token")
+		}
+		if ok {
+			r = r.WithContext(context.WithValue(ctx, ctxKey{}, actor))
+		} else if !publicPath(r.URL.Path) {
+			if r.URL.Path == "/mcp" {
+				w.Header().Set("WWW-Authenticate", `Bearer realm="exhale"`)
+			}
+			writeProblem(w, http.StatusUnauthorized, "sign in or send a bearer token")
 			return
 		}
-		next.ServeHTTP(w, r.WithContext(context.WithValue(r.Context(), ctxKey{}, actor)))
+		next.ServeHTTP(w, r)
 	})
 }
 

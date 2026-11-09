@@ -84,6 +84,15 @@ type Household struct {
 	CreatedAt string
 }
 
+type Invite struct {
+	CodeHash    string
+	HouseholdID string
+	Role        string
+	CreatedBy   string
+	ExpiresAt   string
+	UsedAt      *string
+}
+
 type LinkCode struct {
 	CodeHash  string
 	MemberID  string
@@ -92,13 +101,14 @@ type LinkCode struct {
 }
 
 type Member struct {
-	ID           string
-	HouseholdID  string
-	Name         string
-	Email        string
-	Role         string
-	PasswordHash string
-	CreatedAt    string
+	ID             string
+	HouseholdID    string
+	Name           string
+	Email          string
+	Role           string
+	PasswordHash   string
+	CreatedAt      string
+	SessionVersion int64
 }
 
 type Message struct {
@@ -135,6 +145,12 @@ type PaymentMethod struct {
 	Last4       string
 	ExpiresOn   *string
 	OwnerID     *string
+}
+
+type Session struct {
+	Token  string
+	Data   []byte
+	Expiry string
 }
 
 type Setting struct {

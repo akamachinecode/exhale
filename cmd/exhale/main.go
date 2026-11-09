@@ -2,19 +2,23 @@
 package main
 
 import (
+	"bufio"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"log/slog"
 	"net"
 	"net/http"
 	"os"
 	"os/signal"
+	"strings"
 	"syscall"
 	"time"
 
 	"github.com/alecthomas/kong"
 	"github.com/modelcontextprotocol/go-sdk/mcp"
+	"golang.org/x/term"
 
 	"github.com/akamachinecode/exhale/internal/actions"
 	"github.com/akamachinecode/exhale/internal/agents"
@@ -45,6 +49,8 @@ type cli struct {
 	Mcp     mcpCmd     `cmd:"" help:"Serve MCP over stdio, for local AI clients (Claude Desktop, Claude Code, Cursor…)."`
 	Token   tokenCmd   `cmd:"" help:"Manage personal access tokens for scripts and AI agents."`
 	Link    linkCmd    `cmd:"" help:"Link a chat account (Telegram) to the household owner."`
+	User    userCmd    `cmd:"" help:"Manage web accounts (password recovery)."`
+	Setup   setupCmd   `cmd:"" name:"setup-code" help:"Print a new one-time code for the web setup wizard."`
 	Backup  backupCmd  `cmd:"" help:"Write a consistent backup of the database."`
 	Openapi openapiCmd `cmd:"" help:"Print the OpenAPI document."`
 	Version versionCmd `cmd:"" help:"Print the version."`
@@ -78,9 +84,9 @@ func open(ctx context.Context, g *globals) (*env, error) {
 }
 
 func owner(ctx context.Context, e *env) (app.Actor, error) {
-	a, err := e.svc.Bootstrap(ctx, app.BootstrapInput{})
+	a, err := e.svc.Owner(ctx)
 	if err != nil {
-		return a, fmt.Errorf("no household yet: run `exhale init` first (%w)", err)
+		return a, fmt.Errorf("no household yet: open the web UI to set it up, or run `exhale init` (%w)", err)
 	}
 	return a, nil
 }
@@ -91,7 +97,8 @@ type serveCmd struct {
 	Listen        string `env:"EXHALE_LISTEN" default:"127.0.0.1:8484" help:"Address to listen on (use 0.0.0.0:8484 in Docker)."`
 	TelegramToken string `name:"telegram-token" env:"EXHALE_TELEGRAM_TOKEN" help:"Bot token from @BotFather. Enables Telegram reminders."`
 	TelegramAPI   string `name:"telegram-api" env:"EXHALE_TELEGRAM_API" hidden:"" help:"Bot API base URL (tests)."`
-	TrustLocal    bool   `name:"trust-local" env:"EXHALE_TRUST_LOCAL" default:"true" negatable:"" help:"Let requests from this machine act as the owner without a token."`
+	TrustLocal    bool   `name:"trust-local" env:"EXHALE_TRUST_LOCAL" help:"Let requests from this machine act as the owner without signing in (development, scripts)."`
+	SecureCookies bool   `name:"secure-cookies" env:"EXHALE_SECURE_COOKIES" help:"Mark the session cookie Secure. Set it when Exhale is served over HTTPS."`
 	Dev           bool   `help:"Development mode."`
 }
 
@@ -101,10 +108,24 @@ func (s *serveCmd) Run(ctx context.Context, g *globals) error {
 		return err
 	}
 	defer e.st.Close()
-	if _, err := owner(ctx, e); err != nil {
-		e.log.Warn("household not initialized; the API will answer 503 until you run `exhale init`")
+	if req, err := auth.SetupRequired(ctx, e.st); err == nil && req {
+		code, err := auth.NewSetupCode(ctx, e.st)
+		if err != nil {
+			return err
+		}
+		e.log.Warn("no account yet: open the web UI to create yours", "url", "http://"+s.Listen, "setup_code", code,
+			"note", "the code is only asked when the wizard is opened from another machine; `exhale setup-code` prints a new one")
 	}
-	handler, _, err := httpapi.New(e.svc, httpapi.Config{Version: version, TrustLocal: s.TrustLocal, Log: e.log})
+	var tg *telegram.Adapter
+	handler, _, err := httpapi.New(e.svc, httpapi.Config{
+		Version: version, TrustLocal: s.TrustLocal, SecureCookies: s.SecureCookies, Log: e.log,
+		TelegramBot: func() string {
+			if tg == nil {
+				return ""
+			}
+			return tg.Username()
+		},
+	})
 	if err != nil {
 		return err
 	}
@@ -129,7 +150,7 @@ func (s *serveCmd) Run(ctx context.Context, g *globals) error {
 	services := []platform.Service{httpSvc}
 	var channels []actions.Channel
 	if s.TelegramToken != "" {
-		tg, err := telegram.New(s.TelegramToken, s.TelegramAPI, e.svc, e.log)
+		tg, err = telegram.New(s.TelegramToken, s.TelegramAPI, e.svc, e.log)
 		if err != nil {
 			return err
 		}
@@ -140,10 +161,8 @@ func (s *serveCmd) Run(ctx context.Context, g *globals) error {
 		e.log.Info("telegram disabled: set EXHALE_TELEGRAM_TOKEN to enable reminders in Telegram")
 	}
 	eng := actions.New(e.svc, e.log, channels...)
-	for _, c := range channels {
-		if tg, ok := c.(*telegram.Adapter); ok {
-			tg.SetEngine(eng)
-		}
+	if tg != nil {
+		tg.SetEngine(eng)
 	}
 	services = append(services,
 		&fx.Updater{St: e.st, Log: e.log},
@@ -282,6 +301,75 @@ func (l *linkCmd) Run(ctx context.Context, g *globals) error {
 		return err
 	}
 	fmt.Printf("Send this message to your Telegram bot within 10 minutes:\n\n  /start %s\n\nor open https://t.me/<your_bot>?start=%s\n", code, code)
+	return nil
+}
+
+// --- user / setup-code -------------------------------------------------------------
+
+type userCmd struct {
+	ResetPassword userResetCmd `cmd:"" help:"Set a new password for an account and sign it out everywhere."`
+}
+
+type userResetCmd struct {
+	Email string `required:"" help:"Email of the account."`
+}
+
+func (u *userResetCmd) Run(ctx context.Context, g *globals) error {
+	e, err := open(ctx, g)
+	if err != nil {
+		return err
+	}
+	defer e.st.Close()
+	email, err := auth.NormalizeEmail(u.Email)
+	if err != nil {
+		return err
+	}
+	m, err := e.st.Q.MemberByEmail(ctx, email)
+	if err != nil {
+		return fmt.Errorf("no account with email %s", email)
+	}
+	pw, err := readPassword("New password: ")
+	if err != nil {
+		return err
+	}
+	if again, err := readPassword("Repeat it: "); err != nil || again != pw {
+		return errors.New("the passwords do not match")
+	}
+	if err := auth.SetPassword(ctx, e.st, m.ID, pw); err != nil {
+		return err
+	}
+	fmt.Printf("Password updated for %s. Every session of this account was signed out.\n", m.Name)
+	return nil
+}
+
+func readPassword(prompt string) (string, error) {
+	fmt.Fprint(os.Stderr, prompt)
+	if term.IsTerminal(int(os.Stdin.Fd())) {
+		b, err := term.ReadPassword(int(os.Stdin.Fd()))
+		fmt.Fprintln(os.Stderr)
+		return string(b), err
+	}
+	line, err := bufio.NewReader(os.Stdin).ReadString('\n')
+	return strings.TrimRight(line, "\r\n"), err
+}
+
+type setupCmd struct{}
+
+func (setupCmd) Run(ctx context.Context, g *globals) error {
+	e, err := open(ctx, g)
+	if err != nil {
+		return err
+	}
+	defer e.st.Close()
+	if req, err := auth.SetupRequired(ctx, e.st); err != nil || !req {
+		return errors.New("setup is already done: sign in, or use `exhale user reset-password`")
+	}
+	code, err := auth.NewSetupCode(ctx, e.st)
+	if err != nil {
+		return err
+	}
+	fmt.Println(code)
+	fmt.Fprintln(os.Stderr, "Enter it in the web setup wizard within 24 hours. Earlier codes no longer work.")
 	return nil
 }
 

@@ -12,6 +12,7 @@ import (
 	"log/slog"
 	"strconv"
 	"strings"
+	"sync/atomic"
 
 	"github.com/go-telegram/bot"
 	"github.com/go-telegram/bot/models"
@@ -26,10 +27,11 @@ const Name = "telegram"
 
 // Adapter is the Telegram channel.
 type Adapter struct {
-	b   *bot.Bot
-	svc *app.Service
-	eng *actions.Engine
-	log *slog.Logger
+	username atomic.Value // string, from getMe
+	b        *bot.Bot
+	svc      *app.Service
+	eng      *actions.Engine
+	log      *slog.Logger
 }
 
 // New creates the adapter. serverURL overrides the Bot API URL (tests).
@@ -52,12 +54,22 @@ func New(token, serverURL string, svc *app.Service, log *slog.Logger) (*Adapter,
 // SetEngine wires the action layer (which itself needs the adapter).
 func (a *Adapter) SetEngine(e *actions.Engine) { a.eng = e }
 
-func (a *Adapter) Name() string   { return Name }
+func (a *Adapter) Name() string { return Name }
+
+// Username is the bot's @username without the @ ("" until known), used for
+// t.me deep links.
+func (a *Adapter) Username() string { v, _ := a.username.Load().(string); return v }
+
 func (a *Adapter) String() string { return "telegram" }
 
 // Serve long-polls until ctx is cancelled. The library reconnects with
 // backoff on network errors; Telegram keeps updates for 24 h meanwhile.
 func (a *Adapter) Serve(ctx context.Context) error {
+	if me, err := a.b.GetMe(ctx); err == nil {
+		a.username.Store(me.Username)
+	} else {
+		a.log.Warn("telegram: could not read the bot's name", "err", err)
+	}
 	cmds := make([]models.BotCommand, len(actions.Commands))
 	for i, c := range actions.Commands {
 		cmds[i] = models.BotCommand{Command: c.Command, Description: c.Description}

@@ -118,6 +118,27 @@ export interface AuditLog {
   entries: AuditEntry[] | null;
 }
 
+export interface SessionUser {
+  email: string;
+  id: string;
+  name: string;
+  role: string;
+}
+
+export interface AuthSession {
+  /** A URL to the JSON Schema for this object. */
+  readonly $schema?: string;
+  /** a household exists (made with exhale init); setup only creates the owner's login */
+  hasHousehold: boolean;
+  /** the wizard must ask for the setup code (request not from the server's machine) */
+  setupNeedsCode: boolean;
+  /** nobody can sign in yet: show the setup wizard */
+  setupRequired: boolean;
+  /** username of the Telegram bot, when Telegram is enabled */
+  telegramBot?: string;
+  user?: SessionUser;
+}
+
 export interface Category {
   color?: string;
   householdId: string;
@@ -302,6 +323,11 @@ export interface DeleteSubscriptionInput {
   id: string;
 }
 
+export interface Empty {
+  /** A URL to the JSON Schema for this object. */
+  readonly $schema?: string;
+}
+
 export interface ErrorDetail {
   /** Where the error occurred, e.g. 'body.items[3].tags' or 'path.thing-id' */
   location?: string;
@@ -360,10 +386,94 @@ export interface HouseholdInfo {
   today: string;
 }
 
+export interface IdIn {
+  /** A URL to the JSON Schema for this object. */
+  readonly $schema?: string;
+  id: string;
+}
+
+export type InviteInRole = typeof InviteInRole[keyof typeof InviteInRole];
+
+
+export const InviteInRole = {
+  owner: 'owner',
+  member: 'member',
+} as const;
+
+export interface InviteIn {
+  /** A URL to the JSON Schema for this object. */
+  readonly $schema?: string;
+  role: InviteInRole;
+}
+
+export interface InviteInfo {
+  /** A URL to the JSON Schema for this object. */
+  readonly $schema?: string;
+  householdName: string;
+  invitedBy: string;
+  role: string;
+}
+
+export interface InviteOut {
+  /** A URL to the JSON Schema for this object. */
+  readonly $schema?: string;
+  code: string;
+  expiresAt: string;
+  /** web path to open, e.g. /join/abc… */
+  path: string;
+}
+
+export interface JoinInput {
+  /** A URL to the JSON Schema for this object. */
+  readonly $schema?: string;
+  code: string;
+  email: string;
+  name: string;
+  password: string;
+}
+
+export interface LinkCodeOut {
+  /** A URL to the JSON Schema for this object. */
+  readonly $schema?: string;
+  code: string;
+  /** message to send to the bot */
+  command: string;
+  expiresAt: string;
+  /** deep link that opens the bot with the code, when the bot is known */
+  url?: string;
+}
+
+export interface LinkInfo {
+  channel: string;
+  createdAt: string;
+  id: string;
+}
+
+export interface LinksOut {
+  /** A URL to the JSON Schema for this object. */
+  readonly $schema?: string;
+  /** @nullable */
+  links: LinkInfo[] | null;
+}
+
+export interface LoginIn {
+  /** A URL to the JSON Schema for this object. */
+  readonly $schema?: string;
+  email: string;
+  password: string;
+}
+
 export interface MethodSpend {
   count: number;
   monthly: Money;
   paymentMethod: string;
+}
+
+export interface PasswordIn {
+  /** A URL to the JSON Schema for this object. */
+  readonly $schema?: string;
+  current: string;
+  new: string;
 }
 
 export interface PaymentMethodOut {
@@ -462,6 +572,20 @@ export interface SetSubscriptionStatusInput {
   id: string;
 }
 
+export interface SetupInput {
+  /** A URL to the JSON Schema for this object. */
+  readonly $schema?: string;
+  /** setup code printed in the server log; not needed from the server's own machine */
+  code?: string;
+  currency?: string;
+  email: string;
+  householdName?: string;
+  locale?: string;
+  name: string;
+  password: string;
+  timezone?: string;
+}
+
 export type SpendingSummaryRates = {[key: string]: string};
 
 export interface SpendingSummary {
@@ -503,6 +627,52 @@ export interface SubscriptionList {
   readonly $schema?: string;
   /** @nullable */
   subscriptions: SubscriptionView[] | null;
+}
+
+/**
+ * read: look only; write: change with confirmations; trusted: change without asking
+ */
+export type TokenInScope = typeof TokenInScope[keyof typeof TokenInScope];
+
+
+export const TokenInScope = {
+  read: 'read',
+  write: 'write',
+  trusted: 'trusted',
+} as const;
+
+export interface TokenIn {
+  /** A URL to the JSON Schema for this object. */
+  readonly $schema?: string;
+  /**
+     * @minLength 1
+     * @maxLength 60
+     */
+  name: string;
+  /** read: look only; write: change with confirmations; trusted: change without asking */
+  scope: TokenInScope;
+}
+
+export interface TokenInfo {
+  createdAt: string;
+  id: string;
+  lastUsedAt?: string;
+  name: string;
+  scope: string;
+}
+
+export interface TokenOut {
+  /** A URL to the JSON Schema for this object. */
+  readonly $schema?: string;
+  /** shown only once */
+  token: string;
+}
+
+export interface TokensOut {
+  /** A URL to the JSON Schema for this object. */
+  readonly $schema?: string;
+  /** @nullable */
+  tokens: TokenInfo[] | null;
 }
 
 export interface UndoInput {
@@ -675,6 +845,1262 @@ export function useNeedsAttention<TData = Awaited<ReturnType<typeof needsAttenti
 
 
 
+
+export const getAuthCreateInviteUrl = () => {
+
+
+
+
+  return `/api/v1/auth/invites`
+}
+
+/**
+ * @summary Invite someone to the household (owners only)
+ */
+export const authCreateInvite = async (inviteIn: NonReadonly<InviteIn>, options?: Parameters<typeof fetcher>[1]): Promise<InviteOut> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return fetcher<InviteOut>(getAuthCreateInviteUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(inviteIn)
+  }
+);}
+
+
+
+
+
+export const getAuthCreateInviteMutationKey = () => ['authCreateInvite'] as const;
+
+export const getAuthCreateInviteMutationOptions = <TError = ErrorModel,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof authCreateInvite>>, TError,AuthCreateInviteMutationVariables, TContext>, request?: SecondParameter<typeof fetcher>}
+): UseMutationOptions<Awaited<ReturnType<typeof authCreateInvite>>, TError,AuthCreateInviteMutationVariables, TContext> => {
+
+const mutationKey = getAuthCreateInviteMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof authCreateInvite>>, AuthCreateInviteMutationVariables> = (props) => {
+          const {data} = props ?? {};
+
+          return  authCreateInvite(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type AuthCreateInviteMutationResult = NonNullable<Awaited<ReturnType<typeof authCreateInvite>>>
+    export type AuthCreateInviteMutationBody = NonReadonly<InviteIn>
+    export type AuthCreateInviteMutationError = ErrorModel
+    export type AuthCreateInviteMutationVariables = {data: NonReadonly<InviteIn>}
+
+    /**
+ * @summary Invite someone to the household (owners only)
+ */
+export const useAuthCreateInvite = <TError = ErrorModel,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof authCreateInvite>>, TError,AuthCreateInviteMutationVariables, TContext>, request?: SecondParameter<typeof fetcher>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof authCreateInvite>>,
+        TError,
+        AuthCreateInviteMutationVariables,
+        TContext
+      > => {
+      return useMutation(getAuthCreateInviteMutationOptions(options), queryClient);
+    }
+
+export const getAuthGetInviteUrl = (code: string,) => {
+
+
+
+
+  return `/api/v1/auth/invites/${code}`
+}
+
+/**
+ * @summary What an invite is for
+ */
+export const authGetInvite = async (code: string, options?: Parameters<typeof fetcher>[1]): Promise<InviteInfo> => {
+
+  return fetcher<InviteInfo>(getAuthGetInviteUrl(code),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getAuthGetInviteQueryKey = (code: string,) => {
+    return [
+    `/api/v1/auth/invites/${code}`
+    ] as const;
+    }
+
+
+export const getAuthGetInviteQueryOptions = <TData = Awaited<ReturnType<typeof authGetInvite>>, TError = ErrorModel>(code: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof authGetInvite>>, TError, TData>>, request?: SecondParameter<typeof fetcher>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getAuthGetInviteQueryKey(code);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof authGetInvite>>> = ({ signal }) => authGetInvite(code, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: code !== null && code !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof authGetInvite>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type AuthGetInviteQueryResult = NonNullable<Awaited<ReturnType<typeof authGetInvite>>>
+export type AuthGetInviteQueryError = ErrorModel
+
+
+export function useAuthGetInvite<TData = Awaited<ReturnType<typeof authGetInvite>>, TError = ErrorModel>(
+ code: string, options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof authGetInvite>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof authGetInvite>>,
+          TError,
+          Awaited<ReturnType<typeof authGetInvite>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof fetcher>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useAuthGetInvite<TData = Awaited<ReturnType<typeof authGetInvite>>, TError = ErrorModel>(
+ code: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof authGetInvite>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof authGetInvite>>,
+          TError,
+          Awaited<ReturnType<typeof authGetInvite>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof fetcher>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useAuthGetInvite<TData = Awaited<ReturnType<typeof authGetInvite>>, TError = ErrorModel>(
+ code: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof authGetInvite>>, TError, TData>>, request?: SecondParameter<typeof fetcher>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+/**
+ * @summary What an invite is for
+ */
+
+export function useAuthGetInvite<TData = Awaited<ReturnType<typeof authGetInvite>>, TError = ErrorModel>(
+ code: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof authGetInvite>>, TError, TData>>, request?: SecondParameter<typeof fetcher>}
+ , queryClient?: QueryClient
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getAuthGetInviteQueryOptions(code,options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getAuthJoinUrl = () => {
+
+
+
+
+  return `/api/v1/auth/join`
+}
+
+/**
+ * @summary Accept an invite and create your account
+ */
+export const authJoin = async (joinInput: NonReadonly<JoinInput>, options?: Parameters<typeof fetcher>[1]): Promise<AuthSession> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return fetcher<AuthSession>(getAuthJoinUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(joinInput)
+  }
+);}
+
+
+
+
+
+export const getAuthJoinMutationKey = () => ['authJoin'] as const;
+
+export const getAuthJoinMutationOptions = <TError = ErrorModel,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof authJoin>>, TError,AuthJoinMutationVariables, TContext>, request?: SecondParameter<typeof fetcher>}
+): UseMutationOptions<Awaited<ReturnType<typeof authJoin>>, TError,AuthJoinMutationVariables, TContext> => {
+
+const mutationKey = getAuthJoinMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof authJoin>>, AuthJoinMutationVariables> = (props) => {
+          const {data} = props ?? {};
+
+          return  authJoin(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type AuthJoinMutationResult = NonNullable<Awaited<ReturnType<typeof authJoin>>>
+    export type AuthJoinMutationBody = NonReadonly<JoinInput>
+    export type AuthJoinMutationError = ErrorModel
+    export type AuthJoinMutationVariables = {data: NonReadonly<JoinInput>}
+
+    /**
+ * @summary Accept an invite and create your account
+ */
+export const useAuthJoin = <TError = ErrorModel,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof authJoin>>, TError,AuthJoinMutationVariables, TContext>, request?: SecondParameter<typeof fetcher>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof authJoin>>,
+        TError,
+        AuthJoinMutationVariables,
+        TContext
+      > => {
+      return useMutation(getAuthJoinMutationOptions(options), queryClient);
+    }
+
+export const getAuthListLinksUrl = () => {
+
+
+
+
+  return `/api/v1/auth/links`
+}
+
+/**
+ * @summary Your linked chat accounts
+ */
+export const authListLinks = async ( options?: Parameters<typeof fetcher>[1]): Promise<LinksOut> => {
+
+  return fetcher<LinksOut>(getAuthListLinksUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getAuthListLinksQueryKey = () => {
+    return [
+    `/api/v1/auth/links`
+    ] as const;
+    }
+
+
+export const getAuthListLinksQueryOptions = <TData = Awaited<ReturnType<typeof authListLinks>>, TError = ErrorModel>( options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof authListLinks>>, TError, TData>>, request?: SecondParameter<typeof fetcher>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getAuthListLinksQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof authListLinks>>> = ({ signal }) => authListLinks({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof authListLinks>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type AuthListLinksQueryResult = NonNullable<Awaited<ReturnType<typeof authListLinks>>>
+export type AuthListLinksQueryError = ErrorModel
+
+
+export function useAuthListLinks<TData = Awaited<ReturnType<typeof authListLinks>>, TError = ErrorModel>(
+  options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof authListLinks>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof authListLinks>>,
+          TError,
+          Awaited<ReturnType<typeof authListLinks>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof fetcher>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useAuthListLinks<TData = Awaited<ReturnType<typeof authListLinks>>, TError = ErrorModel>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof authListLinks>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof authListLinks>>,
+          TError,
+          Awaited<ReturnType<typeof authListLinks>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof fetcher>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useAuthListLinks<TData = Awaited<ReturnType<typeof authListLinks>>, TError = ErrorModel>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof authListLinks>>, TError, TData>>, request?: SecondParameter<typeof fetcher>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+/**
+ * @summary Your linked chat accounts
+ */
+
+export function useAuthListLinks<TData = Awaited<ReturnType<typeof authListLinks>>, TError = ErrorModel>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof authListLinks>>, TError, TData>>, request?: SecondParameter<typeof fetcher>}
+ , queryClient?: QueryClient
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getAuthListLinksQueryOptions(options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getAuthLinkTelegramUrl = () => {
+
+
+
+
+  return `/api/v1/auth/links/telegram`
+}
+
+/**
+ * @summary Get a one-time code to link Telegram
+ */
+export const authLinkTelegram = async ( options?: Parameters<typeof fetcher>[1]): Promise<LinkCodeOut> => {
+
+  return fetcher<LinkCodeOut>(getAuthLinkTelegramUrl(),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+);}
+
+
+
+
+
+export const getAuthLinkTelegramMutationKey = () => ['authLinkTelegram'] as const;
+
+export const getAuthLinkTelegramMutationOptions = <TError = ErrorModel,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof authLinkTelegram>>, TError,void, TContext>, request?: SecondParameter<typeof fetcher>}
+): UseMutationOptions<Awaited<ReturnType<typeof authLinkTelegram>>, TError,void, TContext> => {
+
+const mutationKey = getAuthLinkTelegramMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof authLinkTelegram>>, void> = () => {
+
+
+          return  authLinkTelegram(requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type AuthLinkTelegramMutationResult = NonNullable<Awaited<ReturnType<typeof authLinkTelegram>>>
+
+    export type AuthLinkTelegramMutationError = ErrorModel
+
+
+    /**
+ * @summary Get a one-time code to link Telegram
+ */
+export const useAuthLinkTelegram = <TError = ErrorModel,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof authLinkTelegram>>, TError,void, TContext>, request?: SecondParameter<typeof fetcher>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof authLinkTelegram>>,
+        TError,
+        void,
+        TContext
+      > => {
+      return useMutation(getAuthLinkTelegramMutationOptions(options), queryClient);
+    }
+
+export const getAuthUnlinkUrl = () => {
+
+
+
+
+  return `/api/v1/auth/links/unlink`
+}
+
+/**
+ * @summary Unlink a chat account
+ */
+export const authUnlink = async (idIn: NonReadonly<IdIn>, options?: Parameters<typeof fetcher>[1]): Promise<Empty> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return fetcher<Empty>(getAuthUnlinkUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(idIn)
+  }
+);}
+
+
+
+
+
+export const getAuthUnlinkMutationKey = () => ['authUnlink'] as const;
+
+export const getAuthUnlinkMutationOptions = <TError = ErrorModel,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof authUnlink>>, TError,AuthUnlinkMutationVariables, TContext>, request?: SecondParameter<typeof fetcher>}
+): UseMutationOptions<Awaited<ReturnType<typeof authUnlink>>, TError,AuthUnlinkMutationVariables, TContext> => {
+
+const mutationKey = getAuthUnlinkMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof authUnlink>>, AuthUnlinkMutationVariables> = (props) => {
+          const {data} = props ?? {};
+
+          return  authUnlink(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type AuthUnlinkMutationResult = NonNullable<Awaited<ReturnType<typeof authUnlink>>>
+    export type AuthUnlinkMutationBody = NonReadonly<IdIn>
+    export type AuthUnlinkMutationError = ErrorModel
+    export type AuthUnlinkMutationVariables = {data: NonReadonly<IdIn>}
+
+    /**
+ * @summary Unlink a chat account
+ */
+export const useAuthUnlink = <TError = ErrorModel,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof authUnlink>>, TError,AuthUnlinkMutationVariables, TContext>, request?: SecondParameter<typeof fetcher>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof authUnlink>>,
+        TError,
+        AuthUnlinkMutationVariables,
+        TContext
+      > => {
+      return useMutation(getAuthUnlinkMutationOptions(options), queryClient);
+    }
+
+export const getAuthLoginUrl = () => {
+
+
+
+
+  return `/api/v1/auth/login`
+}
+
+/**
+ * @summary Sign in
+ */
+export const authLogin = async (loginIn: NonReadonly<LoginIn>, options?: Parameters<typeof fetcher>[1]): Promise<AuthSession> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return fetcher<AuthSession>(getAuthLoginUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(loginIn)
+  }
+);}
+
+
+
+
+
+export const getAuthLoginMutationKey = () => ['authLogin'] as const;
+
+export const getAuthLoginMutationOptions = <TError = ErrorModel,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof authLogin>>, TError,AuthLoginMutationVariables, TContext>, request?: SecondParameter<typeof fetcher>}
+): UseMutationOptions<Awaited<ReturnType<typeof authLogin>>, TError,AuthLoginMutationVariables, TContext> => {
+
+const mutationKey = getAuthLoginMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof authLogin>>, AuthLoginMutationVariables> = (props) => {
+          const {data} = props ?? {};
+
+          return  authLogin(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type AuthLoginMutationResult = NonNullable<Awaited<ReturnType<typeof authLogin>>>
+    export type AuthLoginMutationBody = NonReadonly<LoginIn>
+    export type AuthLoginMutationError = ErrorModel
+    export type AuthLoginMutationVariables = {data: NonReadonly<LoginIn>}
+
+    /**
+ * @summary Sign in
+ */
+export const useAuthLogin = <TError = ErrorModel,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof authLogin>>, TError,AuthLoginMutationVariables, TContext>, request?: SecondParameter<typeof fetcher>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof authLogin>>,
+        TError,
+        AuthLoginMutationVariables,
+        TContext
+      > => {
+      return useMutation(getAuthLoginMutationOptions(options), queryClient);
+    }
+
+export const getAuthLogoutUrl = () => {
+
+
+
+
+  return `/api/v1/auth/logout`
+}
+
+/**
+ * @summary Sign out
+ */
+export const authLogout = async ( options?: Parameters<typeof fetcher>[1]): Promise<Empty> => {
+
+  return fetcher<Empty>(getAuthLogoutUrl(),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+);}
+
+
+
+
+
+export const getAuthLogoutMutationKey = () => ['authLogout'] as const;
+
+export const getAuthLogoutMutationOptions = <TError = ErrorModel,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof authLogout>>, TError,void, TContext>, request?: SecondParameter<typeof fetcher>}
+): UseMutationOptions<Awaited<ReturnType<typeof authLogout>>, TError,void, TContext> => {
+
+const mutationKey = getAuthLogoutMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof authLogout>>, void> = () => {
+
+
+          return  authLogout(requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type AuthLogoutMutationResult = NonNullable<Awaited<ReturnType<typeof authLogout>>>
+
+    export type AuthLogoutMutationError = ErrorModel
+
+
+    /**
+ * @summary Sign out
+ */
+export const useAuthLogout = <TError = ErrorModel,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof authLogout>>, TError,void, TContext>, request?: SecondParameter<typeof fetcher>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof authLogout>>,
+        TError,
+        void,
+        TContext
+      > => {
+      return useMutation(getAuthLogoutMutationOptions(options), queryClient);
+    }
+
+export const getAuthChangePasswordUrl = () => {
+
+
+
+
+  return `/api/v1/auth/password`
+}
+
+/**
+ * @summary Change your password (signs out your other sessions)
+ */
+export const authChangePassword = async (passwordIn: NonReadonly<PasswordIn>, options?: Parameters<typeof fetcher>[1]): Promise<Empty> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return fetcher<Empty>(getAuthChangePasswordUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(passwordIn)
+  }
+);}
+
+
+
+
+
+export const getAuthChangePasswordMutationKey = () => ['authChangePassword'] as const;
+
+export const getAuthChangePasswordMutationOptions = <TError = ErrorModel,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof authChangePassword>>, TError,AuthChangePasswordMutationVariables, TContext>, request?: SecondParameter<typeof fetcher>}
+): UseMutationOptions<Awaited<ReturnType<typeof authChangePassword>>, TError,AuthChangePasswordMutationVariables, TContext> => {
+
+const mutationKey = getAuthChangePasswordMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof authChangePassword>>, AuthChangePasswordMutationVariables> = (props) => {
+          const {data} = props ?? {};
+
+          return  authChangePassword(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type AuthChangePasswordMutationResult = NonNullable<Awaited<ReturnType<typeof authChangePassword>>>
+    export type AuthChangePasswordMutationBody = NonReadonly<PasswordIn>
+    export type AuthChangePasswordMutationError = ErrorModel
+    export type AuthChangePasswordMutationVariables = {data: NonReadonly<PasswordIn>}
+
+    /**
+ * @summary Change your password (signs out your other sessions)
+ */
+export const useAuthChangePassword = <TError = ErrorModel,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof authChangePassword>>, TError,AuthChangePasswordMutationVariables, TContext>, request?: SecondParameter<typeof fetcher>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof authChangePassword>>,
+        TError,
+        AuthChangePasswordMutationVariables,
+        TContext
+      > => {
+      return useMutation(getAuthChangePasswordMutationOptions(options), queryClient);
+    }
+
+export const getAuthSessionUrl = () => {
+
+
+
+
+  return `/api/v1/auth/session`
+}
+
+/**
+ * @summary Current session and setup state
+ */
+export const authSession = async ( options?: Parameters<typeof fetcher>[1]): Promise<AuthSession> => {
+
+  return fetcher<AuthSession>(getAuthSessionUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getAuthSessionQueryKey = () => {
+    return [
+    `/api/v1/auth/session`
+    ] as const;
+    }
+
+
+export const getAuthSessionQueryOptions = <TData = Awaited<ReturnType<typeof authSession>>, TError = ErrorModel>( options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof authSession>>, TError, TData>>, request?: SecondParameter<typeof fetcher>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getAuthSessionQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof authSession>>> = ({ signal }) => authSession({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof authSession>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type AuthSessionQueryResult = NonNullable<Awaited<ReturnType<typeof authSession>>>
+export type AuthSessionQueryError = ErrorModel
+
+
+export function useAuthSession<TData = Awaited<ReturnType<typeof authSession>>, TError = ErrorModel>(
+  options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof authSession>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof authSession>>,
+          TError,
+          Awaited<ReturnType<typeof authSession>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof fetcher>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useAuthSession<TData = Awaited<ReturnType<typeof authSession>>, TError = ErrorModel>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof authSession>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof authSession>>,
+          TError,
+          Awaited<ReturnType<typeof authSession>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof fetcher>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useAuthSession<TData = Awaited<ReturnType<typeof authSession>>, TError = ErrorModel>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof authSession>>, TError, TData>>, request?: SecondParameter<typeof fetcher>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+/**
+ * @summary Current session and setup state
+ */
+
+export function useAuthSession<TData = Awaited<ReturnType<typeof authSession>>, TError = ErrorModel>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof authSession>>, TError, TData>>, request?: SecondParameter<typeof fetcher>}
+ , queryClient?: QueryClient
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getAuthSessionQueryOptions(options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getAuthSetupUrl = () => {
+
+
+
+
+  return `/api/v1/auth/setup`
+}
+
+/**
+ * @summary Create the first account
+ */
+export const authSetup = async (setupInput: NonReadonly<SetupInput>, options?: Parameters<typeof fetcher>[1]): Promise<AuthSession> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return fetcher<AuthSession>(getAuthSetupUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(setupInput)
+  }
+);}
+
+
+
+
+
+export const getAuthSetupMutationKey = () => ['authSetup'] as const;
+
+export const getAuthSetupMutationOptions = <TError = ErrorModel,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof authSetup>>, TError,AuthSetupMutationVariables, TContext>, request?: SecondParameter<typeof fetcher>}
+): UseMutationOptions<Awaited<ReturnType<typeof authSetup>>, TError,AuthSetupMutationVariables, TContext> => {
+
+const mutationKey = getAuthSetupMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof authSetup>>, AuthSetupMutationVariables> = (props) => {
+          const {data} = props ?? {};
+
+          return  authSetup(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type AuthSetupMutationResult = NonNullable<Awaited<ReturnType<typeof authSetup>>>
+    export type AuthSetupMutationBody = NonReadonly<SetupInput>
+    export type AuthSetupMutationError = ErrorModel
+    export type AuthSetupMutationVariables = {data: NonReadonly<SetupInput>}
+
+    /**
+ * @summary Create the first account
+ */
+export const useAuthSetup = <TError = ErrorModel,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof authSetup>>, TError,AuthSetupMutationVariables, TContext>, request?: SecondParameter<typeof fetcher>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof authSetup>>,
+        TError,
+        AuthSetupMutationVariables,
+        TContext
+      > => {
+      return useMutation(getAuthSetupMutationOptions(options), queryClient);
+    }
+
+export const getAuthListTokensUrl = () => {
+
+
+
+
+  return `/api/v1/auth/tokens`
+}
+
+/**
+ * @summary Your API tokens
+ */
+export const authListTokens = async ( options?: Parameters<typeof fetcher>[1]): Promise<TokensOut> => {
+
+  return fetcher<TokensOut>(getAuthListTokensUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getAuthListTokensQueryKey = () => {
+    return [
+    `/api/v1/auth/tokens`
+    ] as const;
+    }
+
+
+export const getAuthListTokensQueryOptions = <TData = Awaited<ReturnType<typeof authListTokens>>, TError = ErrorModel>( options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof authListTokens>>, TError, TData>>, request?: SecondParameter<typeof fetcher>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getAuthListTokensQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof authListTokens>>> = ({ signal }) => authListTokens({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof authListTokens>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type AuthListTokensQueryResult = NonNullable<Awaited<ReturnType<typeof authListTokens>>>
+export type AuthListTokensQueryError = ErrorModel
+
+
+export function useAuthListTokens<TData = Awaited<ReturnType<typeof authListTokens>>, TError = ErrorModel>(
+  options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof authListTokens>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof authListTokens>>,
+          TError,
+          Awaited<ReturnType<typeof authListTokens>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof fetcher>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useAuthListTokens<TData = Awaited<ReturnType<typeof authListTokens>>, TError = ErrorModel>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof authListTokens>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof authListTokens>>,
+          TError,
+          Awaited<ReturnType<typeof authListTokens>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof fetcher>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useAuthListTokens<TData = Awaited<ReturnType<typeof authListTokens>>, TError = ErrorModel>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof authListTokens>>, TError, TData>>, request?: SecondParameter<typeof fetcher>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+/**
+ * @summary Your API tokens
+ */
+
+export function useAuthListTokens<TData = Awaited<ReturnType<typeof authListTokens>>, TError = ErrorModel>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof authListTokens>>, TError, TData>>, request?: SecondParameter<typeof fetcher>}
+ , queryClient?: QueryClient
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getAuthListTokensQueryOptions(options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getAuthCreateTokenUrl = () => {
+
+
+
+
+  return `/api/v1/auth/tokens`
+}
+
+/**
+ * @summary Create an API token for an AI agent or script
+ */
+export const authCreateToken = async (tokenIn: NonReadonly<TokenIn>, options?: Parameters<typeof fetcher>[1]): Promise<TokenOut> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return fetcher<TokenOut>(getAuthCreateTokenUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(tokenIn)
+  }
+);}
+
+
+
+
+
+export const getAuthCreateTokenMutationKey = () => ['authCreateToken'] as const;
+
+export const getAuthCreateTokenMutationOptions = <TError = ErrorModel,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof authCreateToken>>, TError,AuthCreateTokenMutationVariables, TContext>, request?: SecondParameter<typeof fetcher>}
+): UseMutationOptions<Awaited<ReturnType<typeof authCreateToken>>, TError,AuthCreateTokenMutationVariables, TContext> => {
+
+const mutationKey = getAuthCreateTokenMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof authCreateToken>>, AuthCreateTokenMutationVariables> = (props) => {
+          const {data} = props ?? {};
+
+          return  authCreateToken(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type AuthCreateTokenMutationResult = NonNullable<Awaited<ReturnType<typeof authCreateToken>>>
+    export type AuthCreateTokenMutationBody = NonReadonly<TokenIn>
+    export type AuthCreateTokenMutationError = ErrorModel
+    export type AuthCreateTokenMutationVariables = {data: NonReadonly<TokenIn>}
+
+    /**
+ * @summary Create an API token for an AI agent or script
+ */
+export const useAuthCreateToken = <TError = ErrorModel,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof authCreateToken>>, TError,AuthCreateTokenMutationVariables, TContext>, request?: SecondParameter<typeof fetcher>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof authCreateToken>>,
+        TError,
+        AuthCreateTokenMutationVariables,
+        TContext
+      > => {
+      return useMutation(getAuthCreateTokenMutationOptions(options), queryClient);
+    }
+
+export const getAuthRevokeTokenUrl = () => {
+
+
+
+
+  return `/api/v1/auth/tokens/revoke`
+}
+
+/**
+ * @summary Revoke an API token
+ */
+export const authRevokeToken = async (idIn: NonReadonly<IdIn>, options?: Parameters<typeof fetcher>[1]): Promise<Empty> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return fetcher<Empty>(getAuthRevokeTokenUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(idIn)
+  }
+);}
+
+
+
+
+
+export const getAuthRevokeTokenMutationKey = () => ['authRevokeToken'] as const;
+
+export const getAuthRevokeTokenMutationOptions = <TError = ErrorModel,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof authRevokeToken>>, TError,AuthRevokeTokenMutationVariables, TContext>, request?: SecondParameter<typeof fetcher>}
+): UseMutationOptions<Awaited<ReturnType<typeof authRevokeToken>>, TError,AuthRevokeTokenMutationVariables, TContext> => {
+
+const mutationKey = getAuthRevokeTokenMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof authRevokeToken>>, AuthRevokeTokenMutationVariables> = (props) => {
+          const {data} = props ?? {};
+
+          return  authRevokeToken(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type AuthRevokeTokenMutationResult = NonNullable<Awaited<ReturnType<typeof authRevokeToken>>>
+    export type AuthRevokeTokenMutationBody = NonReadonly<IdIn>
+    export type AuthRevokeTokenMutationError = ErrorModel
+    export type AuthRevokeTokenMutationVariables = {data: NonReadonly<IdIn>}
+
+    /**
+ * @summary Revoke an API token
+ */
+export const useAuthRevokeToken = <TError = ErrorModel,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof authRevokeToken>>, TError,AuthRevokeTokenMutationVariables, TContext>, request?: SecondParameter<typeof fetcher>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof authRevokeToken>>,
+        TError,
+        AuthRevokeTokenMutationVariables,
+        TContext
+      > => {
+      return useMutation(getAuthRevokeTokenMutationOptions(options), queryClient);
+    }
 
 export const getCreateCategoryUrl = () => {
 

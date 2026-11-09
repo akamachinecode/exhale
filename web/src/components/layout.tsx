@@ -1,7 +1,8 @@
 import { Link, Outlet } from "@tanstack/react-router";
-import { Activity, Bot, CalendarDays, LayoutGrid, Moon, Repeat, Sun } from "lucide-react";
+import { Activity, Bot, CalendarDays, LayoutGrid, Moon, Repeat, Settings, Sun } from "lucide-react";
 import { useEffect, useState } from "react";
-import { useGetHousehold } from "@/gen/api";
+import { SignOut } from "@/components/sign-out";
+import { useAuthSession, useGetHousehold } from "@/gen/api";
 import { useLiveEvents } from "@/lib/events";
 import { cn } from "@/lib/utils";
 
@@ -59,6 +60,7 @@ export function Layout() {
 	useLiveEvents();
 	const [dark, setDark] = useTheme();
 	const household = useGetHousehold();
+	const session = useAuthSession();
 	return (
 		<div className="min-h-dvh md:grid md:grid-cols-[232px_1fr]">
 			<div className="hidden border-r border-line bg-surface/60 md:block">
@@ -80,21 +82,40 @@ export function Layout() {
 							</Link>
 						))}
 					</nav>
-					<div className="mt-auto flex items-center justify-between gap-2 border-t border-line px-2 pt-3">
+					<Link
+						to="/settings"
+						className="mt-auto flex items-center gap-2.5 rounded-lg px-2.5 py-2 text-sm text-muted transition-colors hover:bg-raised hover:text-fg"
+						activeProps={{ className: "bg-raised !text-fg font-medium" }}
+					>
+						<Settings className="size-4" />
+						Settings
+					</Link>
+					<div className="mt-2 flex items-center justify-between gap-1 border-t border-line pt-3 pl-2">
 						<div className="min-w-0 text-xs">
-							<p className="truncate font-medium text-fg">{household.data?.household.name ?? "Household"}</p>
-							<p className="truncate text-muted">
-								{household.data?.household.currency} · {household.data?.household.timezone}
-							</p>
+							<p className="truncate font-medium text-fg">{session.data?.user?.name ?? "—"}</p>
+							<p className="truncate text-muted">{household.data?.household.name ?? "Household"}</p>
 						</div>
-						<ThemeToggle dark={dark} onToggle={() => setDark(!dark)} />
+						<div className="flex shrink-0 items-center">
+							<ThemeToggle dark={dark} onToggle={() => setDark(!dark)} />
+							<SignOut compact />
+						</div>
 					</div>
 				</aside>
 			</div>
 			<div className="min-w-0 pb-20 md:pb-0">
 				<header className="flex items-center justify-between border-b border-line bg-surface/60 px-4 py-3 md:hidden">
 					<Logo />
-					<ThemeToggle dark={dark} onToggle={() => setDark(!dark)} />
+					<div className="flex items-center">
+						<ThemeToggle dark={dark} onToggle={() => setDark(!dark)} />
+						<Link
+							to="/settings"
+							aria-label="Settings"
+							className="rounded-lg p-2 text-muted transition-colors hover:bg-raised hover:text-fg"
+							activeProps={{ className: "!text-accent" }}
+						>
+							<Settings className="size-4" />
+						</Link>
+					</div>
 				</header>
 				<main className="mx-auto w-full max-w-[1180px] px-4 py-6 md:px-8 md:py-8">
 					<Outlet />

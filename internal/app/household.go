@@ -1,9 +1,11 @@
 package app
 
 import (
+	"cmp"
 	"context"
 	"fmt"
 	"strings"
+	"time"
 
 	"github.com/akamachinecode/exhale/internal/bus"
 	"github.com/akamachinecode/exhale/internal/domain"
@@ -23,19 +25,46 @@ type BootstrapInput struct {
 	Locale        string
 }
 
-// Bootstrap creates the household, its owner and default categories if no
-// household exists yet. It returns the owner as a system-usable actor.
-func (s *Service) Bootstrap(ctx context.Context, in BootstrapInput) (Actor, error) {
-	if r, err := s.st.Q.FirstHousehold(ctx); err == nil {
-		members, err := s.st.Q.ListMembers(ctx, r.ID)
-		if err != nil || len(members) == 0 {
-			return Actor{}, fmt.Errorf("household %s has no members", r.ID)
-		}
-		return MemberActor(store.MemberFromRow(members[0]), ScopeTrusted), nil
+// Owner returns the first owner of the household as a trusted actor, or
+// ErrNotFound if no household exists yet.
+func (s *Service) Owner(ctx context.Context) (Actor, error) {
+	r, err := s.st.Q.FirstHousehold(ctx)
+	if err != nil {
+		return Actor{}, fmt.Errorf("%w: no household yet", domain.ErrNotFound)
 	}
-	if _, err := money.New(0, in.Currency); err != nil {
+	members, err := s.st.Q.ListMembers(ctx, r.ID)
+	if err != nil {
 		return Actor{}, err
 	}
+	for _, m := range members {
+		if m.Role == string(domain.RoleOwner) {
+			return MemberActor(store.MemberFromRow(m), ScopeTrusted), nil
+		}
+	}
+	return Actor{}, fmt.Errorf("%w: household %s has no owner", domain.ErrNotFound, r.ID)
+}
+
+// Bootstrap creates the household, its owner and default categories if no
+// household exists yet. If one exists it returns its owner. It returns the
+// owner as a system-usable actor.
+func (s *Service) Bootstrap(ctx context.Context, in BootstrapInput) (Actor, error) {
+	if a, err := s.Owner(ctx); err == nil {
+		return a, nil
+	}
+	in.HouseholdName = cmp.Or(strings.TrimSpace(in.HouseholdName), "Home")
+	if strings.TrimSpace(in.OwnerName) == "" {
+		return Actor{}, fmt.Errorf("%w: the owner's name is required", domain.ErrValidation)
+	}
+	if in.Currency == "" {
+		return Actor{}, fmt.Errorf("%w: the main currency is required", domain.ErrValidation)
+	}
+	if _, err := money.New(0, in.Currency); err != nil {
+		return Actor{}, fmt.Errorf("%w: %v", domain.ErrValidation, err)
+	}
+	if _, err := time.LoadLocation(in.Timezone); err != nil || in.Timezone == "" {
+		return Actor{}, fmt.Errorf("%w: unknown time zone %q", domain.ErrValidation, in.Timezone)
+	}
+	in.Locale = cmp.Or(in.Locale, "en")
 	h := domain.Household{ID: domain.NewID(domain.PrefixHousehold), Name: in.HouseholdName, Currency: strings.ToUpper(in.Currency), Timezone: in.Timezone, Locale: in.Locale}
 	m := domain.Member{ID: domain.NewID(domain.PrefixMember), HouseholdID: h.ID, Name: in.OwnerName, Email: in.OwnerEmail, Role: domain.RoleOwner}
 	now := store.FormatTime(s.now())

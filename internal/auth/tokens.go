@@ -1,5 +1,6 @@
 // Package auth resolves who is calling: API tokens for scripts and AI agents,
-// one-time codes for linking chat accounts (ADR 0006).
+// one-time codes for linking chat accounts, and web accounts and sessions
+// (ADR 0006).
 package auth
 
 import (
@@ -115,4 +116,58 @@ func MemberForChannel(ctx context.Context, st *store.Store, channel, externalID 
 		return app.Actor{}, ErrUnauthorized
 	}
 	return app.MemberActor(store.MemberFromRow(m), app.ScopeWrite), nil
+}
+
+// TokenInfo describes an API token without its secret.
+type TokenInfo struct {
+	ID         string `json:"id"`
+	Name       string `json:"name"`
+	Scope      string `json:"scope"`
+	CreatedAt  string `json:"createdAt"`
+	LastUsedAt string `json:"lastUsedAt,omitempty"`
+}
+
+// ListTokens returns a member's active tokens.
+func ListTokens(ctx context.Context, st *store.Store, memberID string) ([]TokenInfo, error) {
+	rows, err := st.Q.ListAPITokens(ctx, memberID)
+	out := make([]TokenInfo, 0, len(rows))
+	for _, r := range rows {
+		out = append(out, TokenInfo{ID: r.ID, Name: r.Name, Scope: r.Scope, CreatedAt: r.CreatedAt, LastUsedAt: store.Str(r.LastUsedAt)})
+	}
+	return out, err
+}
+
+// RevokeToken revokes one of a member's tokens.
+func RevokeToken(ctx context.Context, st *store.Store, memberID, id string) error {
+	n, err := st.Q.RevokeAPIToken(ctx, db.RevokeAPITokenParams{RevokedAt: store.Ptr(store.FormatTime(time.Now())), ID: id, MemberID: memberID})
+	if err == nil && n == 0 {
+		return fmt.Errorf("%w: token %s", domain.ErrNotFound, id)
+	}
+	return err
+}
+
+// LinkInfo describes a linked chat account.
+type LinkInfo struct {
+	ID        string `json:"id"`
+	Channel   string `json:"channel"`
+	CreatedAt string `json:"createdAt"`
+}
+
+// ListLinks returns a member's linked chat accounts.
+func ListLinks(ctx context.Context, st *store.Store, memberID string) ([]LinkInfo, error) {
+	rows, err := st.Q.ChannelLinksForMember(ctx, memberID)
+	out := make([]LinkInfo, 0, len(rows))
+	for _, r := range rows {
+		out = append(out, LinkInfo{ID: r.ID, Channel: r.Channel, CreatedAt: r.CreatedAt})
+	}
+	return out, err
+}
+
+// Unlink removes one of a member's chat links.
+func Unlink(ctx context.Context, st *store.Store, memberID, id string) error {
+	n, err := st.Q.DeleteChannelLink(ctx, db.DeleteChannelLinkParams{ID: id, MemberID: memberID})
+	if err == nil && n == 0 {
+		return fmt.Errorf("%w: link %s", domain.ErrNotFound, id)
+	}
+	return err
 }
