@@ -67,7 +67,7 @@ export function CodeBlock({ code, className }: { code: string; className?: strin
 			>
 				{copied ? <Check className="size-3.5 text-ok" /> : <Copy className="size-3.5" />}
 			</button>
-			<pre className="overflow-x-auto p-3 pr-10 font-mono text-[12px] leading-relaxed break-all whitespace-pre-wrap">
+			<pre className="overflow-x-auto p-3 pr-10 font-mono text-[12px] leading-relaxed break-all whitespace-pre-wrap select-all">
 				{code}
 			</pre>
 		</div>
@@ -632,6 +632,7 @@ export function ClaudeConnect() {
 	const qc = useQueryClient();
 	const [command, setCommand] = useState<string>();
 	const [copied, setCopied] = useState(false);
+	const [shown, setShown] = useState(false);
 	const tokens = useAuthListTokens({ query: { refetchInterval: command ? 2000 : false } });
 	const connected = (tokens.data?.tokens ?? []).some((t) => t.lastUsedAt);
 	if (connected && !command) {
@@ -649,30 +650,42 @@ export function ClaudeConnect() {
 			</p>
 		);
 	}
+	// One token per visit: copying again or showing reuses the same command.
+	const ensureCommand = async () => {
+		if (command) return command;
+		const t = await create.mutateAsync({ data: { name: "Claude Code", scope: "write" } });
+		const cmd = `claude mcp add --scope user --transport http exhale ${apiOrigin}/mcp --header "Authorization: Bearer ${t.token}"`;
+		setCommand(cmd);
+		qc.invalidateQueries();
+		return cmd;
+	};
 	return (
 		<div className="grid gap-3">
-			<div className="flex flex-wrap items-center gap-3">
+			<div className="flex flex-wrap items-center gap-2">
 				<Button
 					variant="primary"
 					disabled={create.isPending}
+					onClick={async () => setCopied(await copy(await ensureCommand()))}
+				>
+					{copied ? "Copy again" : "Copy the command"}
+				</Button>
+				<Button
+					variant="ghost"
+					disabled={create.isPending}
 					onClick={async () => {
-						const t = await create.mutateAsync({ data: { name: "Claude Code", scope: "write" } });
-						const cmd = `claude mcp add --scope user --transport http exhale ${apiOrigin}/mcp --header "Authorization: Bearer ${t.token}"`;
-						setCommand(cmd);
-						setCopied(await copy(cmd));
-						qc.invalidateQueries();
+						await ensureCommand();
+						setShown(!shown);
 					}}
 				>
-					{command ? "Copy again" : "Copy the command"}
+					{shown ? "Hide it" : "Show it"}
 				</Button>
-				{command && (
+				{copied && (
 					<span className="flex items-center gap-2 text-sm text-muted">
-						{copied && <Check className="size-4 text-ok" />}
-						{copied ? "Copied. Paste it in a terminal." : "Copy it below and paste it in a terminal."}
+						<Check className="size-4 text-ok" /> Copied. Paste it in a terminal.
 					</span>
 				)}
 			</div>
-			{command && !copied && <CodeBlock code={command} />}
+			{command && shown && <CodeBlock code={command} />}
 			{command && (
 				<p className="flex items-center gap-2 text-xs text-muted">
 					<Loader2 className="size-3.5 animate-spin" /> Waiting for Claude…
