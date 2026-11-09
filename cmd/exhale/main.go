@@ -109,12 +109,17 @@ func (s *serveCmd) Run(ctx context.Context, g *globals) error {
 	}
 	defer e.st.Close()
 	if req, err := auth.SetupRequired(ctx, e.st); err == nil && req {
-		code, err := auth.NewSetupCode(ctx, e.st)
-		if err != nil {
-			return err
+		if auth.HasSetupCode(ctx, e.st) {
+			e.log.Warn("no account yet: open the web UI to create yours", "url", "http://"+s.Listen,
+				"note", "the setup code printed earlier still works; `exhale setup-code` prints a new one")
+		} else {
+			code, err := auth.NewSetupCode(ctx, e.st)
+			if err != nil {
+				return err
+			}
+			e.log.Warn("no account yet: open the web UI to create yours", "url", "http://"+s.Listen, "setup_code", code,
+				"note", "only asked when the wizard is opened from another machine; `exhale setup-code` prints a new one")
 		}
-		e.log.Warn("no account yet: open the web UI to create yours", "url", "http://"+s.Listen, "setup_code", code,
-			"note", "the code is only asked when the wizard is opened from another machine; `exhale setup-code` prints a new one")
 	}
 	var tg *telegram.Adapter
 	handler, _, err := httpapi.New(e.svc, httpapi.Config{

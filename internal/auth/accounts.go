@@ -101,6 +101,17 @@ func NewSetupCode(ctx context.Context, st *store.Store) (string, error) {
 	return code, st.Q.PutSetting(ctx, db.PutSettingParams{Key: settingSetupExpires, Value: exp})
 }
 
+// HasSetupCode reports whether an unexpired setup code exists, so a restart
+// does not invalidate a code someone already has.
+func HasSetupCode(ctx context.Context, st *store.Store) bool {
+	h, err := st.Q.GetSetting(ctx, settingSetupCode)
+	if err != nil || h == "" {
+		return false
+	}
+	exp, err := st.Q.GetSetting(ctx, settingSetupExpires)
+	return err == nil && store.ParseTime(exp).After(time.Now())
+}
+
 func checkSetupCode(ctx context.Context, st *store.Store, code string) bool {
 	h, err := st.Q.GetSetting(ctx, settingSetupCode)
 	if err != nil || h == "" {
