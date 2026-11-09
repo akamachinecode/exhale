@@ -35,6 +35,7 @@ Accepted ADRs are not rewritten. A decision that changes gets a new ADR that sup
 | [0016](0016-repository-ci-releases.md) | Repository, CI and releases | Accepted |
 | [0017](0017-license.md) | License: AGPL-3.0-or-later + DCO | Accepted |
 | [0018](0018-agent-ready.md) | Agent-ready app: AI is a first-class feature of v1 | Accepted |
+| [0019](0019-the-message-is-the-app.md) | The message is the app: one screen format, a living home message in chat | Accepted |
 
 Open questions are tracked in [../open-questions.md](../open-questions.md).
 
