@@ -95,7 +95,7 @@ func owner(ctx context.Context, e *env) (app.Actor, error) {
 
 type serveCmd struct {
 	Listen        string `env:"EXHALE_LISTEN" default:"127.0.0.1:8484" help:"Address to listen on (use 0.0.0.0:8484 in Docker)."`
-	TelegramToken string `name:"telegram-token" env:"EXHALE_TELEGRAM_TOKEN" help:"Bot token from @BotFather. Enables Telegram reminders."`
+	TelegramToken string `name:"telegram-token" env:"EXHALE_TELEGRAM_TOKEN" help:"Bot token from @BotFather. Optional: usually set from the web (Settings → Telegram)."`
 	TelegramAPI   string `name:"telegram-api" env:"EXHALE_TELEGRAM_API" hidden:"" help:"Bot API base URL (tests)."`
 	TrustLocal    bool   `name:"trust-local" env:"EXHALE_TRUST_LOCAL" help:"Let requests from this machine act as the owner without signing in (development, scripts)."`
 	SecureCookies bool   `name:"secure-cookies" env:"EXHALE_SECURE_COOKIES" help:"Mark the session cookie Secure. Set it when Exhale is served over HTTPS."`
@@ -121,15 +121,9 @@ func (s *serveCmd) Run(ctx context.Context, g *globals) error {
 				"note", "only asked when the wizard is opened from another machine; `exhale setup-code` prints a new one")
 		}
 	}
-	var tg *telegram.Adapter
+	tg := telegram.NewManager(s.TelegramToken, s.TelegramAPI, e.svc, e.log)
 	handler, _, err := httpapi.New(e.svc, httpapi.Config{
-		Version: version, TrustLocal: s.TrustLocal, SecureCookies: s.SecureCookies, Log: e.log,
-		TelegramBot: func() string {
-			if tg == nil {
-				return ""
-			}
-			return tg.Username()
-		},
+		Version: version, TrustLocal: s.TrustLocal, SecureCookies: s.SecureCookies, Log: e.log, Telegram: tg,
 	})
 	if err != nil {
 		return err
@@ -153,22 +147,11 @@ func (s *serveCmd) Run(ctx context.Context, g *globals) error {
 		}
 	}}
 	services := []platform.Service{httpSvc}
-	var channels []actions.Channel
-	if s.TelegramToken != "" {
-		tg, err = telegram.New(s.TelegramToken, s.TelegramAPI, e.svc, e.log)
-		if err != nil {
-			return err
-		}
-		channels = append(channels, tg)
-		services = append(services, tg)
-		e.log.Info("telegram enabled")
-	} else {
-		e.log.Info("telegram disabled: set EXHALE_TELEGRAM_TOKEN to enable reminders in Telegram")
-	}
-	eng := actions.New(e.svc, e.log, channels...)
-	if tg != nil {
-		tg.SetEngine(eng)
-	}
+	// The bot comes from EXHALE_TELEGRAM_TOKEN or from the web (Settings →
+	// Telegram); the manager starts and swaps it at runtime.
+	services = append(services, tg)
+	eng := actions.New(e.svc, e.log, tg)
+	tg.SetEngine(eng)
 	services = append(services,
 		&fx.Updater{St: e.st, Log: e.log},
 		scheduler.New(e.svc, e.log, eng),

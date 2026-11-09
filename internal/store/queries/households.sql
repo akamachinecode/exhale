@@ -9,7 +9,8 @@ SELECT * FROM households WHERE id = ?;
 SELECT * FROM households ORDER BY created_at LIMIT 1;
 
 -- name: UpdateHousehold :exec
-UPDATE households SET name = ?, currency = ?, timezone = ?, locale = ? WHERE id = ?;
+UPDATE households SET name = ?, currency = ?, timezone = ?, locale = ?, reminder_hour = ?, reminder_minute = ?
+WHERE id = ?;
 
 -- name: CreateMember :exec
 INSERT INTO members (id, household_id, name, email, role, password_hash, created_at)

@@ -63,6 +63,10 @@ var (
 		Name: "get_household", Title: "Get household reference data", Tag: "Household", Method: "GET", Path: "/household",
 		Description: "Household settings, members, categories and payment methods with their ids.",
 	}, (*Service).GetHousehold}
+	OpUpdateHousehold = Op[UpdateHouseholdInput, HouseholdInfo]{Meta{
+		Name: "update_household", Title: "Change household preferences", Tag: "Household", Method: "POST", Path: "/household", Write: true, Idempotent: true,
+		Description: "Changes the display currency (totals convert into it), time zone, reminder language, name, or default reminder time (HH:MM). Owners only.",
+	}, (*Service).UpdateHousehold}
 	OpListSubscriptions = Op[ListSubscriptionsInput, SubscriptionList]{Meta{
 		Name: "list_subscriptions", Title: "List subscriptions", Tag: "Subscriptions", Method: "GET", Path: "/subscriptions",
 		Description: "Lists subscriptions with price, cadence, next charge, monthly cost, category and payment method. Filter by status or name.",
@@ -136,7 +140,7 @@ var (
 // Catalog lists every use case exposed to adapters.
 func Catalog() []Binding {
 	return []Binding{
-		OpGetContext.Binding(), OpGetHousehold.Binding(), OpListSubscriptions.Binding(), OpGetSubscription.Binding(),
+		OpGetContext.Binding(), OpGetHousehold.Binding(), OpUpdateHousehold.Binding(), OpListSubscriptions.Binding(), OpGetSubscription.Binding(),
 		OpCreateSubscription.Binding(), OpUpdateSubscription.Binding(), OpSetSubscriptionStatus.Binding(),
 		OpDeleteSubscription.Binding(), OpListCharges.Binding(), OpNeedsAttention.Binding(), OpChangeChargeDate.Binding(),
 		OpChangeChargeAmount.Binding(), OpSetChargeStatus.Binding(), OpPreviewSchedule.Binding(), OpSummary.Binding(),

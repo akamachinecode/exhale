@@ -88,6 +88,8 @@ func (f *fakeBotAPI) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			time.Sleep(10 * time.Millisecond)
 		}
 		ok([]any{})
+	case "getMe":
+		ok(map[string]any{"id": 1, "is_bot": true, "first_name": "Exhale Test", "username": "exhale_test_bot"})
 	case "sendMessage", "editMessageText":
 		f.mu.Lock()
 		f.calls = append(f.calls, call{method, fields})
@@ -168,5 +170,54 @@ func TestTelegramLinkReminderAndButton(t *testing.T) {
 	got, _ := svc.GetSubscription(ctx, owner, app.GetSubscriptionInput{ID: d.Subscription.ID})
 	if len(got.History) == 0 || got.History[0].Status != "paid" {
 		t.Fatalf("charge not marked paid: %+v", got.History)
+	}
+}
+
+// TestManagerConfiguredFromTheWeb: no token at start; the owner pastes one in
+// the web, the bot starts without a restart, and removing it stops it.
+func TestManagerConfiguredFromTheWeb(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	srv := httptest.NewServer(&fakeBotAPI{})
+	defer srv.Close()
+	st, err := store.OpenMemory(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer st.Close()
+	svc := app.New(st, bus.New(), nil, time.Now)
+	log := slog.New(slog.DiscardHandler)
+	m := NewManager("", srv.URL, svc, log)
+	m.SetEngine(actions.New(svc, log, m))
+	go m.Serve(ctx)
+
+	if s := m.Status(ctx); s.Configured || s.Running {
+		t.Fatalf("no token yet, got %+v", s)
+	}
+	if _, err := m.Send(ctx, "42", actions.Message{Title: "x"}); err == nil {
+		t.Fatal("sending without a bot should fail")
+	}
+	if _, err := m.Configure(ctx, "not-a-token"); err == nil {
+		t.Fatal("a malformed token was accepted")
+	}
+	s, err := m.Configure(ctx, "123456789:AAH-test-token-abcdefghijkl")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !s.Running || s.Username != "exhale_test_bot" || s.Source != "settings" || s.Name != "Exhale Test" {
+		t.Fatalf("bot should run after configure: %+v", s)
+	}
+	if _, err := m.Send(ctx, "42", actions.Message{Title: "hello"}); err != nil {
+		t.Fatalf("send through the configured bot: %v", err)
+	}
+	s, _ = m.Remove(ctx)
+	eventually(t, "bot stopped", func() bool { return !m.Status(ctx).Running })
+	if s.Configured {
+		t.Fatalf("token should be gone: %+v", s)
+	}
+
+	env := NewManager("999:env-token-abcdefghijklmnop", srv.URL, svc, log)
+	if _, err := env.Configure(ctx, "123456789:AAH-test-token-abcdefghijkl"); err == nil {
+		t.Fatal("a token from the environment must not be overridden from the web")
 	}
 }

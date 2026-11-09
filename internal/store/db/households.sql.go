@@ -113,7 +113,7 @@ func (q *Queries) CreatePaymentMethod(ctx context.Context, arg CreatePaymentMeth
 }
 
 const firstHousehold = `-- name: FirstHousehold :one
-SELECT id, name, currency, timezone, locale, created_at FROM households ORDER BY created_at LIMIT 1
+SELECT id, name, currency, timezone, locale, created_at, reminder_hour, reminder_minute FROM households ORDER BY created_at LIMIT 1
 `
 
 func (q *Queries) FirstHousehold(ctx context.Context) (Household, error) {
@@ -126,12 +126,14 @@ func (q *Queries) FirstHousehold(ctx context.Context) (Household, error) {
 		&i.Timezone,
 		&i.Locale,
 		&i.CreatedAt,
+		&i.ReminderHour,
+		&i.ReminderMinute,
 	)
 	return i, err
 }
 
 const getHousehold = `-- name: GetHousehold :one
-SELECT id, name, currency, timezone, locale, created_at FROM households WHERE id = ?
+SELECT id, name, currency, timezone, locale, created_at, reminder_hour, reminder_minute FROM households WHERE id = ?
 `
 
 func (q *Queries) GetHousehold(ctx context.Context, id string) (Household, error) {
@@ -144,6 +146,8 @@ func (q *Queries) GetHousehold(ctx context.Context, id string) (Household, error
 		&i.Timezone,
 		&i.Locale,
 		&i.CreatedAt,
+		&i.ReminderHour,
+		&i.ReminderMinute,
 	)
 	return i, err
 }
@@ -322,15 +326,18 @@ func (q *Queries) PutSetting(ctx context.Context, arg PutSettingParams) error {
 }
 
 const updateHousehold = `-- name: UpdateHousehold :exec
-UPDATE households SET name = ?, currency = ?, timezone = ?, locale = ? WHERE id = ?
+UPDATE households SET name = ?, currency = ?, timezone = ?, locale = ?, reminder_hour = ?, reminder_minute = ?
+WHERE id = ?
 `
 
 type UpdateHouseholdParams struct {
-	Name     string
-	Currency string
-	Timezone string
-	Locale   string
-	ID       string
+	Name           string
+	Currency       string
+	Timezone       string
+	Locale         string
+	ReminderHour   int64
+	ReminderMinute int64
+	ID             string
 }
 
 func (q *Queries) UpdateHousehold(ctx context.Context, arg UpdateHouseholdParams) error {
@@ -339,6 +346,8 @@ func (q *Queries) UpdateHousehold(ctx context.Context, arg UpdateHouseholdParams
 		arg.Currency,
 		arg.Timezone,
 		arg.Locale,
+		arg.ReminderHour,
+		arg.ReminderMinute,
 		arg.ID,
 	)
 	return err

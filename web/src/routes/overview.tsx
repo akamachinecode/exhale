@@ -2,6 +2,7 @@ import { Link } from "@tanstack/react-router";
 import { AlertTriangle, ArrowRight, CreditCard, Plus } from "lucide-react";
 import { useState } from "react";
 import { ChargeActions } from "@/components/charge-actions";
+import { GetStarted, readGetStartedHidden } from "@/components/get-started";
 import { PageHeader } from "@/components/layout";
 import { ServiceTile } from "@/components/service-tile";
 import { ChargeStatus } from "@/components/status";
@@ -13,6 +14,7 @@ import { addDaysISO, date, money, palette, sumMain, todayISO } from "@/lib/utils
 
 export function Overview() {
 	const [creating, setCreating] = useState(false);
+	const [setupHidden, setSetupHidden] = useState(readGetStartedHidden);
 	const summary = useSpendingSummary();
 	const attention = useNeedsAttention();
 	const today = todayISO();
@@ -58,10 +60,14 @@ export function Overview() {
 				}
 			/>
 			<NewSubscription open={creating} onOpenChange={setCreating} />
+			{!setupHidden && (
+				<GetStarted onAddSubscription={() => setCreating(true)} onHide={() => setSetupHidden(true)} />
+			)}
 
 			<div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
 				<Kpi
 					label="Monthly"
+					tone="brand"
 					value={money(s?.monthlyTotal)}
 					hint={fxNote ?? `${s?.activeSubscriptions ?? 0} active subscriptions`}
 				/>
@@ -83,7 +89,7 @@ export function Overview() {
 				/>
 			</div>
 
-			{empty ? (
+			{empty && !setupHidden ? null : empty ? (
 				<Card className="mt-6 grid place-items-center px-6 py-16 text-center">
 					<p className="text-base font-semibold">Breathe out. Add your first subscription.</p>
 					<p className="mt-1 max-w-md text-sm text-muted">
@@ -211,11 +217,23 @@ export function Overview() {
 	);
 }
 
-function Kpi({ label, value, hint, tone }: { label: string; value: string; hint?: string; tone?: "warn" }) {
+function Kpi({
+	label,
+	value,
+	hint,
+	tone,
+}: {
+	label: string;
+	value: string;
+	hint?: string;
+	tone?: "warn" | "brand";
+}) {
 	return (
 		<Card className="px-4 py-3.5">
 			<p className="text-xs font-medium text-muted">{label}</p>
-			<p className={`tnum mt-1 text-2xl font-semibold tracking-tight ${tone === "warn" ? "text-warn" : ""}`}>
+			<p
+				className={`tnum mt-1 text-2xl font-semibold tracking-tight ${tone === "warn" ? "text-warn" : tone === "brand" ? "text-brand" : ""}`}
+			>
 				{value}
 			</p>
 			{hint && <p className="mt-0.5 truncate text-xs text-muted">{hint}</p>}

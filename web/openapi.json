@@ -164,6 +164,69 @@
         ],
         "type": "object"
       },
+      "BotStatus": {
+        "additionalProperties": false,
+        "properties": {
+          "$schema": {
+            "description": "A URL to the JSON Schema for this object.",
+            "examples": [
+              "https://example.com/api/schemas/BotStatus.json"
+            ],
+            "format": "uri",
+            "readOnly": true,
+            "type": "string"
+          },
+          "configured": {
+            "type": "boolean"
+          },
+          "name": {
+            "description": "the bot's display name",
+            "type": "string"
+          },
+          "running": {
+            "type": "boolean"
+          },
+          "source": {
+            "description": "env: set by EXHALE_TELEGRAM_TOKEN and not editable in the web",
+            "enum": [
+              "env",
+              "settings"
+            ],
+            "type": "string"
+          },
+          "username": {
+            "description": "the bot's @username, without @",
+            "type": "string"
+          }
+        },
+        "required": [
+          "configured",
+          "running"
+        ],
+        "type": "object"
+      },
+      "BotTokenIn": {
+        "additionalProperties": false,
+        "properties": {
+          "$schema": {
+            "description": "A URL to the JSON Schema for this object.",
+            "examples": [
+              "https://example.com/api/schemas/BotTokenIn.json"
+            ],
+            "format": "uri",
+            "readOnly": true,
+            "type": "string"
+          },
+          "token": {
+            "description": "the token BotFather gives you, like 123456789:AAH…",
+            "type": "string"
+          }
+        },
+        "required": [
+          "token"
+        ],
+        "type": "object"
+      },
       "Category": {
         "additionalProperties": false,
         "properties": {
@@ -708,6 +771,14 @@
           "name": {
             "type": "string"
           },
+          "reminderHour": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "reminderMinute": {
+            "format": "int64",
+            "type": "integer"
+          },
           "timezone": {
             "type": "string"
           }
@@ -717,7 +788,9 @@
           "name",
           "currency",
           "timezone",
-          "locale"
+          "locale",
+          "reminderHour",
+          "reminderMinute"
         ],
         "type": "object"
       },
@@ -1942,6 +2015,40 @@
         ],
         "type": "object"
       },
+      "UpdateHouseholdInput": {
+        "additionalProperties": false,
+        "properties": {
+          "$schema": {
+            "description": "A URL to the JSON Schema for this object.",
+            "examples": [
+              "https://example.com/api/schemas/UpdateHouseholdInput.json"
+            ],
+            "format": "uri",
+            "readOnly": true,
+            "type": "string"
+          },
+          "currency": {
+            "type": "string"
+          },
+          "dryRun": {
+            "type": "boolean"
+          },
+          "locale": {
+            "type": "string"
+          },
+          "name": {
+            "maxLength": 60,
+            "type": "string"
+          },
+          "reminderTime": {
+            "type": "string"
+          },
+          "timezone": {
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
       "UpdateSubscriptionInput": {
         "additionalProperties": false,
         "properties": {
@@ -3009,6 +3116,51 @@
         "tags": [
           "Household"
         ]
+      },
+      "post": {
+        "description": "Changes the display currency (totals convert into it), time zone, reminder language, name, or default reminder time (HH:MM). Owners only.",
+        "operationId": "update_household",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateHouseholdInput"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HouseholdInfo"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorModel"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Change household preferences",
+        "tags": [
+          "Household"
+        ]
       }
     },
     "/api/v1/payment-methods": {
@@ -3102,6 +3254,107 @@
         "summary": "Preview charge dates",
         "tags": [
           "Charges"
+        ]
+      }
+    },
+    "/api/v1/settings/telegram": {
+      "get": {
+        "operationId": "settings_telegram",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BotStatus"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorModel"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "summary": "Telegram bot status",
+        "tags": [
+          "Settings"
+        ]
+      },
+      "post": {
+        "operationId": "settings_set_telegram",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/BotTokenIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BotStatus"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorModel"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "summary": "Set the Telegram bot token (owners only)",
+        "tags": [
+          "Settings"
+        ]
+      }
+    },
+    "/api/v1/settings/telegram/remove": {
+      "post": {
+        "operationId": "settings_remove_telegram",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BotStatus"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorModel"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "summary": "Remove the Telegram bot (owners only)",
+        "tags": [
+          "Settings"
         ]
       }
     },

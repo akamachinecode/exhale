@@ -70,6 +70,9 @@ func (s *Service) CreateSubscription(ctx context.Context, actor Actor, in Create
 		AutoConfirm: in.AutoConfirm, Reminders: domain.DefaultReminderPolicy(), CreatedBy: actor.MemberID,
 		CreatedAt: now, UpdatedAt: now, Version: 1,
 	}
+	if h, err := s.household(ctx, s.st.Q, actor.HouseholdID); err == nil {
+		sub.Reminders.Hour, sub.Reminders.Minute = h.ReminderHour, h.ReminderMinute
+	}
 	if sub.PayerID == "" {
 		sub.PayerID = actor.MemberID
 	}

@@ -64,7 +64,7 @@ export function AgentsPage() {
 				<CardHeader
 					title="What agents see first"
 					description="The live briefing served as the exhale://context resource. It is rebuilt on every read."
-					action={<Badge tone="accent">19 tools · 4 prompts</Badge>}
+					action={<Badge>MCP</Badge>}
 				/>
 				<pre className="max-h-[420px] overflow-auto border-t border-line px-5 py-4 font-mono text-xs leading-relaxed whitespace-pre-wrap text-muted">
 					{ctx.data?.markdown ?? "Loading…"}

@@ -2,7 +2,7 @@ import { Link, Outlet } from "@tanstack/react-router";
 import { Activity, Bot, CalendarDays, LayoutGrid, Moon, Repeat, Settings, Sun } from "lucide-react";
 import { useEffect, useState } from "react";
 import { SignOut } from "@/components/sign-out";
-import { useAuthSession, useGetHousehold } from "@/gen/api";
+import { useAuthSession } from "@/gen/api";
 import { useLiveEvents } from "@/lib/events";
 import { cn } from "@/lib/utils";
 
@@ -20,7 +20,7 @@ function useTheme() {
 			const saved = localStorage.getItem("theme");
 			if (saved) return saved === "dark";
 		} catch {}
-		return window.matchMedia("(prefers-color-scheme: dark)").matches;
+		return true; // dark by default; the toggle remembers the choice
 	});
 	useEffect(() => {
 		document.documentElement.classList.toggle("dark", dark);
@@ -34,23 +34,24 @@ function useTheme() {
 export function Logo() {
 	return (
 		<span className="flex items-center gap-2.5">
-			<svg viewBox="0 0 32 32" className="size-7" aria-hidden>
-				<rect width="32" height="32" rx="8" className="fill-accent" />
-				<path
-					d="M8 18c3-6 13-6 16 0"
-					className="stroke-accent-fg"
-					strokeWidth="2.6"
-					fill="none"
-					strokeLinecap="round"
-				/>
-				<path
-					d="M11 22c2.2-3 7.8-3 10 0"
-					className="stroke-accent-fg/70"
-					strokeWidth="2.2"
-					fill="none"
-					strokeLinecap="round"
-				/>
-			</svg>
+			<span className="bg-brand grid size-7 place-items-center rounded-[9px]">
+				<svg viewBox="0 0 32 32" className="size-7" aria-hidden>
+					<path
+						d="M8 18c3-6 13-6 16 0"
+						stroke="oklch(0.13 0 0)"
+						strokeWidth="2.6"
+						fill="none"
+						strokeLinecap="round"
+					/>
+					<path
+						d="M11 22c2.2-3 7.8-3 10 0"
+						stroke="oklch(0.13 0 0 / 0.6)"
+						strokeWidth="2.2"
+						fill="none"
+						strokeLinecap="round"
+					/>
+				</svg>
+			</span>
 			<span className="text-[15px] font-semibold tracking-tight">Exhale</span>
 		</span>
 	);
@@ -59,7 +60,6 @@ export function Logo() {
 export function Layout() {
 	useLiveEvents();
 	const [dark, setDark] = useTheme();
-	const household = useGetHousehold();
 	const session = useAuthSession();
 	return (
 		<div className="min-h-dvh md:grid md:grid-cols-[232px_1fr]">
@@ -93,7 +93,7 @@ export function Layout() {
 					<div className="mt-2 flex items-center justify-between gap-1 border-t border-line pt-3 pl-2">
 						<div className="min-w-0 text-xs">
 							<p className="truncate font-medium text-fg">{session.data?.user?.name ?? "—"}</p>
-							<p className="truncate text-muted">{household.data?.household.name ?? "Household"}</p>
+							<p className="truncate text-muted">{session.data?.user?.email}</p>
 						</div>
 						<div className="flex shrink-0 items-center">
 							<ThemeToggle dark={dark} onToggle={() => setDark(!dark)} />

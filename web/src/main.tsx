@@ -1,5 +1,5 @@
 import { MutationCache, QueryCache, QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { createRootRoute, createRoute, createRouter, RouterProvider } from "@tanstack/react-router";
+import { createRootRoute, createRoute, createRouter, RouterProvider, redirect } from "@tanstack/react-router";
 import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 import { Toaster } from "sonner";
@@ -13,7 +13,6 @@ import { Overview } from "@/routes/overview";
 import { SettingsPage } from "@/routes/settings";
 import { SubscriptionDetail } from "@/routes/subscription-detail";
 import { Subscriptions } from "@/routes/subscriptions";
-import { WelcomePage } from "@/routes/welcome";
 import "./styles.css";
 
 const str = (v: unknown) => (typeof v === "string" && v !== "" ? v : undefined);
@@ -42,7 +41,13 @@ const routeTree = root.addChildren([
 	createRoute({ getParentRoute: () => root, path: "/activity", component: ActivityPage }),
 	createRoute({ getParentRoute: () => root, path: "/agents", component: AgentsPage }),
 	createRoute({ getParentRoute: () => root, path: "/settings", component: SettingsPage }),
-	createRoute({ getParentRoute: () => root, path: "/welcome", component: WelcomePage }),
+	createRoute({
+		getParentRoute: () => root,
+		path: "/welcome",
+		beforeLoad: () => {
+			throw redirect({ to: "/" });
+		},
+	}),
 	createRoute({ getParentRoute: () => root, path: "/join/$code", component: JoinPage }),
 ]);
 

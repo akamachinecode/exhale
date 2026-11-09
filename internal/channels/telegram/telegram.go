@@ -157,9 +157,13 @@ func (a *Adapter) handleText(ctx context.Context, m *models.Message) {
 	text := strings.TrimSpace(m.Text)
 	if code, ok := strings.CutPrefix(text, "/start "); ok {
 		if _, err := auth.RedeemLinkCode(ctx, a.svc.Store(), Name, strings.TrimSpace(code), chatID); err != nil {
-			a.reply(ctx, chatID, "This link has expired or was already used. Create a new one in Exhale.")
+			a.reply(ctx, chatID, "That code is not valid anymore: codes work once and for 10 minutes. "+
+				"In Exhale, press “Link Telegram” again and scan the new QR code (or send the new /start message).")
 			return
 		}
+		// Pins left by an earlier link (e.g. an older database) would point to
+		// screens that no longer exist.
+		_, _ = a.b.UnpinAllChatMessages(ctx, &bot.UnpinAllChatMessagesParams{ChatID: chatID})
 		a.reply(ctx, chatID, "✅ Linked. Reminders arrive here, and the message below is Exhale itself: tap around.")
 		if actor, err := auth.MemberForChannel(ctx, a.svc.Store(), Name, chatID); err == nil {
 			a.openApp(ctx, actor, chat, actions.RouteHome)
@@ -169,7 +173,7 @@ func (a *Adapter) handleText(ctx context.Context, m *models.Message) {
 	actor, err := auth.MemberForChannel(ctx, a.svc.Store(), Name, chatID)
 	if err != nil {
 		if strings.HasPrefix(text, "/start") {
-			a.reply(ctx, chatID, "Hi! This is a private Exhale bot. Open Exhale → Settings → Channels → Telegram to link this chat.")
+			a.reply(ctx, chatID, "Hi! This is a private Exhale bot. To link this chat, open Exhale, press “Link Telegram” and scan the QR code.")
 		}
 		return // unlinked chats are ignored (ADR 0006)
 	}

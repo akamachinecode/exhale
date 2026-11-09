@@ -1,10 +1,10 @@
 import { useQueryClient } from "@tanstack/react-query";
 import { Outlet, useNavigate, useParams, useRouterState } from "@tanstack/react-router";
-import { ArrowLeft, ArrowRight, Loader2 } from "lucide-react";
+import { ArrowRight, Loader2 } from "lucide-react";
 import { type FormEvent, type ReactNode, useState } from "react";
 import { Layout, Logo } from "@/components/layout";
 import { Button } from "@/components/ui/button";
-import { Field, Input, Select } from "@/components/ui/field";
+import { Field, Input, PasswordInput } from "@/components/ui/field";
 import {
 	type AuthSession,
 	getAuthSessionQueryKey,
@@ -15,12 +15,12 @@ import {
 	useAuthSetup,
 } from "@/gen/api";
 import { ApiError } from "@/lib/fetcher";
+import { browserLocale, browserTimezone, guessCurrency } from "@/lib/locale";
 import { applySession } from "@/lib/session";
 
 /**
- * Root of the web UI (ADR 0006): the setup wizard on a fresh instance, the
- * sign-in page without a session, invite pages for anyone, and the app once
- * signed in.
+ * Root of the web UI (ADR 0006): sign-up on a fresh instance, sign-in
+ * without a session, invite pages for anyone, and the app once signed in.
  */
 export function Root() {
 	const session = useAuthSession({ query: { staleTime: Number.POSITIVE_INFINITY, retry: 2 } });
@@ -29,22 +29,27 @@ export function Root() {
 	if (session.isError) {
 		return (
 			<AuthFrame title="Exhale is not answering" subtitle="Check that the server is running, then try again.">
-				<Button variant="primary" onClick={() => session.refetch()}>
+				<Button variant="primary" className="w-full" onClick={() => session.refetch()}>
 					Try again
 				</Button>
 			</AuthFrame>
 		);
 	}
 	if (path.startsWith("/join/")) return <Outlet />;
-	if (session.data.setupRequired) return <SetupWizard session={session.data} />;
+	if (session.data.setupRequired) return <SignUp session={session.data} />;
 	if (!session.data.user) return <SignIn />;
 	return <Layout />;
 }
 
-function Splash() {
+/** The loading screen: the only place for the tagline. */
+export function Splash() {
 	return (
-		<div className="grid min-h-dvh place-items-center">
-			<Loader2 className="size-5 animate-spin text-muted" aria-label="Loading" />
+		<div className="grid min-h-dvh place-items-center bg-bg px-4">
+			<div className="flex flex-col items-center gap-5">
+				<Logo />
+				<p className="text-sm text-muted">Breathe out. Your subscriptions are handled.</p>
+				<Loader2 className="size-4 animate-spin text-faint" aria-label="Loading" />
+			</div>
 		</div>
 	);
 }
@@ -59,23 +64,24 @@ export function AuthFrame({
 	children: ReactNode;
 }) {
 	return (
-		<div className="grid min-h-dvh place-items-center bg-bg px-4 py-10">
-			<div className="w-full max-w-[400px]">
-				<div className="mb-8 flex justify-center">
+		<div className="relative grid min-h-dvh place-items-center overflow-hidden bg-bg px-4 py-10">
+			<div
+				aria-hidden
+				className="bg-brand pointer-events-none absolute -top-48 left-1/2 h-96 w-[40rem] -translate-x-1/2 rounded-full opacity-[0.12] blur-3xl"
+			/>
+			<div className="relative w-full max-w-[380px]">
+				<div className="mb-10 flex justify-center">
 					<Logo />
 				</div>
-				<div className="rounded-2xl border border-line bg-surface p-6 shadow-sm sm:p-8">
-					<h1 className="text-xl font-semibold tracking-tight">{title}</h1>
-					{subtitle && <p className="mt-1.5 text-sm text-muted">{subtitle}</p>}
-					<div className="mt-6">{children}</div>
-				</div>
-				<p className="mt-6 text-center text-xs text-faint">Breathe out. Your subscriptions are handled.</p>
+				<h1 className="text-center text-2xl font-semibold tracking-tight">{title}</h1>
+				{subtitle && <p className="mt-2 text-center text-sm text-muted">{subtitle}</p>}
+				<div className="mt-8">{children}</div>
 			</div>
 		</div>
 	);
 }
 
-function errorText(e: unknown, fallback: string) {
+export function errorText(e: unknown, fallback: string) {
 	if (e instanceof ApiError) {
 		const details = e.errors.map((x) => x.message).filter(Boolean);
 		return details.length ? details.join(" · ") : e.detail;
@@ -83,7 +89,7 @@ function errorText(e: unknown, fallback: string) {
 	return fallback;
 }
 
-function FormError({ message }: { message?: string }) {
+export function FormError({ message }: { message?: string }) {
 	if (!message) return null;
 	return (
 		<p role="alert" className="rounded-lg bg-bad-soft px-3 py-2 text-[13px] text-bad">
@@ -92,162 +98,55 @@ function FormError({ message }: { message?: string }) {
 	);
 }
 
-const currencies = [
-	"EUR",
-	"USD",
-	"GBP",
-	"CHF",
-	"MXN",
-	"ARS",
-	"COP",
-	"CLP",
-	"BRL",
-	"CAD",
-	"AUD",
-	"JPY",
-	"SEK",
-	"NOK",
-	"DKK",
-	"PLN",
-];
-
-function browserTimezone() {
-	try {
-		return Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC";
-	} catch {
-		return "UTC";
-	}
-}
-
-function browserLocale() {
-	return navigator.language?.toLowerCase().startsWith("es") ? "es" : "en";
-}
-
-function guessCurrency() {
-	const tz = browserTimezone();
-	if (tz.startsWith("Europe/London")) return "GBP";
-	if (tz.startsWith("Europe/Zurich")) return "CHF";
-	if (tz.startsWith("Europe/")) return "EUR";
-	if (tz === "America/Mexico_City") return "MXN";
-	if (tz.startsWith("America/Argentina")) return "ARS";
-	if (tz === "America/Bogota") return "COP";
-	if (tz === "America/Santiago") return "CLP";
-	if (tz === "America/Sao_Paulo") return "BRL";
-	if (tz.startsWith("America/")) return "USD";
-	return "EUR";
-}
-
-function timezones(): string[] {
-	try {
-		return (Intl as unknown as { supportedValuesOf(k: string): string[] }).supportedValuesOf("timeZone");
-	} catch {
-		return [browserTimezone()];
-	}
-}
-
-/** First run: create your account, then your household. */
-function SetupWizard({ session }: { session: AuthSession }) {
+/**
+ * First run: one step. Currency, time zone and language come from the
+ * browser; the rest of the setup happens on the home screen.
+ */
+function SignUp({ session }: { session: AuthSession }) {
 	const qc = useQueryClient();
 	const navigate = useNavigate();
 	const setup = useAuthSetup();
-	const [step, setStep] = useState<"account" | "household">("account");
 	const [error, setError] = useState<string>();
-	const [v, setV] = useState({
-		code: "",
-		name: "",
-		email: "",
-		password: "",
-		householdName: "Home",
-		currency: guessCurrency(),
-		timezone: browserTimezone(),
-		locale: browserLocale(),
-	});
+	const [v, setV] = useState({ code: "", name: "", email: "", password: "" });
 	const set = (k: keyof typeof v) => (e: { target: { value: string } }) =>
 		setV({ ...v, [k]: e.target.value });
 
-	const submit = async () => {
-		setError(undefined);
-		try {
-			const s = await setup.mutateAsync({
-				data: { ...v, code: session.setupNeedsCode ? v.code.trim() : undefined },
-			});
-			qc.setQueryData(getAuthSessionQueryKey(), s);
-			navigate({ to: "/welcome" });
-		} catch (e) {
-			setError(errorText(e, "Could not create your account"));
-		}
-	};
-
-	const onAccount = (e: FormEvent) => {
+	const onSubmit = async (e: FormEvent) => {
 		e.preventDefault();
 		if (v.password.length < 10) {
 			setError("Use at least 10 characters for the password.");
 			return;
 		}
 		setError(undefined);
-		if (session.hasHousehold) submit();
-		else setStep("household");
+		try {
+			const s = await setup.mutateAsync({
+				data: {
+					name: v.name,
+					email: v.email,
+					password: v.password,
+					code: session.setupNeedsCode ? v.code.trim() : undefined,
+					currency: guessCurrency(),
+					timezone: browserTimezone(),
+					locale: browserLocale(),
+				},
+			});
+			qc.setQueryData(getAuthSessionQueryKey(), s);
+			navigate({ to: "/" });
+		} catch (err) {
+			setError(errorText(err, "Could not create your account"));
+		}
 	};
-	const onHousehold = (e: FormEvent) => {
-		e.preventDefault();
-		submit();
-	};
-
-	if (step === "household") {
-		return (
-			<AuthFrame title="Your household" subtitle="Step 2 of 2 · You can change all of this later.">
-				<form onSubmit={onHousehold} className="grid gap-4">
-					<Field label="Household name" hint="Shown in reminders and to the people you invite.">
-						<Input value={v.householdName} onChange={set("householdName")} required maxLength={60} />
-					</Field>
-					<div className="grid grid-cols-2 gap-3">
-						<Field label="Main currency" hint="Totals are shown in it.">
-							<Select value={v.currency} onChange={set("currency")}>
-								{[...new Set([v.currency, ...currencies])].map((c) => (
-									<option key={c}>{c}</option>
-								))}
-							</Select>
-						</Field>
-						<Field label="Language" hint="For reminders.">
-							<Select value={v.locale} onChange={set("locale")}>
-								<option value="en">English</option>
-								<option value="es">Español</option>
-							</Select>
-						</Field>
-					</div>
-					<Field label="Time zone" hint="Reminders arrive at 09:00 in this zone.">
-						<Select value={v.timezone} onChange={set("timezone")}>
-							{timezones().map((z) => (
-								<option key={z}>{z}</option>
-							))}
-						</Select>
-					</Field>
-					<FormError message={error} />
-					<div className="mt-2 flex items-center justify-between gap-3">
-						<Button variant="ghost" onClick={() => setStep("account")}>
-							<ArrowLeft />
-							Back
-						</Button>
-						<Button type="submit" variant="primary" disabled={setup.isPending}>
-							{setup.isPending ? <Loader2 className="animate-spin" /> : null}
-							Create household
-						</Button>
-					</div>
-				</form>
-			</AuthFrame>
-		);
-	}
 
 	return (
 		<AuthFrame
-			title="Welcome to Exhale"
+			title={session.hasHousehold ? "Create your login" : "Welcome to Exhale"}
 			subtitle={
 				session.hasHousehold
-					? "Your household is ready. Create the owner's login to open it."
-					: "Step 1 of 2 · Create your account. You will be the owner of this household."
+					? "Your data is already here. Create the login to open it."
+					: "Create your account. The rest happens inside."
 			}
 		>
-			<form onSubmit={onAccount} className="grid gap-4">
+			<form onSubmit={onSubmit} className="grid gap-4">
 				{session.setupNeedsCode && (
 					<Field
 						label="Setup code"
@@ -266,7 +165,7 @@ function SetupWizard({ session }: { session: AuthSession }) {
 						/>
 					</Field>
 				)}
-				<Field label="Your name">
+				<Field label="Name">
 					<Input
 						value={v.name}
 						onChange={set("name")}
@@ -276,12 +175,11 @@ function SetupWizard({ session }: { session: AuthSession }) {
 						autoFocus
 					/>
 				</Field>
-				<Field label="Email" hint="You sign in with it. Nothing is ever sent to it.">
+				<Field label="Email">
 					<Input type="email" value={v.email} onChange={set("email")} required autoComplete="email" />
 				</Field>
-				<Field label="Password" hint="At least 10 characters. A short phrase works well.">
-					<Input
-						type="password"
+				<Field label="Password" hint="At least 10 characters.">
+					<PasswordInput
 						value={v.password}
 						onChange={set("password")}
 						required
@@ -290,9 +188,10 @@ function SetupWizard({ session }: { session: AuthSession }) {
 					/>
 				</Field>
 				<FormError message={error} />
-				<Button type="submit" variant="primary" className="mt-2" disabled={setup.isPending}>
-					{session.hasHousehold ? "Create login" : "Continue"}
-					<ArrowRight />
+				<Button type="submit" variant="primary" className="mt-2 h-10" disabled={setup.isPending}>
+					{setup.isPending ? <Loader2 className="animate-spin" /> : null}
+					Create account
+					{!setup.isPending && <ArrowRight />}
 				</Button>
 			</form>
 		</AuthFrame>
@@ -309,14 +208,13 @@ function SignIn() {
 		e.preventDefault();
 		setError(undefined);
 		try {
-			const s = await login.mutateAsync({ data: { email, password } });
-			applySession(qc, s);
+			applySession(qc, await login.mutateAsync({ data: { email, password } }));
 		} catch (err) {
 			setError(errorText(err, "Could not sign in"));
 		}
 	};
 	return (
-		<AuthFrame title="Sign in" subtitle="Welcome back.">
+		<AuthFrame title="Sign in">
 			<form onSubmit={onSubmit} className="grid gap-4">
 				<Field label="Email">
 					<Input
@@ -328,17 +226,8 @@ function SignIn() {
 						autoFocus
 					/>
 				</Field>
-				<Field
-					label="Password"
-					hint={
-						<>
-							Forgot it? On the server run{" "}
-							<code className="font-mono">exhale user reset-password --email …</code>
-						</>
-					}
-				>
-					<Input
-						type="password"
+				<Field label="Password">
+					<PasswordInput
 						value={password}
 						onChange={(e) => setPassword(e.target.value)}
 						required
@@ -346,10 +235,13 @@ function SignIn() {
 					/>
 				</Field>
 				<FormError message={error} />
-				<Button type="submit" variant="primary" className="mt-2" disabled={login.isPending}>
+				<Button type="submit" variant="primary" className="mt-2 h-10" disabled={login.isPending}>
 					{login.isPending ? <Loader2 className="animate-spin" /> : null}
 					Sign in
 				</Button>
+				<p className="text-center text-xs text-faint">
+					Forgot it? On the server: <code className="font-mono">exhale user reset-password --email …</code>
+				</p>
 			</form>
 		</AuthFrame>
 	);
@@ -371,7 +263,9 @@ export function JoinPage() {
 				title="This invite does not work"
 				subtitle="It has expired or was already used. Ask for a new one."
 			>
-				<Button onClick={() => navigate({ to: "/" })}>Go to sign in</Button>
+				<Button className="w-full" onClick={() => navigate({ to: "/" })}>
+					Go to sign in
+				</Button>
 			</AuthFrame>
 		);
 	}
@@ -379,20 +273,19 @@ export function JoinPage() {
 		e.preventDefault();
 		setError(undefined);
 		try {
-			const s = await join.mutateAsync({ data: { code, ...v } });
-			applySession(qc, s);
-			navigate({ to: "/welcome" });
+			applySession(qc, await join.mutateAsync({ data: { code, ...v } }));
+			navigate({ to: "/" });
 		} catch (err) {
 			setError(errorText(err, "Could not create your account"));
 		}
 	};
 	return (
 		<AuthFrame
-			title={`Join ${invite.data.householdName}`}
-			subtitle={`${invite.data.invitedBy} invited you as ${invite.data.role === "owner" ? "an owner" : "a member"}.`}
+			title="You're invited"
+			subtitle={`${invite.data.invitedBy} wants to share their Exhale with you. You get your own login; private subscriptions stay private.`}
 		>
 			<form onSubmit={onSubmit} className="grid gap-4">
-				<Field label="Your name">
+				<Field label="Name">
 					<Input
 						value={v.name}
 						onChange={(e) => setV({ ...v, name: e.target.value })}
@@ -401,7 +294,7 @@ export function JoinPage() {
 						autoFocus
 					/>
 				</Field>
-				<Field label="Email" hint="You sign in with it.">
+				<Field label="Email">
 					<Input
 						type="email"
 						value={v.email}
@@ -411,8 +304,7 @@ export function JoinPage() {
 					/>
 				</Field>
 				<Field label="Password" hint="At least 10 characters.">
-					<Input
-						type="password"
+					<PasswordInput
 						value={v.password}
 						onChange={(e) => setV({ ...v, password: e.target.value })}
 						required
@@ -421,7 +313,7 @@ export function JoinPage() {
 					/>
 				</Field>
 				<FormError message={error} />
-				<Button type="submit" variant="primary" className="mt-2" disabled={join.isPending}>
+				<Button type="submit" variant="primary" className="mt-2 h-10" disabled={join.isPending}>
 					Create account
 				</Button>
 			</form>

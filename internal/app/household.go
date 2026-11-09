@@ -132,6 +132,108 @@ func (s *Service) GetHousehold(ctx context.Context, actor Actor, _ struct{}) (Ho
 	return out, nil
 }
 
+// UpdateHouseholdInput changes household preferences. Only the fields you
+// pass change.
+type UpdateHouseholdInput struct {
+	Name         *string `json:"name,omitempty" maxLength:"60"`
+	Currency     *string `json:"currency,omitempty" jsonschema:"display currency (ISO 4217): totals are converted into it"`
+	Timezone     *string `json:"timezone,omitempty" jsonschema:"IANA time zone, e.g. Europe/Madrid"`
+	Locale       *string `json:"locale,omitempty" jsonschema:"language of reminders: en or es"`
+	ReminderTime *string `json:"reminderTime,omitempty" jsonschema:"default time of day for reminders, HH:MM; subscriptions still on the previous default move with it"`
+	DryRun       bool    `json:"dryRun,omitempty"`
+}
+
+// UpdateHousehold changes the display currency, time zone, language, name
+// or default reminder time. Owners only.
+func (s *Service) UpdateHousehold(ctx context.Context, actor Actor, in UpdateHouseholdInput) (HouseholdInfo, error) {
+	moved := false
+	err := s.write(ctx, actor, in.DryRun, func(q *db.Queries, c *change) error {
+		if actor.Kind != ActorSystem {
+			m, err := q.GetMember(ctx, actor.MemberID)
+			if err != nil || m.Role != string(domain.RoleOwner) {
+				return fmt.Errorf("%w: only a household owner can change its settings", ErrForbidden)
+			}
+		}
+		before, err := s.household(ctx, q, actor.HouseholdID)
+		if err != nil {
+			return err
+		}
+		h := before
+		if in.Name != nil {
+			h.Name = strings.TrimSpace(*in.Name)
+			if h.Name == "" {
+				return fmt.Errorf("%w: the name cannot be empty", domain.ErrValidation)
+			}
+		}
+		if in.Currency != nil {
+			h.Currency = strings.ToUpper(strings.TrimSpace(*in.Currency))
+			if _, err := money.New(0, h.Currency); err != nil || h.Currency == "" {
+				return fmt.Errorf("%w: unknown currency %q", domain.ErrValidation, *in.Currency)
+			}
+		}
+		if in.Timezone != nil {
+			if _, err := time.LoadLocation(*in.Timezone); err != nil || *in.Timezone == "" {
+				return fmt.Errorf("%w: unknown time zone %q", domain.ErrValidation, *in.Timezone)
+			}
+			h.Timezone = *in.Timezone
+		}
+		if in.Locale != nil {
+			if *in.Locale != "en" && *in.Locale != "es" {
+				return fmt.Errorf("%w: language must be en or es", domain.ErrValidation)
+			}
+			h.Locale = *in.Locale
+		}
+		if in.ReminderTime != nil {
+			t, err := time.Parse("15:04", strings.TrimSpace(*in.ReminderTime))
+			if err != nil {
+				return fmt.Errorf("%w: reminder time must look like 09:00", domain.ErrValidation)
+			}
+			h.ReminderHour, h.ReminderMinute = t.Hour(), t.Minute()
+		}
+		if err := q.UpdateHousehold(ctx, db.UpdateHouseholdParams{
+			Name: h.Name, Currency: h.Currency, Timezone: h.Timezone, Locale: h.Locale,
+			ReminderHour: int64(h.ReminderHour), ReminderMinute: int64(h.ReminderMinute), ID: h.ID,
+		}); err != nil {
+			return err
+		}
+		if h.ReminderHour != before.ReminderHour || h.ReminderMinute != before.ReminderMinute {
+			rows, err := q.ListSubscriptions(ctx, h.ID)
+			if err != nil {
+				return err
+			}
+			for _, r := range rows {
+				sub, err := store.SubscriptionFromRow(r)
+				if err != nil {
+					return err
+				}
+				if sub.Reminders.Hour == before.ReminderHour && sub.Reminders.Minute == before.ReminderMinute {
+					sub.Reminders.Hour, sub.Reminders.Minute = h.ReminderHour, h.ReminderMinute
+					if err := s.saveSubscription(ctx, q, sub); err != nil {
+						return err
+					}
+					moved = true
+				}
+			}
+		}
+		moved = moved || h.Timezone != before.Timezone
+		if _, err := c.record(q, "household.update", "household", h.ID, before, h); err != nil {
+			return err
+		}
+		c.emit(bus.Event{Type: bus.HouseholdUpdated, HouseholdID: h.ID})
+		return nil
+	})
+	if err != nil {
+		return HouseholdInfo{}, err
+	}
+	if moved && !in.DryRun {
+		// Reminder times changed: re-plan so queued reminders follow.
+		if err := s.Plan(ctx); err != nil {
+			s.log.Warn("re-plan after household update failed", "err", err)
+		}
+	}
+	return s.GetHousehold(ctx, actor, struct{}{})
+}
+
 // SavePaymentMethodInput creates (no id) or updates a payment method.
 type SavePaymentMethodInput struct {
 	ID        string `json:"id,omitempty" jsonschema:"existing payment method id (pm_…) to update; empty to create"`

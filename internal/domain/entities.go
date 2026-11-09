@@ -30,6 +30,9 @@ type Household struct {
 	Currency string `json:"currency"` // main currency, ISO 4217
 	Timezone string `json:"timezone"` // IANA name, e.g. "Europe/Madrid"
 	Locale   string `json:"locale"`   // e.g. "es", "en"
+	// Default time of day for reminders, in Timezone (09:00 by default).
+	ReminderHour   int `json:"reminderHour"`
+	ReminderMinute int `json:"reminderMinute"`
 }
 
 // Location returns the household time zone (UTC if unknown).

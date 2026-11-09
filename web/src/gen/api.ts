@@ -139,6 +139,37 @@ export interface AuthSession {
   user?: SessionUser;
 }
 
+/**
+ * env: set by EXHALE_TELEGRAM_TOKEN and not editable in the web
+ */
+export type BotStatusSource = typeof BotStatusSource[keyof typeof BotStatusSource];
+
+
+export const BotStatusSource = {
+  env: 'env',
+  settings: 'settings',
+} as const;
+
+export interface BotStatus {
+  /** A URL to the JSON Schema for this object. */
+  readonly $schema?: string;
+  configured: boolean;
+  /** the bot's display name */
+  name?: string;
+  running: boolean;
+  /** env: set by EXHALE_TELEGRAM_TOKEN and not editable in the web */
+  source?: BotStatusSource;
+  /** the bot's @username, without @ */
+  username?: string;
+}
+
+export interface BotTokenIn {
+  /** A URL to the JSON Schema for this object. */
+  readonly $schema?: string;
+  /** the token BotFather gives you, like 123456789:AAH… */
+  token: string;
+}
+
 export interface Category {
   color?: string;
   householdId: string;
@@ -362,6 +393,8 @@ export interface Household {
   id: string;
   locale: string;
   name: string;
+  reminderHour: number;
+  reminderMinute: number;
   timezone: string;
 }
 
@@ -687,6 +720,18 @@ export interface UndoResult {
   readonly $schema?: string;
   auditId: string;
   restored: string;
+}
+
+export interface UpdateHouseholdInput {
+  /** A URL to the JSON Schema for this object. */
+  readonly $schema?: string;
+  currency?: string;
+  dryRun?: boolean;
+  locale?: string;
+  /** @maxLength 60 */
+  name?: string;
+  reminderTime?: string;
+  timezone?: string;
 }
 
 export interface UpdateSubscriptionInput {
@@ -2969,6 +3014,95 @@ export function useGetHousehold<TData = Awaited<ReturnType<typeof getHousehold>>
 
 
 
+export const getUpdateHouseholdUrl = () => {
+
+
+
+
+  return `/api/v1/household`
+}
+
+/**
+ * Changes the display currency (totals convert into it), time zone, reminder language, name, or default reminder time (HH:MM). Owners only.
+ * @summary Change household preferences
+ */
+export const updateHousehold = async (updateHouseholdInput: NonReadonly<UpdateHouseholdInput>, options?: Parameters<typeof fetcher>[1]): Promise<HouseholdInfo> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return fetcher<HouseholdInfo>(getUpdateHouseholdUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(updateHouseholdInput)
+  }
+);}
+
+
+
+
+
+export const getUpdateHouseholdMutationKey = () => ['updateHousehold'] as const;
+
+export const getUpdateHouseholdMutationOptions = <TError = ErrorModel,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateHousehold>>, TError,UpdateHouseholdMutationVariables, TContext>, request?: SecondParameter<typeof fetcher>}
+): UseMutationOptions<Awaited<ReturnType<typeof updateHousehold>>, TError,UpdateHouseholdMutationVariables, TContext> => {
+
+const mutationKey = getUpdateHouseholdMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof updateHousehold>>, UpdateHouseholdMutationVariables> = (props) => {
+          const {data} = props ?? {};
+
+          return  updateHousehold(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type UpdateHouseholdMutationResult = NonNullable<Awaited<ReturnType<typeof updateHousehold>>>
+    export type UpdateHouseholdMutationBody = NonReadonly<UpdateHouseholdInput>
+    export type UpdateHouseholdMutationError = ErrorModel
+    export type UpdateHouseholdMutationVariables = {data: NonReadonly<UpdateHouseholdInput>}
+
+    /**
+ * @summary Change household preferences
+ */
+export const useUpdateHousehold = <TError = ErrorModel,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateHousehold>>, TError,UpdateHouseholdMutationVariables, TContext>, request?: SecondParameter<typeof fetcher>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof updateHousehold>>,
+        TError,
+        UpdateHouseholdMutationVariables,
+        TContext
+      > => {
+      return useMutation(getUpdateHouseholdMutationOptions(options), queryClient);
+    }
+
 export const getSavePaymentMethodUrl = () => {
 
 
@@ -3145,6 +3279,269 @@ export const usePreviewSchedule = <TError = ErrorModel,
         TContext
       > => {
       return useMutation(getPreviewScheduleMutationOptions(options), queryClient);
+    }
+
+export const getSettingsTelegramUrl = () => {
+
+
+
+
+  return `/api/v1/settings/telegram`
+}
+
+/**
+ * @summary Telegram bot status
+ */
+export const settingsTelegram = async ( options?: Parameters<typeof fetcher>[1]): Promise<BotStatus> => {
+
+  return fetcher<BotStatus>(getSettingsTelegramUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getSettingsTelegramQueryKey = () => {
+    return [
+    `/api/v1/settings/telegram`
+    ] as const;
+    }
+
+
+export const getSettingsTelegramQueryOptions = <TData = Awaited<ReturnType<typeof settingsTelegram>>, TError = ErrorModel>( options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof settingsTelegram>>, TError, TData>>, request?: SecondParameter<typeof fetcher>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getSettingsTelegramQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof settingsTelegram>>> = ({ signal }) => settingsTelegram({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof settingsTelegram>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type SettingsTelegramQueryResult = NonNullable<Awaited<ReturnType<typeof settingsTelegram>>>
+export type SettingsTelegramQueryError = ErrorModel
+
+
+export function useSettingsTelegram<TData = Awaited<ReturnType<typeof settingsTelegram>>, TError = ErrorModel>(
+  options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof settingsTelegram>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof settingsTelegram>>,
+          TError,
+          Awaited<ReturnType<typeof settingsTelegram>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof fetcher>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useSettingsTelegram<TData = Awaited<ReturnType<typeof settingsTelegram>>, TError = ErrorModel>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof settingsTelegram>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof settingsTelegram>>,
+          TError,
+          Awaited<ReturnType<typeof settingsTelegram>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof fetcher>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useSettingsTelegram<TData = Awaited<ReturnType<typeof settingsTelegram>>, TError = ErrorModel>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof settingsTelegram>>, TError, TData>>, request?: SecondParameter<typeof fetcher>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+/**
+ * @summary Telegram bot status
+ */
+
+export function useSettingsTelegram<TData = Awaited<ReturnType<typeof settingsTelegram>>, TError = ErrorModel>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof settingsTelegram>>, TError, TData>>, request?: SecondParameter<typeof fetcher>}
+ , queryClient?: QueryClient
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getSettingsTelegramQueryOptions(options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getSettingsSetTelegramUrl = () => {
+
+
+
+
+  return `/api/v1/settings/telegram`
+}
+
+/**
+ * @summary Set the Telegram bot token (owners only)
+ */
+export const settingsSetTelegram = async (botTokenIn: NonReadonly<BotTokenIn>, options?: Parameters<typeof fetcher>[1]): Promise<BotStatus> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return fetcher<BotStatus>(getSettingsSetTelegramUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(botTokenIn)
+  }
+);}
+
+
+
+
+
+export const getSettingsSetTelegramMutationKey = () => ['settingsSetTelegram'] as const;
+
+export const getSettingsSetTelegramMutationOptions = <TError = ErrorModel,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof settingsSetTelegram>>, TError,SettingsSetTelegramMutationVariables, TContext>, request?: SecondParameter<typeof fetcher>}
+): UseMutationOptions<Awaited<ReturnType<typeof settingsSetTelegram>>, TError,SettingsSetTelegramMutationVariables, TContext> => {
+
+const mutationKey = getSettingsSetTelegramMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof settingsSetTelegram>>, SettingsSetTelegramMutationVariables> = (props) => {
+          const {data} = props ?? {};
+
+          return  settingsSetTelegram(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type SettingsSetTelegramMutationResult = NonNullable<Awaited<ReturnType<typeof settingsSetTelegram>>>
+    export type SettingsSetTelegramMutationBody = NonReadonly<BotTokenIn>
+    export type SettingsSetTelegramMutationError = ErrorModel
+    export type SettingsSetTelegramMutationVariables = {data: NonReadonly<BotTokenIn>}
+
+    /**
+ * @summary Set the Telegram bot token (owners only)
+ */
+export const useSettingsSetTelegram = <TError = ErrorModel,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof settingsSetTelegram>>, TError,SettingsSetTelegramMutationVariables, TContext>, request?: SecondParameter<typeof fetcher>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof settingsSetTelegram>>,
+        TError,
+        SettingsSetTelegramMutationVariables,
+        TContext
+      > => {
+      return useMutation(getSettingsSetTelegramMutationOptions(options), queryClient);
+    }
+
+export const getSettingsRemoveTelegramUrl = () => {
+
+
+
+
+  return `/api/v1/settings/telegram/remove`
+}
+
+/**
+ * @summary Remove the Telegram bot (owners only)
+ */
+export const settingsRemoveTelegram = async ( options?: Parameters<typeof fetcher>[1]): Promise<BotStatus> => {
+
+  return fetcher<BotStatus>(getSettingsRemoveTelegramUrl(),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+);}
+
+
+
+
+
+export const getSettingsRemoveTelegramMutationKey = () => ['settingsRemoveTelegram'] as const;
+
+export const getSettingsRemoveTelegramMutationOptions = <TError = ErrorModel,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof settingsRemoveTelegram>>, TError,void, TContext>, request?: SecondParameter<typeof fetcher>}
+): UseMutationOptions<Awaited<ReturnType<typeof settingsRemoveTelegram>>, TError,void, TContext> => {
+
+const mutationKey = getSettingsRemoveTelegramMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof settingsRemoveTelegram>>, void> = () => {
+
+
+          return  settingsRemoveTelegram(requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type SettingsRemoveTelegramMutationResult = NonNullable<Awaited<ReturnType<typeof settingsRemoveTelegram>>>
+
+    export type SettingsRemoveTelegramMutationError = ErrorModel
+
+
+    /**
+ * @summary Remove the Telegram bot (owners only)
+ */
+export const useSettingsRemoveTelegram = <TError = ErrorModel,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof settingsRemoveTelegram>>, TError,void, TContext>, request?: SecondParameter<typeof fetcher>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof settingsRemoveTelegram>>,
+        TError,
+        void,
+        TContext
+      > => {
+      return useMutation(getSettingsRemoveTelegramMutationOptions(options), queryClient);
     }
 
 export const getListSubscriptionsUrl = (params?: ListSubscriptionsParams,) => {

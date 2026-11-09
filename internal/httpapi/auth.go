@@ -94,8 +94,8 @@ func (a *authAPI) session(ctx context.Context) (AuthSession, error) {
 		return AuthSession{}, err
 	}
 	out := AuthSession{SetupRequired: req, SetupNeedsCode: req && !isLocal(ctx)}
-	if a.cfg.TelegramBot != nil {
-		out.TelegramBot = a.cfg.TelegramBot()
+	if a.cfg.Telegram != nil {
+		out.TelegramBot = a.cfg.Telegram.Username()
 	}
 	if _, err := a.svc.Owner(ctx); err == nil {
 		out.HasHousehold = true
@@ -344,8 +344,8 @@ func registerAuth(api huma.API, a *authAPI) {
 				return nil, httpError(err)
 			}
 			out := linkCodeOut{Code: code, Command: "/start " + code, Expires: time.Now().Add(10 * time.Minute)}
-			if a.cfg.TelegramBot != nil {
-				if bot := a.cfg.TelegramBot(); bot != "" {
+			if a.cfg.Telegram != nil {
+				if bot := a.cfg.Telegram.Username(); bot != "" {
 					out.URL = "https://t.me/" + bot + "?start=" + code
 				}
 			}

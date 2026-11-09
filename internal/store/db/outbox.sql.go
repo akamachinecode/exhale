@@ -118,7 +118,8 @@ func (q *Queries) DeleteFlow(ctx context.Context, id string) error {
 const enqueueOutbox = `-- name: EnqueueOutbox :exec
 INSERT INTO outbox (id, kind, dedupe_key, charge_id, member_id, due_at, status, created_at)
 VALUES (?, ?, ?, ?, ?, ?, 'pending', ?)
-ON CONFLICT (dedupe_key) DO NOTHING
+ON CONFLICT (dedupe_key) DO UPDATE SET due_at = excluded.due_at, member_id = excluded.member_id
+WHERE outbox.status = 'pending' AND outbox.attempts = 0
 `
 
 type EnqueueOutboxParams struct {
@@ -131,6 +132,8 @@ type EnqueueOutboxParams struct {
 	CreatedAt string
 }
 
+// A pending reminder follows changes of its time (reminder settings); one
+// already retried keeps its backoff.
 func (q *Queries) EnqueueOutbox(ctx context.Context, arg EnqueueOutboxParams) error {
 	_, err := q.db.ExecContext(ctx, enqueueOutbox,
 		arg.ID,

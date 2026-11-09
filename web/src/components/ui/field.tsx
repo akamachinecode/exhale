@@ -1,4 +1,5 @@
-import type { InputHTMLAttributes, ReactNode, SelectHTMLAttributes } from "react";
+import { Eye, EyeOff } from "lucide-react";
+import { type InputHTMLAttributes, type ReactNode, type SelectHTMLAttributes, useState } from "react";
 import { cn } from "@/lib/utils";
 
 const control =
@@ -6,6 +7,25 @@ const control =
 
 export function Input({ className, ...props }: InputHTMLAttributes<HTMLInputElement>) {
 	return <input className={cn(control, className)} {...props} />;
+}
+
+/** A password input with a button to show or hide what was typed. */
+export function PasswordInput({ className, ...props }: Omit<InputHTMLAttributes<HTMLInputElement>, "type">) {
+	const [visible, setVisible] = useState(false);
+	return (
+		<span className="relative block">
+			<input type={visible ? "text" : "password"} className={cn(control, "pr-10", className)} {...props} />
+			<button
+				type="button"
+				onClick={() => setVisible(!visible)}
+				aria-label={visible ? "Hide password" : "Show password"}
+				aria-pressed={visible}
+				className="absolute inset-y-0 right-0 grid w-10 place-items-center rounded-r-lg text-faint transition-colors hover:text-fg"
+			>
+				{visible ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
+			</button>
+		</span>
+	);
 }
 
 export function Select({ className, children, ...props }: SelectHTMLAttributes<HTMLSelectElement>) {
@@ -36,7 +56,7 @@ export function Field({
 }) {
 	return (
 		// biome-ignore lint/a11y/noLabelWithoutControl: the control is passed as children
-		<label className="grid gap-1.5">
+		<label className="grid content-start gap-1.5">
 			<span className="text-[13px] font-medium text-fg">{label}</span>
 			{children}
 			{error ? (

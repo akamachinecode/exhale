@@ -76,12 +76,14 @@ type FxRate struct {
 }
 
 type Household struct {
-	ID        string
-	Name      string
-	Currency  string
-	Timezone  string
-	Locale    string
-	CreatedAt string
+	ID             string
+	Name           string
+	Currency       string
+	Timezone       string
+	Locale         string
+	CreatedAt      string
+	ReminderHour   int64
+	ReminderMinute int64
 }
 
 type Invite struct {

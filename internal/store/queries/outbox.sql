@@ -1,7 +1,10 @@
 -- name: EnqueueOutbox :exec
 INSERT INTO outbox (id, kind, dedupe_key, charge_id, member_id, due_at, status, created_at)
 VALUES (?, ?, ?, ?, ?, ?, 'pending', ?)
-ON CONFLICT (dedupe_key) DO NOTHING;
+-- A pending reminder follows changes of its time (reminder settings); one
+-- already retried keeps its backoff.
+ON CONFLICT (dedupe_key) DO UPDATE SET due_at = excluded.due_at, member_id = excluded.member_id
+WHERE outbox.status = 'pending' AND outbox.attempts = 0;
 
 -- name: NextOutboxDue :one
 SELECT due_at FROM outbox WHERE status = 'pending' ORDER BY due_at LIMIT 1;

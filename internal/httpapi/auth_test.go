@@ -13,6 +13,7 @@ import (
 	"github.com/akamachinecode/exhale/internal/app"
 	"github.com/akamachinecode/exhale/internal/auth"
 	"github.com/akamachinecode/exhale/internal/bus"
+	"github.com/akamachinecode/exhale/internal/channels/telegram"
 	"github.com/akamachinecode/exhale/internal/store"
 )
 
@@ -60,7 +61,7 @@ func freshServer(t *testing.T) (*httptest.Server, *app.Service) {
 	}
 	t.Cleanup(func() { st.Close() })
 	svc := app.New(st, bus.New(), nil, func() time.Time { return time.Date(2026, 11, 9, 10, 0, 0, 0, time.UTC) })
-	h, _, err := New(svc, Config{Version: "test", TelegramBot: func() string { return "exhale_test_bot" }})
+	h, _, err := New(svc, Config{Version: "test", Telegram: fakeTelegram{}})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -228,3 +229,16 @@ func TestLoginIsThrottled(t *testing.T) {
 		t.Fatalf("15 quick wrong logins should be throttled, last status %d", last)
 	}
 }
+
+type fakeTelegram struct{}
+
+func (fakeTelegram) Status(context.Context) telegram.BotStatus {
+	return telegram.BotStatus{Configured: true, Running: true, Username: "exhale_test_bot"}
+}
+func (fakeTelegram) Configure(context.Context, string) (telegram.BotStatus, error) {
+	return telegram.BotStatus{}, nil
+}
+func (fakeTelegram) Remove(context.Context) (telegram.BotStatus, error) {
+	return telegram.BotStatus{}, nil
+}
+func (fakeTelegram) Username() string { return "exhale_test_bot" }

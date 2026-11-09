@@ -36,10 +36,10 @@ type Config struct {
 	// SecureCookies marks the session cookie Secure; set it when Exhale is
 	// served over HTTPS (behind a reverse proxy).
 	SecureCookies bool
-	// TelegramBot returns the bot's username for deep links (nil or "" when
-	// Telegram is off).
-	TelegramBot func() string
-	Log         *slog.Logger
+	// Telegram configures and reports the household's bot (nil when not
+	// available, e.g. in tests).
+	Telegram TelegramControl
+	Log      *slog.Logger
 }
 
 type ctxKey struct{}
@@ -59,7 +59,9 @@ func New(svc *app.Service, cfg Config) (http.Handler, huma.API, error) {
 	api := humago.New(mux, hc)
 	registerAll(api, svc)
 	sm := auth.NewSessions(svc.Store(), cfg.SecureCookies)
-	registerAuth(api, &authAPI{svc: svc, sm: sm, cfg: cfg})
+	aa := &authAPI{svc: svc, sm: sm, cfg: cfg}
+	registerAuth(api, aa)
+	registerSettings(api, aa)
 
 	mux.HandleFunc("GET /healthz", func(w http.ResponseWriter, _ *http.Request) { w.Write([]byte("ok")) })
 	mux.HandleFunc("GET /api/v1/events", events(svc))
@@ -149,6 +151,7 @@ type resp[T any] struct{ Body T }
 func registerAll(api huma.API, svc *app.Service) {
 	register(api, svc, app.OpGetContext)
 	register(api, svc, app.OpGetHousehold)
+	register(api, svc, app.OpUpdateHousehold)
 	register(api, svc, app.OpListSubscriptions)
 	register(api, svc, app.OpGetSubscription)
 	register(api, svc, app.OpCreateSubscription)
@@ -199,15 +202,25 @@ func register[In, Out any](api huma.API, svc *app.Service, op app.Op[In, Out]) {
 func httpError(err error) error {
 	switch {
 	case errors.Is(err, domain.ErrValidation):
-		return huma.Error422UnprocessableEntity(err.Error())
+		return huma.Error422UnprocessableEntity(humanize(err, domain.ErrValidation))
 	case errors.Is(err, domain.ErrNotFound):
-		return huma.Error404NotFound(err.Error())
+		return huma.Error404NotFound(humanize(err, domain.ErrNotFound))
 	case errors.Is(err, domain.ErrConflict):
-		return huma.Error409Conflict(err.Error())
+		return huma.Error409Conflict(humanize(err, domain.ErrConflict))
 	case errors.Is(err, app.ErrForbidden):
-		return huma.Error403Forbidden(err.Error())
+		return huma.Error403Forbidden(humanize(err, app.ErrForbidden))
 	}
 	return huma.Error500InternalServerError("internal error", err)
+}
+
+// humanize drops the sentinel prefix ("validation failed: …") so the detail
+// reads as a sentence people can be shown.
+func humanize(err, sentinel error) string {
+	msg := strings.TrimPrefix(err.Error(), sentinel.Error()+": ")
+	if msg == "" {
+		return err.Error()
+	}
+	return strings.ToUpper(msg[:1]) + msg[1:]
 }
 
 // events streams bus events of the caller's household as Server-Sent Events.
