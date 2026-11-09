@@ -50,6 +50,17 @@ func (f *fakeBotAPI) find(method, contains string) bool {
 	return false
 }
 
+func (f *fakeBotAPI) called(method string) bool {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	for _, c := range f.calls {
+		if c.Method == method {
+			return true
+		}
+	}
+	return false
+}
+
 func (f *fakeBotAPI) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	method := r.URL.Path[strings.LastIndex(r.URL.Path, "/")+1:]
 	_ = r.ParseMultipartForm(1 << 20)
@@ -131,6 +142,12 @@ func TestTelegramLinkReminderAndButton(t *testing.T) {
 	code, _ := auth.CreateLinkCode(ctx, st, owner.MemberID, Name)
 	api.push(map[string]any{"message": map[string]any{"message_id": 1, "date": 0, "text": "/start " + code, "chat": map[string]any{"id": 42, "type": "private"}, "from": map[string]any{"id": 42, "first_name": "Alex"}}})
 	eventually(t, "link confirmation", func() bool { return api.find("sendMessage", "Linked") })
+	// Linking opens the app: a home message with navigation, pinned.
+	eventually(t, "home app message", func() bool { return api.find("sendMessage", "a|subs|0") })
+	eventually(t, "pinned home", func() bool { return api.called("pinChatMessage") })
+	if !api.called("setMyCommands") {
+		t.Fatal("the command menu was not set")
+	}
 
 	d, err := svc.CreateSubscription(ctx, owner, app.CreateSubscriptionInput{Name: "Netflix", Price: "19.99", Currency: "EUR", Unit: "month", FirstCharge: "2026-11-08"})
 	if err != nil {

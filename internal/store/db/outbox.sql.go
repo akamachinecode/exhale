@@ -202,6 +202,33 @@ func (q *Queries) GetFlow(ctx context.Context, id string) (Flow, error) {
 	return i, err
 }
 
+const getMessage = `-- name: GetMessage :one
+SELECT id, channel, chat_id, message_id, charge_id, member_id, created_at, kind, route FROM messages WHERE channel = ? AND chat_id = ? AND message_id = ?
+`
+
+type GetMessageParams struct {
+	Channel   string
+	ChatID    string
+	MessageID string
+}
+
+func (q *Queries) GetMessage(ctx context.Context, arg GetMessageParams) (Message, error) {
+	row := q.db.QueryRowContext(ctx, getMessage, arg.Channel, arg.ChatID, arg.MessageID)
+	var i Message
+	err := row.Scan(
+		&i.ID,
+		&i.Channel,
+		&i.ChatID,
+		&i.MessageID,
+		&i.ChargeID,
+		&i.MemberID,
+		&i.CreatedAt,
+		&i.Kind,
+		&i.Route,
+	)
+	return i, err
+}
+
 const linkChannel = `-- name: LinkChannel :exec
 INSERT INTO channel_links (id, member_id, channel, external_id, created_at) VALUES (?, ?, ?, ?, ?)
 ON CONFLICT (channel, external_id) DO UPDATE SET member_id = excluded.member_id
@@ -226,8 +253,87 @@ func (q *Queries) LinkChannel(ctx context.Context, arg LinkChannelParams) error 
 	return err
 }
 
+const listAppMessagesForChat = `-- name: ListAppMessagesForChat :many
+SELECT id, channel, chat_id, message_id, charge_id, member_id, created_at, kind, route FROM messages WHERE kind = 'app' AND channel = ? AND chat_id = ?
+`
+
+type ListAppMessagesForChatParams struct {
+	Channel string
+	ChatID  string
+}
+
+func (q *Queries) ListAppMessagesForChat(ctx context.Context, arg ListAppMessagesForChatParams) ([]Message, error) {
+	rows, err := q.db.QueryContext(ctx, listAppMessagesForChat, arg.Channel, arg.ChatID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []Message{}
+	for rows.Next() {
+		var i Message
+		if err := rows.Scan(
+			&i.ID,
+			&i.Channel,
+			&i.ChatID,
+			&i.MessageID,
+			&i.ChargeID,
+			&i.MemberID,
+			&i.CreatedAt,
+			&i.Kind,
+			&i.Route,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listLiveAppMessages = `-- name: ListLiveAppMessages :many
+SELECT id, channel, chat_id, message_id, charge_id, member_id, created_at, kind, route FROM messages WHERE kind = 'app' AND route <> ''
+`
+
+func (q *Queries) ListLiveAppMessages(ctx context.Context) ([]Message, error) {
+	rows, err := q.db.QueryContext(ctx, listLiveAppMessages)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []Message{}
+	for rows.Next() {
+		var i Message
+		if err := rows.Scan(
+			&i.ID,
+			&i.Channel,
+			&i.ChatID,
+			&i.MessageID,
+			&i.ChargeID,
+			&i.MemberID,
+			&i.CreatedAt,
+			&i.Kind,
+			&i.Route,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const listMessagesForCharge = `-- name: ListMessagesForCharge :many
-SELECT id, channel, chat_id, message_id, charge_id, member_id, created_at FROM messages WHERE charge_id = ?
+SELECT id, channel, chat_id, message_id, charge_id, member_id, created_at, kind, route FROM messages WHERE charge_id = ? AND kind = 'reminder'
 `
 
 func (q *Queries) ListMessagesForCharge(ctx context.Context, chargeID *string) ([]Message, error) {
@@ -247,6 +353,8 @@ func (q *Queries) ListMessagesForCharge(ctx context.Context, chargeID *string) (
 			&i.ChargeID,
 			&i.MemberID,
 			&i.CreatedAt,
+			&i.Kind,
+			&i.Route,
 		); err != nil {
 			return nil, err
 		}
@@ -408,6 +516,44 @@ func (q *Queries) NextOutboxDue(ctx context.Context) (string, error) {
 	return due_at, err
 }
 
+const retireAppMessage = `-- name: RetireAppMessage :exec
+UPDATE messages SET kind = 'app_old', route = '' WHERE id = ?
+`
+
+func (q *Queries) RetireAppMessage(ctx context.Context, id string) error {
+	_, err := q.db.ExecContext(ctx, retireAppMessage, id)
+	return err
+}
+
+const saveAppMessage = `-- name: SaveAppMessage :exec
+INSERT INTO messages (id, channel, chat_id, message_id, member_id, kind, route, created_at)
+VALUES (?, ?, ?, ?, ?, 'app', ?, ?)
+ON CONFLICT (channel, chat_id, message_id) DO UPDATE SET kind = 'app', route = excluded.route
+`
+
+type SaveAppMessageParams struct {
+	ID        string
+	Channel   string
+	ChatID    string
+	MessageID string
+	MemberID  *string
+	Route     string
+	CreatedAt string
+}
+
+func (q *Queries) SaveAppMessage(ctx context.Context, arg SaveAppMessageParams) error {
+	_, err := q.db.ExecContext(ctx, saveAppMessage,
+		arg.ID,
+		arg.Channel,
+		arg.ChatID,
+		arg.MessageID,
+		arg.MemberID,
+		arg.Route,
+		arg.CreatedAt,
+	)
+	return err
+}
+
 const saveFlow = `-- name: SaveFlow :exec
 INSERT INTO flows (id, member_id, state, expires_at, created_at) VALUES (?, ?, ?, ?, ?)
 ON CONFLICT (id) DO UPDATE SET state = excluded.state, expires_at = excluded.expires_at
@@ -457,6 +603,27 @@ func (q *Queries) SaveMessage(ctx context.Context, arg SaveMessageParams) error 
 		arg.ChargeID,
 		arg.MemberID,
 		arg.CreatedAt,
+	)
+	return err
+}
+
+const setMessageRoute = `-- name: SetMessageRoute :exec
+UPDATE messages SET route = ? WHERE channel = ? AND chat_id = ? AND message_id = ? AND kind = 'app'
+`
+
+type SetMessageRouteParams struct {
+	Route     string
+	Channel   string
+	ChatID    string
+	MessageID string
+}
+
+func (q *Queries) SetMessageRoute(ctx context.Context, arg SetMessageRouteParams) error {
+	_, err := q.db.ExecContext(ctx, setMessageRoute,
+		arg.Route,
+		arg.Channel,
+		arg.ChatID,
+		arg.MessageID,
 	)
 	return err
 }

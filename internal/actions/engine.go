@@ -70,8 +70,23 @@ func (e *Engine) chargeResult(ctx context.Context, actor app.Actor, chargeID str
 	return app.ChargeResult{}, fmt.Errorf("charge %s: %w", chargeID, domain.ErrNotFound)
 }
 
-// Handle runs the action behind a button.
+// Handle runs the action behind a button: app navigation (ADR 0019) or a
+// charge action. Charge actions pressed inside an app message stay inside
+// the app.
 func (e *Engine) Handle(ctx context.Context, actor app.Actor, chat ChatRef, raw string) (Reply, error) {
+	if strings.HasPrefix(raw, appPrefix+"|") {
+		return e.handleApp(ctx, actor, chat, raw)
+	}
+	rep, err := e.handleCharge(ctx, actor, chat, raw)
+	if err != nil || !e.isApp(ctx, chat) {
+		return rep, err
+	}
+	verb, chargeID, _ := strings.Cut(raw, "|")
+	chargeID, _, _ = strings.Cut(chargeID, "|")
+	return e.inApp(ctx, actor, chat, verb, chargeID, rep), nil
+}
+
+func (e *Engine) handleCharge(ctx context.Context, actor app.Actor, chat ChatRef, raw string) (Reply, error) {
 	p := strings.Split(raw, "|")
 	if len(p) < 2 {
 		return Reply{Toast: "This button has expired."}, nil
@@ -264,10 +279,12 @@ func (e *Engine) fail(err error) (Reply, error) {
 	return Reply{}, err
 }
 
-// ChatRef identifies a conversation on a channel.
+// ChatRef identifies a conversation on a channel and, for button presses,
+// the message the button belongs to.
 type ChatRef struct {
-	Channel string
-	ChatID  string
+	Channel   string
+	ChatID    string
+	MessageID string
 }
 
 type flowState struct {
@@ -354,11 +371,24 @@ func (e *Engine) Deliver(ctx context.Context, item app.OutboxItem) error {
 	return errors.Join(errs...)
 }
 
-// Sync re-edits messages already sent whenever their charge changes, from
-// any source: web, another chat, an AI agent or the scheduler (bus ⑫).
+// appRefreshDelay coalesces bursts of events into one redraw of the live
+// app messages; appRefreshEvery keeps relative dates right across midnight.
+var (
+	appRefreshDelay = 400 * time.Millisecond
+	appRefreshEvery = time.Hour
+)
+
+// Sync re-edits messages already sent whenever their data changes, from any
+// source: web, another chat, an AI agent or the scheduler (bus ⑫). Reminder
+// messages follow their charge; live app messages redraw the screen they
+// show (ADR 0019).
 func (e *Engine) Sync(ctx context.Context) error {
 	events, stop := e.svc.Bus().Subscribe(128)
 	defer stop()
+	hourly := time.NewTicker(appRefreshEvery)
+	defer hourly.Stop()
+	pending := map[string]bool{}
+	var flush <-chan time.Time
 	for {
 		select {
 		case <-ctx.Done():
@@ -370,6 +400,17 @@ func (e *Engine) Sync(ctx context.Context) error {
 			if ev.Type == bus.ChargeUpdated && ev.ChargeID != "" {
 				e.refresh(ctx, ev)
 			}
+			if ev.HouseholdID != "" {
+				pending[ev.HouseholdID] = true
+				if flush == nil {
+					flush = time.After(appRefreshDelay)
+				}
+			}
+		case <-flush:
+			e.refreshApps(ctx, pending)
+			pending, flush = map[string]bool{}, nil
+		case <-hourly.C:
+			e.refreshApps(ctx, nil)
 		}
 	}
 }

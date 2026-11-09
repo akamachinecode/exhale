@@ -14,7 +14,7 @@ Exhale is a self-hosted subscription manager written in Go (backend, single bina
 | ⑩ money | `internal/money` |
 | ⑧ domain | `internal/domain` |
 | ⑦ use cases + catalog | `internal/app` (`ops.go` is the catalog) |
-| ⑥ action layer (buttons, flows) | `internal/actions` |
+| ⑥ action layer (buttons, flows, app screens — ADR 0019) | `internal/actions` (`app.go` is the in-chat app) |
 | ⑪ scheduler | `internal/scheduler` |
 | ⑫ event bus | `internal/bus` |
 | ⑬⑭ SQLite store, migrations, sqlc | `internal/store` |

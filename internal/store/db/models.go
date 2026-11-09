@@ -109,6 +109,8 @@ type Message struct {
 	ChargeID  *string
 	MemberID  *string
 	CreatedAt string
+	Kind      string
+	Route     string
 }
 
 type Outbox struct {

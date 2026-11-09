@@ -4,7 +4,11 @@
 // Message values and pass button data back (ADR 0003).
 package actions
 
-import "context"
+import (
+	"context"
+	"strings"
+	"unicode/utf8"
+)
 
 // Button is an action attached to a message. Data is opaque to channels and
 // at most 64 bytes, Telegram's limit for callback data.
@@ -13,14 +17,54 @@ type Button struct {
 	Data  string
 }
 
-// Message is a channel-agnostic message: a title, detail lines and rows of
-// buttons.
+// Message is a channel-agnostic screen: a title, detail lines, sections and
+// rows of buttons. Each channel renders it at the best fidelity it offers
+// (ADR 0019).
 type Message struct {
-	Title string
-	Lines []string
-	Rows  [][]Button
+	Title    string
+	Lines    []string
+	Sections []Section
+	Rows     [][]Button
 	// Footer is shown in a muted style (e.g. "Moved by Claude · Undo").
 	Footer string
+}
+
+// Section is a titled block of a screen: a heading followed by lines and an
+// optional table.
+type Section struct {
+	Heading string
+	Lines   []string
+	// Table rows are cells; channels without tables show TableText in a
+	// monospace block. Cells should not contain emoji (they break alignment).
+	Table [][]string
+}
+
+// TableText aligns the table in columns: the first column left-aligned, the
+// others right-aligned (amounts, counts).
+func (s Section) TableText() string {
+	widths := []int{}
+	for _, row := range s.Table {
+		for i, cell := range row {
+			if i >= len(widths) {
+				widths = append(widths, 0)
+			}
+			widths[i] = max(widths[i], utf8.RuneCountInString(cell))
+		}
+	}
+	lines := make([]string, len(s.Table))
+	for r, row := range s.Table {
+		cells := make([]string, len(row))
+		for i, cell := range row {
+			pad := strings.Repeat(" ", widths[i]-utf8.RuneCountInString(cell))
+			if i == 0 {
+				cells[i] = cell + pad
+			} else {
+				cells[i] = pad + cell
+			}
+		}
+		lines[r] = strings.TrimRight(strings.Join(cells, "  "), " ")
+	}
+	return strings.Join(lines, "\n")
 }
 
 // Channel delivers messages to one chat platform.

@@ -51,13 +51,24 @@ func (c *Channel) Edit(_ context.Context, chatID, messageID string, m actions.Me
 	return nil
 }
 
-// Render formats a message as text: title, lines, then buttons as
-// [Label](data) rows.
+// Render formats a message as text: title, lines, sections (## heading,
+// | table rows), then buttons as [Label](data) rows.
 func Render(m actions.Message) string {
 	var b strings.Builder
 	b.WriteString(m.Title + "\n")
 	for _, l := range m.Lines {
 		b.WriteString("  " + l + "\n")
+	}
+	for _, s := range m.Sections {
+		b.WriteString("  ## " + s.Heading + "\n")
+		for _, l := range s.Lines {
+			b.WriteString("  " + l + "\n")
+		}
+		if len(s.Table) > 0 {
+			for _, l := range strings.Split(s.TableText(), "\n") {
+				b.WriteString("  | " + l + "\n")
+			}
+		}
 	}
 	for _, row := range m.Rows {
 		parts := make([]string, len(row))

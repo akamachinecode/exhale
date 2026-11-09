@@ -29,7 +29,27 @@ VALUES (?, ?, ?, ?, ?, ?, ?)
 ON CONFLICT (channel, chat_id, message_id) DO NOTHING;
 
 -- name: ListMessagesForCharge :many
-SELECT * FROM messages WHERE charge_id = ?;
+SELECT * FROM messages WHERE charge_id = ? AND kind = 'reminder';
+
+-- name: SaveAppMessage :exec
+INSERT INTO messages (id, channel, chat_id, message_id, member_id, kind, route, created_at)
+VALUES (?, ?, ?, ?, ?, 'app', ?, ?)
+ON CONFLICT (channel, chat_id, message_id) DO UPDATE SET kind = 'app', route = excluded.route;
+
+-- name: GetMessage :one
+SELECT * FROM messages WHERE channel = ? AND chat_id = ? AND message_id = ?;
+
+-- name: SetMessageRoute :exec
+UPDATE messages SET route = ? WHERE channel = ? AND chat_id = ? AND message_id = ? AND kind = 'app';
+
+-- name: ListAppMessagesForChat :many
+SELECT * FROM messages WHERE kind = 'app' AND channel = ? AND chat_id = ?;
+
+-- name: RetireAppMessage :exec
+UPDATE messages SET kind = 'app_old', route = '' WHERE id = ?;
+
+-- name: ListLiveAppMessages :many
+SELECT * FROM messages WHERE kind = 'app' AND route <> '';
 
 -- name: SaveFlow :exec
 INSERT INTO flows (id, member_id, state, expires_at, created_at) VALUES (?, ?, ?, ?, ?)

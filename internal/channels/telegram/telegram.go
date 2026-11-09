@@ -1,7 +1,8 @@
 // Package telegram (piece ②) connects Exhale to a Telegram bot over long
 // polling: an outbound connection, so no public URL or open port is needed
 // (ADR 0001, 0007). It only renders action-layer messages as inline
-// keyboards and passes button presses back.
+// keyboards and passes button presses back. Its home message is the app
+// itself: one pinned message that navigates by editing in place (ADR 0019).
 package telegram
 
 import (
@@ -57,6 +58,13 @@ func (a *Adapter) String() string { return "telegram" }
 // Serve long-polls until ctx is cancelled. The library reconnects with
 // backoff on network errors; Telegram keeps updates for 24 h meanwhile.
 func (a *Adapter) Serve(ctx context.Context) error {
+	cmds := make([]models.BotCommand, len(actions.Commands))
+	for i, c := range actions.Commands {
+		cmds[i] = models.BotCommand{Command: c.Command, Description: c.Description}
+	}
+	if _, err := a.b.SetMyCommands(ctx, &bot.SetMyCommandsParams{Commands: cmds}); err != nil {
+		a.log.Warn("telegram: could not set the command menu", "err", err)
+	}
 	a.b.Start(ctx)
 	return nil
 }
@@ -88,6 +96,15 @@ func format(m actions.Message) string {
 	b.WriteString("<b>" + html.EscapeString(m.Title) + "</b>")
 	for _, l := range m.Lines {
 		b.WriteString("\n" + html.EscapeString(l))
+	}
+	for _, s := range m.Sections {
+		b.WriteString("\n\n<b>" + html.EscapeString(s.Heading) + "</b>")
+		for _, l := range s.Lines {
+			b.WriteString("\n" + html.EscapeString(l))
+		}
+		if len(s.Table) > 0 {
+			b.WriteString("\n<pre>" + html.EscapeString(s.TableText()) + "</pre>")
+		}
 	}
 	if m.Footer != "" {
 		b.WriteString("\n<i>" + html.EscapeString(m.Footer) + "</i>")
@@ -124,25 +141,26 @@ func (a *Adapter) reply(ctx context.Context, chatID string, text string) {
 
 func (a *Adapter) handleText(ctx context.Context, m *models.Message) {
 	chatID := strconv.FormatInt(m.Chat.ID, 10)
+	chat := actions.ChatRef{Channel: Name, ChatID: chatID}
 	text := strings.TrimSpace(m.Text)
-	if code, ok := strings.CutPrefix(text, "/start"); ok {
-		code = strings.TrimSpace(code)
-		if code == "" {
-			a.reply(ctx, chatID, "Hi! This is a private Exhale bot. Open Exhale → Settings → Channels → Telegram to link this chat.")
-			return
-		}
-		if _, err := auth.RedeemLinkCode(ctx, a.svc.Store(), Name, code, chatID); err != nil {
+	if code, ok := strings.CutPrefix(text, "/start "); ok {
+		if _, err := auth.RedeemLinkCode(ctx, a.svc.Store(), Name, strings.TrimSpace(code), chatID); err != nil {
 			a.reply(ctx, chatID, "This link has expired or was already used. Create a new one in Exhale.")
 			return
 		}
-		a.reply(ctx, chatID, "✅ Linked. Your reminders will arrive here, and you can fix any subscription right from them.")
+		a.reply(ctx, chatID, "✅ Linked. Reminders arrive here, and the message below is Exhale itself: tap around.")
+		if actor, err := auth.MemberForChannel(ctx, a.svc.Store(), Name, chatID); err == nil {
+			a.openApp(ctx, actor, chat, actions.RouteHome)
+		}
 		return
 	}
 	actor, err := auth.MemberForChannel(ctx, a.svc.Store(), Name, chatID)
 	if err != nil {
+		if strings.HasPrefix(text, "/start") {
+			a.reply(ctx, chatID, "Hi! This is a private Exhale bot. Open Exhale → Settings → Channels → Telegram to link this chat.")
+		}
 		return // unlinked chats are ignored (ADR 0006)
 	}
-	chat := actions.ChatRef{Channel: Name, ChatID: chatID}
 	if rep, ok, err := a.eng.HandleText(ctx, actor, chat, text); ok {
 		if err != nil {
 			a.log.Error("telegram text", "err", err)
@@ -151,23 +169,48 @@ func (a *Adapter) handleText(ctx context.Context, m *models.Message) {
 		a.apply(ctx, chat, 0, rep)
 		return
 	}
-	if strings.HasPrefix(text, "/upcoming") || strings.HasPrefix(text, "/next") {
-		list, err := a.svc.ListCharges(ctx, actor, app.ListChargesInput{})
-		if err != nil {
+	if cmd, _, _ := strings.Cut(text, " "); strings.HasPrefix(cmd, "/") {
+		if r, ok := actions.CommandRoute(cmd); ok {
+			a.openApp(ctx, actor, chat, r)
 			return
 		}
-		var b strings.Builder
-		b.WriteString("Next 30 days:\n")
-		for _, c := range list.Charges {
-			fmt.Fprintf(&b, "• %s — %s %s\n", c.DueDate, c.SubscriptionName, c.Amount)
-		}
-		if len(list.Charges) == 0 {
-			b.WriteString("nothing due.")
-		}
-		a.reply(ctx, chatID, b.String())
+	}
+	var help strings.Builder
+	help.WriteString("Commands:")
+	for _, c := range actions.Commands {
+		help.WriteString("\n/" + c.Command + " — " + c.Description)
+	}
+	a.reply(ctx, chatID, help.String())
+}
+
+// openApp posts a new app message (ADR 0019), pins it and unpins the one it
+// replaces.
+func (a *Adapter) openApp(ctx context.Context, actor app.Actor, chat actions.ChatRef, route string) {
+	m, err := a.eng.OpenApp(ctx, actor, route)
+	if err != nil {
+		a.log.Error("telegram app", "route", route, "err", err)
+		a.reply(ctx, chat.ChatID, "Something went wrong opening Exhale.")
 		return
 	}
-	a.reply(ctx, chatID, "Commands: /upcoming — charges in the next 30 days. Reminders arrive here with buttons to fix anything.")
+	id, err := a.Send(ctx, chat.ChatID, m)
+	if err != nil {
+		a.log.Warn("telegram send failed", "err", err)
+		return
+	}
+	old, err := a.eng.AppSent(ctx, actor, chat, id, route)
+	if err != nil {
+		a.log.Warn("telegram: could not record the app message", "err", err)
+	}
+	for _, o := range old {
+		if n, err := strconv.Atoi(o); err == nil {
+			_, _ = a.b.UnpinChatMessage(ctx, &bot.UnpinChatMessageParams{ChatID: chat.ChatID, MessageID: n})
+		}
+	}
+	if n, err := strconv.Atoi(id); err == nil {
+		if _, err := a.b.PinChatMessage(ctx, &bot.PinChatMessageParams{ChatID: chat.ChatID, MessageID: n, DisableNotification: true}); err != nil {
+			a.log.Debug("telegram: could not pin the app message", "err", err)
+		}
+	}
 }
 
 func (a *Adapter) handleButton(ctx context.Context, q *models.CallbackQuery) {
@@ -182,7 +225,7 @@ func (a *Adapter) handleButton(ctx context.Context, q *models.CallbackQuery) {
 		return
 	}
 	actor.Label += " (Telegram)"
-	chat := actions.ChatRef{Channel: Name, ChatID: chatID}
+	chat := actions.ChatRef{Channel: Name, ChatID: chatID, MessageID: strconv.Itoa(q.Message.Message.ID)}
 	rep, err := a.eng.Handle(ctx, actor, chat, q.Data)
 	if err != nil {
 		a.log.Error("telegram button", "data", q.Data, "err", err)
