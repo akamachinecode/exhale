@@ -12,6 +12,7 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"path/filepath"
 	"strings"
 	"syscall"
 	"time"
@@ -24,6 +25,7 @@ import (
 	"github.com/akamachinecode/exhale/internal/agents"
 	"github.com/akamachinecode/exhale/internal/app"
 	"github.com/akamachinecode/exhale/internal/auth"
+	"github.com/akamachinecode/exhale/internal/backup"
 	"github.com/akamachinecode/exhale/internal/bus"
 	"github.com/akamachinecode/exhale/internal/channels/telegram"
 	"github.com/akamachinecode/exhale/internal/fx"
@@ -51,7 +53,8 @@ type cli struct {
 	Link    linkCmd    `cmd:"" help:"Link a chat account (Telegram) to the household owner."`
 	User    userCmd    `cmd:"" help:"Manage web accounts (password recovery)."`
 	Setup   setupCmd   `cmd:"" name:"setup-code" help:"Print a new one-time code for the web setup wizard."`
-	Backup  backupCmd  `cmd:"" help:"Write a consistent backup of the database."`
+	Backup  backupCmd  `cmd:"" help:"Write a consistent backup of the database (safe while the server runs)."`
+	Restore restoreCmd `cmd:"" help:"Put a backup back as the database. Stop the server first."`
 	Openapi openapiCmd `cmd:"" help:"Print the OpenAPI document."`
 	Version versionCmd `cmd:"" help:"Print the version."`
 }
@@ -99,6 +102,9 @@ type serveCmd struct {
 	TelegramAPI   string `name:"telegram-api" env:"EXHALE_TELEGRAM_API" hidden:"" help:"Bot API base URL (tests)."`
 	TrustLocal    bool   `name:"trust-local" env:"EXHALE_TRUST_LOCAL" help:"Let requests from this machine act as the owner without signing in (development, scripts)."`
 	SecureCookies bool   `name:"secure-cookies" env:"EXHALE_SECURE_COOKIES" help:"Mark the session cookie Secure. Set it when Exhale is served over HTTPS."`
+	BackupDir     string `name:"backup-dir" env:"EXHALE_BACKUP_DIR" type:"path" help:"Directory for the daily automatic backups (default: <data dir>/backups)."`
+	BackupKeep    int    `name:"backup-keep" env:"EXHALE_BACKUP_KEEP" default:"14" help:"Automatic backups to keep; older ones are deleted. 0 keeps all."`
+	NoBackups     bool   `name:"no-backups" env:"EXHALE_NO_BACKUPS" help:"Do not back up the database automatically."`
 	Dev           bool   `help:"Development mode."`
 }
 
@@ -157,6 +163,9 @@ func (s *serveCmd) Run(ctx context.Context, g *globals) error {
 		scheduler.New(e.svc, e.log, eng),
 		platform.Func{Name: "message-sync", Fn: eng.Sync},
 	)
+	if !s.NoBackups {
+		services = append(services, &backup.Service{DB: e.st.DB, Dir: backupDir(g, s.BackupDir), Keep: s.BackupKeep, Log: e.log})
+	}
 	return platform.Run(ctx, e.log, services...)
 }
 
@@ -361,21 +370,56 @@ func (setupCmd) Run(ctx context.Context, g *globals) error {
 	return nil
 }
 
-// --- backup / openapi / version --------------------------------------------------
+// --- backup / restore / openapi / version ----------------------------------------
 
-type backupCmd struct{}
+// backupDir is where backups go: dir if set, else <data dir>/backups.
+func backupDir(g *globals, dir string) string {
+	if dir != "" {
+		return dir
+	}
+	return filepath.Join(g.DataDir, "backups")
+}
 
-func (backupCmd) Run(ctx context.Context, g *globals) error {
+type backupCmd struct {
+	Out string `name:"out" env:"EXHALE_BACKUP_DIR" type:"path" help:"Directory to write the backup to (default: <data dir>/backups)."`
+}
+
+func (b *backupCmd) Run(ctx context.Context, g *globals) error {
 	e, err := open(ctx, g)
 	if err != nil {
 		return err
 	}
 	defer e.st.Close()
-	p, err := e.st.Backup(ctx, "manual")
+	p, err := backup.Snapshot(ctx, e.st.DB, backupDir(g, b.Out), backup.KindManual, time.Now())
 	if err != nil {
 		return err
 	}
 	fmt.Println(p)
+	return nil
+}
+
+type restoreCmd struct {
+	File  string `arg:"" type:"existingfile" help:"Backup file to restore (made by Exhale: auto-*.db, manual-*.db, pre-migrate-*.db)."`
+	Force bool   `help:"Replace the database that is already in the data directory. It is kept next to the new one, renamed."`
+}
+
+// Run never opens the store: restoring must not migrate or touch a database
+// that a running server is using.
+func (r *restoreCmd) Run(ctx context.Context, g *globals) error {
+	dst, replaced, err := backup.Restore(ctx, r.File, g.DataDir, r.Force, time.Now())
+	switch {
+	case errors.Is(err, backup.ErrExists):
+		return fmt.Errorf("%s already has a database. Stop Exhale and run the command again with --force: the current database is kept, renamed", g.DataDir)
+	case errors.Is(err, backup.ErrInUse):
+		return fmt.Errorf("the database in %s is in use. Stop Exhale first, then restore", g.DataDir)
+	case err != nil:
+		return err
+	}
+	fmt.Printf("Restored %s to %s.\n", r.File, dst)
+	if replaced != "" {
+		fmt.Printf("The previous database was kept as %s; delete it once you are sure.\n", replaced)
+	}
+	fmt.Println("Start Exhale again.")
 	return nil
 }
 
