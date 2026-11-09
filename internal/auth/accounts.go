@@ -302,6 +302,49 @@ func Join(ctx context.Context, st *store.Store, in JoinInput) (app.Actor, error)
 	return memberActor(ctx, st, id)
 }
 
+// JoinFromChat accepts an invite from a chat app: it creates the member
+// (named after the chat profile, no web login yet) and links the chat. It
+// returns the member and the household name.
+func JoinFromChat(ctx context.Context, st *store.Store, code, channel, externalID, name string) (app.Actor, string, error) {
+	if _, err := st.Q.MemberForChannel(ctx, db.MemberForChannelParams{Channel: channel, ExternalID: externalID}); err == nil {
+		return app.Actor{}, "", fmt.Errorf("%w: this chat is already linked", domain.ErrConflict)
+	}
+	name = strings.TrimSpace(name)
+	if name == "" {
+		name = "Member"
+	}
+	if utf8.RuneCountInString(name) > 80 {
+		name = string([]rune(name)[:80])
+	}
+	codeHash := Hash(code)
+	id := domain.NewID(domain.PrefixMember)
+	var household string
+	err := st.Tx(ctx, func(q *db.Queries) error {
+		now := store.FormatTime(time.Now())
+		inv, err := q.GetInvite(ctx, db.GetInviteParams{CodeHash: codeHash, ExpiresAt: now})
+		if err != nil {
+			return fmt.Errorf("%w: this invite has expired or was already used", domain.ErrNotFound)
+		}
+		if n, err := q.UseInvite(ctx, db.UseInviteParams{UsedAt: store.Ptr(now), CodeHash: codeHash}); err != nil || n != 1 {
+			return fmt.Errorf("%w: this invite was already used", domain.ErrNotFound)
+		}
+		h, err := q.GetHousehold(ctx, inv.HouseholdID)
+		if err != nil {
+			return err
+		}
+		household = h.Name
+		if err := q.CreateMember(ctx, db.CreateMemberParams{ID: id, HouseholdID: inv.HouseholdID, Name: name, Role: inv.Role, CreatedAt: now}); err != nil {
+			return err
+		}
+		return q.LinkChannel(ctx, db.LinkChannelParams{ID: domain.NewID("lnk"), MemberID: id, Channel: channel, ExternalID: externalID, CreatedAt: now})
+	})
+	if err != nil {
+		return app.Actor{}, "", err
+	}
+	a, err := memberActor(ctx, st, id)
+	return a, household, err
+}
+
 func requireOwner(ctx context.Context, st *store.Store, actor app.Actor) error {
 	m, err := st.Q.GetMember(ctx, actor.MemberID)
 	if err != nil || m.Role != string(domain.RoleOwner) || actor.Kind != app.ActorMember {

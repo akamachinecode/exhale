@@ -7,6 +7,7 @@ package telegram
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"html"
 	"log/slog"
@@ -20,6 +21,7 @@ import (
 	"github.com/akamachinecode/exhale/internal/actions"
 	"github.com/akamachinecode/exhale/internal/app"
 	"github.com/akamachinecode/exhale/internal/auth"
+	"github.com/akamachinecode/exhale/internal/domain"
 )
 
 // Name is the channel name stored in channel links.
@@ -77,6 +79,10 @@ func (a *Adapter) Serve(ctx context.Context) error {
 	if _, err := a.b.SetMyCommands(ctx, &bot.SetMyCommandsParams{Commands: cmds}); err != nil {
 		a.log.Warn("telegram: could not set the command menu", "err", err)
 	}
+	// The profile people see before pressing Start, so a fresh bot from
+	// BotFather needs no manual setup.
+	_, _ = a.b.SetMyShortDescription(ctx, &bot.SetMyShortDescriptionParams{ShortDescription: "Your subscriptions, handled. Reminders you can act on, right here."})
+	_, _ = a.b.SetMyDescription(ctx, &bot.SetMyDescriptionParams{Description: "This is your private Exhale bot. It reminds you before every charge and lets you fix anything from the message: mark it paid, move the date, change the card or cancel. Only people you link from Exhale can use it."})
 	a.b.Start(ctx)
 	return nil
 }
@@ -155,6 +161,10 @@ func (a *Adapter) handleText(ctx context.Context, m *models.Message) {
 	chatID := strconv.FormatInt(m.Chat.ID, 10)
 	chat := actions.ChatRef{Channel: Name, ChatID: chatID}
 	text := strings.TrimSpace(m.Text)
+	if code, ok := strings.CutPrefix(text, "/start join-"); ok {
+		a.join(ctx, m, chat, code)
+		return
+	}
 	if code, ok := strings.CutPrefix(text, "/start "); ok {
 		if _, err := auth.RedeemLinkCode(ctx, a.svc.Store(), Name, strings.TrimSpace(code), chatID); err != nil {
 			a.reply(ctx, chatID, "That code is not valid anymore: codes work once and for 10 minutes. "+
@@ -197,6 +207,27 @@ func (a *Adapter) handleText(ctx context.Context, m *models.Message) {
 		help.WriteString("\n/" + c.Command + " — " + c.Description)
 	}
 	a.reply(ctx, chatID, help.String())
+}
+
+// join accepts a household invite from Telegram: the person becomes a
+// member with this chat linked, without needing to reach the web.
+func (a *Adapter) join(ctx context.Context, m *models.Message, chat actions.ChatRef, code string) {
+	name := strings.TrimSpace(m.From.FirstName + " " + m.From.LastName)
+	if name == "" {
+		name = m.From.Username
+	}
+	actor, household, err := auth.JoinFromChat(ctx, a.svc.Store(), strings.TrimSpace(code), Name, chat.ChatID, name)
+	switch {
+	case errors.Is(err, domain.ErrConflict):
+		a.reply(ctx, chat.ChatID, "This chat is already linked to Exhale.")
+		return
+	case err != nil:
+		a.reply(ctx, chat.ChatID, "This invite has expired or was already used. Ask for a new one.")
+		return
+	}
+	_, _ = a.b.UnpinAllChatMessages(ctx, &bot.UnpinAllChatMessagesParams{ChatID: chat.ChatID})
+	a.reply(ctx, chat.ChatID, fmt.Sprintf("👋 Welcome to %s, %s. Your reminders arrive here, and the message below is Exhale itself: tap around.", household, actor.Label))
+	a.openApp(ctx, actor, chat, actions.RouteHome)
 }
 
 // openApp posts a new app message (ADR 0019), pins it and unpins the one it

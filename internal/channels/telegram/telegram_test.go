@@ -221,3 +221,45 @@ func TestManagerConfiguredFromTheWeb(t *testing.T) {
 		t.Fatal("a token from the environment must not be overridden from the web")
 	}
 }
+
+// TestJoinFromTelegram: an owner shares a t.me invite; the other person
+// opens it and becomes a member with their chat linked, no web needed.
+func TestJoinFromTelegram(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	api := &fakeBotAPI{}
+	srv := httptest.NewServer(api)
+	defer srv.Close()
+	st, err := store.OpenMemory(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer st.Close()
+	svc := app.New(st, bus.New(), nil, time.Now)
+	owner, _ := svc.Bootstrap(ctx, app.BootstrapInput{HouseholdName: "Casa", OwnerName: "Alex", Currency: "EUR", Timezone: "UTC", Locale: "en"})
+	log := slog.New(slog.DiscardHandler)
+	tg, err := New("123:abc", srv.URL, svc, log)
+	if err != nil {
+		t.Fatal(err)
+	}
+	tg.SetEngine(actions.New(svc, log, tg))
+	go tg.Serve(ctx)
+
+	code, _, err := auth.CreateInvite(ctx, st, owner, "member")
+	if err != nil {
+		t.Fatal(err)
+	}
+	start := func(id int, text string) {
+		api.push(map[string]any{"message": map[string]any{"message_id": id, "date": 0, "text": text,
+			"chat": map[string]any{"id": 77, "type": "private"}, "from": map[string]any{"id": 77, "first_name": "Marta", "last_name": "G"}}})
+	}
+	start(1, "/start join-"+code)
+	eventually(t, "welcome", func() bool { return api.find("sendMessage", "Welcome to Casa, Marta G") })
+	eventually(t, "home app", func() bool { return api.find("sendMessage", "a|subs|0") })
+	info, _ := svc.GetHousehold(ctx, owner, struct{}{})
+	if len(info.Members) != 2 || info.Members[1].Name != "Marta G" || info.Members[1].Role != "member" {
+		t.Fatalf("member not created: %+v", info.Members)
+	}
+	start(2, "/start join-"+code)
+	eventually(t, "already linked", func() bool { return api.find("sendMessage", "already linked") })
+}

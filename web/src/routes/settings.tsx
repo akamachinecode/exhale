@@ -29,7 +29,7 @@ export function SettingsPage() {
 				>
 					<div className="grid gap-5">
 						<PreferencesForm />
-						<ReminderTime />
+						<ReminderTime withTimezone={false} />
 					</div>
 				</Section>
 				<Section title="Telegram" description="Reminders you act on, and the whole app inside one message.">

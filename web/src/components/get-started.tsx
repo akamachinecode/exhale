@@ -50,7 +50,7 @@ export function GetStarted({
 			id: "telegram",
 			icon: <Send />,
 			title: "Get reminders in Telegram",
-			summary: "Act on every renewal from the message itself.",
+			summary: "Fix any renewal from the message itself.",
 			done: (links.data.links ?? []).some((l) => l.channel === "telegram"),
 			body: <TelegramSetup />,
 		},
@@ -58,14 +58,14 @@ export function GetStarted({
 			id: "subs",
 			icon: <Repeat />,
 			title: "Add your subscriptions",
-			summary: count ? `${count} so far.` : "One by one, or paste your list into Claude.",
+			summary: count ? `${count} so far` : "One by one, or let Claude add them",
 			done: count > 0,
 			body: (
 				<div className="flex flex-wrap items-center gap-3">
 					<Button variant="primary" onClick={onAddSubscription}>
 						Add a subscription
 					</Button>
-					<span className="text-sm text-muted">or connect Claude below and paste your whole list.</span>
+					<span className="text-sm text-muted">or connect Claude and paste your list.</span>
 				</div>
 			),
 		},
@@ -73,8 +73,8 @@ export function GetStarted({
 			id: "claude",
 			icon: <Bot />,
 			title: "Connect Claude",
-			summary: "Manage everything by asking.",
-			done: (tokens.data.tokens ?? []).length > 0,
+			summary: "Manage everything by asking",
+			done: (tokens.data.tokens ?? []).some((t) => t.lastUsedAt),
 			body: <ClaudeConnect />,
 		},
 		{
@@ -87,7 +87,7 @@ export function GetStarted({
 			body: (
 				<div className="grid gap-5">
 					<PreferencesForm />
-					<ReminderTime />
+					<ReminderTime withTimezone={false} />
 				</div>
 			),
 		},
@@ -95,7 +95,7 @@ export function GetStarted({
 			id: "share",
 			icon: <Users />,
 			title: "Share it with someone",
-			summary: "Optional: a partner, family or flatmates.",
+			summary: "A partner, family or flatmates",
 			done: (household.data.members ?? []).length > 1,
 			optional: true,
 			body: <Sharing />,
@@ -124,9 +124,7 @@ export function GetStarted({
 						{allDone ? "You're all set" : name ? `Welcome, ${name}` : "Welcome"}
 					</h2>
 					<p className="mt-0.5 text-sm text-muted">
-						{allDone
-							? "Exhale runs on its own now. Reminders will find you."
-							: `${doneCount} of ${required.length} done · a few minutes and Exhale runs on its own.`}
+						{allDone ? "Reminders will find you." : `${doneCount} of ${required.length} done`}
 					</p>
 				</div>
 				<div className="flex items-center gap-3">
@@ -194,12 +192,7 @@ function StepRow({
 					{step.done && !step.optional ? <Check /> : step.icon}
 				</span>
 				<span className="min-w-0 flex-1">
-					<span
-						className={cn(
-							"block text-sm font-medium",
-							step.done && !step.optional && "text-muted line-through decoration-faint",
-						)}
-					>
+					<span className="block text-sm font-medium">
 						<span className="sr-only">Step {n}: </span>
 						{step.title}
 						{step.optional && <span className="ml-2 text-xs font-normal text-faint">optional</span>}

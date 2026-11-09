@@ -944,7 +944,11 @@
             "type": "string"
           },
           "path": {
-            "description": "web path to open, e.g. /join/abc…",
+            "description": "web path to open, e.g. /join/abc…; only useful if the invited person can reach this server",
+            "type": "string"
+          },
+          "telegramUrl": {
+            "description": "t.me link that joins from Telegram, from anywhere; present when the bot runs",
             "type": "string"
           }
         },

@@ -452,8 +452,10 @@ export interface InviteOut {
   readonly $schema?: string;
   code: string;
   expiresAt: string;
-  /** web path to open, e.g. /join/abc… */
+  /** web path to open, e.g. /join/abc…; only useful if the invited person can reach this server */
   path: string;
+  /** t.me link that joins from Telegram, from anywhere; present when the bot runs */
+  telegramUrl?: string;
 }
 
 export interface JoinInput {

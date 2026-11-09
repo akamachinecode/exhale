@@ -217,9 +217,10 @@ func registerAuth(api huma.API, a *authAPI) {
 		Role domain.Role `json:"role" enum:"owner,member"`
 	}
 	type inviteOut struct {
-		Code      string    `json:"code"`
-		Path      string    `json:"path" doc:"web path to open, e.g. /join/abc…"`
-		ExpiresAt time.Time `json:"expiresAt"`
+		Code        string    `json:"code"`
+		Path        string    `json:"path" doc:"web path to open, e.g. /join/abc…; only useful if the invited person can reach this server"`
+		TelegramURL string    `json:"telegramUrl,omitempty" doc:"t.me link that joins from Telegram, from anywhere; present when the bot runs"`
+		ExpiresAt   time.Time `json:"expiresAt"`
 	}
 	huma.Register(api, authOp("auth_create_invite", http.MethodPost, "/invites", "Invite someone to the household (owners only)"),
 		func(ctx context.Context, in *struct{ Body inviteIn }) (*resp[inviteOut], error) {
@@ -231,7 +232,13 @@ func registerAuth(api huma.API, a *authAPI) {
 			if err != nil {
 				return nil, httpError(err)
 			}
-			return &resp[inviteOut]{Body: inviteOut{Code: code, Path: "/join/" + code, ExpiresAt: exp}}, nil
+			out := inviteOut{Code: code, Path: "/join/" + code, ExpiresAt: exp}
+			if a.cfg.Telegram != nil {
+				if bot := a.cfg.Telegram.Username(); bot != "" {
+					out.TelegramURL = "https://t.me/" + bot + "?start=join-" + code
+				}
+			}
+			return &resp[inviteOut]{Body: out}, nil
 		})
 
 	huma.Register(api, authOp("auth_get_invite", http.MethodGet, "/invites/{code}", "What an invite is for"),
