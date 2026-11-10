@@ -1,0 +1,12 @@
+> cancel Spotify
+  model → set_subscription_status({"action":"cancel_at_period_end","confirm":true,"dryRun":false,"id":"sub_X"})
+  exhale ← PREVIEW ONLY — nothing was changed. Exhale now shows the person this change with a button to confirm it. Do not call this tool again for it; say in a sentence what you prepared.
+< I prepared the cancellation of Spotify Family. Remember to cancel it with Spotify too.
+  [proposal, destructive] Cancel Spotify Family at the end of the period
+    Service until 2026-11-08. No more charges.
+    Exhale only stops tracking it: cancel it with the provider too.
+  [link] Spotify Family
+> press Confirm
+  [applied] Cancel Spotify Family at the end of the period (Undo offered)
+> press Undo
+  [undone] Cancel Spotify Family at the end of the period
