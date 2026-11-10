@@ -138,6 +138,7 @@ func (r Rule) Week() int {
 		return (r.Anchor.Day()-1)/7 + 1
 	case LastWeekday:
 		return -1
+	case DayOfMonth:
 	}
 	return 0
 }

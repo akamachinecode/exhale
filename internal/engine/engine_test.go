@@ -148,6 +148,7 @@ func genRule(t *rapid.T) Rule {
 		case LastWeekday:
 			n := DaysIn(a.Year(), a.Month())
 			r.Anchor = MustDate(a.Year(), a.Month(), rapid.IntRange(n-6, n).Draw(t, "lastDay"))
+		case DayOfMonth:
 		}
 	}
 	if err := r.Validate(); err != nil {
