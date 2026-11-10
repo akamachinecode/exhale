@@ -17,9 +17,19 @@ builds:
       - { goos: windows, goarch: arm }
 archives:
   - formats: [tar.gz]
+    # scripts/install.sh relies on this name: exhale_<version>_<os>_<arch>,
+    # with arch amd64, arm64 or armv7.
+    name_template: "{{ .ProjectName }}_{{ .Version }}_{{ .Os }}_{{ .Arch }}{{ if .Arm }}v{{ .Arm }}{{ end }}"
     format_overrides:
       - { goos: windows, formats: [zip] }
-    files: [LICENSE, README.md]
+    # The service definitions travel with the binary, so the installer uses
+    # files covered by the release checksum.
+    files:
+      - LICENSE
+      - README.md
+      - deploy/systemd/exhale.service
+      - deploy/systemd/exhale.env
+      - deploy/launchd/io.github.akamachinecode.exhale.plist
 checksum:
   name_template: checksums.txt
 sboms:
@@ -37,6 +47,26 @@ nfpms:
     description: Self-hosted subscription manager where the notification is the interface.
     license: AGPL-3.0-or-later
     formats: [deb, rpm]
+    section: utils
+    bindir: /usr/bin
+    # A working service: unit, settings file and a dedicated user. Data lives
+    # in /var/lib/exhale and is never removed by the package (docs/install/linux.md).
+    contents:
+      - src: deploy/systemd/exhale.service
+        dst: /usr/lib/systemd/system/exhale.service
+        file_info: { mode: 0644 }
+      - src: deploy/systemd/exhale.env
+        dst: /etc/exhale/exhale.env
+        type: config|noreplace
+        file_info: { mode: 0640, group: exhale } # the group is created by preinstall
+      - src: LICENSE
+        dst: /usr/share/licenses/exhale/LICENSE
+        type: license
+    scripts:
+      preinstall: deploy/packaging/preinstall.sh
+      postinstall: deploy/packaging/postinstall.sh
+      preremove: deploy/packaging/preremove.sh
+      postremove: deploy/packaging/postremove.sh
 dockers_v2:
   - images: ["ghcr.io/akamachinecode/exhale", "docker.io/akamachinecode/exhale"]
     dockerfile: deploy/Dockerfile
