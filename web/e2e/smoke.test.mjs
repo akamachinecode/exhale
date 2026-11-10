@@ -109,6 +109,56 @@ test("exports download", async () => {
 	}
 });
 
+test("duplicate a subscription with a tag and another price", async () => {
+	await page.goto(`${base}/subscriptions`);
+	await page.getByRole("link", { name: /^Gym/ }).first().click();
+	await page.getByRole("button", { name: "Duplicate" }).click();
+	const dialog = page.getByRole("dialog");
+	await dialog.getByText("Duplicate Gym").waitFor();
+	assert.equal(await dialog.getByPlaceholder("Netflix, Spotify Family…").inputValue(), "Gym (copy)");
+	await dialog.getByLabel("Add a tag").fill("home");
+	await dialog.getByLabel("Add a tag").press("Enter");
+	await dialog.getByLabel("Other price", { exact: true }).fill("400");
+	await dialog.getByRole("button", { name: "Add subscription" }).click();
+	await page.getByRole("heading", { name: "Gym (copy)" }).waitFor();
+	await page.getByText(/Switching to .*400.* per year saves .*110/).waitFor();
+	await page.getByText("No past charges yet.").waitFor();
+});
+
+test("search finds tags, and the tag filter survives a reload", async () => {
+	await page.goto(`${base}/subscriptions?q=home`);
+	await page.getByText("1 shown").waitFor();
+	await page.getByRole("link", { name: /Gym \(copy\)/ }).waitFor();
+	await page.goto(`${base}/subscriptions?tag=home`);
+	assert.equal(await page.getByLabel("Filter by tag").inputValue(), "home");
+	await page.getByText("1 shown").waitFor();
+});
+
+test("bulk edit: tag every subscription, then delete one and undo it", async () => {
+	await page.goto(`${base}/subscriptions`);
+	await page.getByLabel("Select all shown").check();
+	const bar = page.getByRole("toolbar", { name: "Change the selected subscriptions" });
+	await bar.getByText("3 selected").waitFor();
+	await bar.getByRole("button", { name: "Tags" }).click();
+	const dialog = page.getByRole("dialog");
+	await dialog.getByLabel("Add a tag").first().fill("family");
+	await dialog.getByLabel("Add a tag").first().press("Enter");
+	await dialog.getByText("3 will change").waitFor();
+	await dialog.getByRole("button", { name: "Change 3 subscriptions" }).click();
+	await page.getByText("3 subscriptions changed").waitFor();
+	await page.goto(`${base}/subscriptions?tag=family`);
+	await page.getByText("3 shown").waitFor();
+
+	await page.getByLabel("Select Netflix").check();
+	await bar.getByRole("button", { name: "Delete" }).click();
+	await dialog.getByText("Deleted").waitFor();
+	await dialog.getByRole("button", { name: "Delete 1 subscription" }).click();
+	await page.getByText("2 shown").waitFor();
+	await page.getByRole("button", { name: "Undo" }).click();
+	await page.getByText("3 shown").waitFor();
+	await page.getByRole("link", { name: /Netflix/ }).waitFor();
+});
+
 test("no JavaScript errors along the way", () => {
 	assert.deepEqual(errors, []);
 });
