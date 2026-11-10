@@ -53,9 +53,22 @@ func TestWeekendShiftKeepsTheBillingDay(t *testing.T) {
 	if s.BillingDay != "moved to the next business day when it falls on a weekend" {
 		t.Fatalf("words = %q", s.BillingDay)
 	}
+	// The calendar (and its feed) projects the same shifted dates beyond the
+	// charges that exist: 15 Aug 2027 is a Sunday.
+	cal, err := f.svc.Calendar(ctx, f.owner, CalendarInput{From: "2027-07-01", To: "2027-09-30"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	var days []string
+	for _, e := range cal.Events {
+		days = append(days, e.Date.String())
+	}
+	if !slices.Equal(days, []string{"2027-07-15", "2027-08-16", "2027-09-15"}) || !cal.Events[1].Projected {
+		t.Fatalf("calendar = %v", days)
+	}
 	// Every 2 months from the next charge: still the 15th, not the 16th.
 	two := 2
-	d, err := f.svc.UpdateSubscription(ctx, f.owner, UpdateSubscriptionInput{ID: s.ID, Interval: &two})
+	d, err = f.svc.UpdateSubscription(ctx, f.owner, UpdateSubscriptionInput{ID: s.ID, Interval: &two})
 	if err != nil {
 		t.Fatal(err)
 	}
