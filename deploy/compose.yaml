@@ -10,5 +10,10 @@ services:
     environment:
       TZ: Europe/Madrid
       # EXHALE_TELEGRAM_TOKEN: "123456:ABC..."   # from @BotFather
+      # The built-in assistant is off unless set here or in the web (docs/guides/assistant.md):
+      # EXHALE_ASSISTANT_PROVIDER: anthropic       # or openai (OpenAI, OpenRouter, Ollama, LM Studio)
+      # EXHALE_ASSISTANT_API_KEY: "sk-ant-..."
+      # EXHALE_ASSISTANT_BASE_URL: "http://ollama:11434/v1"
+      # EXHALE_ASSISTANT_MODEL: llama3.1
 volumes:
   exhale-data:

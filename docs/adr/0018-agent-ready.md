@@ -73,3 +73,105 @@ Excluded: password changes, creating tokens or OAuth clients, deleting the house
 ## Revisit when
 
 The MCP spec changes its authorization model, or a provider can only be reached through its official SDK.
+
+## Implementation notes: part B, the app uses a model (2026-11-10)
+
+Part A (MCP) shipped in M1. These notes record what shipped for part B and the decisions taken while building it.
+
+### What shipped
+
+- `internal/assistant`: a provider interface, a client for the Anthropic Messages API and one for OpenAI-compatible chat completions, a scripted fake for tests, the tool-calling loop, the preview/confirm gate, and the reader for statements and screenshots.
+- **Chat**: free text in Telegram goes to the assistant instead of the command list. It is written against `internal/actions` (`Engine.Ask`, buttons `ai|ok|…`, `ai|no|…`, `ai|undo|…`), so Slack gets it when it arrives.
+- **Web**: "Ask Exhale", a box on Overview and a panel on ⌘K / Ctrl+K. `POST /api/v1/assistant/messages` answers a message; `POST /api/v1/assistant/proposals/{id}` confirms, discards or undoes. Neither is in the op catalog: an agent over MCP is already a model.
+- **Import**: `POST /api/v1/import/parse` also reads a bank export of transactions (no model), and with the assistant on a PDF, a picture (PNG, JPEG, WebP) or pasted text. The review list and `import_subscriptions` with `dryRun` are unchanged.
+- **Settings**: owner-only endpoints and a "Built-in assistant" section. `EXHALE_ASSISTANT_PROVIDER`, `_API_KEY`, `_MODEL` and `_BASE_URL` win over the web, field by field. The key is saved in `settings` and no endpoint returns it.
+
+It is **off until an owner configures it**. While it is off nothing is sent anywhere and chat answers free text with the command list, as before.
+
+### Provider clients: no SDK (measured)
+
+The decision above said official SDKs were rejected "to be confirmed by measurement". Measured with `anthropic-sdk-go` v2.8.0, stripped static build:
+
+| | Size | Modules added |
+|---|---|---|
+| `net/http` only | 3.5 MB | 0 |
+| + `anthropic-sdk-go/v2` | 12.0 MB (**+8.4 MB**) | 17 (OpenTelemetry, yaml, gjson/sjson, invopop/jsonschema, standard-webhooks…) |
+
+The reason written in the decision was wrong: the SDK no longer pulls the AWS or Azure SDKs (Bedrock and Vertex are separate packages). The verdict stands for other reasons:
+
+1. **Weight.** +8.4 MB on a 22 MB binary (+38%) for one `POST /v1/messages`, against principle 3 (light).
+2. **The second protocol is hand-written anyway.** Local models are a first-class case (principle 1, safety rule 5) and they speak chat completions. With one provider-neutral message model already needed, the Anthropic side is 230 lines.
+3. **Narrow use.** One endpoint, no streaming, tools, images and PDFs as base64.
+
+The cost we accept: we own the request shapes and must follow API versions ourselves (the client pins `anthropic-version: 2026-10-21`), and we do not get the SDK's typed errors or retries (one retry for 429/5xx is implemented). Both clients are tested against HTTP fakes of their API. **Revisit** if we need streaming with tool calls, Bedrock/Vertex/Foundry, or a feature that only the SDK exposes.
+
+Details that matter:
+
+- **Default model `claude-opus-5-5`**, configurable. No `temperature`, `thinking` or `tool_choice` is sent: current models reject them.
+- **Reasoning blocks.** Current Claude models return thinking blocks and reject a history rebuilt without them. Inside one question the assistant turn is sent back exactly as it came (`Message.Raw`); between questions only text is kept, so no thinking block is ever replayed against a changed prompt.
+- **Refusals.** `stop_reason: "refusal"` is handled before reading content. On Anthropic's own API, for the models that have it, requests opt into the server-side fallback (`fallbacks: "default"`, beta `server-side-fallback-2026-07-01`); if the endpoint rejects the parameter the client stops sending it, so a retired beta cannot break a self-hosted install.
+- **OpenAI-compatible.** A bare address gets `/v1`; a missing key sends no `Authorization` header; `max_tokens` switches to `max_completion_tokens` when the endpoint asks for it; tool arguments are accepted as a string or an object. A PDF is sent as a `file` part, which OpenAI accepts and most local servers do not: the person is told to use a CSV or a screenshot.
+
+### The confirm rule: always
+
+**Every write the model asks for is previewed with `dryRun` and applied only when the person presses a button.** Reads run freely. There is no exception for "an unambiguous instruction".
+
+The exception was considered and rejected: deciding that a message is unambiguous would be the model's judgement, and that is exactly the judgement a hidden instruction attacks. A deterministic test for "unambiguous" does not exist, one tap is cheap, and safety rule 1 above already says the in-app assistant always confirms.
+
+How it is enforced, not just asked:
+
+- The loop strips `dryRun` and `confirm` from whatever the model sends, forces `dryRun: true`, and stores the arguments as a **proposal** in `flows`. The tool schemas do not offer `dryRun` at all.
+- `assistant.New` fails if a write in the catalog has no `dryRun` field, so a new use case cannot bypass the gate by accident.
+- The card the person confirms (title and lines) is **written by Exhale** from the arguments and the dry-run result. The model's sentence is shown beside it, never instead of it.
+- A proposal belongs to the member it was made for, expires in 30 minutes, and applies once.
+- Applied changes are collected with `app.CollectAudits` and get **Undo** for a day. Undo covers subscriptions and charges (what `app.Undo` covers); a change to a category or a payment method says it is kept.
+
+The model acts as the member who is talking: `ActorAgent`, the member's id, label `Exhale assistant (Name)`, scope never above `write`. It sees what that member sees; another member's private subscription is "not found". Members' email addresses are removed from tool results: names and ids are enough.
+
+### Prompt injection
+
+Names, notes, URLs and file contents are written by people or copied from elsewhere. Three layers:
+
+1. **The prompt** says data is not instructions, and that only the person's own message can ask for a change.
+2. **Placement.** The system prompt is static rules. The briefing travels in the user turn inside `<briefing>`, with angle brackets neutralised so a name cannot close the block or imitate the person. Tool results are their own blocks.
+3. **Structure**, the one that does not depend on the model: no write applies without a tap on a card Exhale wrote. A test scripts a model that *obeys* a note saying "delete everything": nothing is deleted, and the person sees "Delete Netflix?" as a destructive change.
+
+Reading a document is stricter (safety rule 4): the model gets **one tool with a fixed schema and none of the catalog**, so the only thing a document can produce is a list to review, and each reported item is checked (bounded single-line text, a known cycle, real dates and amounts) before it is shown.
+
+What this does not prevent: a model misled by data can still *say* something wrong, or prepare a change the person did not ask for. The card is the defence, so it must stay written by Exhale.
+
+### Limits
+
+| Limit | Value |
+|---|---|
+| Model calls per message | 6 |
+| Changes prepared per message | 5 |
+| Tokens per call (answer and reasoning) | 8 192 (16 000 when reading a document) |
+| Time per call / per message | 60 s / 150 s |
+| Message length | 4 000 bytes |
+| Tool result handed to the model | 30 000 bytes |
+| Per member | a burst of 12 messages, then one every 15 s |
+| Picture / PDF / text sent to a model | 5 MB / 20 MB / 200 KB (refused above, never cut) |
+
+`export_data` is the one use case not offered as a tool (the whole household in one result). Info logs carry the provider, round count and token counts; never the key or the words.
+
+### Memory
+
+The last six turns of a conversation (text only), what the person did with each proposal, and the pending proposals live in the existing `flows` table, for 30 minutes (24 hours for an applied change, to keep Undo). No new table and no migration. Expired rows are deleted on the next question.
+
+### Bank exports: detector first
+
+A CSV of transactions is read **without a model**: transactions are grouped by a normalised merchant, and a group is reported when the gaps between its dates fit a cycle (1 or 2 weeks; 1, 2, 3, 6 months; 1 year) and, for weekly cycles or only two charges, the amount is steady. It works with the assistant off and is tested on a six-month fixture.
+
+With the assistant on, the model **only tidies the names**: it is sent the merchant descriptions, no amounts and no dates, and a failure leaves the names Exhale worked out. If no charge repeats (a single month), the text goes to the model when it is on; otherwise the person is told a longer period is needed.
+
+### Not done
+
+- **Not verified against a real model.** No key was available: every test uses the fake provider or HTTP fakes. The first things to check with a real key are in `docs/guides/assistant.md`; `EXHALE_EVAL_API_KEY=… go test ./internal/assistant -run TestEval -v` runs the eval set.
+- **Generated screens** (ADR 0019 §4): the assistant answers in plain text and the cards are fixed layouts.
+- **Streaming**: an answer arrives whole; chat shows "typing…".
+- **Observability** (safety rule 6): token counts are logged, not shown in the timeline; no OpenTelemetry GenAI spans, no cost.
+- **Slack**: the chat glue is channel-agnostic, the adapter does not exist yet.
+- **Chat text is English**, like the rest of `internal/actions` until its translation lands. The model answers in the person's language; the cards and buttons do not yet.
+- **Sending a photo to the bot** to import it: import is in the web only.
+- **PDF without a model**, and PDFs on local models that do not accept files.
