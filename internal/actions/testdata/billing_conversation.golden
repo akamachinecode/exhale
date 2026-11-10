@@ -1,0 +1,156 @@
+
+> type /subs
+📋 Subscriptions (1)
+  Tap one to open it.
+  [Gym · €30.00/mo](a|sub|sub_X)
+  [🏠 Home](a|home)
+
+> press Gym
+Gym
+  💶 €30.00 · monthly
+  📅 Next charge Sun, 15 Nov 2026
+  👤 Alex
+  [🔔 Next charge · Sun 15 Nov](a|chg|chg_X)
+  [⏸ Pause](a|st|sub_X|pause) [❌ Cancel](a|cx|sub_X)
+  [✏️ Edit](a|ed|sub_X)
+  [‹ Subscriptions](a|subs|0) [🏠 Home](a|home)
+
+> press Edit
+✏️ Gym
+  | Price               €30.00 monthly
+  | Category                      none
+  | Paid with                     none
+  | Reminders  3 days before, same day
+  | Notice                        none
+  | Account                       none
+  [✏️ Name](a|ef|sub_X|name) [💶 Price](a|ef|sub_X|price)
+  [🏷 Category](a|ec|sub_X) [💳 Payment method](a|em|sub_X)
+  [🔔 Reminders](a|er|sub_X) [⏰ Notice period](a|ef|sub_X|notice)
+  [🔗 Cancel link](a|ef|sub_X|link) [🔑 Account](a|ef|sub_X|account)
+  [📆 Billing day](a|eb|sub_X)
+  [🗑 Delete](a|del|sub_X)
+  [‹ Gym](a|sub|sub_X) [🏠 Home](a|home)
+
+> press Billing day
+📆 Billing day for Gym
+  Choose the day of the month it is charged on, and what happens when that day falls on a weekend.
+  Next charges: Sun 15 Nov, Tue 15 Dec, Fri 15 Jan
+  [● day 15](a|ebs|sub_X|day)
+  [the third Sunday](a|ebs|sub_X|weekday)
+  [● Keep the date](a|ebs|sub_X|none) [→ Monday](a|ebs|sub_X|next) [← Friday](a|ebs|sub_X|previous)
+  [‹ Back](a|ed|sub_X)
+
+> press → Monday
+(toast: Saved)
+📆 Billing day for Gym
+  Choose the day of the month it is charged on, and what happens when that day falls on a weekend.
+  Next charges: Mon 16 Nov, Tue 15 Dec, Fri 15 Jan
+  [● day 15](a|ebs|sub_X|day)
+  [the third Sunday](a|ebs|sub_X|weekday)
+  [Keep the date](a|ebs|sub_X|none) [● → Monday](a|ebs|sub_X|next) [← Friday](a|ebs|sub_X|previous)
+  [‹ Back](a|ed|sub_X)
+
+> press the third Sunday
+(toast: Saved)
+📆 Billing day for Gym
+  Choose the day of the month it is charged on, and what happens when that day falls on a weekend.
+  Next charges: Mon 16 Nov, Mon 21 Dec, Mon 18 Jan
+  [day 15](a|ebs|sub_X|day)
+  [● the third Sunday](a|ebs|sub_X|weekday)
+  [Keep the date](a|ebs|sub_X|none) [● → Monday](a|ebs|sub_X|next) [← Friday](a|ebs|sub_X|previous)
+  [‹ Back](a|ed|sub_X)
+
+> press Back
+✏️ Gym
+  | Price      €30.00 monthly · the third Sunday · weekends move to the next business day
+  | Category                                                                         none
+  | Paid with                                                                        none
+  | Reminders                                                     3 days before, same day
+  | Notice                                                                           none
+  | Account                                                                          none
+  [✏️ Name](a|ef|sub_X|name) [💶 Price](a|ef|sub_X|price)
+  [🏷 Category](a|ec|sub_X) [💳 Payment method](a|em|sub_X)
+  [🔔 Reminders](a|er|sub_X) [⏰ Notice period](a|ef|sub_X|notice)
+  [🔗 Cancel link](a|ef|sub_X|link) [🔑 Account](a|ef|sub_X|account)
+  [📆 Billing day](a|eb|sub_X)
+  [🗑 Delete](a|del|sub_X)
+  [‹ Gym](a|sub|sub_X) [🏠 Home](a|home)
+
+> press ‹ Gym
+Gym
+  💶 €30.00 · monthly · the third Sunday · weekends move to the next business day
+  📅 Next charge Mon, 16 Nov 2026
+  👤 Alex
+  [🔔 Next charge · Mon 16 Nov](a|chg|chg_X)
+  [⏸ Pause](a|st|sub_X|pause) [❌ Cancel](a|cx|sub_X)
+  [✏️ Edit](a|ed|sub_X)
+  [‹ Subscriptions](a|subs|0) [🏠 Home](a|home)
+
+# In Spanish
+
+> type /settings
+⚙️ Settings
+  They apply to everyone you share Exhale with.
+  | Reminders at          09:00
+  | Time zone     Europe/Madrid
+  | Totals in               EUR
+  | Payday              not set
+  | Language            English
+  [🕘 Reminder time](a|sf|time) [💰 Payday](a|sf|payday)
+  [💱 Currency](a|sf|currency) [🌐 Español](a|sl|es)
+  [💳 Payment methods](a|pms)
+  [🏠 Home](a|home)
+
+> press Español
+⚙️ Ajustes
+  Se aplican a todas las personas con las que compartes Exhale.
+  | Recordatorios a las          09:00
+  | Zona horaria         Europe/Madrid
+  | Totales en                     EUR
+  | Día de nómina          sin definir
+  | Idioma                     Español
+  [🕘 Hora de aviso](a|sf|time) [💰 Día de nómina](a|sf|payday)
+  [💱 Moneda](a|sf|currency) [🌐 English](a|sl|en)
+  [💳 Métodos de pago](a|pms)
+  [🏠 Inicio](a|home)
+
+> type /subs
+📋 Suscripciones (1)
+  Toca una para abrirla.
+  [Gym · 30,00 €/mes](a|sub|sub_X)
+  [🏠 Inicio](a|home)
+
+> press Gym
+Gym
+  💶 30,00 € · al mes · el tercer domingo · en fin de semana pasa al siguiente día hábil
+  📅 Próximo cobro: lun, 16 nov 2026
+  👤 Alex
+  [🔔 Próximo cobro · lun 16 nov](a|chg|chg_X)
+  [⏸ Pausar](a|st|sub_X|pause) [❌ Cancelar](a|cx|sub_X)
+  [✏️ Editar](a|ed|sub_X)
+  [‹ Suscripciones](a|subs|0) [🏠 Inicio](a|home)
+
+> press Editar
+✏️ Gym
+  | Precio         30,00 € al mes · el tercer domingo · en fin de semana pasa al siguiente día hábil
+  | Categoría                                                                                ninguno
+  | Se paga con                                                                              ninguno
+  | Recordatorios                                                         3 días antes, el mismo día
+  | Preaviso                                                                                 ninguno
+  | Cuenta                                                                                   ninguno
+  [✏️ Nombre](a|ef|sub_X|name) [💶 Precio](a|ef|sub_X|price)
+  [🏷 Categoría](a|ec|sub_X) [💳 Método de pago](a|em|sub_X)
+  [🔔 Recordatorios](a|er|sub_X) [⏰ Preaviso](a|ef|sub_X|notice)
+  [🔗 Enlace para cancelar](a|ef|sub_X|link) [🔑 Cuenta](a|ef|sub_X|account)
+  [📆 Día de cobro](a|eb|sub_X)
+  [🗑 Eliminar](a|del|sub_X)
+  [‹ Gym](a|sub|sub_X) [🏠 Inicio](a|home)
+
+> press Día de cobro
+📆 Día de cobro de Gym
+  Elige el día del mes en que se cobra y qué pasa cuando ese día cae en fin de semana.
+  Próximos cobros: lun 16 nov, lun 21 dic, lun 18 ene
+  [día 15](a|ebs|sub_X|day)
+  [● el tercer domingo](a|ebs|sub_X|weekday)
+  [Mantener la fecha](a|ebs|sub_X|none) [● → lunes](a|ebs|sub_X|next) [← viernes](a|ebs|sub_X|previous)
+  [‹ Volver](a|ed|sub_X)
