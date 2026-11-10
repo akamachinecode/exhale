@@ -1,6 +1,7 @@
 // End-to-end smoke test: a real browser against a real server with an empty
 // database. Run with `mise run test:e2e` (it builds and starts the server).
 import assert from "node:assert/strict";
+import { createHash, randomBytes } from "node:crypto";
 import { after, before, test } from "node:test";
 import { chromium } from "playwright";
 
@@ -107,6 +108,55 @@ test("exports download", async () => {
 		assert.equal(res.status(), 200, path);
 		assert.match(await res.text(), /Netflix/, path);
 	}
+});
+
+test("connect a remote assistant through the consent screen", async () => {
+	const redirect = "https://assistant.example/callback";
+	const reg = await page.request.post(`${base}/oauth/register`, {
+		data: { client_name: "E2E assistant", redirect_uris: [redirect] },
+	});
+	assert.equal(reg.status(), 201);
+	const { client_id } = await reg.json();
+	const verifier = randomBytes(32).toString("base64url");
+	const challenge = createHash("sha256").update(verifier).digest("base64url");
+	const q = new URLSearchParams({
+		response_type: "code",
+		client_id,
+		redirect_uri: redirect,
+		state: "e2e",
+		code_challenge: challenge,
+		code_challenge_method: "S256",
+		resource: `${base}/mcp`,
+		scope: "read write",
+	});
+	await page.route("https://assistant.example/**", (r) => r.fulfill({ status: 200, body: "ok" }));
+	await page.goto(`${base}/oauth/authorize?${q}`);
+	await page.getByRole("heading", { name: "Connect E2E assistant?" }).waitFor();
+	await page.getByText("Unverified").waitFor();
+	await page.getByRole("radio", { name: /Read only/ }).check();
+	await page.getByRole("button", { name: "Allow" }).click();
+	await page.waitForURL(/assistant\.example\/callback/);
+	const back = new URL(page.url());
+	assert.equal(back.searchParams.get("state"), "e2e");
+	const tok = await page.request.post(`${base}/oauth/token`, {
+		form: {
+			grant_type: "authorization_code",
+			client_id,
+			code: back.searchParams.get("code"),
+			redirect_uri: redirect,
+			code_verifier: verifier,
+			resource: `${base}/mcp`,
+		},
+	});
+	assert.equal(tok.status(), 200);
+	assert.equal((await tok.json()).scope, "read");
+
+	await page.goto(`${base}/agents`);
+	await page.getByText("Connected apps").waitFor();
+	await page.getByText("E2E assistant").waitFor();
+	await page.getByRole("button", { name: "Disconnect E2E assistant" }).click();
+	await page.getByText("E2E assistant disconnected").waitFor();
+	await page.getByText("No applications connected yet.").waitFor();
 });
 
 test("no JavaScript errors along the way", () => {

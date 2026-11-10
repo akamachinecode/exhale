@@ -58,6 +58,28 @@ export interface AgentContext {
   markdown: string;
 }
 
+export type AppScope = typeof AppScope[keyof typeof AppScope];
+
+
+export const AppScope = {
+  read: 'read',
+  write: 'write',
+} as const;
+
+export interface App {
+  /** host of the application's address, when verified */
+  clientHost?: string;
+  createdAt: string;
+  id: string;
+  lastUsedAt?: string;
+  name: string;
+  /** where the application received its access */
+  redirectHost: string;
+  scope: AppScope;
+  /** the application is identified by an address Exhale fetched (a client metadata document), not by what it said about itself */
+  verified: boolean;
+}
+
 export interface AskIn {
   /** A URL to the JSON Schema for this object. */
   readonly $schema?: string;
@@ -373,6 +395,12 @@ export interface AuthSession {
   /** username of the Telegram bot, when Telegram is enabled */
   telegramBot?: string;
   user?: SessionUser;
+}
+
+export interface AuthDisconnectAppRequest {
+  /** A URL to the JSON Schema for this object. */
+  readonly $schema?: string;
+  id: string;
 }
 
 export interface SharedCharge {
@@ -722,6 +750,15 @@ export interface ChargeResult {
   dryRun?: boolean;
   priceChange?: PriceChangeHint;
   subscription: SubscriptionView;
+}
+
+export interface ConnectedApps {
+  /** A URL to the JSON Schema for this object. */
+  readonly $schema?: string;
+  /** @nullable */
+  apps: App[] | null;
+  /** the MCP address to give Claude.ai, ChatGPT or Grok; empty without EXHALE_PUBLIC_URL */
+  mcpUrl: string;
 }
 
 export interface CreateCategoryInput {
@@ -1260,6 +1297,63 @@ export interface NtfyInput {
   server?: string;
   /** access token (tk_…), for servers that need one to publish; leave empty to keep the saved one */
   token?: string;
+}
+
+/**
+ * the most the application asked for; the person may give less
+ */
+export type OAuthRequestInfoMaxScope = typeof OAuthRequestInfoMaxScope[keyof typeof OAuthRequestInfoMaxScope];
+
+
+export const OAuthRequestInfoMaxScope = {
+  read: 'read',
+  write: 'write',
+} as const;
+
+export interface OAuthRequestInfo {
+  /** A URL to the JSON Schema for this object. */
+  readonly $schema?: string;
+  /** host of that address, when verified */
+  clientHost?: string;
+  clientName: string;
+  /** the application's home page, as it describes itself */
+  clientUri?: string;
+  /** the answer goes to a program on this computer */
+  loopback: boolean;
+  /** the most the application asked for; the person may give less */
+  maxScope: OAuthRequestInfoMaxScope;
+  /** the application will act as this member */
+  memberName: string;
+  /** where the browser goes after the answer */
+  redirectHost: string;
+  /** the application is identified by an https address Exhale fetched; otherwise it registered itself and its name is unconfirmed */
+  verified: boolean;
+}
+
+/**
+ * required when approving
+ */
+export type OauthDecisionScope = typeof OauthDecisionScope[keyof typeof OauthDecisionScope];
+
+
+export const OauthDecisionScope = {
+  read: 'read',
+  write: 'write',
+} as const;
+
+export interface OauthDecision {
+  /** A URL to the JSON Schema for this object. */
+  readonly $schema?: string;
+  approve: boolean;
+  /** required when approving */
+  scope?: OauthDecisionScope;
+}
+
+export interface OauthRedirect {
+  /** A URL to the JSON Schema for this object. */
+  readonly $schema?: string;
+  /** send the browser here: the application's address with the answer */
+  redirectTo: string;
 }
 
 export interface PaidTotals {
@@ -2199,6 +2293,195 @@ export function useAudit<TData = Awaited<ReturnType<typeof audit>>, TError = Err
 
 
 
+
+export const getAuthListAppsUrl = () => {
+
+
+
+
+  return `/api/v1/auth/apps`
+}
+
+/**
+ * @summary Applications connected to your account
+ */
+export const authListApps = async ( options?: Parameters<typeof fetcher>[1]): Promise<ConnectedApps> => {
+
+  return fetcher<ConnectedApps>(getAuthListAppsUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getAuthListAppsQueryKey = () => {
+    return [
+    `/api/v1/auth/apps`
+    ] as const;
+    }
+
+
+export const getAuthListAppsQueryOptions = <TData = Awaited<ReturnType<typeof authListApps>>, TError = ErrorModel>( options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof authListApps>>, TError, TData>>, request?: SecondParameter<typeof fetcher>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getAuthListAppsQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof authListApps>>> = ({ signal }) => authListApps({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof authListApps>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type AuthListAppsQueryResult = NonNullable<Awaited<ReturnType<typeof authListApps>>>
+export type AuthListAppsQueryError = ErrorModel
+
+
+export function useAuthListApps<TData = Awaited<ReturnType<typeof authListApps>>, TError = ErrorModel>(
+  options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof authListApps>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof authListApps>>,
+          TError,
+          Awaited<ReturnType<typeof authListApps>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof fetcher>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useAuthListApps<TData = Awaited<ReturnType<typeof authListApps>>, TError = ErrorModel>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof authListApps>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof authListApps>>,
+          TError,
+          Awaited<ReturnType<typeof authListApps>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof fetcher>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useAuthListApps<TData = Awaited<ReturnType<typeof authListApps>>, TError = ErrorModel>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof authListApps>>, TError, TData>>, request?: SecondParameter<typeof fetcher>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+/**
+ * @summary Applications connected to your account
+ */
+
+export function useAuthListApps<TData = Awaited<ReturnType<typeof authListApps>>, TError = ErrorModel>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof authListApps>>, TError, TData>>, request?: SecondParameter<typeof fetcher>}
+ , queryClient?: QueryClient
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getAuthListAppsQueryOptions(options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getAuthDisconnectAppUrl = () => {
+
+
+
+
+  return `/api/v1/auth/apps/disconnect`
+}
+
+/**
+ * @summary Disconnect an application
+ */
+export const authDisconnectApp = async (authDisconnectAppRequest: NonReadonly<AuthDisconnectAppRequest>, options?: Parameters<typeof fetcher>[1]): Promise<Empty> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return fetcher<Empty>(getAuthDisconnectAppUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(authDisconnectAppRequest)
+  }
+);}
+
+
+
+
+
+export const getAuthDisconnectAppMutationKey = () => ['authDisconnectApp'] as const;
+
+export const getAuthDisconnectAppMutationOptions = <TError = ErrorModel,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof authDisconnectApp>>, TError,AuthDisconnectAppMutationVariables, TContext>, request?: SecondParameter<typeof fetcher>}
+): UseMutationOptions<Awaited<ReturnType<typeof authDisconnectApp>>, TError,AuthDisconnectAppMutationVariables, TContext> => {
+
+const mutationKey = getAuthDisconnectAppMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof authDisconnectApp>>, AuthDisconnectAppMutationVariables> = (props) => {
+          const {data} = props ?? {};
+
+          return  authDisconnectApp(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type AuthDisconnectAppMutationResult = NonNullable<Awaited<ReturnType<typeof authDisconnectApp>>>
+    export type AuthDisconnectAppMutationBody = NonReadonly<AuthDisconnectAppRequest>
+    export type AuthDisconnectAppMutationError = ErrorModel
+    export type AuthDisconnectAppMutationVariables = {data: NonReadonly<AuthDisconnectAppRequest>}
+
+    /**
+ * @summary Disconnect an application
+ */
+export const useAuthDisconnectApp = <TError = ErrorModel,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof authDisconnectApp>>, TError,AuthDisconnectAppMutationVariables, TContext>, request?: SecondParameter<typeof fetcher>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof authDisconnectApp>>,
+        TError,
+        AuthDisconnectAppMutationVariables,
+        TContext
+      > => {
+      return useMutation(getAuthDisconnectAppMutationOptions(options), queryClient);
+    }
 
 export const getAuthCreateInviteUrl = () => {
 
@@ -3150,6 +3433,196 @@ export const useAuthLogout = <TError = ErrorModel,
         TContext
       > => {
       return useMutation(getAuthLogoutMutationOptions(options), queryClient);
+    }
+
+export const getAuthOauthRequestUrl = (id: string,) => {
+
+
+
+
+  return `/api/v1/auth/oauth/requests/${id}`
+}
+
+/**
+ * @summary An application asking to connect
+ */
+export const authOauthRequest = async (id: string, options?: Parameters<typeof fetcher>[1]): Promise<OAuthRequestInfo> => {
+
+  return fetcher<OAuthRequestInfo>(getAuthOauthRequestUrl(id),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getAuthOauthRequestQueryKey = (id: string,) => {
+    return [
+    `/api/v1/auth/oauth/requests/${id}`
+    ] as const;
+    }
+
+
+export const getAuthOauthRequestQueryOptions = <TData = Awaited<ReturnType<typeof authOauthRequest>>, TError = ErrorModel>(id: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof authOauthRequest>>, TError, TData>>, request?: SecondParameter<typeof fetcher>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getAuthOauthRequestQueryKey(id);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof authOauthRequest>>> = ({ signal }) => authOauthRequest(id, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: id !== null && id !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof authOauthRequest>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type AuthOauthRequestQueryResult = NonNullable<Awaited<ReturnType<typeof authOauthRequest>>>
+export type AuthOauthRequestQueryError = ErrorModel
+
+
+export function useAuthOauthRequest<TData = Awaited<ReturnType<typeof authOauthRequest>>, TError = ErrorModel>(
+ id: string, options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof authOauthRequest>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof authOauthRequest>>,
+          TError,
+          Awaited<ReturnType<typeof authOauthRequest>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof fetcher>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useAuthOauthRequest<TData = Awaited<ReturnType<typeof authOauthRequest>>, TError = ErrorModel>(
+ id: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof authOauthRequest>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof authOauthRequest>>,
+          TError,
+          Awaited<ReturnType<typeof authOauthRequest>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof fetcher>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useAuthOauthRequest<TData = Awaited<ReturnType<typeof authOauthRequest>>, TError = ErrorModel>(
+ id: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof authOauthRequest>>, TError, TData>>, request?: SecondParameter<typeof fetcher>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+/**
+ * @summary An application asking to connect
+ */
+
+export function useAuthOauthRequest<TData = Awaited<ReturnType<typeof authOauthRequest>>, TError = ErrorModel>(
+ id: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof authOauthRequest>>, TError, TData>>, request?: SecondParameter<typeof fetcher>}
+ , queryClient?: QueryClient
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getAuthOauthRequestQueryOptions(id,options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getAuthOauthDecideUrl = (id: string,) => {
+
+
+
+
+  return `/api/v1/auth/oauth/requests/${id}`
+}
+
+/**
+ * @summary Allow or deny an application
+ */
+export const authOauthDecide = async (id: string,
+    oauthDecision: NonReadonly<OauthDecision>, options?: Parameters<typeof fetcher>[1]): Promise<OauthRedirect> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return fetcher<OauthRedirect>(getAuthOauthDecideUrl(id),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(oauthDecision)
+  }
+);}
+
+
+
+
+
+export const getAuthOauthDecideMutationKey = () => ['authOauthDecide'] as const;
+
+export const getAuthOauthDecideMutationOptions = <TError = ErrorModel,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof authOauthDecide>>, TError,AuthOauthDecideMutationVariables, TContext>, request?: SecondParameter<typeof fetcher>}
+): UseMutationOptions<Awaited<ReturnType<typeof authOauthDecide>>, TError,AuthOauthDecideMutationVariables, TContext> => {
+
+const mutationKey = getAuthOauthDecideMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof authOauthDecide>>, AuthOauthDecideMutationVariables> = (props) => {
+          const {id,data} = props ?? {};
+
+          return  authOauthDecide(id,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type AuthOauthDecideMutationResult = NonNullable<Awaited<ReturnType<typeof authOauthDecide>>>
+    export type AuthOauthDecideMutationBody = NonReadonly<OauthDecision>
+    export type AuthOauthDecideMutationError = ErrorModel
+    export type AuthOauthDecideMutationVariables = {id: string;data: NonReadonly<OauthDecision>}
+
+    /**
+ * @summary Allow or deny an application
+ */
+export const useAuthOauthDecide = <TError = ErrorModel,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof authOauthDecide>>, TError,AuthOauthDecideMutationVariables, TContext>, request?: SecondParameter<typeof fetcher>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof authOauthDecide>>,
+        TError,
+        AuthOauthDecideMutationVariables,
+        TContext
+      > => {
+      return useMutation(getAuthOauthDecideMutationOptions(options), queryClient);
     }
 
 export const getAuthChangePasswordUrl = () => {

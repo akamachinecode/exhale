@@ -801,4 +801,53 @@ export const es: Record<string, string> = {
 	Price: "Precio",
 	"Per month": "Al mes",
 	shown: "mostradas",
+	// Remote MCP with OAuth: consent screen and connected apps (ADR 0024)
+	"Claude.ai, ChatGPT and Grok": "Claude.ai, ChatGPT y Grok",
+	"Cloud assistants reach Exhale over the internet. Add a custom connector with this address, then approve it on the page that opens.":
+		"Los asistentes en la nube llegan a Exhale por internet. Añade un conector personalizado con esta dirección y apruébalo en la página que se abre.",
+	Guide: "Guía",
+	"This needs a public HTTPS address. Set EXHALE_PUBLIC_URL to it and restart Exhale; the guide shows how.":
+		"Hace falta una dirección HTTPS pública. Ponla en EXHALE_PUBLIC_URL y reinicia Exhale; la guía explica cómo.",
+	"Connected apps": "Aplicaciones conectadas",
+	"No applications connected yet.": "Aún no hay aplicaciones conectadas.",
+	Unverified: "Sin verificar",
+	"Connected {0}": "Conectada el {0}",
+	"read and change": "leer y cambiar",
+	"read only": "solo lectura",
+	"Disconnect {0}": "Desconectar {0}",
+	"{0} disconnected": "{0} desconectada",
+	"Could not disconnect": "No se pudo desconectar",
+	"Got access": "Obtuvo acceso",
+	"Lost access": "Perdió el acceso",
+	"Exhale could not identify the application. Start again from the application; if it keeps happening, it may not support Exhale yet.":
+		"Exhale no pudo identificar la aplicación. Vuelve a empezar desde la aplicación; si sigue pasando, puede que aún no sea compatible con Exhale.",
+	"The application sent a request Exhale cannot accept. Start again from the application; if it keeps happening, it may not support Exhale yet.":
+		"La aplicación envió una petición que Exhale no puede aceptar. Vuelve a empezar desde la aplicación; si sigue pasando, puede que aún no sea compatible con Exhale.",
+	"Remote connections are not set up on this server. It needs EXHALE_PUBLIC_URL.":
+		"Las conexiones remotas no están configuradas en este servidor. Necesita EXHALE_PUBLIC_URL.",
+	"Something went wrong on the server. Try again.": "Algo falló en el servidor. Inténtalo de nuevo.",
+	"Could not connect": "No se pudo conectar",
+	"Go to Exhale": "Ir a Exhale",
+	"Connect an application": "Conectar una aplicación",
+	"This request has expired or was already answered. Start again from the application.":
+		"Esta petición ha caducado o ya se respondió. Vuelve a empezar desde la aplicación.",
+	"Could not load the request": "No se pudo cargar la petición",
+	"Could not send the answer": "No se pudo enviar la respuesta",
+	"Sees subscriptions, charges, spending and settings. Changes nothing.":
+		"Ve suscripciones, cobros, gastos y ajustes. No cambia nada.",
+	"Read and change": "Leer y cambiar",
+	"Can also make changes. Destructive ones ask you first, and you can undo them.":
+		"También puede hacer cambios. Los destructivos te preguntan antes, y puedes deshacerlos.",
+	"Connect {0}?": "¿Conectar {0}?",
+	"It will act as you, {0}, in Exhale.": "Actuará como tú, {0}, en Exhale.",
+	"Identified by its address, {0}.": "Identificada por su dirección, {0}.",
+	"It registered itself, so Exhale cannot confirm its name.":
+		"Se registró sola, así que Exhale no puede confirmar su nombre.",
+	"After you answer, you go back to": "Cuando respondas, volverás a",
+	"That is a program on this computer. Continue only if you started this from an app you trust here.":
+		"Es un programa de este ordenador. Continúa solo si empezaste esto desde una aplicación de confianza aquí.",
+	Deny: "Denegar",
+	Allow: "Permitir",
+	"You can disconnect it at any time on the AI agents page.":
+		"Puedes desconectarla cuando quieras en la página de agentes de IA.",
 };

@@ -31,6 +31,9 @@ const labels: Record<string, string> = {
 	"payment_method.save": t("Saved a payment method"),
 	"category.create": t("Created a category"),
 	undo: t("Undid a change"),
+	// Remote MCP (ADR 0024): the actor is the application.
+	"app.connect": t("Got access"),
+	"app.disconnect": t("Lost access"),
 };
 
 export function ActivityPage() {
@@ -86,7 +89,7 @@ export function ActivityPage() {
 						<ul className="divide-y divide-line">
 							{entries.map((e) => {
 								const Icon = e.actorKind === "agent" ? Bot : e.actorKind === "system" ? Clock : User;
-								const canUndo = !e.undoneBy && e.action !== "undo";
+								const canUndo = !e.undoneBy && e.action !== "undo" && !e.action.startsWith("app.");
 								return (
 									<li key={e.id} className="flex items-center gap-3 px-5 py-3 text-sm">
 										<span className="grid size-8 place-items-center rounded-full bg-raised text-muted">
