@@ -47,92 +47,92 @@ func chargeMessage(kind string, r app.ChargeResult, today engine.Date, locale st
 	id := c.ID
 	days := today.DaysUntil(c.DueDate)
 	edit := [][]Button{
-		{{Label: "📅 Change date", Data: data(vDateMenu, id, c.DueDate.String()[:7])}, {Label: "✏️ Amount", Data: data(vAmount, id)}},
-		{{Label: "💳 Payment method", Data: data(vMethod, id)}, {Label: "⏭ Skip this one", Data: data(vSkip, id)}},
+		{{Label: tr(locale, "📅 Change date"), Data: data(vDateMenu, id, c.DueDate.String()[:7])}, {Label: tr(locale, "✏️ Amount"), Data: data(vAmount, id)}},
+		{{Label: tr(locale, "💳 Payment method"), Data: data(vMethod, id)}, {Label: tr(locale, "⏭ Skip this one"), Data: data(vSkip, id)}},
 	}
 	switch {
 	case c.Status != domain.ChargePending && c.Status != domain.ChargeFailed:
-		m.Title = statusTitle(c, sub.Name)
-		m.Rows = [][]Button{{{Label: "↩︎ Reopen", Data: data(vReopen, id)}}}
+		m.Title = statusTitle(c, sub.Name, locale)
+		m.Rows = [][]Button{{{Label: tr(locale, "↩︎ Reopen"), Data: data(vReopen, id)}}}
 	case c.Kind == app.ChargeExpiry && (kind == app.KindConfirm || c.DueDate.Before(today)):
-		m.Title = fmt.Sprintf("❓ Did you renew %s?", sub.Name)
+		m.Title = tr(locale, "❓ Did you renew %s?", sub.Name)
 		m.Rows = [][]Button{
-			{{Label: "✅ Renewed", Data: data(vPaid, id)}, {Label: "⏳ Not yet", Data: data(vNotYet, id)}, {Label: "⌛ It expired", Data: data(vExpire, id)}},
-			{{Label: "📅 New date", Data: data(vDateMenu, id, c.DueDate.String()[:7])}},
+			{{Label: tr(locale, "✅ Renewed"), Data: data(vPaid, id)}, {Label: tr(locale, "⏳ Not yet"), Data: data(vNotYet, id)}, {Label: tr(locale, "⌛ It expired"), Data: data(vExpire, id)}},
+			{{Label: tr(locale, "📅 New date"), Data: data(vDateMenu, id, c.DueDate.String()[:7])}},
 		}
 	case kind == app.KindConfirm || c.DueDate.Before(today) || c.Status == domain.ChargeFailed:
-		m.Title = fmt.Sprintf("❓ Was %s charged?", sub.Name)
+		m.Title = tr(locale, "❓ Was %s charged?", sub.Name)
 		if c.Status == domain.ChargeFailed {
-			m.Title = fmt.Sprintf("⚠️ %s failed — did it go through later?", sub.Name)
+			m.Title = tr(locale, "⚠️ %s failed — did it go through later?", sub.Name)
 		}
 		m.Rows = [][]Button{
-			{{Label: "✅ Paid", Data: data(vPaid, id)}, {Label: "⏳ Not yet", Data: data(vNotYet, id)}, {Label: "❌ Failed", Data: data(vFailed, id)}},
-			{{Label: "📅 New date", Data: data(vDateMenu, id, c.DueDate.String()[:7])}, {Label: "⏭ Skip", Data: data(vSkip, id)}},
-			{{Label: "💶 Paid, another amount", Data: data(vPaidAmount, id)}},
+			{{Label: tr(locale, "✅ Paid"), Data: data(vPaid, id)}, {Label: tr(locale, "⏳ Not yet"), Data: data(vNotYet, id)}, {Label: tr(locale, "❌ Failed"), Data: data(vFailed, id)}},
+			{{Label: tr(locale, "📅 New date"), Data: data(vDateMenu, id, c.DueDate.String()[:7])}, {Label: tr(locale, "⏭ Skip"), Data: data(vSkip, id)}},
+			{{Label: tr(locale, "💶 Paid, another amount"), Data: data(vPaidAmount, id)}},
 		}
 	case c.Kind == app.ChargeExpiry:
-		m.Title = fmt.Sprintf("⌛ %s expires %s", sub.Name, when(days))
+		m.Title = tr(locale, "⌛ %s expires %s", sub.Name, when(days, locale))
 		m.Rows = [][]Button{
-			{{Label: "✅ Renewed", Data: data(vPaid, id)}, {Label: "📅 Change date", Data: data(vDateMenu, id, c.DueDate.String()[:7])}},
-			{{Label: "✏️ Amount", Data: data(vAmount, id)}, {Label: "💳 Payment method", Data: data(vMethod, id)}},
-			{{Label: "⌛ Let it expire", Data: data(vExpire, id)}},
+			{{Label: tr(locale, "✅ Renewed"), Data: data(vPaid, id)}, {Label: tr(locale, "📅 Change date"), Data: data(vDateMenu, id, c.DueDate.String()[:7])}},
+			{{Label: tr(locale, "✏️ Amount"), Data: data(vAmount, id)}, {Label: tr(locale, "💳 Payment method"), Data: data(vMethod, id)}},
+			{{Label: tr(locale, "⌛ Let it expire"), Data: data(vExpire, id)}},
 		}
 	case kind == app.KindDecision && !c.CancelBy.IsZero() && c.Decision == "":
 		left := today.DaysUntil(c.CancelBy)
-		m.Title = fmt.Sprintf("⏰ Last day to cancel %s: %s", sub.Name, strings.TrimPrefix(when(left), "in "))
+		m.Title = tr(locale, "⏰ Last day to cancel %s: %s", sub.Name, when(left, locale))
 		if left > 1 {
-			m.Title = fmt.Sprintf("⏰ %d days left to cancel %s", left, sub.Name)
+			m.Title = tr(locale, "⏰ %d days left to cancel %s", left, sub.Name)
 		}
-		m.Lines = append(m.Lines, fmt.Sprintf("After that it renews for %s.", c.Amount.Format(locale)))
-		m.Rows = [][]Button{{{Label: "👍 Keep it", Data: data(vKeep, id)}, {Label: "❌ Cancel", Data: data(vCancel, id)}}}
+		m.Lines = append(m.Lines, tr(locale, "After that it renews for %s.", c.Amount.Format(locale)))
+		m.Rows = [][]Button{{{Label: tr(locale, "👍 Keep it"), Data: data(vKeep, id)}, {Label: tr(locale, "❌ Cancel"), Data: data(vCancel, id)}}}
 	case c.Kind == app.ChargeTrial:
-		m.Title = fmt.Sprintf("⏳ %s free trial ends %s", sub.Name, when(days))
-		m.Lines = append([]string{fmt.Sprintf("Then %s %s.", c.Amount.Format(locale), sub.Cadence)}, m.Lines[1:]...)
-		m.Rows = append([][]Button{{{Label: "👍 Keep it", Data: data(vKeep, id)}, {Label: "❌ Cancel before it charges", Data: data(vCancel, id)}}}, edit...)
+		m.Title = tr(locale, "⏳ %s free trial ends %s", sub.Name, when(days, locale))
+		m.Lines = append([]string{tr(locale, "Then %s %s.", c.Amount.Format(locale), cadenceText(sub.Cadence, locale))}, m.Lines[1:]...)
+		m.Rows = append([][]Button{{{Label: tr(locale, "👍 Keep it"), Data: data(vKeep, id)}, {Label: tr(locale, "❌ Cancel before it charges"), Data: data(vCancel, id)}}}, edit...)
 	default:
-		m.Title = fmt.Sprintf("🔔 %s renews %s", sub.Name, when(days))
+		m.Title = tr(locale, "🔔 %s renews %s", sub.Name, when(days, locale))
 		m.Rows = [][]Button{
-			{{Label: "✅ Already paid", Data: data(vPaid, id)}, {Label: "📅 Change date", Data: data(vDateMenu, id, c.DueDate.String()[:7])}},
-			{{Label: "💳 Payment method", Data: data(vMethod, id)}, {Label: "✏️ Amount", Data: data(vAmount, id)}},
-			{{Label: "⏭ Skip this one", Data: data(vSkip, id)}, {Label: "❌ Cancel subscription", Data: data(vCancel, id)}},
+			{{Label: tr(locale, "✅ Already paid"), Data: data(vPaid, id)}, {Label: tr(locale, "📅 Change date"), Data: data(vDateMenu, id, c.DueDate.String()[:7])}},
+			{{Label: tr(locale, "💳 Payment method"), Data: data(vMethod, id)}, {Label: tr(locale, "✏️ Amount"), Data: data(vAmount, id)}},
+			{{Label: tr(locale, "⏭ Skip this one"), Data: data(vSkip, id)}, {Label: tr(locale, "❌ Cancel subscription"), Data: data(vCancel, id)}},
 		}
 		if sub.AskUsage {
 			// A cheap, honest "is it worth it?": one tap, asked rarely.
-			m.Lines = append(m.Lines, "Still using it?")
-			m.Rows = append(m.Rows, []Button{{Label: "👍 Yes", Data: data(vUse, id, "1")}, {Label: "👎 Not really", Data: data(vUse, id, "0")}})
+			m.Lines = append(m.Lines, tr(locale, "Still using it?"))
+			m.Rows = append(m.Rows, []Button{{Label: tr(locale, "👍 Yes"), Data: data(vUse, id, "1")}, {Label: tr(locale, "👎 Not really"), Data: data(vUse, id, "0")}})
 		}
 	}
 	if c.Decision == "keep" && c.Status == domain.ChargePending {
-		m.Footer = "You chose to keep it."
+		m.Footer = tr(locale, "You chose to keep it.")
 	}
 	return m
 }
 
 // cancelPage is the link button to where a subscription is cancelled.
-func cancelPage(sub app.SubscriptionView) []Button {
+func cancelPage(sub app.SubscriptionView, locale string) []Button {
 	if sub.CancelURL == "" {
 		return nil
 	}
-	return []Button{{Label: "🔗 Open the cancel page", URL: sub.CancelURL}}
+	return []Button{{Label: tr(locale, "🔗 Open the cancel page"), URL: sub.CancelURL}}
 }
 
-func statusTitle(c app.ChargeView, name string) string {
+func statusTitle(c app.ChargeView, name, locale string) string {
 	switch c.Status {
 	case domain.ChargePaid:
-		return fmt.Sprintf("✅ %s paid", name)
+		return tr(locale, "✅ %s paid", name)
 	case domain.ChargeSkipped:
-		return fmt.Sprintf("⏭ %s skipped", name)
+		return tr(locale, "⏭ %s skipped", name)
 	case domain.ChargeFailed:
-		return fmt.Sprintf("❌ %s failed", name)
+		return tr(locale, "❌ %s failed", name)
 	default:
 		return name
 	}
 }
 
 func details(c app.ChargeView, sub app.SubscriptionView, locale string) []string {
-	lines := []string{fmt.Sprintf("💶 %s · %s", c.Amount.Format(locale), longDate(c.DueDate))}
+	lines := []string{fmt.Sprintf("💶 %s · %s", c.Amount.Format(locale), longDate(c.DueDate, locale))}
 	if c.Delayed {
-		lines = append(lines, "↪︎ moved from "+longDate(c.OriginalDate))
+		lines = append(lines, tr(locale, "↪︎ moved from %s", longDate(c.OriginalDate, locale)))
 	}
 	if sub.PaymentMethod != "" {
 		lines = append(lines, "💳 "+sub.PaymentMethod)
@@ -141,47 +141,31 @@ func details(c app.ChargeView, sub app.SubscriptionView, locale string) []string
 		lines = append(lines, "🏷 "+sub.CategoryName)
 	}
 	if !c.CancelBy.IsZero() && !c.CancelPassed && c.Status == domain.ChargePending {
-		lines = append(lines, "⏰ Cancel by "+longDate(c.CancelBy))
+		lines = append(lines, tr(locale, "⏰ Cancel by %s", longDate(c.CancelBy, locale)))
 	}
 	if !c.ChargedAmount.IsZero() && c.ChargedAmount != c.Amount {
-		lines = append(lines, "🏦 charged "+c.ChargedAmount.Format(locale))
+		lines = append(lines, tr(locale, "🏦 charged %s", c.ChargedAmount.Format(locale)))
 	}
 	return lines
 }
 
-func when(days int) string {
-	switch {
-	case days == 0:
-		return "today"
-	case days == 1:
-		return "tomorrow"
-	case days < 0:
-		return fmt.Sprintf("%d days ago", -days)
-	}
-	return fmt.Sprintf("in %d days", days)
-}
-
-func longDate(d engine.Date) string {
-	return d.At(12, 0, time.UTC).Format("Mon, 2 Jan 2006")
-}
-
 // calendar renders a month of day buttons for choosing a new date.
-func calendar(chargeID string, month engine.Date, selected engine.Date, today engine.Date) [][]Button {
-	rows := monthGrid(month, selected, today,
+func calendar(chargeID string, month engine.Date, selected engine.Date, today engine.Date, locale string) [][]Button {
+	rows := monthGrid(month, selected, today, locale,
 		func(m string) string { return data(vDateMenu, chargeID, m) },
 		func(d string) string { return data(vDatePick, chargeID, d) })
-	return append(rows, []Button{{Label: "↩︎ Back", Data: data(vBack, chargeID)}})
+	return append(rows, []Button{{Label: tr(locale, "↩︎ Back"), Data: data(vBack, chargeID)}})
 }
 
 // monthGrid renders a month as rows of day buttons, Monday first. nav builds
 // the data of the month arrows ("2026-12"), pick the data of a day.
-func monthGrid(month, selected, today engine.Date, nav, pick func(string) string) [][]Button {
+func monthGrid(month, selected, today engine.Date, locale string, nav, pick func(string) string) [][]Button {
 	first := engine.MustDate(month.Year(), month.Month(), 1)
 	prev := first.AddDays(-1)
 	next := first.AddDays(engine.DaysIn(first.Year(), first.Month()))
 	rows := [][]Button{{
 		{Label: "‹", Data: nav(prev.String()[:7])},
-		{Label: first.At(12, 0, time.UTC).Format("January 2006"), Data: nav(first.String()[:7])},
+		{Label: monthTitle(first, locale), Data: nav(first.String()[:7])},
 		{Label: "›", Data: nav(next.String()[:7])},
 	}}
 	week := []Button{}

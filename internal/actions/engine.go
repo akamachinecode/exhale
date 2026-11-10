@@ -42,6 +42,12 @@ func (e *Engine) context(ctx context.Context, actor app.Actor) (engine.Date, str
 	return info.Today, info.Household.Locale
 }
 
+// Locale returns the language of the actor's household.
+func (e *Engine) Locale(ctx context.Context, actor app.Actor) string {
+	_, locale := e.context(ctx, actor)
+	return locale
+}
+
 // Render returns the message for a charge.
 func (e *Engine) Render(ctx context.Context, actor app.Actor, kind, chargeID string) (Message, error) {
 	r, err := e.chargeResult(ctx, actor, chargeID)
@@ -87,9 +93,10 @@ func (e *Engine) Handle(ctx context.Context, actor app.Actor, chat ChatRef, raw 
 }
 
 func (e *Engine) handleCharge(ctx context.Context, actor app.Actor, chat ChatRef, raw string) (Reply, error) {
+	today, locale := e.context(ctx, actor)
 	p := strings.Split(raw, "|")
 	if len(p) < 2 {
-		return Reply{Toast: "This button has expired."}, nil
+		return Reply{Toast: tr(locale, "This button has expired.")}, nil
 	}
 	verb, chargeID := p[0], p[1]
 	arg := func(i int) string {
@@ -98,11 +105,10 @@ func (e *Engine) handleCharge(ctx context.Context, actor app.Actor, chat ChatRef
 		}
 		return ""
 	}
-	today, locale := e.context(ctx, actor)
 	done := func(res app.ChargeResult, toast string) (Reply, error) {
 		m := chargeMessage("", res, today, locale)
 		if res.AuditID != "" {
-			m.Rows = append(m.Rows, []Button{{Label: "↩︎ Undo", Data: data(vUndo, res.Charge.ID, res.AuditID)}})
+			m.Rows = append(m.Rows, []Button{{Label: tr(locale, "↩︎ Undo"), Data: data(vUndo, res.Charge.ID, res.AuditID)}})
 		}
 		return Reply{Edit: &m, Toast: toast}, nil
 	}
@@ -115,20 +121,20 @@ func (e *Engine) handleCharge(ctx context.Context, actor app.Actor, chat ChatRef
 	}
 	switch verb {
 	case vPaid:
-		return status(string(domain.ChargePaid), "Marked as paid ✅")
+		return status(string(domain.ChargePaid), tr(locale, "Marked as paid ✅"))
 	case vFailed:
-		return status(string(domain.ChargeFailed), "Marked as failed")
+		return status(string(domain.ChargeFailed), tr(locale, "Marked as failed"))
 	case vSkip:
-		return status(string(domain.ChargeSkipped), "Skipped")
+		return status(string(domain.ChargeSkipped), tr(locale, "Skipped"))
 	case vReopen:
-		return status(string(domain.ChargePending), "Reopened")
+		return status(string(domain.ChargePending), tr(locale, "Reopened"))
 	case vNotYet:
 		m, err := e.Render(ctx, actor, app.KindConfirm, chargeID)
 		if err != nil {
 			return e.fail(err)
 		}
-		m.Footer = "OK — I'll ask again tomorrow."
-		return Reply{Edit: &m, Toast: "I'll ask again tomorrow"}, nil
+		m.Footer = tr(locale, "OK — I'll ask again tomorrow.")
+		return Reply{Edit: &m, Toast: tr(locale, "I'll ask again tomorrow")}, nil
 	case vBack:
 		m, err := e.Render(ctx, actor, "", chargeID)
 		if err != nil {
@@ -144,7 +150,7 @@ func (e *Engine) handleCharge(ctx context.Context, actor app.Actor, chat ChatRef
 		if err != nil {
 			month = r.Charge.DueDate
 		}
-		m := Message{Title: "📅 New date for " + r.Subscription.Name, Lines: details(r.Charge, r.Subscription, locale), Rows: calendar(chargeID, month, r.Charge.DueDate, today)}
+		m := Message{Title: tr(locale, "📅 New date for %s", r.Subscription.Name), Lines: details(r.Charge, r.Subscription, locale), Rows: calendar(chargeID, month, r.Charge.DueDate, today, locale)}
 		return Reply{Edit: &m}, nil
 	case vDatePick:
 		r, err := e.chargeResult(ctx, actor, chargeID)
@@ -153,18 +159,18 @@ func (e *Engine) handleCharge(ctx context.Context, actor app.Actor, chat ChatRef
 		}
 		d := arg(2)
 		def := domain.DefaultScope(domain.FieldDate)
-		this, following := "Only this charge", "This and following"
+		this, following := tr(locale, "Only this charge"), tr(locale, "This and following")
 		if def == domain.ScopeThisCharge {
 			this = "● " + this
 		} else {
 			following = "● " + following
 		}
 		m := Message{
-			Title: fmt.Sprintf("📅 Move %s to %s?", r.Subscription.Name, d),
-			Lines: []string{"Only this charge: a one-off delay; later charges keep their date.", "This and following: the billing day changes from now on."},
+			Title: tr(locale, "📅 Move %s to %s?", r.Subscription.Name, d),
+			Lines: []string{tr(locale, "Only this charge: a one-off delay; later charges keep their date."), tr(locale, "This and following: the billing day changes from now on.")},
 			Rows: [][]Button{
 				{{Label: this, Data: data(vDateScope, chargeID, d, "this")}, {Label: following, Data: data(vDateScope, chargeID, d, "following")}},
-				{{Label: "↩︎ Back", Data: data(vDateMenu, chargeID, d[:7])}},
+				{{Label: tr(locale, "↩︎ Back"), Data: data(vDateMenu, chargeID, d[:7])}},
 			},
 		}
 		return Reply{Edit: &m}, nil
@@ -173,7 +179,7 @@ func (e *Engine) handleCharge(ctx context.Context, actor app.Actor, chat ChatRef
 		if err != nil {
 			return e.fail(err)
 		}
-		return done(res, "Date changed 📅")
+		return done(res, tr(locale, "Date changed 📅"))
 	case vMethod:
 		info, err := e.svc.GetHousehold(ctx, actor, struct{}{})
 		if err != nil {
@@ -192,10 +198,10 @@ func (e *Engine) handleCharge(ctx context.Context, actor app.Actor, chat ChatRef
 			rows = append(rows, []Button{{Label: label, Data: data(vMethodSet, chargeID, pm.ID)}})
 		}
 		if len(rows) == 0 {
-			return Reply{Toast: "Add a payment method in the web app first."}, nil
+			return Reply{Toast: tr(locale, "Add a payment method in the web app first.")}, nil
 		}
-		rows = append(rows, []Button{{Label: "↩︎ Back", Data: data(vBack, chargeID)}})
-		m := Message{Title: "💳 Payment method for " + r.Subscription.Name, Lines: []string{"Applies to this and following charges."}, Rows: rows}
+		rows = append(rows, []Button{{Label: tr(locale, "↩︎ Back"), Data: data(vBack, chargeID)}})
+		m := Message{Title: tr(locale, "💳 Payment method for %s", r.Subscription.Name), Lines: []string{tr(locale, "Applies to this and following charges.")}, Rows: rows}
 		return Reply{Edit: &m}, nil
 	case vMethodSet:
 		r, err := e.chargeResult(ctx, actor, chargeID)
@@ -210,7 +216,7 @@ func (e *Engine) handleCharge(ctx context.Context, actor app.Actor, chat ChatRef
 		if err != nil {
 			return e.fail(err)
 		}
-		return done(r, "Payment method updated 💳")
+		return done(r, tr(locale, "Payment method updated 💳"))
 	case vAmount:
 		r, err := e.chargeResult(ctx, actor, chargeID)
 		if err != nil {
@@ -219,30 +225,30 @@ func (e *Engine) handleCharge(ctx context.Context, actor app.Actor, chat ChatRef
 		if err := e.saveFlow(ctx, actor, chat, flowState{Kind: "amount", ChargeID: chargeID}); err != nil {
 			return e.fail(err)
 		}
-		m := Message{Title: "✏️ New amount for " + r.Subscription.Name, Lines: []string{fmt.Sprintf("Current: %s. Reply with the new amount, e.g. %s", r.Charge.Amount.Format(locale), r.Charge.Amount.Decimal())}}
-		return Reply{Send: &m, Toast: "Type the new amount"}, nil
+		m := Message{Title: tr(locale, "✏️ New amount for %s", r.Subscription.Name), Lines: []string{tr(locale, "Current: %s. Reply with the new amount, e.g. %s", r.Charge.Amount.Format(locale), r.Charge.Amount.Decimal())}}
+		return Reply{Send: &m, Toast: tr(locale, "Type the new amount")}, nil
 	case "ascope":
 		res, err := e.svc.ChangeChargeAmount(ctx, actor, app.ChangeChargeAmountInput{ChargeID: chargeID, Amount: arg(2), Scope: arg(3)})
 		if err != nil {
 			return e.fail(err)
 		}
-		return done(res, "Amount updated ✏️")
+		return done(res, tr(locale, "Amount updated ✏️"))
 	case vCancel:
 		r, err := e.chargeResult(ctx, actor, chargeID)
 		if err != nil {
 			return e.fail(err)
 		}
 		m := Message{
-			Title: "❌ Cancel " + r.Subscription.Name + "?",
-			Lines: []string{"At period end: no more charges; you keep the service until the day before the next one.", cancelHint},
+			Title: tr(locale, "❌ Cancel %s?", r.Subscription.Name),
+			Lines: []string{tr(locale, "At period end: no more charges; you keep the service until the day before the next one."), tr(locale, cancelHint)},
 			Rows: [][]Button{
-				{{Label: "At period end", Data: data(vCancelOK, chargeID, "cancel_at_period_end")}, {Label: "Right now", Data: data(vCancelOK, chargeID, "cancel_now")}},
+				{{Label: tr(locale, "At period end"), Data: data(vCancelOK, chargeID, "cancel_at_period_end")}, {Label: tr(locale, "Right now"), Data: data(vCancelOK, chargeID, "cancel_now")}},
 			},
 		}
-		if link := cancelPage(r.Subscription); link != nil {
+		if link := cancelPage(r.Subscription, locale); link != nil {
 			m.Rows = append(m.Rows, link)
 		}
-		m.Rows = append(m.Rows, []Button{{Label: "↩︎ Keep it", Data: data(vBack, chargeID)}})
+		m.Rows = append(m.Rows, []Button{{Label: tr(locale, "↩︎ Keep it"), Data: data(vBack, chargeID)}})
 		return Reply{Edit: &m}, nil
 	case vCancelOK:
 		r, err := e.chargeResult(ctx, actor, chargeID)
@@ -253,15 +259,15 @@ func (e *Engine) handleCharge(ctx context.Context, actor app.Actor, chat ChatRef
 		if err != nil {
 			return e.fail(err)
 		}
-		m := Message{Title: "❌ " + d.Subscription.Name + " cancelled", Lines: []string{"No more charges."}}
+		m := Message{Title: tr(locale, "❌ %s cancelled", d.Subscription.Name), Lines: []string{tr(locale, "No more charges.")}}
 		if !d.Subscription.CancelledUntil.IsZero() {
-			m.Lines = []string{"Service until " + longDate(d.Subscription.CancelledUntil) + ". No more charges."}
+			m.Lines = []string{tr(locale, "Service until %s. No more charges.", longDate(d.Subscription.CancelledUntil, locale))}
 		}
-		m.Lines = append(m.Lines, cancelHint)
-		if link := cancelPage(d.Subscription); link != nil {
+		m.Lines = append(m.Lines, tr(locale, cancelHint))
+		if link := cancelPage(d.Subscription, locale); link != nil {
 			m.Rows = append(m.Rows, link)
 		}
-		return Reply{Edit: &m, Toast: "Cancelled"}, nil
+		return Reply{Edit: &m, Toast: tr(locale, "Cancelled")}, nil
 	case vPaidAmount:
 		r, err := e.chargeResult(ctx, actor, chargeID)
 		if err != nil {
@@ -270,8 +276,8 @@ func (e *Engine) handleCharge(ctx context.Context, actor app.Actor, chat ChatRef
 		if err := e.saveFlow(ctx, actor, chat, flowState{Kind: "paid", ChargeID: chargeID}); err != nil {
 			return e.fail(err)
 		}
-		m := Message{Title: "💶 How much did " + r.Subscription.Name + " take?", Lines: []string{fmt.Sprintf("Expected %s. Type the amount, e.g. %s, or with another currency: 11.20 EUR.", r.Charge.Amount.Format(locale), r.Charge.Amount.Decimal())}}
-		return Reply{Send: &m, Toast: "Type the amount"}, nil
+		m := Message{Title: tr(locale, "💶 How much did %s take?", r.Subscription.Name), Lines: []string{tr(locale, "Expected %s. Type the amount, e.g. %s, or with another currency: 11.20 EUR.", r.Charge.Amount.Format(locale), r.Charge.Amount.Decimal())}}
+		return Reply{Send: &m, Toast: tr(locale, "Type the amount")}, nil
 	case vNewPrice:
 		r, err := e.chargeResult(ctx, actor, chargeID)
 		if err != nil {
@@ -285,8 +291,8 @@ func (e *Engine) handleCharge(ctx context.Context, actor app.Actor, chat ChatRef
 		if err != nil {
 			return e.fail(err)
 		}
-		m.Footer = "New price saved for the next charges."
-		return Reply{Edit: &m, Toast: "Price updated 💶"}, nil
+		m.Footer = tr(locale, "New price saved for the next charges.")
+		return Reply{Edit: &m, Toast: tr(locale, "Price updated 💶")}, nil
 	case vUse:
 		r, err := e.chargeResult(ctx, actor, chargeID)
 		if err != nil {
@@ -301,10 +307,10 @@ func (e *Engine) handleCharge(ctx context.Context, actor app.Actor, chat ChatRef
 		if err != nil {
 			return e.fail(err)
 		}
-		toast := "Good to know 👍"
+		toast := tr(locale, "Good to know 👍")
 		if !using {
-			toast = "Noted"
-			m.Footer = fmt.Sprintf("You said you don't use it: it costs %s a year.", d.Subscription.YearlyCost.Format(locale))
+			toast = tr(locale, "Noted")
+			m.Footer = tr(locale, "You said you don't use it: it costs %s a year.", d.Subscription.YearlyCost.Format(locale))
 		}
 		return Reply{Edit: &m, Toast: toast}, nil
 	case vKeep:
@@ -312,7 +318,7 @@ func (e *Engine) handleCharge(ctx context.Context, actor app.Actor, chat ChatRef
 		if err != nil {
 			return e.fail(err)
 		}
-		return done(res, "Kept 👍")
+		return done(res, tr(locale, "Kept 👍"))
 	case vExpire:
 		r, err := e.chargeResult(ctx, actor, chargeID)
 		if err != nil {
@@ -324,19 +330,19 @@ func (e *Engine) handleCharge(ctx context.Context, actor app.Actor, chat ChatRef
 		if _, err := e.svc.SetSubscriptionStatus(ctx, actor, app.SetSubscriptionStatusInput{ID: r.Subscription.ID, Action: "cancel_now"}); err != nil {
 			return e.fail(err)
 		}
-		m := Message{Title: "⌛ " + r.Subscription.Name + " expired", Lines: []string{"No more reminders."}}
-		return Reply{Edit: &m, Toast: "Expired"}, nil
+		m := Message{Title: tr(locale, "⌛ %s expired", r.Subscription.Name), Lines: []string{tr(locale, "No more reminders.")}}
+		return Reply{Edit: &m, Toast: tr(locale, "Expired")}, nil
 	case vUndo:
 		if _, err := e.svc.Undo(ctx, actor, app.UndoInput{AuditID: arg(2)}); err != nil {
 			return e.fail(err)
 		}
 		m, err := e.Render(ctx, actor, "", chargeID)
 		if err != nil {
-			return Reply{Toast: "Undone"}, nil
+			return Reply{Toast: tr(locale, "Undone")}, nil
 		}
-		return Reply{Edit: &m, Toast: "Undone ↩︎"}, nil
+		return Reply{Edit: &m, Toast: tr(locale, "Undone ↩︎")}, nil
 	}
-	return Reply{Toast: "Unknown action."}, nil
+	return Reply{Toast: tr(locale, "Unknown action.")}, nil
 }
 
 func (e *Engine) fail(err error) (Reply, error) {
@@ -416,7 +422,8 @@ func (e *Engine) HandleText(ctx context.Context, actor app.Actor, chat ChatRef, 
 		return rep, true, err
 	}
 	def := domain.DefaultScope(domain.FieldAmount)
-	this, following := "Only this charge", "This and following"
+	_, locale := e.context(ctx, actor)
+	this, following := tr(locale, "Only this charge"), tr(locale, "This and following")
 	if def == domain.ScopeThisAndAfter {
 		following = "● " + following
 	} else {
@@ -532,9 +539,10 @@ func (e *Engine) refresh(ctx context.Context, ev bus.Event) {
 			continue // the member's own action already updated the message they used
 		}
 		if ev.ActorLabel != "" {
-			m.Footer = "Changed by " + ev.ActorLabel
+			_, locale := e.context(ctx, actor)
+			m.Footer = tr(locale, "Changed by %s", ev.ActorLabel)
 			if ev.AuditID != "" {
-				m.Rows = append(m.Rows, []Button{{Label: "↩︎ Undo", Data: data(vUndo, ev.ChargeID, ev.AuditID)}})
+				m.Rows = append(m.Rows, []Button{{Label: tr(locale, "↩︎ Undo"), Data: data(vUndo, ev.ChargeID, ev.AuditID)}})
 			}
 		}
 		if err := ch.Edit(ctx, msg.ChatID, msg.MessageID, m); err != nil {

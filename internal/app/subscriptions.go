@@ -582,6 +582,11 @@ func (s *Service) view(ctx context.Context, q *db.Queries, sub domain.Subscripti
 	}
 	if sub.Status == domain.StatusCancelled {
 		v.CancelledUntil = sub.Schedule.Until
+		if v.CancelledUntil == sub.Schedule.First() {
+			// Cancelled before its first charge: the schedule cannot end
+			// before it starts, but the service ends the day before.
+			v.CancelledUntil = v.CancelledUntil.AddDays(-1)
+		}
 	}
 	v.MonthlyCost, _ = sub.Price.Scale(monthlyFactor(rule))
 	v.YearlyCost, _ = v.MonthlyCost.Scale("12")

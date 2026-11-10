@@ -33,3 +33,6 @@ linters:
         linters: [errcheck, gosec, bodyclose]
       - path: internal/(store/db|testutil)/
         linters: [gosec]
+      # Spanish text is neither misspelled English nor a credential.
+      - path: i18n_es\.go
+        linters: [misspell, gosec]

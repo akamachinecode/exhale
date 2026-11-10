@@ -95,6 +95,7 @@ func (e *Engine) AppSent(ctx context.Context, actor app.Actor, chat ChatRef, mes
 	if err != nil {
 		return nil, err
 	}
+	_, locale := e.context(ctx, actor)
 	var retired []string
 	for _, m := range old {
 		if m.MessageID == messageID {
@@ -105,7 +106,7 @@ func (e *Engine) AppSent(ctx context.Context, actor app.Actor, chat ChatRef, mes
 		}
 		retired = append(retired, m.MessageID)
 		if ch, ok := e.channels[m.Channel]; ok {
-			stub := Message{Title: "↓ Exhale moved to a newer message"}
+			stub := Message{Title: tr(locale, "↓ Exhale moved to a newer message")}
 			if err := ch.Edit(ctx, m.ChatID, m.MessageID, stub); err != nil {
 				e.log.Debug("could not retire app message", "err", err)
 			}
@@ -192,8 +193,9 @@ func (e *Engine) inApp(ctx context.Context, actor app.Actor, chat ChatRef, verb,
 			return rep
 		}
 	}
+	_, locale := e.context(ctx, actor)
 	m := *rep.Edit
-	m.Rows = append(slices.Clone(m.Rows), []Button{{Label: "🏠 Home", Data: RouteHome}})
+	m.Rows = append(slices.Clone(m.Rows), homeRow(locale))
 	rep.Edit = &m
 	e.setRoute(ctx, chat, "")
 	return rep
@@ -263,9 +265,9 @@ func (e *Engine) screen(ctx context.Context, actor app.Actor, r string) (Message
 		}
 		m := chargeMessage("", res, today, locale)
 		if arg(3) != "" {
-			m.Rows = append(m.Rows, []Button{{Label: "↩︎ Undo", Data: data(vUndo, arg(2), arg(3))}})
+			m.Rows = append(m.Rows, []Button{{Label: tr(locale, "↩︎ Undo"), Data: data(vUndo, arg(2), arg(3))}})
 		}
-		m.Rows = append(m.Rows, []Button{{Label: "‹ " + res.Subscription.Name, Data: route(scrSub, res.Subscription.ID)}, {Label: "🏠 Home", Data: RouteHome}})
+		m.Rows = append(m.Rows, []Button{{Label: "‹ " + res.Subscription.Name, Data: route(scrSub, res.Subscription.ID)}, {Label: tr(locale, "🏠 Home"), Data: RouteHome}})
 		return m, "", nil
 	case actCancel:
 		d, err := e.svc.GetSubscription(ctx, actor, app.GetSubscriptionInput{ID: arg(2)})
@@ -273,29 +275,31 @@ func (e *Engine) screen(ctx context.Context, actor app.Actor, r string) (Message
 			return Message{}, "", err
 		}
 		m := Message{
-			Title: "❌ Cancel " + d.Subscription.Name + "?",
-			Lines: []string{"At period end: no more charges; you keep the service until the day before the next one.", cancelHint},
+			Title: tr(locale, "❌ Cancel %s?", d.Subscription.Name),
+			Lines: []string{tr(locale, "At period end: no more charges; you keep the service until the day before the next one."), tr(locale, cancelHint)},
 			Rows: [][]Button{
-				{{Label: "At period end", Data: route(actStatus, arg(2), "cancel_at_period_end")}, {Label: "Right now", Data: route(actStatus, arg(2), "cancel_now")}},
+				{{Label: tr(locale, "At period end"), Data: route(actStatus, arg(2), "cancel_at_period_end")}, {Label: tr(locale, "Right now"), Data: route(actStatus, arg(2), "cancel_now")}},
 			},
 		}
-		if link := cancelPage(d.Subscription); link != nil {
+		if link := cancelPage(d.Subscription, locale); link != nil {
 			m.Rows = append(m.Rows, link)
 		}
-		m.Rows = append(m.Rows, []Button{{Label: "↩︎ Keep it", Data: route(scrSub, arg(2))}})
+		m.Rows = append(m.Rows, []Button{{Label: tr(locale, "↩︎ Keep it"), Data: route(scrSub, arg(2))}})
 		return m, "", nil
 	case actStatus:
 		if _, err := e.svc.SetSubscriptionStatus(ctx, actor, app.SetSubscriptionStatusInput{ID: arg(2), Action: arg(3)}); err != nil {
 			return Message{}, "", err
 		}
 		m, err := e.subScreen(ctx, actor, arg(2), locale)
-		toast := map[string]string{"pause": "Paused ⏸", "resume": "Resumed ▶️", "cancel_now": "Cancelled", "cancel_at_period_end": "Cancelled at period end"}[arg(3)]
+		toast := map[string]string{"pause": tr(locale, "Paused ⏸"), "resume": tr(locale, "Resumed ▶️"), "cancel_now": tr(locale, "Cancelled"), "cancel_at_period_end": tr(locale, "Cancelled at period end")}[arg(3)]
 		return m, toast, err
 	}
 	return Message{}, "", fmt.Errorf("%w: unknown screen %q", domain.ErrNotFound, arg(1))
 }
 
-func homeRow() []Button { return []Button{{Label: "🏠 Home", Data: RouteHome}} }
+func homeRow(locale string) []Button {
+	return []Button{{Label: tr(locale, "🏠 Home"), Data: RouteHome}}
+}
 
 func (e *Engine) homeScreen(ctx context.Context, actor app.Actor, today engine.Date, locale string) (Message, error) {
 	info, err := e.svc.GetHousehold(ctx, actor, struct{}{})
@@ -313,17 +317,17 @@ func (e *Engine) homeScreen(ctx context.Context, actor app.Actor, today engine.D
 	m := Message{
 		Title: "🏠 " + info.Household.Name,
 		Lines: []string{
-			fmt.Sprintf("💶 %s / month · %s / year", sum.MonthlyTotal.Format(locale), sum.YearlyTotal.Format(locale)),
-			fmt.Sprintf("📦 %d active %s", sum.Active, plural(sum.Active, "subscription", "subscriptions")),
+			tr(locale, "💶 %s / month · %s / year", sum.MonthlyTotal.Format(locale), sum.YearlyTotal.Format(locale)),
+			tr(locale, "📦 %d active %s", sum.Active, plural(locale, sum.Active, "subscription", "subscriptions")),
 		},
 	}
 	if len(sum.Unconverted) > 0 {
-		m.Lines = append(m.Lines, "Not in the totals (no rate): "+strings.Join(sum.Unconverted, ", "))
+		m.Lines = append(m.Lines, tr(locale, "Not in the totals (no rate): %s", strings.Join(sum.Unconverted, ", ")))
 	}
 	for _, pm := range attn.ExpiringPaymentMethods {
-		m.Lines = append(m.Lines, fmt.Sprintf("💳 %s expires %s", pm.Label(), shortDate(pm.ExpiresOn)))
+		m.Lines = append(m.Lines, tr(locale, "💳 %s expires %s", pm.Label(), shortDate(pm.ExpiresOn, locale)))
 	}
-	next := Section{Heading: "Next 7 days"}
+	next := Section{Heading: tr(locale, "Next 7 days")}
 	open := 0
 	for _, c := range sum.NextCharges {
 		if c.Status != domain.ChargePending {
@@ -336,26 +340,26 @@ func (e *Engine) homeScreen(ctx context.Context, actor app.Actor, today engine.D
 	}
 	switch {
 	case open == 0:
-		next.Lines = []string{"Nothing due. Breathe out."}
+		next.Lines = []string{tr(locale, "Nothing due. Breathe out.")}
 	case open > 6:
-		next.Lines = []string{fmt.Sprintf("%d charges — the first 6 below, tap one to manage it.", open)}
+		next.Lines = []string{tr(locale, "%d charges — the first 6 below, tap one to manage it.", open)}
 	default:
-		next.Lines = []string{fmt.Sprintf("%d %s — tap one to manage it.", open, plural(open, "charge", "charges"))}
+		next.Lines = []string{tr(locale, "%d %s — tap one to manage it.", open, plural(locale, open, "charge", "charges"))}
 	}
 	m.Sections = append(m.Sections, next)
 	if n := len(attn.Unconfirmed); n > 0 {
-		m.Rows = append([][]Button{{{Label: fmt.Sprintf("⚠️ %d %s to confirm", n, plural(n, "charge", "charges")), Data: route(scrAttn)}}}, m.Rows...)
+		m.Rows = append([][]Button{{{Label: tr(locale, "⚠️ %d %s to confirm", n, plural(locale, n, "charge", "charges")), Data: route(scrAttn)}}}, m.Rows...)
 	}
 	if n := len(attn.Deadlines); n > 0 {
-		m.Rows = append([][]Button{{{Label: fmt.Sprintf("⏰ %d %s close", n, plural(n, "deadline", "deadlines")), Data: route(scrCheckup)}}}, m.Rows...)
+		m.Rows = append([][]Button{{{Label: tr(locale, "⏰ %d %s close", n, plural(locale, n, "deadline", "deadlines")), Data: route(scrCheckup)}}}, m.Rows...)
 	}
 	if p := sum.BeforePayday; p != nil && len(p.Charges) > 0 {
-		m.Lines = append(m.Lines, fmt.Sprintf("💰 %s due before payday (%s)", p.Due.Format(locale), shortDate(p.Payday)))
+		m.Lines = append(m.Lines, tr(locale, "💰 %s due before payday (%s)", p.Due.Format(locale), shortDate(p.Payday, locale)))
 	}
 	m.Rows = append(m.Rows,
-		[]Button{{Label: "📋 Subscriptions", Data: route(scrSubs, "0")}, {Label: "📅 Upcoming", Data: route(scrNext)}},
-		[]Button{{Label: "➕ Add", Data: route(actAdd)}, {Label: "🩺 Check-up", Data: route(scrCheckup)}},
-		[]Button{{Label: "📊 Summary", Data: route(scrSummary)}, {Label: "⚙️ Settings", Data: route(scrSettings)}},
+		[]Button{{Label: tr(locale, "📋 Subscriptions"), Data: route(scrSubs, "0")}, {Label: tr(locale, "📅 Upcoming"), Data: route(scrNext)}},
+		[]Button{{Label: tr(locale, "➕ Add"), Data: route(actAdd)}, {Label: tr(locale, "🩺 Check-up"), Data: route(scrCheckup)}},
+		[]Button{{Label: tr(locale, "📊 Summary"), Data: route(scrSummary)}, {Label: tr(locale, "⚙️ Settings"), Data: route(scrSettings)}},
 	)
 	return m, nil
 }
@@ -384,15 +388,15 @@ func (e *Engine) subsScreen(ctx context.Context, actor app.Actor, page int, loca
 	})
 	pages := max(1, (len(subs)+subsPerPage-1)/subsPerPage)
 	page = min(max(page, 0), pages-1)
-	m := Message{Title: fmt.Sprintf("📋 Subscriptions (%d)", len(subs))}
+	m := Message{Title: tr(locale, "📋 Subscriptions (%d)", len(subs))}
 	if len(subs) == 0 {
-		m.Lines = []string{"No subscriptions yet. Add your first one."}
-		m.Rows = append(m.Rows, []Button{{Label: "➕ Add a subscription", Data: route(actAdd)}})
+		m.Lines = []string{tr(locale, "No subscriptions yet. Add your first one.")}
+		m.Rows = append(m.Rows, []Button{{Label: tr(locale, "➕ Add a subscription"), Data: route(actAdd)}})
 	} else {
-		m.Lines = []string{"Tap one to open it."}
+		m.Lines = []string{tr(locale, "Tap one to open it.")}
 	}
 	for _, s := range subs[page*subsPerPage : min(len(subs), (page+1)*subsPerPage)] {
-		label := fmt.Sprintf("%s · %s/mo", s.Name, s.MonthlyCost.Format(locale))
+		label := tr(locale, "%s · %s/mo", s.Name, s.MonthlyCost.Format(locale))
 		switch s.Status {
 		case domain.StatusActive:
 		case domain.StatusPaused:
@@ -409,7 +413,7 @@ func (e *Engine) subsScreen(ctx context.Context, actor app.Actor, page int, loca
 			{Label: "›", Data: route(scrSubs, strconv.Itoa(min(page+1, pages-1)))},
 		})
 	}
-	m.Rows = append(m.Rows, homeRow())
+	m.Rows = append(m.Rows, homeRow(locale))
 	return m, nil
 }
 
@@ -419,28 +423,28 @@ func (e *Engine) subScreen(ctx context.Context, actor app.Actor, id, locale stri
 		return Message{}, err
 	}
 	s := d.Subscription
-	m := Message{Title: s.Name, Lines: []string{fmt.Sprintf("💶 %s · %s", s.Price.Format(locale), s.Cadence)}}
+	m := Message{Title: s.Name, Lines: []string{fmt.Sprintf("💶 %s · %s", s.Price.Format(locale), cadenceText(s.Cadence, locale))}}
 	switch s.Status {
 	case domain.StatusActive:
 	case domain.StatusPaused:
-		m.Title = "⏸ " + s.Name + " (paused)"
+		m.Title = tr(locale, "⏸ %s (paused)", s.Name)
 	case domain.StatusCancelled:
-		m.Title = "✖ " + s.Name + " (cancelled)"
+		m.Title = tr(locale, "✖ %s (cancelled)", s.Name)
 		if !s.CancelledUntil.IsZero() {
-			m.Lines = append(m.Lines, "Service until "+longDate(s.CancelledUntil))
+			m.Lines = append(m.Lines, tr(locale, "Service until %s", longDate(s.CancelledUntil, locale)))
 		}
 	}
 	switch {
 	case s.NextCharge.IsZero():
 	case s.Expires:
-		m.Lines = append(m.Lines, "⌛ Expires "+longDate(s.NextCharge))
+		m.Lines = append(m.Lines, tr(locale, "⌛ Expires %s", longDate(s.NextCharge, locale)))
 	case s.InTrial:
-		m.Lines = append(m.Lines, "⏳ Free trial until "+longDate(s.NextCharge))
+		m.Lines = append(m.Lines, tr(locale, "⏳ Free trial until %s", longDate(s.NextCharge, locale)))
 	default:
-		m.Lines = append(m.Lines, "📅 Next charge "+longDate(s.NextCharge))
+		m.Lines = append(m.Lines, tr(locale, "📅 Next charge %s", longDate(s.NextCharge, locale)))
 	}
 	if !s.CancelBy.IsZero() {
-		m.Lines = append(m.Lines, "⏰ Cancel by "+longDate(s.CancelBy))
+		m.Lines = append(m.Lines, tr(locale, "⏰ Cancel by %s", longDate(s.CancelBy, locale)))
 	}
 	if s.PaymentMethod != "" {
 		m.Lines = append(m.Lines, "💳 "+s.PaymentMethod)
@@ -455,11 +459,11 @@ func (e *Engine) subScreen(ctx context.Context, actor app.Actor, id, locale stri
 		m.Lines = append(m.Lines, "🔑 "+s.Account)
 	}
 	if !s.StartedOn.IsZero() {
-		m.Lines = append(m.Lines, "🌱 Since "+longDate(s.StartedOn))
+		m.Lines = append(m.Lines, tr(locale, "🌱 Since %s", longDate(s.StartedOn, locale)))
 	}
 	if len(d.History) > 0 {
 		h := d.History[0]
-		m.Sections = append(m.Sections, Section{Heading: "Last charge", Lines: []string{fmt.Sprintf("%s · %s · %s", shortDate(h.DueDate), h.Amount.Format(locale), h.Status)}})
+		m.Sections = append(m.Sections, Section{Heading: tr(locale, "Last charge"), Lines: []string{fmt.Sprintf("%s · %s · %s", shortDate(h.DueDate, locale), h.Amount.Format(locale), tr(locale, string(h.Status)))}})
 	}
 	var next *app.ChargeView
 	for i := range d.Upcoming {
@@ -469,21 +473,21 @@ func (e *Engine) subScreen(ctx context.Context, actor app.Actor, id, locale stri
 		}
 	}
 	if next != nil {
-		m.Rows = append(m.Rows, []Button{{Label: "🔔 Next charge · " + shortDate(next.DueDate), Data: route(scrCharge, next.ID)}})
+		m.Rows = append(m.Rows, []Button{{Label: tr(locale, "🔔 Next charge · %s", shortDate(next.DueDate, locale)), Data: route(scrCharge, next.ID)}})
 	}
 	switch s.Status {
 	case domain.StatusActive:
-		m.Rows = append(m.Rows, []Button{{Label: "⏸ Pause", Data: route(actStatus, s.ID, "pause")}, {Label: "❌ Cancel", Data: route(actCancel, s.ID)}})
+		m.Rows = append(m.Rows, []Button{{Label: tr(locale, "⏸ Pause"), Data: route(actStatus, s.ID, "pause")}, {Label: tr(locale, "❌ Cancel"), Data: route(actCancel, s.ID)}})
 	case domain.StatusPaused:
-		m.Rows = append(m.Rows, []Button{{Label: "▶️ Resume", Data: route(actStatus, s.ID, "resume")}, {Label: "❌ Cancel", Data: route(actCancel, s.ID)}})
+		m.Rows = append(m.Rows, []Button{{Label: tr(locale, "▶️ Resume"), Data: route(actStatus, s.ID, "resume")}, {Label: tr(locale, "❌ Cancel"), Data: route(actCancel, s.ID)}})
 	case domain.StatusCancelled: // nothing left to do from chat
 	}
-	if link := cancelPage(s); link != nil {
-		link[0].Label = "🔗 Manage or cancel page"
+	if link := cancelPage(s, locale); link != nil {
+		link[0].Label = tr(locale, "🔗 Manage or cancel page")
 		m.Rows = append(m.Rows, link)
 	}
-	m.Rows = append(m.Rows, []Button{{Label: "✏️ Edit", Data: route(scrEdit, s.ID)}})
-	m.Rows = append(m.Rows, []Button{{Label: "‹ Subscriptions", Data: route(scrSubs, "0")}, {Label: "🏠 Home", Data: RouteHome}})
+	m.Rows = append(m.Rows, []Button{{Label: tr(locale, "✏️ Edit"), Data: route(scrEdit, s.ID)}})
+	m.Rows = append(m.Rows, []Button{{Label: tr(locale, "‹ Subscriptions"), Data: route(scrSubs, "0")}, {Label: tr(locale, "🏠 Home"), Data: RouteHome}})
 	return m, nil
 }
 
@@ -492,14 +496,14 @@ func (e *Engine) upcomingScreen(ctx context.Context, actor app.Actor, today engi
 	if err != nil {
 		return Message{}, err
 	}
-	m := Message{Title: "📅 Next 30 days"}
+	m := Message{Title: tr(locale, "📅 Next 30 days")}
 	switch n := len(list.Charges); {
 	case n == 0:
-		m.Lines = []string{"Nothing due. Breathe out."}
+		m.Lines = []string{tr(locale, "Nothing due. Breathe out.")}
 	case n > maxListed:
-		m.Lines = []string{fmt.Sprintf("%d charges — the first %d below; the web app has them all.", n, maxListed)}
+		m.Lines = []string{tr(locale, "%d charges — the first %d below; the web app has them all.", n, maxListed)}
 	default:
-		m.Lines = []string{fmt.Sprintf("%d %s — tap one to manage it.", n, plural(n, "charge", "charges"))}
+		m.Lines = []string{tr(locale, "%d %s — tap one to manage it.", n, plural(locale, n, "charge", "charges"))}
 	}
 	for i, c := range list.Charges {
 		if i == maxListed {
@@ -507,7 +511,7 @@ func (e *Engine) upcomingScreen(ctx context.Context, actor app.Actor, today engi
 		}
 		m.Rows = append(m.Rows, []Button{chargeButton(c, today, locale)})
 	}
-	m.Rows = append(m.Rows, homeRow())
+	m.Rows = append(m.Rows, homeRow(locale))
 	return m, nil
 }
 
@@ -517,33 +521,33 @@ func (e *Engine) summaryScreen(ctx context.Context, actor app.Actor, locale stri
 		return Message{}, err
 	}
 	m := Message{
-		Title: "📊 Summary",
+		Title: tr(locale, "📊 Summary"),
 		Lines: []string{
-			fmt.Sprintf("💶 %s / month · %s / year", sum.MonthlyTotal.Format(locale), sum.YearlyTotal.Format(locale)),
-			fmt.Sprintf("📦 %d active %s", sum.Active, plural(sum.Active, "subscription", "subscriptions")),
+			tr(locale, "💶 %s / month · %s / year", sum.MonthlyTotal.Format(locale), sum.YearlyTotal.Format(locale)),
+			tr(locale, "📦 %d active %s", sum.Active, plural(locale, sum.Active, "subscription", "subscriptions")),
 		},
 	}
 	if sum.Converted && sum.RatesDate != "" {
-		m.Lines = append(m.Lines, "Converted to "+sum.MainCurrency+" at ECB rates of "+sum.RatesDate)
+		m.Lines = append(m.Lines, tr(locale, "Converted to %s at ECB rates of %s", sum.MainCurrency, sum.RatesDate))
 	}
 	if sum.SetAside.Minor > 0 {
-		m.Lines = append(m.Lines, fmt.Sprintf("🐖 Put away %s a month for the yearly ones", sum.SetAside.Format(locale)))
+		m.Lines = append(m.Lines, tr(locale, "🐖 Put away %s a month for the yearly ones", sum.SetAside.Format(locale)))
 	}
 	if len(sum.ByCategory) > 0 {
-		s := Section{Heading: "Per month by category"}
+		s := Section{Heading: tr(locale, "Per month by category")}
 		for _, c := range sum.ByCategory {
 			s.Table = append(s.Table, []string{truncate(c.Category, 16), c.Monthly.Format(locale), strconv.Itoa(c.Count)})
 		}
 		m.Sections = append(m.Sections, s)
 	}
 	if len(sum.ByMethod) > 0 {
-		s := Section{Heading: "Per month by payment method"}
+		s := Section{Heading: tr(locale, "Per month by payment method")}
 		for _, pm := range sum.ByMethod {
 			s.Table = append(s.Table, []string{truncate(pm.PaymentMethod, 16), pm.Monthly.Format(locale), strconv.Itoa(pm.Count)})
 		}
 		m.Sections = append(m.Sections, s)
 	}
-	m.Rows = [][]Button{homeRow()}
+	m.Rows = [][]Button{homeRow(locale)}
 	return m, nil
 }
 
@@ -552,45 +556,36 @@ func (e *Engine) attentionScreen(ctx context.Context, actor app.Actor, locale st
 	if err != nil {
 		return Message{}, err
 	}
-	m := Message{Title: "⚠️ Needs attention"}
+	m := Message{Title: tr(locale, "⚠️ Needs attention")}
 	if len(attn.Unconfirmed) == 0 && len(attn.ExpiringPaymentMethods) == 0 {
-		m.Lines = []string{"All clear."}
+		m.Lines = []string{tr(locale, "All clear.")}
 	}
 	if len(attn.Unconfirmed) > 0 {
-		m.Lines = append(m.Lines, "These dates passed. Tap one to say whether it was charged.")
+		m.Lines = append(m.Lines, tr(locale, "These dates passed. Tap one to say whether it was charged."))
 	}
 	for i, c := range attn.Unconfirmed {
 		if i == maxListed {
 			break
 		}
-		m.Rows = append(m.Rows, []Button{{Label: fmt.Sprintf("❓ %s · %s · %s", shortDate(c.DueDate), c.SubscriptionName, c.Amount.Format(locale)), Data: route(scrCharge, c.ID)}})
+		m.Rows = append(m.Rows, []Button{{Label: fmt.Sprintf("❓ %s · %s · %s", shortDate(c.DueDate, locale), c.SubscriptionName, c.Amount.Format(locale)), Data: route(scrCharge, c.ID)}})
 	}
 	for _, pm := range attn.ExpiringPaymentMethods {
-		m.Lines = append(m.Lines, fmt.Sprintf("💳 %s expires %s", pm.Label(), shortDate(pm.ExpiresOn)))
+		m.Lines = append(m.Lines, tr(locale, "💳 %s expires %s", pm.Label(), shortDate(pm.ExpiresOn, locale)))
 	}
-	m.Rows = append(m.Rows, homeRow())
+	m.Rows = append(m.Rows, homeRow(locale))
 	return m, nil
 }
 
 func chargeButton(c app.ChargeView, today engine.Date, locale string) Button {
 	icon := map[domain.ChargeStatus]string{domain.ChargePaid: "✅ ", domain.ChargeSkipped: "⏭ ", domain.ChargeFailed: "❌ "}[c.Status]
-	day := shortDate(c.DueDate)
+	day := shortDate(c.DueDate, locale)
 	switch today.DaysUntil(c.DueDate) {
 	case 0:
-		day = "Today"
+		day = tr(locale, "Today")
 	case 1:
-		day = "Tomorrow"
+		day = tr(locale, "Tomorrow")
 	}
 	return Button{Label: fmt.Sprintf("%s%s · %s · %s", icon, day, c.SubscriptionName, c.Amount.Format(locale)), Data: route(scrCharge, c.ID)}
-}
-
-func shortDate(d engine.Date) string { return d.At(12, 0, time.UTC).Format("Mon 2 Jan") }
-
-func plural(n int, one, many string) string {
-	if n == 1 {
-		return one
-	}
-	return many
 }
 
 func truncate(s string, n int) string {

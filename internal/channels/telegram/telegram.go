@@ -72,12 +72,16 @@ func (a *Adapter) Serve(ctx context.Context) error {
 	} else {
 		a.log.Warn("telegram: could not read the bot's name", "err", err)
 	}
-	cmds := make([]models.BotCommand, len(actions.Commands))
-	for i, c := range actions.Commands {
-		cmds[i] = models.BotCommand{Command: c.Command, Description: c.Description}
-	}
-	if _, err := a.b.SetMyCommands(ctx, &bot.SetMyCommandsParams{Commands: cmds}); err != nil {
-		a.log.Warn("telegram: could not set the command menu", "err", err)
+	// The command menu in English, and in Spanish for people whose Telegram
+	// is in Spanish.
+	for _, code := range []string{"", "es"} {
+		cmds := make([]models.BotCommand, len(actions.Commands))
+		for i, c := range actions.Commands {
+			cmds[i] = models.BotCommand{Command: c.Command, Description: actions.CommandDescription(actions.Language(code), c.Description)}
+		}
+		if _, err := a.b.SetMyCommands(ctx, &bot.SetMyCommandsParams{Commands: cmds, LanguageCode: code}); err != nil {
+			a.log.Warn("telegram: could not set the command menu", "err", err)
+		}
 	}
 	// The profile people see before pressing Start, so a fresh bot from
 	// BotFather needs no manual setup.
@@ -168,21 +172,25 @@ func (a *Adapter) handleText(ctx context.Context, m *models.Message) {
 	chatID := strconv.FormatInt(m.Chat.ID, 10)
 	chat := actions.ChatRef{Channel: Name, ChatID: chatID}
 	text := strings.TrimSpace(m.Text)
+	// Until the chat is linked, speak the language of the person's Telegram.
+	guess := "en"
+	if m.From != nil {
+		guess = actions.Language(m.From.LanguageCode)
+	}
 	if code, ok := strings.CutPrefix(text, "/start join-"); ok {
 		a.join(ctx, m, chat, code)
 		return
 	}
 	if code, ok := strings.CutPrefix(text, "/start "); ok {
 		if _, err := auth.RedeemLinkCode(ctx, a.svc.Store(), Name, strings.TrimSpace(code), chatID); err != nil {
-			a.reply(ctx, chatID, "That code is not valid anymore: codes work once and for 10 minutes. "+
-				"In Exhale, press “Link Telegram” again and scan the new QR code (or send the new /start message).")
+			a.reply(ctx, chatID, actions.CodeExpiredText(guess))
 			return
 		}
 		// Pins left by an earlier link (e.g. an older database) would point to
 		// screens that no longer exist.
 		_, _ = a.b.UnpinAllChatMessages(ctx, &bot.UnpinAllChatMessagesParams{ChatID: chatID})
-		a.reply(ctx, chatID, "✅ Linked. Reminders arrive here, and the message below is Exhale itself: tap around.")
 		if actor, err := auth.MemberForChannel(ctx, a.svc.Store(), Name, chatID); err == nil {
+			a.reply(ctx, chatID, actions.LinkedText(a.eng.Locale(ctx, actor)))
 			a.openApp(ctx, actor, chat, actions.RouteHome)
 		}
 		return
@@ -190,7 +198,7 @@ func (a *Adapter) handleText(ctx context.Context, m *models.Message) {
 	actor, err := auth.MemberForChannel(ctx, a.svc.Store(), Name, chatID)
 	if err != nil {
 		if strings.HasPrefix(text, "/start") {
-			a.reply(ctx, chatID, "Hi! This is a private Exhale bot. To link this chat, open Exhale, press “Link Telegram” and scan the QR code.")
+			a.reply(ctx, chatID, actions.PrivateBotText(guess))
 		}
 		return // unlinked chats are ignored (ADR 0006)
 	}
@@ -212,12 +220,7 @@ func (a *Adapter) handleText(ctx context.Context, m *models.Message) {
 			return
 		}
 	}
-	var help strings.Builder
-	help.WriteString("Commands:")
-	for _, c := range actions.Commands {
-		help.WriteString("\n/" + c.Command + " — " + c.Description)
-	}
-	a.reply(ctx, chatID, help.String())
+	a.reply(ctx, chatID, actions.HelpText(a.eng.Locale(ctx, actor)))
 }
 
 // join accepts a household invite from Telegram: the person becomes a
@@ -230,14 +233,14 @@ func (a *Adapter) join(ctx context.Context, m *models.Message, chat actions.Chat
 	actor, household, err := auth.JoinFromChat(ctx, a.svc.Store(), strings.TrimSpace(code), Name, chat.ChatID, name)
 	switch {
 	case errors.Is(err, domain.ErrConflict):
-		a.reply(ctx, chat.ChatID, "This chat is already linked to Exhale.")
+		a.reply(ctx, chat.ChatID, actions.AlreadyLinkedText(actions.Language(m.From.LanguageCode)))
 		return
 	case err != nil:
-		a.reply(ctx, chat.ChatID, "This invite has expired or was already used. Ask for a new one.")
+		a.reply(ctx, chat.ChatID, actions.InviteExpiredText(actions.Language(m.From.LanguageCode)))
 		return
 	}
 	_, _ = a.b.UnpinAllChatMessages(ctx, &bot.UnpinAllChatMessagesParams{ChatID: chat.ChatID})
-	a.reply(ctx, chat.ChatID, fmt.Sprintf("👋 Welcome to %s, %s. Your reminders arrive here, and the message below is Exhale itself: tap around.", household, actor.Label))
+	a.reply(ctx, chat.ChatID, actions.WelcomeText(a.eng.Locale(ctx, actor), household, actor.Label))
 	a.openApp(ctx, actor, chat, actions.RouteHome)
 }
 
