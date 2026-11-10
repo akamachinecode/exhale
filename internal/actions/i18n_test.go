@@ -10,6 +10,7 @@ import (
 	"go/token"
 	"os"
 	"path/filepath"
+	"regexp"
 	"sort"
 	"strconv"
 	"strings"
@@ -296,14 +297,37 @@ func jsonString(s string) string {
 	return strings.TrimSuffix(b.String(), "\n")
 }
 
-// verbs lists the formatting verbs of a text in order ("sd%" …).
+// verbs lists the arguments of a text, as "1s,2d": the argument each verb
+// takes and the verb, in argument order, so a translation may reorder them
+// with indexed verbs (%[2]d … %[1]s).
 func verbs(s string) string {
-	var out []byte
-	for i := 0; i < len(s)-1; i++ {
-		if s[i] == '%' {
-			out = append(out, s[i+1])
-			i++
+	var out []string
+	n := 0
+	for _, m := range verbRe.FindAllStringSubmatch(s, -1) {
+		if m[3] == "%" {
+			continue
+		}
+		i := n
+		if m[2] != "" {
+			i, _ = strconv.Atoi(m[2])
+			i--
+		}
+		n = i + 1
+		out = append(out, strconv.Itoa(i+1)+m[3])
+	}
+	sort.Strings(out)
+	return strings.Join(out, ",")
+}
+
+var verbRe = regexp.MustCompile(`%(\[(\d+)\])?[-+# 0]*[0-9]*(?:\.[0-9]+)?([a-zA-Z%])`)
+
+func TestVerbs(t *testing.T) {
+	for _, c := range [][2]string{{"%s owes %d", "%[2]d debe %[1]s"}, {"100%% %s", "%s al 100%%"}, {"%-6s|%q", "%-6s|%q"}} {
+		if verbs(c[0]) != verbs(c[1]) {
+			t.Errorf("%q and %q should take the same arguments: %s, %s", c[0], c[1], verbs(c[0]), verbs(c[1]))
 		}
 	}
-	return string(out)
+	if verbs("%s %d") == verbs("%d %s") {
+		t.Error("swapped verbs without indexes must differ")
+	}
 }
