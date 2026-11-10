@@ -1,3 +1,5 @@
+import { lang } from "@/lib/i18n";
+
 // Defaults read from the browser at sign-up, so nobody has to answer
 // questions about currency or time zones before seeing the app. All of them
 // can be changed later in Preferences.
@@ -29,8 +31,9 @@ export function browserTimezone() {
 	}
 }
 
+/** The language of this page, the household's first language. */
 export function browserLocale() {
-	return navigator.language?.toLowerCase().startsWith("es") ? "es" : "en";
+	return lang;
 }
 
 /** A best guess of the display currency from the browser's region and zone. */

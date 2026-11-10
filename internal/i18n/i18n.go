@@ -162,14 +162,18 @@ func Translate(lang, text string) string {
 // translated by the plural category of n in the language. When the other
 // form has a translation per category, that wins.
 func Plural(lang string, n int, one, other string) string {
+	c := catalogs[lang]
 	cat := PluralCategory(lang, n)
-	if e, ok := catalogs[lang][other]; ok && e.Forms != nil {
+	if e := c[other]; e.Forms != nil {
 		if s := e.Forms[cat]; s != "" {
 			return s
 		}
 		if s := e.Forms[Other]; s != "" {
 			return s
 		}
+	}
+	if c[one].Empty() && c[other].Empty() {
+		cat = oneOther(n) // not translated: the English text, counted in English
 	}
 	if cat == One {
 		return Translate(lang, one)
