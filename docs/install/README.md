@@ -16,7 +16,7 @@ It does not need a public address. Telegram is reached with outgoing connections
 
 All of them run the same binary with the same settings. The same instance serves a home or a small team: see [Exhale for a team](../guides/teams.md).
 
-> **Releases.** Packages, images and tarballs are published on the [releases page](https://github.com/akamachinecode/exhale/releases) with each version. Until the first release (0.1.0) is out, build from source: `mise install && mise run build` produces `bin/exhale`.
+> **Releases.** Packages, images and tarballs are published on the [releases page](https://github.com/akamachinecode/exhale/releases) with each version, with a signed checksum file and build provenance. To build from source instead: `mise install && mise run build` produces `bin/exhale`.
 
 ## After installing
 

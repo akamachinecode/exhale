@@ -1,12 +1,16 @@
 # Exhale
 
+[![CI](https://github.com/akamachinecode/exhale/actions/workflows/ci.yml/badge.svg)](https://github.com/akamachinecode/exhale/actions/workflows/ci.yml)
+[![Release](https://img.shields.io/github/v/release/akamachinecode/exhale?include_prereleases&sort=semver)](https://github.com/akamachinecode/exhale/releases)
+[![License: AGPL-3.0](https://img.shields.io/badge/license-AGPL--3.0-blue)](LICENSE)
+
 > Breathe out. Your subscriptions are handled.
 
 Exhale is an open-source, self-hosted subscription manager where **the reminder is the interface**. The message that tells you Netflix renews in three days lets you fix it right there: mark it paid, move the date, change the card or the amount, cancel. The message updates in place, and so does the web.
 
 It is one program with one data folder. No cloud, no account with us, no telemetry, no paid tier.
 
-**Status:** pre-release. It works and is used daily by its author; the first tagged version (0.1.0) is not out yet, so for now you build it from source.
+**Status:** early (0.x). It works and is used daily by its author; expect rough edges, and read the release notes before upgrading.
 
 ## What it does
 
@@ -25,7 +29,22 @@ It is one program with one data folder. No cloud, no account with us, no telemet
 
 ## Quick start
 
-Until 0.1.0 is published, build it:
+With Docker:
+
+```sh
+docker run -d --name exhale --restart unless-stopped \
+  -p 8484:8484 -v exhale-data:/data \
+  ghcr.io/akamachinecode/exhale:latest
+docker logs exhale   # shows the one-time setup code
+```
+
+Open `http://<server>:8484`, enter the setup code, create your account and follow the steps on the home page: create your own Telegram bot (guided), link your chat, add your subscriptions or import them, and connect your AI agent if you use one.
+
+Exhale needs no public address: it talks to Telegram and Slack with outgoing connections only, so it works behind a home router.
+
+Other ways to install, all from the [releases page](https://github.com/akamachinecode/exhale/releases): `.deb` and `.rpm` packages with a systemd service, an install script for any Linux, and binaries for macOS and Windows. The [install guide](docs/install/README.md) covers each one, plus HTTPS and backups.
+
+From source:
 
 ```sh
 git clone https://github.com/akamachinecode/exhale && cd exhale
@@ -33,12 +52,6 @@ mise install        # Go, Node, pnpm and the other tools
 mise run build      # builds the web UI into the binary: bin/exhale
 ./bin/exhale serve  # http://127.0.0.1:8484
 ```
-
-Open the address, create your account and follow the steps on the home page: create your own Telegram bot (guided), link your chat, add your subscriptions or import them, and connect your AI agent if you use one.
-
-Exhale needs no public address: it talks to Telegram and Slack with outgoing connections only, so it works behind a home router.
-
-Once releases exist, the [install guide](docs/install/README.md) covers Docker, Linux packages, macOS, HTTPS and backups.
 
 ## Documentation
 
