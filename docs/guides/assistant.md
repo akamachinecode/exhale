@@ -1,6 +1,6 @@
 # The built-in assistant
 
-Ask Exhale in plain language, in the web and in chat, and let it read a bank statement or a screenshot into the import list.
+Ask Exhale in plain language, in the web and in chat, and let it read a scanned statement or a screenshot into the import list.
 
 It is **off by default**. You bring the model: Claude, OpenAI, or one running on your own machine. Nothing is sent anywhere until an owner turns it on.
 
@@ -14,7 +14,7 @@ While it is on, each message you type to it goes to the provider you chose, toge
 - what Exhale **looks up** to answer (for example the history of one subscription, including its notes);
 - the last few turns of the conversation, for half an hour.
 
-When you import a **PDF, a picture or pasted text**, that file is sent too. When you import a **bank export (CSV)**, Exhale finds the recurring charges by itself and sends only the merchant descriptions, to tidy the names: no amounts, no dates.
+When you import a **scanned PDF, a picture or pasted text** that Exhale cannot read by itself, that file is sent too. When you import a **bank export (CSV)** or a **PDF with text**, Exhale reads it by itself and sends only the merchant descriptions, to tidy the names: no amounts, no dates.
 
 Never sent: passwords, API tokens, the bot token, the model's own API key, and subscriptions another member marked private.
 
@@ -89,18 +89,30 @@ It answers in the language you write in.
 
 ## Import a statement or a screenshot
 
-**Settings → Import.**
+**Settings → Data → Import**, or send the file to your Telegram bot.
 
 | What | Needs the assistant | How it is read |
 |---|---|---|
-| Bank export of transactions (CSV) | No | Exhale finds charges that repeat on a regular cycle. Two or more months of data work best |
-| Statement (PDF) | Yes | The model reads it |
+| Bank export of transactions (CSV) | No | Exhale reads it. Two or more months find the charges that repeat |
+| Statement in PDF with text | No | Exhale reads the lines (a date, a description, an amount) |
+| Lines copied from a statement | No | Same as a PDF: paste them in the box |
+| Scanned PDF (no text) | Yes | The model reads it |
 | Screenshot or photo (PNG, JPEG, WebP) | Yes | The model reads it: a subscriptions page in your bank's app, an App Store list, an email |
-| Pasted text | Yes | The model reads it |
+| Other pasted text (an email) | Yes | The model reads it |
 
-Each line of the list says what it is based on ("6 charges every month, last on 2026-11-06"). Tick what to import. Nothing is saved before that, and the file itself is never stored.
+The list has up to three parts:
 
-Limits: pictures up to 5 MB, PDFs up to 20 MB, text up to 200 KB. A PDF needs a model that accepts files (Claude and OpenAI do; most local models do not: export a CSV or upload a screenshot instead).
+- **Paid, according to the statement.** A payment that matches a charge Exhale expected: the same service, within a week of the date, an amount within 30%. Ticked lines are marked paid. If the bank took another amount, Exhale asks whether it is the new price.
+- **Expected but not in this statement.** Charges due in the period that the statement does not show (only for the cards the statement covers). Worth a look: a failed payment, or a subscription that ended.
+- **New subscriptions.** Charges that repeat on a regular cycle and are not in Exhale yet. Each line says what it is based on ("6 charges every month, last on 2026-11-06").
+
+Tick what to apply. Nothing is saved before that, and the file itself is never stored.
+
+**From Telegram:** send the file (as a document or a photo) to your bot. It answers with the same list; tap a number to skip a line, then **Accept all** or **Apply**. A list longer than eight lines waits in the web (Settings → Data → Import) for a day, with a link when `EXHALE_PUBLIC_URL` is set. Slack does not take files yet.
+
+Limits: pictures up to 5 MB, PDFs and other files up to 20 MB, text sent to a model up to 200 KB. A scanned PDF needs a model that accepts files (Claude and OpenAI do; most local models do not: export a CSV or upload a screenshot instead). Dates must include the year.
+
+Agents can do the same over MCP: `match_statement` with the payments, then `set_charge_status` for each match after showing the user.
 
 ## Limits and costs
 

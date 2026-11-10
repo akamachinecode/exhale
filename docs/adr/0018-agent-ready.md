@@ -173,5 +173,5 @@ With the assistant on, the model **only tidies the names**: it is sent the merch
 - **Observability** (safety rule 6): token counts are logged, not shown in the timeline; no OpenTelemetry GenAI spans, no cost.
 - **Slack**: the chat glue is channel-agnostic, the adapter does not exist yet.
 - **Chat text is English**, like the rest of `internal/actions` until its translation lands. The model answers in the person's language; the cards and buttons do not yet.
-- **Sending a photo to the bot** to import it: import is in the web only.
-- **PDF without a model**, and PDFs on local models that do not accept files.
+- ~~**Sending a photo to the bot** to import it~~: done, see ADR 0022's implementation notes (Telegram only).
+- ~~**PDF without a model**~~: done for PDFs with text (ADR 0022). A scanned PDF on a local model that does not accept files still needs a screenshot instead.
