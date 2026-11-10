@@ -2,7 +2,7 @@ import { Link } from "@tanstack/react-router";
 import { ArrowRight } from "lucide-react";
 import { useState } from "react";
 import { PageHeader } from "@/components/layout";
-import { ServiceTile } from "@/components/service-tile";
+import { ServiceTile, useLogos } from "@/components/service-tile";
 import { Card, CardHeader } from "@/components/ui/card";
 import { type MonthSpend, useMonthBalances, useSpendingHistory, useSpendingSummary } from "@/gen/api";
 import { locale, t, tn } from "@/lib/i18n";
@@ -37,6 +37,7 @@ export function Insights() {
 				}
 			: undefined;
 	const subs = h?.bySubscription ?? [];
+	const logos = useLogos();
 	const top = Math.max(1, ...subs.map((x) => x.paid.minor));
 
 	return (
@@ -105,7 +106,7 @@ export function Insights() {
 										params={{ id: x.id }}
 										className="group flex items-center gap-3"
 									>
-										<ServiceTile name={x.name} size="sm" />
+										<ServiceTile name={x.name} logo={logos.get(x.id)} size="sm" />
 										<span className="min-w-0 flex-1">
 											<span className="block truncate font-medium group-hover:underline">{x.name}</span>
 											<span className="block text-xs text-muted">

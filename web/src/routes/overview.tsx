@@ -327,7 +327,7 @@ function ChargeRow({ charge }: { charge: ChargeView }) {
 	const due = charge.daysUntil <= 0 || charge.status === "failed";
 	return (
 		<li className="group flex flex-wrap items-center gap-x-3 gap-y-2 px-4 py-3 sm:flex-nowrap sm:px-5">
-			<ServiceTile name={charge.subscriptionName} size="sm" />
+			<ServiceTile name={charge.subscriptionName} logo={charge.logo} size="sm" />
 			<div className="min-w-0 flex-1">
 				<Link
 					to="/subscriptions/$id"
