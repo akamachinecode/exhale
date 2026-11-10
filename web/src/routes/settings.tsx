@@ -6,6 +6,7 @@ import { CalendarLink, ExportData, ImportData } from "@/components/data";
 import { PageHeader } from "@/components/layout";
 import { Categories, Payday, PaymentMethods } from "@/components/manage";
 import { SignOut } from "@/components/sign-out";
+import { SlackSetup } from "@/components/slack";
 import { Button } from "@/components/ui/button";
 import { Card, CardHeader } from "@/components/ui/card";
 import { Field, PasswordInput } from "@/components/ui/field";
@@ -52,6 +53,9 @@ export function SettingsPage() {
 				</Section>
 				<Section title="Telegram" description="Reminders you act on, and the whole app inside one message.">
 					<TelegramSetup />
+				</Section>
+				<Section title="Slack" description="For a team: renewals in a channel, and the same app in Slack.">
+					<SlackSetup />
 				</Section>
 				<Section title="Sharing">
 					<Sharing />
