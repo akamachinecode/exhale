@@ -1,6 +1,7 @@
 import { Link } from "@tanstack/react-router";
 import { type FormEvent, type ReactNode, useState } from "react";
 import { toast } from "sonner";
+import { AssistantSettings } from "@/components/assistant";
 import { PreferencesForm, ReminderTime, Sharing, TelegramSetup, TokensManager } from "@/components/connect";
 import { CalendarLink, ExportData, ImportData } from "@/components/data";
 import { PageHeader } from "@/components/layout";
@@ -52,6 +53,12 @@ export function SettingsPage() {
 				</Section>
 				<Section title="Telegram" description="Reminders you act on, and the whole app inside one message.">
 					<TelegramSetup />
+				</Section>
+				<Section
+					title="Built-in assistant"
+					description="Ask in plain language, here and in chat. Bring your own model."
+				>
+					<AssistantSettings />
 				</Section>
 				<Section title="Sharing">
 					<Sharing />

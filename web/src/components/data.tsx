@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import {
 	type ImportItem,
 	type ImportResult,
+	useAuthSession,
 	useCalendarFeed,
 	useCalendarFeedCreate,
 	useCalendarFeedRemove,
@@ -18,13 +19,17 @@ import { date } from "@/lib/utils";
 
 const errText = (e: unknown, fallback: string) => (e instanceof ApiError ? e.detail : fallback);
 
-type Parsed = { source: string; items: ImportItem[]; notes: string[] };
+type Parsed = { source: string; items: ImportItem[]; notes: string[]; model?: string };
 
 const sources: Record<string, string> = {
 	"wallos-db": "Wallos database",
 	"wallos-export": "Wallos export",
 	"exhale-export": "Exhale export",
 	csv: "Spreadsheet (CSV)",
+	transactions: "Bank export",
+	statement: "Statement (PDF)",
+	picture: "Picture",
+	text: "Text",
 };
 
 /** Import: read a file, review the list, then bring in what is ticked. */
@@ -37,14 +42,17 @@ export function ImportData() {
 	const [picked, setPicked] = useState<boolean[]>([]);
 	const [busy, setBusy] = useState(false);
 	const [error, setError] = useState<string>();
+	const [pasted, setPasted] = useState("");
+	// With the assistant on, a model reads what Exhale cannot read by itself.
+	const assistant = Boolean(useAuthSession().data?.assistant);
 
-	const onFile = async (file: File) => {
+	const onFile = async (file: File | string) => {
 		setError(undefined);
 		setBusy(true);
 		try {
 			const res = await fetch("/api/v1/import/parse", {
 				method: "POST",
-				headers: { "Content-Type": "application/octet-stream" },
+				headers: { "Content-Type": typeof file === "string" ? "text/plain" : "application/octet-stream" },
 				body: file,
 			});
 			const body = await res.json();
@@ -55,6 +63,7 @@ export function ImportData() {
 			setParsed(p);
 			setPreview(dry);
 			setPicked((dry.items ?? []).map((o) => o.action === "create"));
+			setPasted("");
 		} catch (err) {
 			setError(errText(err, "Could not read the file"));
 		} finally {
@@ -84,7 +93,7 @@ export function ImportData() {
 			<input
 				ref={input}
 				type="file"
-				accept=".db,.sqlite,.json,.csv,.tsv,.txt"
+				accept=".db,.sqlite,.json,.csv,.tsv,.txt,.pdf,.png,.jpg,.jpeg,.webp"
 				className="sr-only"
 				aria-label="File to import"
 				onChange={(e) => e.target.files?.[0] && onFile(e.target.files[0])}
@@ -93,19 +102,44 @@ export function ImportData() {
 				<>
 					<p className="text-sm text-muted">
 						A Wallos database (<code className="font-mono text-xs">db/wallos.db</code>) or export, a
-						spreadsheet saved as CSV, or an Exhale export. You review the list before anything is saved.
+						spreadsheet saved as CSV, an Exhale export, or your bank's export of transactions (CSV): Exhale
+						finds the charges that repeat.{" "}
+						{assistant
+							? "A statement in PDF, a screenshot or pasted text is read by the assistant's model."
+							: "With the built-in assistant on, it also reads a statement in PDF or a screenshot."}{" "}
+						You review the list before anything is saved.
 					</p>
 					<div>
 						<Button disabled={busy} onClick={() => input.current?.click()}>
 							<Upload /> {busy ? "Reading…" : "Choose a file"}
 						</Button>
 					</div>
+					{assistant && (
+						<div className="grid gap-2">
+							<textarea
+								value={pasted}
+								onChange={(e) => setPasted(e.target.value)}
+								rows={3}
+								placeholder="…or paste text: an email from a service, lines from a statement"
+								aria-label="Text to import"
+								className="w-full rounded-lg border border-line bg-surface px-3 py-2 text-sm placeholder:text-faint focus:border-accent focus:outline-2 focus:outline-accent/25"
+							/>
+							{pasted.trim() && (
+								<div>
+									<Button disabled={busy} onClick={() => onFile(pasted)}>
+										{busy ? "Reading…" : "Read the text"}
+									</Button>
+								</div>
+							)}
+						</div>
+					)}
 				</>
 			)}
 			{parsed && preview && (
 				<>
 					<p className="text-sm">
 						<span className="font-medium">{sources[parsed.source] ?? parsed.source}</span>
+						{parsed.model && <Badge className="ml-2">Read by {parsed.model}</Badge>}
 						<span className="text-muted">
 							{" "}
 							· {parsed.items.length} found · {preview.duplicates} already in Exhale

@@ -1,6 +1,7 @@
 import { Link } from "@tanstack/react-router";
 import { AlertTriangle, ArrowRight, Clock, CreditCard, Plus, Wallet } from "lucide-react";
 import { useState } from "react";
+import { AskExhale } from "@/components/assistant";
 import { ChargeActions } from "@/components/charge-actions";
 import { GetStarted, readGetStartedHidden } from "@/components/get-started";
 import { PageHeader } from "@/components/layout";
@@ -62,6 +63,7 @@ export function Overview() {
 				}
 			/>
 			<NewSubscription open={creating} onOpenChange={setCreating} />
+			<AskExhale className="mb-5" />
 			{!setupHidden && (
 				<GetStarted onAddSubscription={() => setCreating(true)} onHide={() => setSetupHidden(true)} />
 			)}

@@ -20,5 +20,6 @@ export function signedOut(qc: QueryClient) {
 		hasHousehold: true,
 		...prev,
 		user: undefined,
+		assistant: false, // only someone signed in sees Ask Exhale
 	});
 }
