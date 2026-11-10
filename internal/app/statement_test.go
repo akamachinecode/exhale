@@ -28,10 +28,10 @@ func TestMatchStatement(t *testing.T) {
 		t.Fatal(err)
 	}
 	netflix := f.create(t, CreateSubscriptionInput{Name: "Netflix", Price: "12.99", Currency: "EUR", FirstCharge: "2026-09-06", PaymentMethodID: card.ID})
-	spotify := f.create(t, CreateSubscriptionInput{Name: "Spotify Premium", Price: "17.99", Currency: "EUR", FirstCharge: "2026-09-28", PaymentMethodID: card.ID})
+	f.create(t, CreateSubscriptionInput{Name: "Spotify Premium", Price: "17.99", Currency: "EUR", FirstCharge: "2026-09-28", PaymentMethodID: card.ID})
 	gym := f.create(t, CreateSubscriptionInput{Name: "Gym", Price: "30.00", Currency: "EUR", FirstCharge: "2026-10-01", PaymentMethodID: card.ID})
 	f.create(t, CreateSubscriptionInput{Name: "Phone", Price: "15.00", Currency: "EUR", FirstCharge: "2026-10-10", PaymentMethodID: other.ID})
-	coffee := f.create(t, CreateSubscriptionInput{Name: "Coffee Club", Price: "5.00", Currency: "EUR", Interval: 1, Unit: "week", FirstCharge: "2026-10-05"})
+	f.create(t, CreateSubscriptionInput{Name: "Coffee Club", Price: "5.00", Currency: "EUR", Interval: 1, Unit: "week", FirstCharge: "2026-10-05"})
 	if _, err := f.svc.SetChargeStatus(ctx, f.owner, SetChargeStatusInput{ChargeID: netflix.Upcoming[0].ID, Status: "paid"}); err != nil {
 		t.Fatal(err)
 	}
@@ -108,8 +108,6 @@ func TestMatchStatement(t *testing.T) {
 	if err != nil || len(again.Matches) != 1 || again.Matches[0].Action != MatchAlreadyPaid {
 		t.Fatalf("matched twice: %+v %v", again, err)
 	}
-	_ = spotify
-	_ = coffee
 
 	for name, in := range map[string]MatchStatementInput{
 		"bad date":   {Transactions: []StatementLine{{Date: "6 Oct", Description: "Netflix", Amount: "1"}}},
