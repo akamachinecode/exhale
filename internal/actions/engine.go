@@ -45,10 +45,11 @@ func (e *Engine) context(ctx context.Context, actor app.Actor) (engine.Date, str
 	if err != nil {
 		return engine.DateOf(time.Now()), "en"
 	}
-	return info.Today, info.Household.Locale
+	return info.Today, info.LanguageOf(actor.MemberID)
 }
 
-// Locale returns the language of the actor's household.
+// Locale returns the language to speak to the actor: their own, else the
+// household's.
 func (e *Engine) Locale(ctx context.Context, actor app.Actor) string {
 	_, locale := e.context(ctx, actor)
 	return locale

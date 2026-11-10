@@ -33,6 +33,9 @@ UPDATE members SET name = ?, email = ? WHERE id = ?;
 -- name: SetMemberCredentials :exec
 UPDATE members SET name = ?, email = ?, password_hash = ? WHERE id = ?;
 
+-- name: SetMemberLocale :exec
+UPDATE members SET locale = ? WHERE id = ?;
+
 -- name: SetMemberPassword :exec
 UPDATE members SET password_hash = ?, session_version = session_version + 1 WHERE id = ?;
 

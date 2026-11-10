@@ -1,6 +1,10 @@
 package actions
 
-import "strings"
+import (
+	"strings"
+
+	"github.com/akamachinecode/exhale/internal/i18n"
+)
 
 // Texts a channel adapter says outside any screen: linking a chat, joining
 // from an invite and the list of commands. They live here so every channel
@@ -8,13 +12,8 @@ import "strings"
 
 // Language picks the language of a message for someone Exhale does not know
 // yet (an unlinked chat) from the code the chat platform reports, e.g.
-// "es-ES".
-func Language(code string) string {
-	if strings.HasPrefix(strings.ToLower(code), "es") {
-		return "es"
-	}
-	return "en"
-}
+// "es-ES": a registered language, else English.
+func Language(code string) string { return i18n.Match(code) }
 
 // HelpText lists the commands.
 func HelpText(locale string) string {

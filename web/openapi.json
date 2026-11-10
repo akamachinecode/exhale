@@ -721,6 +721,10 @@
             "description": "a household exists (made with exhale init); setup only creates the owner's login",
             "type": "boolean"
           },
+          "language": {
+            "description": "the language to show the signed-in person: their own, else the household's",
+            "type": "string"
+          },
           "passwordLoginDisabled": {
             "description": "password sign-in is turned off: only show single sign-on",
             "type": "boolean"
@@ -3362,6 +3366,10 @@
           "email": {
             "type": "string"
           },
+          "language": {
+            "description": "code of a registered language; kept as the person's own when it differs from the household's",
+            "type": "string"
+          },
           "name": {
             "type": "string"
           },
@@ -3374,6 +3382,28 @@
           "name",
           "email",
           "password"
+        ],
+        "type": "object"
+      },
+      "LanguageIn": {
+        "additionalProperties": false,
+        "properties": {
+          "$schema": {
+            "description": "A URL to the JSON Schema for this object.",
+            "examples": [
+              "https://example.com/api/schemas/LanguageIn.json"
+            ],
+            "format": "uri",
+            "readOnly": true,
+            "type": "string"
+          },
+          "language": {
+            "description": "code of a registered language; empty follows the household's",
+            "type": "string"
+          }
+        },
+        "required": [
+          "language"
         ],
         "type": "object"
       },
@@ -3598,6 +3628,9 @@
             "type": "string"
           },
           "id": {
+            "type": "string"
+          },
+          "locale": {
             "type": "string"
           },
           "name": {
@@ -5195,6 +5228,10 @@
             "type": "boolean"
           },
           "id": {
+            "type": "string"
+          },
+          "locale": {
+            "description": "the language this person chose; empty: the household's",
             "type": "string"
           },
           "name": {
@@ -7481,6 +7518,47 @@
           }
         },
         "summary": "Accept an invite and create your account",
+        "tags": [
+          "Auth"
+        ]
+      }
+    },
+    "/api/v1/auth/language": {
+      "post": {
+        "operationId": "auth_set_language",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/LanguageIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AuthSession"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorModel"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "summary": "Choose your own language (empty: the household's)",
         "tags": [
           "Auth"
         ]

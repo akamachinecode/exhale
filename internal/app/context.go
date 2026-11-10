@@ -38,7 +38,7 @@ func (s *Service) BuildContext(ctx context.Context, actor Actor, _ struct{}) (Ag
 	var b strings.Builder
 	h := info.Household
 	fmt.Fprintf(&b, "# Exhale household: %s\n\n", h.Name)
-	fmt.Fprintf(&b, "- Today: %s (time zone %s)\n- Display currency (totals convert into it): %s\n- Language: %s\n- You are acting as: %s (scope: %s)\n", info.Today, h.Timezone, h.Currency, h.Locale, actor.Label, actor.Scope)
+	fmt.Fprintf(&b, "- Today: %s (time zone %s)\n- Display currency (totals convert into it): %s\n- Language: %s\n- You are acting as: %s (scope: %s)\n", info.Today, h.Timezone, h.Currency, info.LanguageOf(actor.MemberID), actor.Label, actor.Scope)
 	b.WriteString("- Members: ")
 	for i, m := range info.Members {
 		if i > 0 {

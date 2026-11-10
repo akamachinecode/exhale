@@ -157,6 +157,7 @@ type Member struct {
 	SessionVersion int64
 	OidcIssuer     string
 	OidcSubject    string
+	Locale         string
 }
 
 type MemberBackupCode struct {

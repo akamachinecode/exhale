@@ -221,7 +221,7 @@ func (q *Queries) GetHousehold(ctx context.Context, id string) (Household, error
 }
 
 const getMember = `-- name: GetMember :one
-SELECT id, household_id, name, email, role, password_hash, created_at, session_version, oidc_issuer, oidc_subject FROM members WHERE id = ?
+SELECT id, household_id, name, email, role, password_hash, created_at, session_version, oidc_issuer, oidc_subject, locale FROM members WHERE id = ?
 `
 
 func (q *Queries) GetMember(ctx context.Context, id string) (Member, error) {
@@ -238,6 +238,7 @@ func (q *Queries) GetMember(ctx context.Context, id string) (Member, error) {
 		&i.SessionVersion,
 		&i.OidcIssuer,
 		&i.OidcSubject,
+		&i.Locale,
 	)
 	return i, err
 }
@@ -310,7 +311,7 @@ func (q *Queries) ListCategories(ctx context.Context, householdID string) ([]Cat
 }
 
 const listMembers = `-- name: ListMembers :many
-SELECT id, household_id, name, email, role, password_hash, created_at, session_version, oidc_issuer, oidc_subject FROM members WHERE household_id = ? ORDER BY created_at
+SELECT id, household_id, name, email, role, password_hash, created_at, session_version, oidc_issuer, oidc_subject, locale FROM members WHERE household_id = ? ORDER BY created_at
 `
 
 func (q *Queries) ListMembers(ctx context.Context, householdID string) ([]Member, error) {
@@ -333,6 +334,7 @@ func (q *Queries) ListMembers(ctx context.Context, householdID string) ([]Member
 			&i.SessionVersion,
 			&i.OidcIssuer,
 			&i.OidcSubject,
+			&i.Locale,
 		); err != nil {
 			return nil, err
 		}

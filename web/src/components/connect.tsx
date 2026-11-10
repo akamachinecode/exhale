@@ -25,7 +25,7 @@ import {
 	useUpdateHousehold,
 } from "@/gen/api";
 import { ApiError } from "@/lib/fetcher";
-import { t } from "@/lib/i18n";
+import { languages, t } from "@/lib/i18n";
 import { currencies, timezones } from "@/lib/locale";
 import { cn } from "@/lib/utils";
 
@@ -548,8 +548,11 @@ export function PreferencesForm() {
 					disabled={!editable}
 					onChange={(e) => save({ locale: e.target.value }, t("Language saved"))}
 				>
-					<option value="en">English</option>
-					<option value="es">Español</option>
+					{languages.map((l) => (
+						<option key={l.code} value={l.code} lang={l.code}>
+							{l.name}
+						</option>
+					))}
 				</Select>
 			</Field>
 		</div>

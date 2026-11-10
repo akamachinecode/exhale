@@ -325,7 +325,7 @@ func httpError(err error) error {
 
 // problem is an RFC 9457 problem whose sentence the web can translate:
 // detail is English, text the same sentence as a key and its arguments
-// (web/src/lib/es.ts).
+// (web/src/locales/server).
 type problem struct {
 	huma.ErrorModel
 	Text *domain.Text `json:"text,omitempty" doc:"the detail as a translatable text: key and arguments"`

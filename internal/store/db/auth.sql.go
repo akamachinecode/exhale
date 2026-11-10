@@ -176,7 +176,7 @@ func (q *Queries) ListAPITokens(ctx context.Context, memberID string) ([]ApiToke
 }
 
 const memberByEmail = `-- name: MemberByEmail :one
-SELECT id, household_id, name, email, role, password_hash, created_at, session_version, oidc_issuer, oidc_subject FROM members WHERE email = ? AND email <> ''
+SELECT id, household_id, name, email, role, password_hash, created_at, session_version, oidc_issuer, oidc_subject, locale FROM members WHERE email = ? AND email <> ''
 `
 
 func (q *Queries) MemberByEmail(ctx context.Context, email string) (Member, error) {
@@ -193,12 +193,13 @@ func (q *Queries) MemberByEmail(ctx context.Context, email string) (Member, erro
 		&i.SessionVersion,
 		&i.OidcIssuer,
 		&i.OidcSubject,
+		&i.Locale,
 	)
 	return i, err
 }
 
 const memberByIdentity = `-- name: MemberByIdentity :one
-SELECT id, household_id, name, email, role, password_hash, created_at, session_version, oidc_issuer, oidc_subject FROM members WHERE oidc_issuer = ? AND oidc_subject = ? AND oidc_subject <> ''
+SELECT id, household_id, name, email, role, password_hash, created_at, session_version, oidc_issuer, oidc_subject, locale FROM members WHERE oidc_issuer = ? AND oidc_subject = ? AND oidc_subject <> ''
 `
 
 type MemberByIdentityParams struct {
@@ -220,6 +221,7 @@ func (q *Queries) MemberByIdentity(ctx context.Context, arg MemberByIdentityPara
 		&i.SessionVersion,
 		&i.OidcIssuer,
 		&i.OidcSubject,
+		&i.Locale,
 	)
 	return i, err
 }
@@ -276,6 +278,20 @@ func (q *Queries) SetMemberCredentials(ctx context.Context, arg SetMemberCredent
 		arg.PasswordHash,
 		arg.ID,
 	)
+	return err
+}
+
+const setMemberLocale = `-- name: SetMemberLocale :exec
+UPDATE members SET locale = ? WHERE id = ?
+`
+
+type SetMemberLocaleParams struct {
+	Locale string
+	ID     string
+}
+
+func (q *Queries) SetMemberLocale(ctx context.Context, arg SetMemberLocaleParams) error {
+	_, err := q.db.ExecContext(ctx, setMemberLocale, arg.Locale, arg.ID)
 	return err
 }
 

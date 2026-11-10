@@ -82,6 +82,8 @@ type Member struct {
 	Name        string `json:"name"`
 	Email       string `json:"email,omitempty"`
 	Role        Role   `json:"role"`
+	// Locale is the language this person chose; empty: the household's.
+	Locale string `json:"locale,omitempty"`
 }
 
 // PaymentMethodKind classifies payment methods.

@@ -16,7 +16,7 @@ import {
 	useAuthSetup,
 } from "@/gen/api";
 import { ApiError } from "@/lib/fetcher";
-import { t } from "@/lib/i18n";
+import { lang, t } from "@/lib/i18n";
 import { browserLocale, browserTimezone, guessCurrency } from "@/lib/locale";
 import { applySession } from "@/lib/session";
 
@@ -507,7 +507,7 @@ export function JoinPage() {
 		e.preventDefault();
 		setError(undefined);
 		try {
-			applySession(qc, await join.mutateAsync({ data: { code, ...v } }));
+			applySession(qc, await join.mutateAsync({ data: { code, ...v, language: lang } }));
 			navigate({ to: "/" });
 		} catch (err) {
 			setError(errorText(err, t("Could not create your account")));
