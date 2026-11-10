@@ -128,12 +128,33 @@ func genDate(t *rapid.T, label string) Date {
 	return MustDate(y, m, day)
 }
 
+// genRule draws any valid rule: every unit, day rule and weekend shift.
 func genRule(t *rapid.T) Rule {
-	return Rule{
+	r := Rule{
 		Interval: rapid.IntRange(1, 18).Draw(t, "interval"),
 		Unit:     rapid.SampledFrom([]Unit{Day, Week, Month, Year}).Draw(t, "unit"),
 		Anchor:   genDate(t, "anchor"),
+		Shift:    rapid.SampledFrom([]Shift{NoShift, NextBusinessDay, PreviousBusinessDay}).Draw(t, "shift"),
 	}
+	if r.Unit == Day && r.Interval < 3 {
+		r.Shift = NoShift
+	}
+	if r.Unit == Month || r.Unit == Year {
+		r.DayRule = rapid.SampledFrom([]DayRule{DayOfMonth, NthWeekday, LastWeekday}).Draw(t, "dayRule")
+		a := r.Anchor
+		switch r.DayRule {
+		case NthWeekday:
+			r.Anchor = MustDate(a.Year(), a.Month(), rapid.IntRange(1, 28).Draw(t, "nthDay"))
+		case LastWeekday:
+			n := DaysIn(a.Year(), a.Month())
+			r.Anchor = MustDate(a.Year(), a.Month(), rapid.IntRange(n-6, n).Draw(t, "lastDay"))
+		case DayOfMonth:
+		}
+	}
+	if err := r.Validate(); err != nil {
+		t.Fatalf("generated an invalid rule %+v: %v", r, err)
+	}
+	return r
 }
 
 func TestPropOccurrencesStrictlyIncrease(t *testing.T) {
@@ -150,8 +171,9 @@ func TestPropMonthlyNeverDrifts(t *testing.T) {
 	rapid.Check(t, func(t *rapid.T) {
 		r := genRule(t)
 		r.Unit = rapid.SampledFrom([]Unit{Month, Year}).Draw(t, "munit")
+		r.DayRule = DayOfMonth
 		n := rapid.IntRange(0, 500).Draw(t, "n")
-		o := r.Occurrence(n)
+		o := r.Nominal(n)
 		want := min(r.Anchor.Day(), DaysIn(o.Year(), o.Month()))
 		if o.Day() != want {
 			t.Fatalf("occurrence %d of %+v is %s, want day %d", n, r, o, want)

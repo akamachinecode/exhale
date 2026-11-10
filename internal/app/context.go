@@ -38,7 +38,7 @@ func (s *Service) BuildContext(ctx context.Context, actor Actor, _ struct{}) (Ag
 	var b strings.Builder
 	h := info.Household
 	fmt.Fprintf(&b, "# Exhale household: %s\n\n", h.Name)
-	fmt.Fprintf(&b, "- Today: %s (time zone %s)\n- Display currency (totals convert into it): %s\n- Language: %s\n- You are acting as: %s (scope: %s)\n", info.Today, h.Timezone, h.Currency, h.Locale, actor.Label, actor.Scope)
+	fmt.Fprintf(&b, "- Today: %s (time zone %s)\n- Display currency (totals convert into it): %s\n- Language: %s\n- You are acting as: %s (scope: %s)\n", info.Today, h.Timezone, h.Currency, info.LanguageOf(actor.MemberID), actor.Label, actor.Scope)
 	b.WriteString("- Members: ")
 	for i, m := range info.Members {
 		if i > 0 {
@@ -54,9 +54,13 @@ func (s *Service) BuildContext(ctx context.Context, actor Actor, _ struct{}) (Ag
 	if sum.Converted {
 		fmt.Fprintf(&b, " Total ≈ %s/month in %s at ECB rates of %s.", sum.MonthlyTotal, sum.MainCurrency, sum.RatesDate)
 	}
-	b.WriteString("\n\n## Subscriptions\n\n| id | name | price | cadence | next charge | status | payment method | category |\n|---|---|---|---|---|---|---|---|\n")
+	b.WriteString("\n\n## Subscriptions\n\n| id | name | price | cadence | next charge | status | payment method | category | notes |\n|---|---|---|---|---|---|---|---|---|\n")
 	for _, v := range subs.Subscriptions {
-		fmt.Fprintf(&b, "| %s | %s | %s | %s | %s | %s | %s | %s |\n", v.ID, v.Name, v.Price, v.Cadence, v.NextCharge, v.Status, v.PaymentMethod, v.CategoryName)
+		cadence := v.Cadence
+		if v.BillingDay != "" {
+			cadence += ", " + v.BillingDay
+		}
+		fmt.Fprintf(&b, "| %s | %s | %s | %s | %s | %s | %s | %s | %s |\n", v.ID, v.Name, v.Price, cadence, v.NextCharge, v.Status, v.PaymentMethod, v.CategoryName, strings.Join(termNotes(v), "; "))
 	}
 	b.WriteString("\n## Next 30 days\n\n")
 	if len(up.Charges) == 0 {
@@ -83,15 +87,41 @@ func (s *Service) BuildContext(ctx context.Context, actor Actor, _ struct{}) (Ag
 	return AgentContext{Markdown: b.String()}, nil
 }
 
+// termNotes summarises what makes a subscription's dates special.
+func termNotes(v SubscriptionView) []string {
+	var n []string
+	if v.InTrial {
+		n = append(n, fmt.Sprintf("free trial until %s", v.TrialEndsOn))
+	}
+	if v.Expires {
+		n = append(n, "expires unless renewed")
+	}
+	if !v.CancelBy.IsZero() {
+		n = append(n, fmt.Sprintf("cancel by %s (%d days' notice)", v.CancelBy, v.NoticeDays))
+	}
+	if v.NextPrice != nil {
+		n = append(n, fmt.Sprintf("price becomes %s on %s", v.NextPrice.Price, v.NextPrice.From))
+	}
+	if len(v.Tags) > 0 {
+		n = append(n, "tags: "+strings.Join(v.Tags, ", "))
+	}
+	if p := v.PlanSwitch; p != nil && v.AltPrice != nil && p.Saving.Minor > 0 {
+		n = append(n, fmt.Sprintf("also offered at %s per %s: switching saves %s a year", v.AltPrice.Price, v.AltPrice.Unit, p.Saving))
+	}
+	return n
+}
+
 const domainRules = `
 ## How Exhale works (read before changing anything)
 
 - A **subscription** has a price and a billing schedule; each occurrence is a **charge** with its own state: pending, paid, failed or skipped. A pending charge whose date was moved is "delayed".
 - Charges are computed from the schedule's **anchor**, never from the previous charge, so dates never drift. A charge on day 31 falls on the last day of shorter months and returns to the 31st afterwards.
 - Edits to a charge have a **scope**: "this" changes only that charge; "following" changes it and every later one (new schedule version). Defaults: date → this (usually a one-off delay); amount and payment method → following (usually permanent).
-- Cancelling "at period end" keeps the service until the day before the next charge.
+- Cancelling "at period end" keeps the service until the day before the next charge. Exhale only tracks subscriptions: cancelling here does not cancel with the provider, so tell the user to do it (cancelUrl, if set).
+- The date that matters is not always the charge: a **free trial** (trialEndsOn) turns into the first paid charge; a **notice period** (noticeDays) puts the last day to cancel before the charge (cancelBy); **renewal=manual** means it expires on that date unless someone renews it.
 - Money amounts are decimal strings in the subscription's currency ("12.99"). Dates are YYYY-MM-DD in the household time zone.
 - Every write accepts **dryRun: true** to preview the exact result without saving. Prefer previewing, show the user the result, then apply.
 - Every write returns an **auditId**; the undo tool reverts it. The user is told about changes made by agents and can undo them.
-- Never invent ids: read them from this briefing or from the list tools.
+- Never invent ids: read them from this briefing or from the list tools. Ids returned by a dry run are not saved.
+- To change several subscriptions at once use **bulk_update_subscriptions** (dryRun first); pass all the auditIds it returns to undo to revert the whole change. Tags are free labels: search them with list_subscriptions (query or tag). Totals stay by category.
 `

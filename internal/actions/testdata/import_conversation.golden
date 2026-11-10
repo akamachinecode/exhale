@@ -1,0 +1,145 @@
+
+> send statement.pdf
+📄 Read from your file
+  Statement from Thu 3 Sep to Wed 28 Oct.
+  ## Paid, according to the statement
+  ✅ 1. Netflix · €12.99 on Sun 6 Sep
+  ✅ 2. Spotify · €17.99 on Mon 28 Sep
+  ✅ 3. Netflix · €15.99 on Tue 6 Oct · expected €12.99
+  ✅ 4. Spotify · €17.99 on Wed 28 Oct
+  ## New subscriptions
+  ✅ 5. Adobe Creative · €67.25 · monthly · next Sun 15 Nov
+  ## Expected but not in this statement
+  Gym · €30.00 due Thu 1 Oct
+  [✅ 1](imp|t|X|0) [✅ 2](imp|t|X|1) [✅ 3](imp|t|X|2) [✅ 4](imp|t|X|3)
+  [✅ 5](imp|t|X|4)
+  [✅ Accept all (5)](imp|ok|X) [✖ Discard](imp|no|X)
+  — Tap a number to skip that line.
+
+> press ✅ 5
+📄 Read from your file
+  Statement from Thu 3 Sep to Wed 28 Oct.
+  ## Paid, according to the statement
+  ✅ 1. Netflix · €12.99 on Sun 6 Sep
+  ✅ 2. Spotify · €17.99 on Mon 28 Sep
+  ✅ 3. Netflix · €15.99 on Tue 6 Oct · expected €12.99
+  ✅ 4. Spotify · €17.99 on Wed 28 Oct
+  ## New subscriptions
+  ⬜ 5. Adobe Creative · €67.25 · monthly · next Sun 15 Nov
+  ## Expected but not in this statement
+  Gym · €30.00 due Thu 1 Oct
+  [✅ 1](imp|t|X|0) [✅ 2](imp|t|X|1) [✅ 3](imp|t|X|2) [✅ 4](imp|t|X|3)
+  [⬜ 5](imp|t|X|4)
+  [✅ Apply 4 of 5](imp|ok|X) [✖ Discard](imp|no|X)
+  — Tap a number to skip that line.
+
+> press ⬜ 5
+📄 Read from your file
+  Statement from Thu 3 Sep to Wed 28 Oct.
+  ## Paid, according to the statement
+  ✅ 1. Netflix · €12.99 on Sun 6 Sep
+  ✅ 2. Spotify · €17.99 on Mon 28 Sep
+  ✅ 3. Netflix · €15.99 on Tue 6 Oct · expected €12.99
+  ✅ 4. Spotify · €17.99 on Wed 28 Oct
+  ## New subscriptions
+  ✅ 5. Adobe Creative · €67.25 · monthly · next Sun 15 Nov
+  ## Expected but not in this statement
+  Gym · €30.00 due Thu 1 Oct
+  [✅ 1](imp|t|X|0) [✅ 2](imp|t|X|1) [✅ 3](imp|t|X|2) [✅ 4](imp|t|X|3)
+  [✅ 5](imp|t|X|4)
+  [✅ Accept all (5)](imp|ok|X) [✖ Discard](imp|no|X)
+  — Tap a number to skip that line.
+
+> press ✅ 1
+📄 Read from your file
+  Statement from Thu 3 Sep to Wed 28 Oct.
+  ## Paid, according to the statement
+  ⬜ 1. Netflix · €12.99 on Sun 6 Sep
+  ✅ 2. Spotify · €17.99 on Mon 28 Sep
+  ✅ 3. Netflix · €15.99 on Tue 6 Oct · expected €12.99
+  ✅ 4. Spotify · €17.99 on Wed 28 Oct
+  ## New subscriptions
+  ✅ 5. Adobe Creative · €67.25 · monthly · next Sun 15 Nov
+  ## Expected but not in this statement
+  Gym · €30.00 due Thu 1 Oct
+  [⬜ 1](imp|t|X|0) [✅ 2](imp|t|X|1) [✅ 3](imp|t|X|2) [✅ 4](imp|t|X|3)
+  [✅ 5](imp|t|X|4)
+  [✅ Apply 4 of 5](imp|ok|X) [✖ Discard](imp|no|X)
+  — Tap a number to skip that line.
+
+> press Apply 4 of 5
+(toast: Done ✅)
+✅ Imported
+  Charges marked paid: 3.
+  Subscriptions added: 1.
+  — Each change can be undone from Activity in Exhale.
+SEND #1
+✅ Netflix paid
+  💶 €12.99 · Tue, 6 Oct 2026
+  🏦 charged €15.99
+  ## New price?
+  It took €15.99 instead of €12.99 (+23.1%, +€36.00 a year).
+  [Yes, from now on](np|chg_X|15.99) [Just this time](back|chg_X)
+  [↩︎ Reopen](reopen|chg_X)
+  [↩︎ Undo](undo|chg_X|aud_X)
+
+> press Yes, from now on
+(toast: Price updated 💶)
+✅ Netflix paid
+  💶 €12.99 · Tue, 6 Oct 2026
+  🏦 charged €15.99
+  [↩︎ Reopen](reopen|chg_X)
+  — New price saved for the next charges.
+
+> send statement.pdf
+📄 Read from your file
+  Statement from Thu 3 Sep to Wed 28 Oct.
+  ## Paid, according to the statement
+  ✅ 1. Netflix · €12.99 on Sun 6 Sep
+  ## Expected but not in this statement
+  Gym · €30.00 due Thu 1 Oct
+  [✅ 1](imp|t|X|0)
+  [✅ Accept all (1)](imp|ok|X) [✖ Discard](imp|no|X)
+  — Already marked paid: 3. Already in Exhale: 1. Tap a number to skip that line.
+
+> send bank.csv
+📄 Read from your file
+  Statement from Sun 10 May to Mon 9 Nov.
+  ## Paid, according to the statement
+  ✅ 1. Netflix · €13.99 on Sun 6 Sep · expected €12.99
+  ✅ 2. Gym · €29.00 on Mon 28 Sep · expected €30.00
+  ✅ 3. Gym · €29.00 on Mon 26 Oct · expected €30.00
+  ✅ 4. Netflix · €13.99 on Fri 6 Nov · expected €15.99
+  ## New subscriptions
+  ✅ 5. Dropbox · €9.99 · monthly · next Tue 10 Nov
+  ✅ 6. Hetzner · €23.80 · every 3 months · next Tue 1 Dec
+  ✅ 7. Iberdrola Comercial · €61.07 · monthly · next Thu 3 Dec
+  [✅ 1](imp|t|X|0) [✅ 2](imp|t|X|1) [✅ 3](imp|t|X|2) [✅ 4](imp|t|X|3)
+  [✅ 5](imp|t|X|4) [✅ 6](imp|t|X|5) [✅ 7](imp|t|X|6)
+  [✅ Accept all (7)](imp|ok|X) [✖ Discard](imp|no|X)
+  — Already marked paid: 3. Already in Exhale: 1. Tap a number to skip that line.
+
+> press Discard
+(toast: Nothing was changed)
+✖ Not imported
+  Nothing was changed.
+
+> send many.csv
+📄 Read from your file
+  Statement from Mon 10 Aug to Mon 19 Oct.
+  Charges to mark paid: 0. New subscriptions: 10.
+  ## Expected but not in this statement
+  Netflix · €12.99 due Sun 6 Sep
+  Gym · €30.00 due Thu 1 Oct
+  [✅ Accept all (10)](imp|ok|X) [✖ Discard](imp|no|X)
+  [🔗 Review in Exhale](https://exhale.example.com/settings?tab=data)
+  — Too many to tick here: accept them all, or review them one by one in Exhale (Settings → Data → Import).
+
+> press Discard
+(toast: Nothing was changed)
+✖ Not imported
+  Nothing was changed.
+
+> send scan.pdf
+
+  ⚠️ This PDF has no text: it is probably a scan. Reading it needs the built-in assistant, which an owner can turn on in Settings. Or send the statement as CSV.

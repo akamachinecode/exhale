@@ -1,10 +1,11 @@
 import { Link, useNavigate, useSearch } from "@tanstack/react-router";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { PageHeader } from "@/components/layout";
-import { ServiceTile } from "@/components/service-tile";
+import { ServiceTile, useLogos } from "@/components/service-tile";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import { type ChargeView, useListCharges, useSpendingSummary } from "@/gen/api";
+import { type CalendarEvent, useCalendar, useSpendingSummary } from "@/gen/api";
+import { locale, t } from "@/lib/i18n";
 import { cn, money, sumMain, todayISO } from "@/lib/utils";
 
 const weekdays = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
@@ -28,19 +29,24 @@ export function Calendar() {
 	const today = todayISO();
 	const month = search.month ?? today.slice(0, 7);
 	const b = monthBounds(month);
-	const q = useListCharges({ from: b.from, to: b.to });
-	const byDay = new Map<string, ChargeView[]>();
-	for (const c of q.data?.charges ?? []) byDay.set(c.dueDate, [...(byDay.get(c.dueDate) ?? []), c]);
+	// Events come from the engine: real charges and, further ahead, the ones
+	// the schedule will produce, plus trial ends and last days to cancel.
+	const q = useCalendar({ from: b.from, to: b.to });
+	const logos = useLogos();
+	const events = q.data?.events ?? [];
+	const byDay = new Map<string, CalendarEvent[]>();
+	for (const e of events) byDay.set(e.date, [...(byDay.get(e.date) ?? []), e]);
 	const summary = useSpendingSummary().data;
+	const charges = events.filter((e) => e.kind !== "cancelBy" && e.status !== "skipped");
 	const monthTotal = money(
 		sumMain(
-			(q.data?.charges ?? []).map((c) => c.amount),
+			charges.map((c) => c.amount),
 			summary?.rates,
 			summary?.mainCurrency ?? "EUR",
 		),
 	);
-	const count = q.data?.charges?.length ?? 0;
-	const title = new Intl.DateTimeFormat(undefined, {
+	const count = charges.length;
+	const title = new Intl.DateTimeFormat(locale, {
 		month: "long",
 		year: "numeric",
 		timeZone: "UTC",
@@ -50,14 +56,16 @@ export function Calendar() {
 	return (
 		<>
 			<PageHeader
-				title="Calendar"
-				description={count ? `${count} charges this month · ${monthTotal}` : "No charges this month."}
+				title={t("Calendar")}
+				description={
+					count ? t("{0} charges this month · {1}", count, monthTotal) : t("No charges this month.")
+				}
 				action={
 					<div className="flex items-center gap-1">
 						<Button
 							size="icon"
 							variant="ghost"
-							aria-label="Previous month"
+							aria-label={t("Previous month")}
 							onClick={() => navigate({ search: { month: shift(month, -1) } })}
 						>
 							<ChevronLeft />
@@ -66,13 +74,13 @@ export function Calendar() {
 						<Button
 							size="icon"
 							variant="ghost"
-							aria-label="Next month"
+							aria-label={t("Next month")}
 							onClick={() => navigate({ search: { month: shift(month, 1) } })}
 						>
 							<ChevronRight />
 						</Button>
 						<Button size="sm" className="ml-2" onClick={() => navigate({ search: {} })}>
-							Today
+							{t("Today")}
 						</Button>
 					</div>
 				}
@@ -91,11 +99,12 @@ export function Calendar() {
 						const iso = inMonth ? `${month}-${String(day).padStart(2, "0")}` : "";
 						const items = inMonth ? (byDay.get(iso) ?? []) : [];
 						const past = inMonth && iso < today;
+						const paying = items.filter((c) => c.kind !== "cancelBy" && c.status !== "skipped");
 						const dayTotal =
-							items.length > 1 && items.every((c) => c.amount.currency === items[0].amount.currency)
+							paying.length > 1 && paying.every((c) => c.amount.currency === paying[0].amount.currency)
 								? money({
-										currency: items[0].amount.currency,
-										minor: items.reduce((a, c) => a + c.amount.minor, 0),
+										currency: paying[0].amount.currency,
+										minor: paying.reduce((a, c) => a + c.amount.minor, 0),
 									})
 								: undefined;
 						return (
@@ -124,21 +133,31 @@ export function Calendar() {
 								<div className="mt-1 grid gap-1">
 									{items.map((c) => (
 										<Link
-											key={c.id}
+											key={`${c.subscriptionId}-${c.kind}-${c.chargeId ?? c.date}`}
 											to="/subscriptions/$id"
 											params={{ id: c.subscriptionId }}
-											title={`${c.subscriptionName} · ${money(c.amount)}`}
+											title={c.kind === "cancelBy" ? c.title : `${c.title} · ${money(c.amount)}`}
 											className={cn(
 												"flex items-center gap-2 rounded-lg border border-transparent bg-raised px-1.5 py-1.5 text-xs leading-tight transition-colors hover:border-accent/40",
 												c.status === "paid" && "bg-ok-soft",
-												c.status === "pending" && c.daysUntil < 0 && "bg-warn-soft",
+												c.status === "pending" && iso < today && c.kind !== "cancelBy" && "bg-warn-soft",
 												c.status === "skipped" && "opacity-60",
+												c.kind === "cancelBy" && "border-dashed border-warn/60 bg-transparent",
+												c.projected && "opacity-75",
 											)}
 										>
-											<ServiceTile name={c.subscriptionName} size="sm" />
+											<ServiceTile name={c.subscription} logo={logos.get(c.subscriptionId)} size="sm" />
 											<span className="hidden min-w-0 sm:block">
-												<span className="block truncate font-medium">{c.subscriptionName}</span>
-												<span className="tnum block text-muted">{money(c.amount)}</span>
+												<span className="block truncate font-medium">{c.subscription}</span>
+												<span className="tnum block truncate text-muted">
+													{c.kind === "cancelBy"
+														? t("last day to cancel")
+														: c.kind === "trial"
+															? t("trial ends · {0}", money(c.amount))
+															: c.kind === "expiry"
+																? t("expires · {0}", money(c.amount))
+																: money(c.amount)}
+												</span>
 											</span>
 										</Link>
 									))}

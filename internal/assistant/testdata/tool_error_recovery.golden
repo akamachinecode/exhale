@@ -1,0 +1,9 @@
+> when is netflix charged?
+  model → get_subscription({"id":"sub_X"})
+  exhale ← error: subscription sub_X: not found (check the id with list_subscriptions or get_context)
+  model → list_subscriptions({"query":"netflix"})
+  exhale ← ok
+  model → get_subscription({"id":"sub_X"})
+  exhale ← ok
+< Netflix is charged next on 12 November.
+  [link] Netflix

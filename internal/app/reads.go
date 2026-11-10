@@ -2,7 +2,6 @@ package app
 
 import (
 	"context"
-	"fmt"
 	"slices"
 	"strings"
 
@@ -16,7 +15,8 @@ import (
 // ListSubscriptionsInput filters subscriptions.
 type ListSubscriptionsInput struct {
 	Status string `json:"status,omitempty" query:"status" jsonschema:"active, paused or cancelled; empty for all"`
-	Query  string `json:"query,omitempty" query:"query" jsonschema:"case-insensitive name filter"`
+	Query  string `json:"query,omitempty" query:"query" jsonschema:"case-insensitive search in the name, notes, account, category and tags"`
+	Tag    string `json:"tag,omitempty" query:"tag" jsonschema:"only subscriptions with this tag (case-insensitive)"`
 }
 
 // SubscriptionList is a list of subscriptions.
@@ -27,12 +27,52 @@ type SubscriptionList struct {
 // ListSubscriptions returns the subscriptions visible to the actor.
 func (s *Service) ListSubscriptions(ctx context.Context, actor Actor, in ListSubscriptionsInput) (SubscriptionList, error) {
 	q := s.st.Q
-	rows, err := q.ListSubscriptions(ctx, actor.HouseholdID)
+	subs, err := s.visibleSubscriptions(ctx, q, actor)
 	if err != nil {
 		return SubscriptionList{}, err
 	}
 	today := s.today(ctx, q, actor)
 	out := SubscriptionList{Subscriptions: []SubscriptionView{}}
+	cats := map[string]string{}
+	if in.Query != "" {
+		for _, c := range mustList(q.ListCategories(ctx, actor.HouseholdID)) {
+			cats[c.ID] = c.Name
+		}
+	}
+	for _, sub := range subs {
+		if in.Status != "" && string(sub.Status) != in.Status {
+			continue
+		}
+		if in.Tag != "" && !domain.HasTag(sub.Tags, in.Tag) {
+			continue
+		}
+		if in.Query != "" && !matchesQuery(sub, cats[sub.CategoryID], in.Query) {
+			continue
+		}
+		out.Subscriptions = append(out.Subscriptions, s.view(ctx, q, sub, today))
+	}
+	return out, nil
+}
+
+// matchesQuery reports whether every word of query appears in the name,
+// notes, account, category or tags.
+func matchesQuery(sub domain.Subscription, category, query string) bool {
+	hay := strings.ToLower(strings.Join(append([]string{sub.Name, sub.Notes, sub.Account, category}, sub.Tags...), "\n"))
+	for _, w := range strings.Fields(strings.ToLower(query)) {
+		if !strings.Contains(hay, w) {
+			return false
+		}
+	}
+	return true
+}
+
+// visibleSubscriptions loads every subscription the actor may see.
+func (s *Service) visibleSubscriptions(ctx context.Context, q *db.Queries, actor Actor) ([]domain.Subscription, error) {
+	rows, err := q.ListSubscriptions(ctx, actor.HouseholdID)
+	if err != nil {
+		return nil, err
+	}
+	out := make([]domain.Subscription, 0, len(rows))
 	for _, r := range rows {
 		sub, err := store.SubscriptionFromRow(r)
 		if err != nil {
@@ -41,13 +81,7 @@ func (s *Service) ListSubscriptions(ctx context.Context, actor Actor, in ListSub
 		if !sub.VisibleTo(actor.MemberID) && actor.Kind != ActorSystem {
 			continue
 		}
-		if in.Status != "" && string(sub.Status) != in.Status {
-			continue
-		}
-		if in.Query != "" && !strings.Contains(strings.ToLower(sub.Name), strings.ToLower(in.Query)) {
-			continue
-		}
-		out.Subscriptions = append(out.Subscriptions, s.view(ctx, q, sub, today))
+		out = append(out, sub)
 	}
 	return out, nil
 }
@@ -83,12 +117,12 @@ func (s *Service) ListCharges(ctx context.Context, actor Actor, in ListChargesIn
 	var err error
 	if in.From != "" {
 		if from, err = engine.ParseDate(in.From); err != nil {
-			return ChargeList{}, fmt.Errorf("%w: from: %v", domain.ErrValidation, err)
+			return ChargeList{}, domain.BadDate("from", in.From)
 		}
 	}
 	if to = from.AddDays(30); in.To != "" {
 		if to, err = engine.ParseDate(in.To); err != nil {
-			return ChargeList{}, fmt.Errorf("%w: to: %v", domain.ErrValidation, err)
+			return ChargeList{}, domain.BadDate("to", in.To)
 		}
 	}
 	rows, err := q.ListChargesBetween(ctx, db.ListChargesBetweenParams{HouseholdID: actor.HouseholdID, FromDate: from.String(), ToDate: to.String()})
@@ -102,6 +136,17 @@ func (s *Service) ListCharges(ctx context.Context, actor Actor, in ListChargesIn
 type AttentionList struct {
 	Unconfirmed            []ChargeView           `json:"unconfirmed" jsonschema:"charges whose due date passed and that are not marked paid, failed or skipped"`
 	ExpiringPaymentMethods []domain.PaymentMethod `json:"expiringPaymentMethods" jsonschema:"payment methods expiring within 45 days"`
+	Deadlines              []ChargeView           `json:"deadlines" jsonschema:"last days to cancel within 14 days that have no decision yet, and free trials ending within 7 days"`
+	// Delivery reports reminders that could not be delivered lately, so a
+	// broken channel does not go unnoticed.
+	Delivery *DeliveryProblem `json:"delivery,omitempty" jsonschema:"set when reminders failed to be delivered in the last 7 days"`
+}
+
+// DeliveryProblem says reminders are not arriving.
+type DeliveryProblem struct {
+	Failed    int    `json:"failed" jsonschema:"reminders not delivered in the last 7 days"`
+	NoChannel int    `json:"noChannel" jsonschema:"of those, how many had nowhere to go (no chat or channel linked)"`
+	LastError string `json:"lastError,omitempty" jsonschema:"most recent delivery error"`
 }
 
 // NeedsAttention lists unconfirmed past charges and expiring payment methods.
@@ -112,7 +157,41 @@ func (s *Service) NeedsAttention(ctx context.Context, actor Actor, _ struct{}) (
 	if err != nil {
 		return AttentionList{}, err
 	}
-	out := AttentionList{Unconfirmed: s.chargeViews(ctx, q, actor, rows, today), ExpiringPaymentMethods: []domain.PaymentMethod{}}
+	out := AttentionList{Unconfirmed: s.chargeViews(ctx, q, actor, rows, today), ExpiringPaymentMethods: []domain.PaymentMethod{}, Deadlines: []ChargeView{}}
+	soon, err := q.ListChargesBetween(ctx, db.ListChargesBetweenParams{HouseholdID: actor.HouseholdID, FromDate: today.String(), ToDate: today.AddDays(14 + 366).String()})
+	if err != nil {
+		return out, err
+	}
+	for _, c := range s.chargeViews(ctx, q, actor, soon, today) {
+		if c.Status != domain.ChargePending {
+			continue
+		}
+		trial := c.Kind == ChargeTrial && c.DaysUntil <= 7
+		deadline := !c.CancelBy.IsZero() && c.Decision == "" && !c.CancelBy.Before(today) && today.DaysUntil(c.CancelBy) <= 14
+		if trial || deadline {
+			out.Deadlines = append(out.Deadlines, c)
+		}
+	}
+	if log, err := s.Reminders(ctx, actor, ReminderLogInput{Limit: 300}); err == nil {
+		since := s.now().AddDate(0, 0, -7)
+		p := DeliveryProblem{}
+		for _, e := range log.Entries {
+			retrying := e.Status == "pending" && e.Attempts > 0
+			if (e.Status != "failed" && !retrying) || e.DueAt.Before(since) {
+				continue
+			}
+			p.Failed++
+			switch {
+			case e.Error == ErrNoDestination.Error():
+				p.NoChannel++
+			case p.LastError == "":
+				p.LastError = e.Error
+			}
+		}
+		if p.Failed > 0 {
+			out.Delivery = &p
+		}
+	}
 	pms, err := q.ListPaymentMethods(ctx, actor.HouseholdID)
 	if err != nil {
 		return out, err
@@ -151,10 +230,12 @@ func (s *Service) chargeViews(ctx context.Context, q *db.Queries, actor Actor, r
 
 // PreviewScheduleInput describes a billing rule to preview.
 type PreviewScheduleInput struct {
-	Interval    int    `json:"interval" minimum:"1"`
-	Unit        string `json:"unit" enum:"day,week,month,year"`
-	FirstCharge string `json:"firstCharge" jsonschema:"YYYY-MM-DD"`
-	Count       int    `json:"count,omitempty" jsonschema:"how many dates, default 12" maximum:"60"`
+	Interval     int    `json:"interval" minimum:"1"`
+	Unit         string `json:"unit" enum:"day,week,month,year"`
+	FirstCharge  string `json:"firstCharge" jsonschema:"YYYY-MM-DD"`
+	DayRule      string `json:"dayRule,omitempty" jsonschema:"monthly and yearly cycles. day (default): the same day number as the first charge, the last day in shorter months. weekday: the same weekday and week of the month as the first charge, e.g. the third Wednesday (the first charge must be a 1st to 4th weekday of its month). last-weekday: the last such weekday of the month, e.g. the last Friday (the first charge must be in the last 7 days of its month)" enum:"day,weekday,last-weekday"`
+	WeekendShift string `json:"weekendShift,omitempty" jsonschema:"charges that fall on a Saturday or Sunday. none (default): kept. next: moved to the next business day (Monday). previous: moved to the previous business day (Friday). Weekends only, no public holidays. Later charges are still counted from the first one, so dates never drift" enum:"none,next,previous"`
+	Count        int    `json:"count,omitempty" jsonschema:"how many dates, default 12" maximum:"60"`
 }
 
 // SchedulePreview lists the computed charge dates.
@@ -168,20 +249,24 @@ type SchedulePreview struct {
 func (s *Service) PreviewSchedule(_ context.Context, _ Actor, in PreviewScheduleInput) (SchedulePreview, error) {
 	first, err := engine.ParseDate(in.FirstCharge)
 	if err != nil {
-		return SchedulePreview{}, fmt.Errorf("%w: %v", domain.ErrValidation, err)
+		return SchedulePreview{}, domain.BadDate("first charge", in.FirstCharge)
 	}
 	if in.Interval == 0 {
 		in.Interval = 1
 	}
-	sched, err := engine.NewSchedule(engine.Rule{Interval: in.Interval, Unit: engine.Unit(in.Unit), Anchor: first})
+	rule, err := newRule(in.Interval, in.Unit, in.DayRule, in.WeekendShift, first)
 	if err != nil {
-		return SchedulePreview{}, fmt.Errorf("%w: %v", domain.ErrValidation, err)
+		return SchedulePreview{}, err
+	}
+	sched, err := engine.NewSchedule(rule)
+	if err != nil {
+		return SchedulePreview{}, domain.BadRule(in.Interval, in.Unit, err)
 	}
 	n := in.Count
 	if n <= 0 || n > 60 {
 		n = 12
 	}
-	return SchedulePreview{Dates: sched.Upcoming(first, n)}, nil
+	return SchedulePreview{Dates: sched.Upcoming(sched.First(), n)}, nil
 }
 
 // SpendingSummary totals recurring spend.
@@ -201,6 +286,20 @@ type SpendingSummary struct {
 	ByMethod     []MethodSpend     `json:"byPaymentMethod" jsonschema:"monthly spend per payment method, in the main currency"`
 	Active       int               `json:"activeSubscriptions"`
 	NextCharges  []ChargeView      `json:"next7Days"`
+	// SetAside is the monthly equivalent of everything that is not billed
+	// monthly: what to put away each month so yearly bills do not surprise.
+	SetAside money.Money `json:"setAsideMonthly" jsonschema:"monthly equivalent of the subscriptions billed less often than monthly (yearly, quarterly…), in the display currency: what to put away each month"`
+	// BeforePayday is set when the household has a payday.
+	BeforePayday *PaydayOutlook `json:"beforePayday,omitempty" jsonschema:"what is due before the next payday, when the household has one"`
+	// Stopped is what cancelling saved: "you stopped paying X per year".
+	Stopped StoppedSpend `json:"stopped" jsonschema:"subscriptions cancelled in Exhale (not paused) and what they would cost per year, converted into the display currency; a cancelled one whose service is still paid by an active subscription is a replacement and is left out"`
+}
+
+// PaydayOutlook is what must be paid before the next payday.
+type PaydayOutlook struct {
+	Payday  engine.Date  `json:"payday" jsonschema:"next payday"`
+	Due     money.Money  `json:"due" jsonschema:"total of the charges due before it, in the display currency"`
+	Charges []ChargeView `json:"charges"`
 }
 
 // CategorySpend is the monthly spend of one category.
@@ -233,7 +332,7 @@ func (s *Service) Summary(ctx context.Context, actor Actor, _ struct{}) (Spendin
 	conv := s.converter(h.Currency, today.String())
 	zero := money.Money{Currency: h.Currency}
 	out := SpendingSummary{MainCurrency: h.Currency, Active: len(list.Subscriptions), Monthly: []money.Money{}, Yearly: []money.Money{},
-		ByCategory: []CategorySpend{}, ByMethod: []MethodSpend{}, Unconverted: []string{}, MonthlyTotal: zero}
+		ByCategory: []CategorySpend{}, ByMethod: []MethodSpend{}, Unconverted: []string{}, MonthlyTotal: zero, SetAside: zero}
 	monthly := map[string]money.Money{}
 	cats := map[string]*CategorySpend{}
 	methods := map[string]*MethodSpend{}
@@ -250,6 +349,9 @@ func (s *Service) Summary(ctx context.Context, actor Actor, _ struct{}) (Spendin
 			out.Converted = true
 		}
 		out.MonthlyTotal, _ = out.MonthlyTotal.Add(mainCost)
+		if r := v.Schedule.Current(today); r.Unit == engine.Year || (r.Unit == engine.Month && r.Interval > 1) {
+			out.SetAside, _ = out.SetAside.Add(mainCost)
+		}
 		cat := v.CategoryName
 		if cat == "" {
 			cat = "Uncategorized"
@@ -283,6 +385,9 @@ func (s *Service) Summary(ctx context.Context, actor Actor, _ struct{}) (Spendin
 		out.ByMethod = append(out.ByMethod, *m)
 	}
 	slices.SortFunc(out.ByMethod, func(a, b MethodSpend) int { return int(b.Monthly.Minor - a.Monthly.Minor) })
+	if out.Stopped, err = s.stopped(ctx, actor, list.Subscriptions, conv, h.Currency, missing); err != nil {
+		return out, err
+	}
 	out.Unconverted = sortedKeys(missing)
 	out.Rates, out.RatesDate = conv.describe()
 	next, err := s.ListCharges(ctx, actor, ListChargesInput{From: today.String(), To: today.AddDays(7).String()})
@@ -290,6 +395,23 @@ func (s *Service) Summary(ctx context.Context, actor Actor, _ struct{}) (Spendin
 		return out, err
 	}
 	out.NextCharges = next.Charges
+	if payday, ok := h.NextPayday(today); ok {
+		due, err := s.ListCharges(ctx, actor, ListChargesInput{From: today.String(), To: payday.AddDays(-1).String()})
+		if err != nil {
+			return out, err
+		}
+		o := &PaydayOutlook{Payday: payday, Due: zero, Charges: []ChargeView{}}
+		for _, c := range due.Charges {
+			if !c.Open() {
+				continue
+			}
+			if m, ok := conv.toMain(ctx, c.Amount); ok {
+				o.Due, _ = o.Due.Add(m)
+			}
+			o.Charges = append(o.Charges, c)
+		}
+		out.BeforePayday = o
+	}
 	return out, nil
 }
 

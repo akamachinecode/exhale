@@ -6,6 +6,7 @@ import (
 	"log/slog"
 	"net/http"
 	"net/http/httptest"
+	"os"
 	"strings"
 	"sync"
 	"testing"
@@ -13,6 +14,7 @@ import (
 
 	"github.com/akamachinecode/exhale/internal/actions"
 	"github.com/akamachinecode/exhale/internal/app"
+	"github.com/akamachinecode/exhale/internal/assistant"
 	"github.com/akamachinecode/exhale/internal/auth"
 	"github.com/akamachinecode/exhale/internal/bus"
 	"github.com/akamachinecode/exhale/internal/store"
@@ -24,6 +26,8 @@ type fakeBotAPI struct {
 	updates []map[string]any
 	nextID  int
 	calls   []call
+	// files are what getFile and the file download serve, by file id.
+	files map[string][]byte
 }
 
 type call struct {
@@ -62,6 +66,13 @@ func (f *fakeBotAPI) called(method string) bool {
 }
 
 func (f *fakeBotAPI) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	if id, ok := strings.CutPrefix(r.URL.Path, "/file/bot123:abc/documents/"); ok {
+		f.mu.Lock()
+		data := f.files[id]
+		f.mu.Unlock()
+		_, _ = w.Write(data)
+		return
+	}
 	method := r.URL.Path[strings.LastIndex(r.URL.Path, "/")+1:]
 	_ = r.ParseMultipartForm(1 << 20)
 	fields := map[string]string{}
@@ -88,6 +99,12 @@ func (f *fakeBotAPI) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			time.Sleep(10 * time.Millisecond)
 		}
 		ok([]any{})
+	case "getFile":
+		f.mu.Lock()
+		f.calls = append(f.calls, call{method, fields})
+		size := len(f.files[fields["file_id"]])
+		f.mu.Unlock()
+		ok(map[string]any{"file_id": fields["file_id"], "file_unique_id": "u", "file_size": size, "file_path": "documents/" + fields["file_id"]})
 	case "getMe":
 		ok(map[string]any{"id": 1, "is_bot": true, "first_name": "Exhale Test", "username": "exhale_test_bot"})
 	case "sendMessage", "editMessageText":
@@ -262,4 +279,154 @@ func TestJoinFromTelegram(t *testing.T) {
 	}
 	start(2, "/start join-"+code)
 	eventually(t, "already linked", func() bool { return api.find("sendMessage", "already linked") })
+}
+
+// TestFreeText: typed words that are not a command get the command list,
+// as always, until an owner turns the assistant on; then they are answered,
+// and a change arrives as a message with buttons.
+func TestFreeText(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	api := &fakeBotAPI{}
+	srv := httptest.NewServer(api)
+	defer srv.Close()
+	st, err := store.OpenMemory(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer st.Close()
+	now := time.Date(2026, 11, 5, 9, 0, 0, 0, time.UTC)
+	svc := app.New(st, bus.New(), nil, func() time.Time { return now })
+	owner, _ := svc.Bootstrap(ctx, app.BootstrapInput{HouseholdName: "Home", OwnerName: "Alex", Currency: "EUR", Timezone: "UTC", Locale: "en"})
+	log := slog.New(slog.DiscardHandler)
+	tg, err := New("123:abc", srv.URL, svc, log)
+	if err != nil {
+		t.Fatal(err)
+	}
+	eng := actions.New(svc, log, tg)
+	asst, err := assistant.New(svc, log, assistant.Env{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	eng.SetAssistant(asst)
+	tg.SetEngine(eng)
+	go tg.Serve(ctx)
+	code, _ := auth.CreateLinkCode(ctx, st, owner.MemberID, Name)
+	say := func(text string) {
+		api.push(map[string]any{"message": map[string]any{"message_id": 1, "date": 0, "text": text, "chat": map[string]any{"id": 42, "type": "private"}, "from": map[string]any{"id": 42, "first_name": "Alex"}}})
+	}
+	say("/start " + code)
+	eventually(t, "link confirmation", func() bool { return api.find("sendMessage", "Linked") })
+
+	// Not configured: today's help, and the model is never called.
+	say("what do I pay per month?")
+	eventually(t, "the command list", func() bool { return api.find("sendMessage", "Commands:") })
+
+	model := &assistant.Fake{}
+	asst.SetProvider(model)
+	model.Then(
+		assistant.Call("create_subscription", map[string]any{"name": "Netflix", "price": "13.99", "currency": "EUR", "firstCharge": "2026-11-06"}),
+		assistant.Say("I prepared Netflix <13.99 EUR>."),
+	)
+	liveEvery = 20 * time.Millisecond
+	say("add Netflix 13.99 on the 6th")
+	// The answer appears as it is written, in one message edited into the
+	// finished answer.
+	eventually(t, "the answer being written", func() bool { return api.find("sendMessage", "I …") })
+	eventually(t, "the answer", func() bool { return api.find("editMessageText", "I prepared Netflix &lt;13.99 EUR&gt;.") })
+	eventually(t, "the proposal with its buttons", func() bool {
+		return api.find("sendMessage", "<b>Add Netflix?</b>") && api.find("sendMessage", "ai|ok|p")
+	})
+	if !api.called("sendChatAction") {
+		t.Error("typing… was not shown while the model worked")
+	}
+	if l, _ := svc.ListSubscriptions(ctx, owner, app.ListSubscriptionsInput{}); len(l.Subscriptions) != 0 {
+		t.Fatal("the subscription exists before the button was pressed")
+	}
+	// A command is never sent to the model.
+	before := model.Calls()
+	say("/nonsense")
+	eventually(t, "the command list for an unknown command", func() bool {
+		api.mu.Lock()
+		defer api.mu.Unlock()
+		n := 0
+		for _, c := range api.calls {
+			if c.Method == "sendMessage" && strings.Contains(c.Fields["text"], "Commands:") {
+				n++
+			}
+		}
+		return n == 2
+	})
+	if model.Calls() != before {
+		t.Fatal("a command reached the model")
+	}
+}
+
+// TestImportFromChat: a bank export sent to the bot comes back as a review
+// list with buttons; a file over the limit is refused before it is
+// downloaded.
+func TestImportFromChat(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	csv, err := os.ReadFile("../../importer/testdata/bank.csv")
+	if err != nil {
+		t.Fatal(err)
+	}
+	api := &fakeBotAPI{files: map[string][]byte{"bank": csv}}
+	srv := httptest.NewServer(api)
+	defer srv.Close()
+	st, err := store.OpenMemory(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer st.Close()
+	now := time.Date(2026, 11, 10, 9, 0, 0, 0, time.UTC)
+	svc := app.New(st, bus.New(), nil, func() time.Time { return now })
+	owner, _ := svc.Bootstrap(ctx, app.BootstrapInput{HouseholdName: "Home", OwnerName: "Alex", Currency: "EUR", Timezone: "UTC", Locale: "en"})
+	log := slog.New(slog.DiscardHandler)
+	tg, err := New("123:abc", srv.URL, svc, log)
+	if err != nil {
+		t.Fatal(err)
+	}
+	eng := actions.New(svc, log, tg)
+	asst, err := assistant.New(svc, log, assistant.Env{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	eng.SetAssistant(asst)
+	tg.SetEngine(eng)
+	go tg.Serve(ctx)
+	code, _ := auth.CreateLinkCode(ctx, st, owner.MemberID, Name)
+	push := func(msg map[string]any) {
+		msg["message_id"], msg["date"] = 1, 0
+		msg["chat"] = map[string]any{"id": 42, "type": "private"}
+		msg["from"] = map[string]any{"id": 42, "first_name": "Alex"}
+		api.push(map[string]any{"message": msg})
+	}
+	push(map[string]any{"text": "/start " + code})
+	eventually(t, "link confirmation", func() bool { return api.find("sendMessage", "Linked") })
+
+	push(map[string]any{"document": map[string]any{"file_id": "bank", "file_unique_id": "u1", "file_name": "bank.csv", "file_size": len(csv)}})
+	eventually(t, "the review list", func() bool {
+		return api.find("sendMessage", "Read from your file") && api.find("sendMessage", "Dropbox") && api.find("sendMessage", "imp|ok|")
+	})
+	if l, _ := svc.ListSubscriptions(ctx, owner, app.ListSubscriptionsInput{}); len(l.Subscriptions) != 0 {
+		t.Fatal("something was imported before the list was accepted")
+	}
+	push(map[string]any{"document": map[string]any{"file_id": "huge", "file_unique_id": "u2", "file_name": "huge.pdf", "file_size": 30 << 20}})
+	eventually(t, "the size limit", func() bool { return api.find("sendMessage", "too large") })
+	api.mu.Lock()
+	defer api.mu.Unlock()
+	fetched := 0
+	for _, c := range api.calls {
+		if c.Method == "getFile" {
+			fetched++
+			if c.Fields["file_id"] == "huge" {
+				t.Fatal("a file over the limit was downloaded")
+			}
+		}
+	}
+	if fetched != 1 {
+		t.Fatalf("%d downloads, want 1", fetched)
+	}
 }

@@ -1,0 +1,53 @@
+# A free trial is about to charge
+⏳ Notion AI free trial ends in 3 days
+  Then €10.00 monthly.
+  [👍 Keep it](keep|chg_X) [❌ Cancel before it charges](cancel|chg_X)
+  [📅 Change date](date|chg_X|2026-11) [✏️ Amount](amount|chg_X)
+  [💳 Payment method](pm|chg_X) [⏭ Skip this one](skip|chg_X)
+  [💤 Remind me tomorrow](snz|chg_X|1|r) [💤 In 3 days](snz|chg_X|3|r)
+
+> press Cancel before it charges
+❌ Cancel Notion AI?
+  At period end: no more charges; you keep the service until the day before the next one.
+  Exhale only stops tracking it: cancel it with the provider too.
+  [At period end](cancelok|chg_X|cancel_at_period_end) [Right now](cancelok|chg_X|cancel_now)
+  [🔗 Open the cancel page](https://notion.example/billing)
+  [↩︎ Keep it](back|chg_X)
+
+> press At period end
+(toast: Cancelled)
+❌ Notion AI cancelled
+  Service until Sat, 7 Nov 2026. No more charges.
+  Exhale only stops tracking it: cancel it with the provider too.
+  [🔗 Open the cancel page](https://notion.example/billing)
+
+# A contract with 30 days' notice
+⏰ 7 days left to cancel Gym
+  💶 €39.00 · Sat, 12 Dec 2026
+  ⏰ Cancel by Thu, 12 Nov 2026
+  After that it renews for €39.00.
+  [👍 Keep it](keep|chg_X) [❌ Cancel](cancel|chg_X)
+  [💤 Remind me tomorrow](snz|chg_X|1|d) [💤 In 3 days](snz|chg_X|3|d)
+
+> press Keep it
+(toast: Kept 👍)
+🔔 Gym renews in 37 days
+  💶 €39.00 · Sat, 12 Dec 2026
+  ⏰ Cancel by Thu, 12 Nov 2026
+  [✅ Already paid](paid|chg_X) [📅 Change date](date|chg_X|2026-12)
+  [💳 Payment method](pm|chg_X) [✏️ Amount](amount|chg_X)
+  [⏭ Skip this one](skip|chg_X) [❌ Cancel subscription](cancel|chg_X)
+  [↩︎ Undo](undo|chg_X|aud_X)
+  — You chose to keep it.
+
+# Something that expires unless renewed
+⌛ example.com expires today
+  💶 €12.00 · Thu, 5 Nov 2026
+  [✅ Renewed](paid|chg_X) [📅 Change date](date|chg_X|2026-11)
+  [✏️ Amount](amount|chg_X) [💳 Payment method](pm|chg_X)
+  [⌛ Let it expire](expire|chg_X)
+
+> press Let it expire
+(toast: Expired)
+⌛ example.com expired
+  No more reminders.

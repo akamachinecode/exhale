@@ -25,10 +25,11 @@ func ParseTime(s string) time.Time {
 	return t
 }
 
-// NotFound converts sql.ErrNoRows into domain.ErrNotFound.
-func NotFound(err error, what string) error {
+// NotFound converts sql.ErrNoRows into domain.ErrNotFound, with a sentence
+// such as "subscription %s: not found" (see domain.Missing).
+func NotFound(err error, format string, args ...any) error {
 	if errors.Is(err, sql.ErrNoRows) {
-		return fmt.Errorf("%s: %w", what, domain.ErrNotFound)
+		return domain.Missing(format, args...)
 	}
 	return err
 }
@@ -58,11 +59,12 @@ func mustDate(s string) engine.Date {
 
 func HouseholdFromRow(r db.Household) domain.Household {
 	return domain.Household{ID: r.ID, Name: r.Name, Currency: r.Currency, Timezone: r.Timezone, Locale: r.Locale,
-		ReminderHour: int(r.ReminderHour), ReminderMinute: int(r.ReminderMinute)}
+		ReminderHour: int(r.ReminderHour), ReminderMinute: int(r.ReminderMinute), Payday: int(r.Payday),
+		ConfirmTimes: int(r.ConfirmTimes), ConfirmEveryDays: int(r.ConfirmEveryDays)}
 }
 
 func MemberFromRow(r db.Member) domain.Member {
-	return domain.Member{ID: r.ID, HouseholdID: r.HouseholdID, Name: r.Name, Email: r.Email, Role: domain.Role(r.Role)}
+	return domain.Member{ID: r.ID, HouseholdID: r.HouseholdID, Name: r.Name, Email: r.Email, Role: domain.Role(r.Role), Locale: r.Locale}
 }
 
 func CategoryFromRow(r db.Category) domain.Category {
@@ -88,20 +90,31 @@ func SubscriptionFromRow(r db.Subscription) (domain.Subscription, error) {
 	if err := json.Unmarshal([]byte(r.Schedule), &s.Schedule); err != nil {
 		return s, fmt.Errorf("subscription %s: schedule: %w", r.ID, err)
 	}
+	// Policies saved before repeats existed ask three times, daily.
+	s.Reminders.ConfirmTimes, s.Reminders.ConfirmEveryDays = domain.DefaultConfirmTimes, domain.DefaultConfirmEveryDays
 	if err := json.Unmarshal([]byte(r.Reminders), &s.Reminders); err != nil {
 		return s, fmt.Errorf("subscription %s: reminders: %w", r.ID, err)
+	}
+	if r.Details != "" {
+		if err := json.Unmarshal([]byte(r.Details), &s.Details); err != nil {
+			return s, fmt.Errorf("subscription %s: details: %w", r.ID, err)
+		}
 	}
 	return s, nil
 }
 
 // SubscriptionJSON returns the JSON columns of a subscription.
-func SubscriptionJSON(s domain.Subscription) (schedule, reminders string, err error) {
+func SubscriptionJSON(s domain.Subscription) (schedule, reminders, details string, err error) {
 	sb, err := json.Marshal(s.Schedule)
 	if err != nil {
-		return "", "", err
+		return "", "", "", err
 	}
 	rb, err := json.Marshal(s.Reminders)
-	return string(sb), string(rb), err
+	if err != nil {
+		return "", "", "", err
+	}
+	db, err := json.Marshal(s.Details)
+	return string(sb), string(rb), string(db), err
 }
 
 func ChargeFromRow(r db.Charge) domain.Charge {
@@ -109,7 +122,7 @@ func ChargeFromRow(r db.Charge) domain.Charge {
 		ID: r.ID, SubscriptionID: r.SubscriptionID,
 		OriginalDate: mustDate(r.OriginalDate), DueDate: mustDate(r.DueDate),
 		Amount: money.Money{Minor: r.AmountMinor, Currency: r.Currency},
-		Status: domain.ChargeStatus(r.Status), Note: r.Note,
+		Status: domain.ChargeStatus(r.Status), Note: r.Note, Decision: r.Decision,
 		UpdatedAt: ParseTime(r.UpdatedAt), Version: int(r.Version),
 	}
 	if r.ChargedMinor != nil && r.ChargedCurrency != nil {
@@ -127,7 +140,7 @@ func ChargeFromRow(r db.Charge) domain.Charge {
 func ChargeUpdate(c domain.Charge, now time.Time) db.UpdateChargeParams {
 	p := db.UpdateChargeParams{
 		DueDate: c.DueDate.String(), AmountMinor: c.Amount.Minor, Currency: c.Amount.Currency,
-		Status: string(c.Status), Note: c.Note, UpdatedAt: FormatTime(now), ID: c.ID, Version: int64(c.Version),
+		Status: string(c.Status), Note: c.Note, Decision: c.Decision, UpdatedAt: FormatTime(now), ID: c.ID, Version: int64(c.Version),
 	}
 	if !c.ChargedAmount.IsZero() {
 		m, cur := c.ChargedAmount.Minor, c.ChargedAmount.Currency

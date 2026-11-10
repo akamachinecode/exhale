@@ -32,8 +32,11 @@ type Charge struct {
 	Status         ChargeStatus `json:"status"`
 	ResolvedAt     *time.Time   `json:"resolvedAt,omitempty"`
 	Note           string       `json:"note,omitempty"`
-	UpdatedAt      time.Time    `json:"updatedAt"`
-	Version        int          `json:"version"`
+	// Decision records that the member chose to keep this renewal ("keep"),
+	// so Exhale stops asking before the cancellation deadline.
+	Decision  string    `json:"decision,omitempty"`
+	UpdatedAt time.Time `json:"updatedAt"`
+	Version   int       `json:"version"`
 }
 
 // Delayed reports whether the charge was moved away from its scheduled date.
@@ -59,7 +62,7 @@ func CanTransition(from, to ChargeStatus) bool {
 // Transition moves the charge to a new status.
 func (c *Charge) Transition(to ChargeStatus, at time.Time) error {
 	if !CanTransition(c.Status, to) {
-		return invalid("a %s charge cannot become %s", c.Status, to)
+		return invalid("a %s charge cannot become %s", Word(c.Status), Word(to))
 	}
 	c.Status = to
 	if to == ChargePending {

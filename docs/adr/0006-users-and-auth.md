@@ -52,6 +52,33 @@ What shipped first, and the details the table above leaves open:
 
 Still pending from this ADR: OIDC (v1), member management (remove a member, change roles), TOTP and passkeys (later).
 
+## Implementation notes: OIDC (2026-11-10)
+
+Sign-in with an OpenID Connect provider shipped. How to configure it: [docs/install/sso.md](../install/sso.md).
+
+- **Configuration is environment and flags only** (`EXHALE_OIDC_ISSUER`, `_CLIENT_ID`, `_CLIENT_SECRET` or `_CLIENT_SECRET_FILE`, `_NAME`, `_SCOPES`, `EXHALE_DISABLE_PASSWORD_LOGIN`, `EXHALE_PUBLIC_URL`). One provider per instance. Discovery is lazy and retried, so Exhale starts while the provider is down.
+- **Flow:** authorization code with PKCE (S256), `state` and `nonce`. `GET /api/v1/auth/oidc/start` redirects to the provider; `GET /api/v1/auth/oidc/callback` checks the state, exchanges the code, verifies the ID token (signature, issuer, audience, expiry, nonce) and starts the same scs session as a password login. Like the other auth routes they are outside the op catalog; they are plain redirects, so they are not in the OpenAPI document either.
+- **An attempt lives in the server's memory for 10 minutes and works once.** The browser only holds a random id in an `HttpOnly`, `SameSite=Lax` cookie scoped to `/api/v1/auth/oidc/`; state, nonce and the PKCE verifier never leave the server. Rejected: keeping them in the scs session (every anonymous click would write a 30-day session row) and a signed cookie (needs a persisted key for no gain in a single process). A restart only asks people to click again.
+- **The redirect URI comes from `--public-url`**, never from the request. Without it only the server's own machine works (loopback address, loopback `Host`, no `X-Forwarded-For`). The page to land on afterwards (`next`) must be a path on this site.
+- **Account linking, the security core.** A member is linked to one identity, the pair `(issuer, sub)`, in two columns of `members` (migration 00020). In order:
+  1. An identity already linked is that member, whatever its email is today. Exhale never copies later email changes from the provider.
+  2. While nobody can sign in (no member has a password or an identity), the identity becomes the owner: of a new household, or of the one made with `exhale init`. From another machine it needs the setup code, checked when the flow starts and again when it comes back.
+  3. An identity whose email is a member's email is linked to that member only if the ID token says `email_verified: true`, and only if the member is not already linked to another identity of the same issuer. Not verified: refused.
+  4. Anyone else needs a valid invite carried through the flow. Otherwise: "Ask the owner for an invite". **Authenticating at the provider never creates a member.**
+- **Moving providers:** a link to an issuer that is no longer the configured one is dead, so such a member is matched again by rule 3. A link to the configured issuer is never replaced.
+- **Emails of accounts made through the provider:** with an invite or the setup code the email claim is stored even if unverified, as long as no other member has it. It is safe because an email only ever matches a member that has no identity of the current issuer, and these members have one.
+- **Members without password:** `SessionActor` now accepts a member with a password *or* an identity. `session_version` works the same: `exhale user reset-password` signs an OIDC member out everywhere and gives it a password.
+- **`--disable-password-login`** refuses password sign-in, sign-up and join, and hides the forms. It is only honoured when a provider is configured. Break-glass: remove the flag, restart, `exhale user reset-password`.
+- **Brute force:** the start route has its own per-IP throttle (same numbers as sign-in). The callback does nothing without an attempt started from the same browser.
+- **Logs** carry the reason of every refusal and the provider's error codes; never the client secret, tokens, codes or ID token contents.
+- **Not verified against a real provider yet.** Tests run against a fake provider (discovery, JWKS, RS256, PKCE, userinfo).
+
+Still pending from this ADR: member management (remove a member, change roles, unlink an identity), linking an identity to an existing account from Settings (needed where the provider does not verify emails, e.g. Entra), setting a password on an account made through the provider from the web, TOTP and passkeys (later), trusted proxy header auth (v1.x).
+
+## Implementation notes: two-factor (2026-11-10)
+
+TOTP with backup codes shipped for password sign-in, with the standard library instead of `pquerna/otp`: [ADR 0025](0025-two-factor-sign-in.md). Single sign-on and tokens are not affected. Recovery: an owner in Settings → Sharing, or `exhale user reset-2fa --email …` on the server.
+
 ## Options rejected
 
 - **Authboss:** maintained and the closest thing to Better Auth in Go, but it covers only the easy parts, imposes its own flows and email-centric modules, sits outside the OpenAPI contract, and has no passkeys.

@@ -1,17 +1,35 @@
 import { Link, Outlet } from "@tanstack/react-router";
-import { Activity, Bot, CalendarDays, LayoutGrid, Moon, Repeat, Settings, Sun } from "lucide-react";
+import {
+	Activity,
+	Bot,
+	CalendarDays,
+	ChartNoAxesColumn,
+	LayoutGrid,
+	Moon,
+	Repeat,
+	Settings,
+	Stethoscope,
+	Sun,
+} from "lucide-react";
 import { useEffect, useState } from "react";
+import { toast } from "sonner";
+import { AssistantPanel } from "@/components/assistant";
 import { SignOut } from "@/components/sign-out";
-import { useAuthSession } from "@/gen/api";
+import { useAuthSession, useAuthSetLanguage } from "@/gen/api";
 import { useLiveEvents } from "@/lib/events";
+import { lang, languages, setLang, syncLanguage, t } from "@/lib/i18n";
 import { cn } from "@/lib/utils";
 
+// `mobile` marks the five destinations of the phone's bottom bar; the rest
+// are reached from Overview and Settings there.
 const nav = [
-	{ to: "/", label: "Overview", icon: LayoutGrid },
-	{ to: "/subscriptions", label: "Subscriptions", icon: Repeat },
-	{ to: "/calendar", label: "Calendar", icon: CalendarDays },
-	{ to: "/activity", label: "Activity", icon: Activity },
-	{ to: "/agents", label: "AI agents", icon: Bot },
+	{ to: "/", label: t("Overview"), short: t("Overview"), icon: LayoutGrid, mobile: true },
+	{ to: "/subscriptions", label: t("Subscriptions"), short: t("Subs"), icon: Repeat, mobile: true },
+	{ to: "/calendar", label: t("Calendar"), short: t("Calendar"), icon: CalendarDays, mobile: true },
+	{ to: "/insights", label: t("Insights"), short: t("Insights"), icon: ChartNoAxesColumn, mobile: true },
+	{ to: "/checkup", label: t("Check-up"), short: t("Check-up"), icon: Stethoscope, mobile: true },
+	{ to: "/activity", label: t("Activity"), short: t("Activity"), icon: Activity, mobile: false },
+	{ to: "/agents", label: t("AI agents"), short: t("Agents"), icon: Bot, mobile: false },
 ] as const;
 
 function useTheme() {
@@ -61,8 +79,12 @@ export function Layout() {
 	useLiveEvents();
 	const [dark, setDark] = useTheme();
 	const session = useAuthSession();
+	// The language is the person's (or their household's), on every device.
+	const language = session.data?.language;
+	useEffect(() => syncLanguage(language), [language]);
 	return (
 		<div className="min-h-dvh md:grid md:grid-cols-[232px_1fr]">
+			<AssistantPanel />
 			<div className="hidden border-r border-line bg-surface/60 md:block">
 				<aside className="sticky top-0 flex h-dvh flex-col px-3 py-4">
 					<div className="px-2 pb-6">
@@ -88,7 +110,7 @@ export function Layout() {
 						activeProps={{ className: "bg-raised !text-fg font-medium" }}
 					>
 						<Settings className="size-4" />
-						Settings
+						{t("Settings")}
 					</Link>
 					<div className="mt-2 flex items-center justify-between gap-1 border-t border-line pt-3 pl-2">
 						<div className="min-w-0 text-xs">
@@ -96,6 +118,7 @@ export function Layout() {
 							<p className="truncate text-muted">{session.data?.user?.email}</p>
 						</div>
 						<div className="flex shrink-0 items-center">
+							<LanguageToggle />
 							<ThemeToggle dark={dark} onToggle={() => setDark(!dark)} />
 							<SignOut compact />
 						</div>
@@ -106,10 +129,11 @@ export function Layout() {
 				<header className="flex items-center justify-between border-b border-line bg-surface/60 px-4 py-3 md:hidden">
 					<Logo />
 					<div className="flex items-center">
+						<LanguageToggle />
 						<ThemeToggle dark={dark} onToggle={() => setDark(!dark)} />
 						<Link
 							to="/settings"
-							aria-label="Settings"
+							aria-label={t("Settings")}
 							className="rounded-lg p-2 text-muted transition-colors hover:bg-raised hover:text-fg"
 							activeProps={{ className: "!text-accent" }}
 						>
@@ -122,20 +146,69 @@ export function Layout() {
 				</main>
 			</div>
 			<nav className="fixed inset-x-0 bottom-0 z-40 grid grid-cols-5 border-t border-line bg-surface/95 px-1 pt-1.5 pb-[max(0.375rem,env(safe-area-inset-bottom))] backdrop-blur md:hidden">
-				{nav.map(({ to, label, icon: Icon }) => (
-					<Link
-						key={to}
-						to={to}
-						activeOptions={{ exact: to === "/" }}
-						className="flex flex-col items-center gap-0.5 rounded-lg py-1 text-[11px] text-muted"
-						activeProps={{ className: "!text-accent font-medium" }}
-					>
-						<Icon className="size-5" />
-						{label.replace("AI agents", "Agents")}
-					</Link>
-				))}
+				{nav
+					.filter((n) => n.mobile)
+					.map(({ to, short, icon: Icon }) => (
+						<Link
+							key={to}
+							to={to}
+							activeOptions={{ exact: to === "/" }}
+							className="flex flex-col items-center gap-0.5 rounded-lg py-1 text-[11px] text-muted"
+							activeProps={{ className: "!text-accent font-medium" }}
+						>
+							<Icon className="size-5" />
+							{short}
+						</Link>
+					))}
 			</nav>
 		</div>
+	);
+}
+
+/** Switches the language: a button with the other one's name when Exhale
+ * speaks two, a list of every language by its own name when it speaks more. */
+function LanguageToggle() {
+	const others = languages.filter((l) => l.code !== lang);
+	const setLanguage = useAuthSetLanguage();
+	// Saved as this person's own language, then shown.
+	const choose = async (code: string) => {
+		try {
+			await setLanguage.mutateAsync({ data: { language: code } });
+			setLang(code);
+		} catch {
+			toast.error(t("Could not save"));
+		}
+	};
+	const style =
+		"rounded-lg px-2 py-2 text-[11px] font-semibold text-muted uppercase transition-colors hover:bg-raised hover:text-fg";
+	if (others.length === 1) {
+		const other = others[0];
+		return (
+			<button
+				type="button"
+				onClick={() => choose(other.code)}
+				aria-label={other.name}
+				title={other.name}
+				lang={other.code}
+				className={style}
+			>
+				{other.code}
+			</button>
+		);
+	}
+	return (
+		<select
+			value={lang}
+			onChange={(e) => choose(e.target.value)}
+			aria-label={t("Language")}
+			className={cn(style, "cursor-pointer appearance-none bg-transparent text-center")}
+		>
+			{languages.map((l) => (
+				<option key={l.code} value={l.code} lang={l.code}>
+					{l.name}
+				</option>
+			))}
+		</select>
 	);
 }
 
@@ -144,7 +217,7 @@ function ThemeToggle({ dark, onToggle }: { dark: boolean; onToggle: () => void }
 		<button
 			type="button"
 			onClick={onToggle}
-			aria-label={dark ? "Switch to light theme" : "Switch to dark theme"}
+			aria-label={dark ? t("Switch to light theme") : t("Switch to dark theme")}
 			className={cn("rounded-lg p-2 text-muted transition-colors hover:bg-raised hover:text-fg")}
 		>
 			{dark ? <Sun className="size-4" /> : <Moon className="size-4" />}

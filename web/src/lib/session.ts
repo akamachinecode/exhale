@@ -18,7 +18,10 @@ export function signedOut(qc: QueryClient) {
 		setupRequired: false,
 		setupNeedsCode: false,
 		hasHousehold: true,
+		passwordLoginDisabled: false,
 		...prev,
 		user: undefined,
+		language: undefined,
+		assistant: false, // only someone signed in sees Ask Exhale
 	});
 }

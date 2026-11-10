@@ -18,7 +18,7 @@
 | Accessibility | **`@axe-core/playwright`** in E2E | Serious violations fail CI |
 | PWA | **vite-plugin-pwa** v2 (Workbox) | Caches **only the app shell**, never API data. Shows an update prompt |
 | Bundle budget | **size-limit** | Less than 250 KB gzipped of initial JS |
-| Dependency updates | **Renovate** | Covers Go, npm, GitHub Actions and Docker |
+| Dependency updates | **Dependabot** | Covers Go, npm, GitHub Actions and Docker (`.github/dependabot.yml`). Renovate was the first choice; replaced on 2026-11-10 because Dependabot is built into GitHub and needs no app install |
 
 ## The flagship E2E
 

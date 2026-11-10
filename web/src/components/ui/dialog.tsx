@@ -1,6 +1,7 @@
 import { Dialog as Base } from "@base-ui/react/dialog";
 import { X } from "lucide-react";
 import type { ReactNode } from "react";
+import { t } from "@/lib/i18n";
 
 export function Dialog({
 	open,
@@ -29,7 +30,7 @@ export function Dialog({
 						</div>
 						<Base.Close
 							className="rounded-md p-1 text-muted hover:bg-raised hover:text-fg"
-							aria-label="Close"
+							aria-label={t("Close")}
 						>
 							<X className="size-4" />
 						</Base.Close>

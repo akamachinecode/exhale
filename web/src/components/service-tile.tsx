@@ -1,4 +1,6 @@
-import { brandFor, onBrand } from "@/lib/brands";
+import { useState } from "react";
+import { useListSubscriptions } from "@/gen/api";
+import { onBrand, useBrand } from "@/lib/brands";
 import { cn, hue } from "@/lib/utils";
 
 const sizes = {
@@ -8,9 +10,35 @@ const sizes = {
 };
 const glyph = { sm: "size-3.5", md: "size-[18px]", lg: "size-6" };
 
-/** Service logo: the brand mark when known (bundled, offline), otherwise a tinted monogram. */
-export function ServiceTile({ name, size = "md" }: { name: string; size?: "sm" | "md" | "lg" }) {
-	const brand = brandFor(name);
+/**
+ * Service logo: the logo someone uploaded, else the brand mark when known
+ * (bundled, offline), else a tinted monogram.
+ */
+export function ServiceTile({
+	name,
+	logo,
+	size = "md",
+}: {
+	name: string;
+	logo?: string;
+	size?: "sm" | "md" | "lg";
+}) {
+	const brand = useBrand(name);
+	const [broken, setBroken] = useState<string>();
+	if (logo && broken !== logo) {
+		return (
+			<img
+				src={logo}
+				alt=""
+				aria-hidden
+				onError={() => setBroken(logo)}
+				className={cn(
+					"inline-block shrink-0 bg-white object-contain ring-1 ring-black/5 dark:ring-white/10",
+					sizes[size],
+				)}
+			/>
+		);
+	}
 	if (brand) {
 		const fg = onBrand(brand.hex);
 		return (
@@ -48,4 +76,10 @@ export function ServiceTile({ name, size = "md" }: { name: string; size?: "sm" |
 			{letters || "?"}
 		</span>
 	);
+}
+
+/** Uploaded logos by subscription id, for lists that only carry the id. */
+export function useLogos() {
+	const q = useListSubscriptions();
+	return new Map((q.data?.subscriptions ?? []).filter((s) => s.logo).map((s) => [s.id, s.logo as string]));
 }

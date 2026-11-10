@@ -1,0 +1,558 @@
+package assistant
+
+import (
+	"cmp"
+	"context"
+	"encoding/json"
+	"fmt"
+	"sort"
+	"strings"
+	"time"
+
+	"github.com/akamachinecode/exhale/internal/app"
+	"github.com/akamachinecode/exhale/internal/auth"
+	"github.com/akamachinecode/exhale/internal/domain"
+	"github.com/akamachinecode/exhale/internal/engine"
+	"github.com/akamachinecode/exhale/internal/store"
+	"github.com/akamachinecode/exhale/internal/store/db"
+)
+
+// Proposal is a change the model prepared. Its title and lines are written
+// by Exhale from the arguments and the dry run, never by the model, so the
+// card the person confirms says what will really happen.
+type Proposal struct {
+	ID          string        `json:"id"`
+	Tool        string        `json:"tool" doc:"the use case that would run, e.g. create_subscription"`
+	Title       domain.Text   `json:"title" doc:"what would happen, e.g. Add Netflix, as a translatable text"`
+	Lines       []domain.Text `json:"lines" doc:"the details of the change, as translatable texts"`
+	Destructive bool          `json:"destructive" doc:"it deletes or cancels"`
+}
+
+// Outcome statuses.
+const (
+	StatusPending   = "pending"
+	StatusApplied   = "applied"
+	StatusDiscarded = "discarded"
+	StatusFailed    = "failed"
+	StatusUndone    = "undone"
+)
+
+// Outcome is what happened to a proposal.
+type Outcome struct {
+	ID      string        `json:"id"`
+	Status  string        `json:"status" enum:"pending,applied,discarded,failed,undone"`
+	Title   domain.Text   `json:"title"`
+	Lines   []domain.Text `json:"lines"`
+	CanUndo bool          `json:"canUndo" doc:"an applied change that Undo can revert"`
+	// SubscriptionID is the subscription the change was about, for a link.
+	SubscriptionID string `json:"subscriptionId,omitempty"`
+}
+
+// stored is a proposal as kept in the flows table until the person decides.
+// Its texts are kept in the form that survives JSON (domain.Saved).
+type stored struct {
+	ID             string          `json:"id"`
+	Tool           string          `json:"tool"`
+	Title          domain.Saved    `json:"title"`
+	Lines          []domain.Saved  `json:"lines"`
+	Destructive    bool            `json:"destructive"`
+	Conv           string          `json:"conv"`
+	Args           json.RawMessage `json:"args"`
+	Status         string          `json:"status"`
+	Audits         []app.AuditRef  `json:"audits,omitempty"`
+	SubscriptionID string          `json:"subscriptionId,omitempty"`
+	Result         []domain.Saved  `json:"result,omitempty"`
+}
+
+func saveTexts(ts []domain.Text) []domain.Saved {
+	out := make([]domain.Saved, len(ts))
+	for i, t := range ts {
+		out[i] = t.Save()
+	}
+	return out
+}
+
+func loadTexts(ss []domain.Saved) []domain.Text {
+	out := make([]domain.Text, len(ss))
+	for i, s := range ss {
+		out[i] = s.Text()
+	}
+	return out
+}
+
+// title is the stored title, for the model and the logs (English).
+func (s stored) title() string { return s.Title.Text().String() }
+
+// proposalID is short because chat buttons carry it: "ai|ok|" plus the id
+// must fit Telegram's 64 bytes of callback data.
+func proposalID() string { return "p" + auth.Random(8) }
+
+func proposalKey(id string) string { return "aip_" + id }
+
+func (a *Assistant) saveProposal(ctx context.Context, memberID string, s stored, ttl time.Duration) error {
+	b, err := json.Marshal(s)
+	if err != nil {
+		return err
+	}
+	now := time.Now()
+	return a.svc.Store().Q.SaveFlow(ctx, db.SaveFlowParams{ID: proposalKey(s.ID), MemberID: memberID, State: string(b), ExpiresAt: store.FormatTime(now.Add(ttl)), CreatedAt: store.FormatTime(now)})
+}
+
+func (a *Assistant) loadProposal(ctx context.Context, actor app.Actor, id string) (stored, error) {
+	var s stored
+	row, err := a.svc.Store().Q.GetFlow(ctx, proposalKey(id))
+	// A proposal belongs to the member it was made for: nobody else can
+	// confirm it, even with its id.
+	if err != nil || row.MemberID != actor.MemberID || store.ParseTime(row.ExpiresAt).Before(time.Now()) {
+		return s, errKind(KindExpired, "")
+	}
+	if err := json.Unmarshal([]byte(row.State), &s); err != nil {
+		return s, errKind(KindExpired, "")
+	}
+	return s, nil
+}
+
+func (a *Assistant) propose(ctx context.Context, st *turnState, t tool, args map[string]any, final json.RawMessage, preview any) (Proposal, error) {
+	_, locale := a.today(ctx, st.agent)
+	title, lines, subID := a.describe(ctx, st.agent, t, args, preview, locale)
+	pr := Proposal{ID: proposalID(), Tool: t.Name, Title: title, Lines: lines, Destructive: t.Destructive}
+	if subID != "" {
+		st.touched = append(st.touched, subID)
+	}
+	return pr, a.saveProposal(ctx, st.actor.MemberID, stored{ID: pr.ID, Tool: pr.Tool, Title: title.Save(), Lines: saveTexts(lines), Destructive: pr.Destructive, Conv: st.conv, Args: final, Status: StatusPending, SubscriptionID: subID}, proposalTTL)
+}
+
+func (a *Assistant) today(ctx context.Context, actor app.Actor) (engine.Date, string) {
+	info, err := a.svc.GetHousehold(ctx, actor, struct{}{})
+	if err != nil {
+		return engine.DateOf(a.svc.Now()), "en"
+	}
+	return info.Today, info.LanguageOf(actor.MemberID)
+}
+
+func (s stored) outcome() Outcome {
+	o := Outcome{ID: s.ID, Status: s.Status, Title: s.Title.Text(), Lines: loadTexts(s.Lines), SubscriptionID: s.SubscriptionID}
+	if s.Status != StatusPending {
+		o.Lines = loadTexts(s.Result)
+	}
+	if s.Status == StatusApplied {
+		for _, r := range s.Audits {
+			if undoable(r) {
+				o.CanUndo = true
+			}
+		}
+	}
+	return o
+}
+
+// undoable reports whether app.Undo can revert a recorded change.
+func undoable(r app.AuditRef) bool {
+	return (r.Entity == "subscription" || r.Entity == "charge") && r.Action != "undo"
+}
+
+// Decide applies a proposal (accept) or drops it. Only the member it was
+// made for can decide, and only once: a second press returns what already
+// happened.
+func (a *Assistant) Decide(ctx context.Context, actor app.Actor, id string, accept bool) (Outcome, error) {
+	s, event, err := a.decide(ctx, actor, id, accept)
+	if err != nil {
+		return Outcome{}, err
+	}
+	if event != "" {
+		a.remember(ctx, actor, s.Conv, event)
+	}
+	return s.outcome(), nil
+}
+
+func (a *Assistant) decide(ctx context.Context, actor app.Actor, id string, accept bool) (s stored, event string, err error) {
+	a.deciding.Lock()
+	defer a.deciding.Unlock()
+	if s, err = a.loadProposal(ctx, actor, id); err != nil {
+		return s, "", err
+	}
+	if s.Status != StatusPending {
+		return s, "", nil
+	}
+	t, ok := a.bindings[s.Tool]
+	if !ok {
+		return s, "", errKind(KindExpired, "")
+	}
+	if !accept {
+		s.Status = StatusDiscarded
+		return s, "The person discarded: " + s.title() + ". Nothing was changed.", a.saveProposal(ctx, actor.MemberID, s, proposalTTL)
+	}
+	cctx, refs := app.CollectAudits(ctx)
+	out, err := t.Invoke(a.svc, cctx, agentFor(actor), s.Args)
+	if err != nil {
+		s.Status, s.Result = StatusFailed, saveTexts([]domain.Text{failure(err)})
+		_ = a.saveProposal(ctx, actor.MemberID, s, proposalTTL)
+		return s, "The person confirmed: " + s.title() + ", but it failed: " + failure(err).String(), nil
+	}
+	s.Status, s.Audits, s.Result = StatusApplied, *refs, []domain.Saved{}
+	if d, ok := out.(app.SubscriptionDetail); ok {
+		s.SubscriptionID = d.Subscription.ID // the id a dry run returned was not saved
+	}
+	if r, ok := out.(app.ImportResult); ok {
+		s.Result = saveTexts([]domain.Text{domain.T("%d created, %d already there, %d with problems", r.Created, r.Duplicates, r.Errors)})
+	}
+	if t.Name == "delete_subscription" {
+		s.SubscriptionID = ""
+	}
+	if err := a.saveProposal(ctx, actor.MemberID, s, appliedTTL); err != nil {
+		a.log.Warn("assistant: could not keep the applied change for undo", "err", err)
+	}
+	a.log.Info("assistant change applied", "tool", s.Tool, "member", actor.MemberID, "audits", len(s.Audits))
+	return s, "The person confirmed: " + s.title() + ". It is done.", nil
+}
+
+// Undo reverts a change applied from a proposal, newest part first.
+func (a *Assistant) Undo(ctx context.Context, actor app.Actor, id string) (Outcome, error) {
+	o, conv, event, err := a.undo(ctx, actor, id)
+	if err != nil {
+		return Outcome{}, err
+	}
+	if event != "" {
+		a.remember(ctx, actor, conv, event)
+	}
+	return o, nil
+}
+
+func (a *Assistant) undo(ctx context.Context, actor app.Actor, id string) (o Outcome, conv, event string, err error) {
+	a.deciding.Lock()
+	defer a.deciding.Unlock()
+	s, err := a.loadProposal(ctx, actor, id)
+	if err != nil {
+		return Outcome{}, "", "", err
+	}
+	if s.Status != StatusApplied {
+		return s.outcome(), s.Conv, "", nil
+	}
+	agent := agentFor(actor)
+	var kept []domain.Word
+	undone := 0
+	for i := len(s.Audits) - 1; i >= 0; i-- {
+		r := s.Audits[i]
+		if !undoable(r) {
+			kept = append(kept, domain.Word(strings.ReplaceAll(r.Entity, "_", " ")))
+			continue
+		}
+		if _, err := a.svc.Undo(ctx, agent, app.UndoInput{AuditID: r.ID}); err != nil {
+			s.Result = saveTexts([]domain.Text{failure(err)})
+			_ = a.saveProposal(ctx, actor.MemberID, s, appliedTTL)
+			o := s.outcome()
+			o.Status = StatusFailed
+			return o, s.Conv, "", nil
+		}
+		undone++
+	}
+	if undone == 0 {
+		return s.outcome(), s.Conv, "", nil
+	}
+	s.Status, s.Result = StatusUndone, []domain.Saved{}
+	if len(kept) > 0 {
+		sort.Slice(kept, func(i, j int) bool { return kept[i] < kept[j] })
+		kept = compact(kept)
+		for _, k := range kept {
+			s.Result = append(s.Result, domain.T("Kept, because Undo does not cover it yet: %s.", k).Save())
+		}
+	}
+	if s.Tool == "create_subscription" || s.Tool == "import_subscriptions" {
+		s.SubscriptionID = ""
+	}
+	if err := a.saveProposal(ctx, actor.MemberID, s, proposalTTL); err != nil {
+		return Outcome{}, "", "", err
+	}
+	return s.outcome(), s.Conv, "The person undid: " + s.title() + ".", nil
+}
+
+func compact(s []domain.Word) []domain.Word {
+	out := s[:0]
+	for i, v := range s {
+		if i == 0 || v != s[i-1] {
+			out = append(out, v)
+		}
+	}
+	return out
+}
+
+// failure is the reason a change did not apply, as a sentence.
+func failure(err error) domain.Text {
+	if t, ok := domain.TextOf(err); ok {
+		return t
+	}
+	return domain.T("It could not be applied.")
+}
+
+// --- what a proposal says ---------------------------------------------------------
+
+func str(args map[string]any, key string) string {
+	switch v := args[key].(type) {
+	case string:
+		return v
+	case nil:
+		return ""
+	default:
+		b, _ := json.Marshal(v)
+		return string(b)
+	}
+}
+
+// labels are the names of arguments as a person reads them.
+var labels = map[string]domain.Word{
+	"name": "Name", "price": "Price", "currency": "Currency", "interval": "Every", "unit": "Unit", "nextCharge": "Next charge",
+	"firstCharge": "First charge", "endDate": "Ends", "priceFrom": "New price from", "categoryId": "Category", "paymentMethodId": "Payment method",
+	"payerId": "Paid by", "private": "Private", "url": "Link", "notes": "Notes", "autoConfirm": "Mark paid automatically",
+	"reminderDays": "Remind (days before)", "reminderHour": "Remind at (hour)", "startedOn": "Subscribed since", "trialEndsOn": "Free trial ends",
+	"noticeDays": "Notice (days)", "renewal": "Renewal", "cancelUrl": "Cancel page", "account": "Account", "shares": "Split", "using": "Still using it",
+	"status": "Status", "kind": "Kind", "last4": "Last four digits", "expiresOn": "Expires", "ownerId": "Owner", "moveTo": "Move its subscriptions to",
+	"from": "From", "to": "To", "timezone": "Time zone", "locale": "Language", "color": "Colour", "auditId": "Change", "scope": "Applies to",
+	"note": "Note", "chargedAmount": "Amount taken", "chargedCurrency": "In", "newDate": "New date", "amount": "Amount", "decision": "Decision",
+	"allowDuplicates": "Also import duplicates", "reminderTime": "Reminder time", "payday": "Payday",
+}
+
+// argLines lists arguments as "Label: value", in a stable order, leaving
+// out the ones named in skip.
+func argLines(args map[string]any, names map[string]string, skip ...string) []domain.Text {
+	hidden := map[string]bool{"id": true, "chargeId": true, "dryRun": true, "confirm": true}
+	for _, s := range skip {
+		hidden[s] = true
+	}
+	keys := make([]string, 0, len(args))
+	for k := range args {
+		if !hidden[k] {
+			keys = append(keys, k)
+		}
+	}
+	sort.Strings(keys)
+	lines := []domain.Text{}
+	for _, k := range keys {
+		var label any = labels[k]
+		if labels[k] == "" {
+			label = k // an argument without a label is shown by its name
+		}
+		v := str(args, k)
+		if n, ok := names[v]; ok && strings.HasSuffix(k, "Id") {
+			v = n // an id the person never saw: show the name
+		}
+		if v == "" {
+			lines = append(lines, domain.T("%s: (none)", label))
+			continue
+		}
+		lines = append(lines, domain.T("%s: %s", label, truncate(v, 200)))
+	}
+	return lines
+}
+
+func scopeLine(args map[string]any, def string) domain.Text {
+	scope := str(args, "scope")
+	if scope == "" {
+		scope = def
+	}
+	if scope == "following" {
+		return domain.T("This charge and the ones after it.")
+	}
+	return domain.T("Only this charge.")
+}
+
+func providerHint() domain.Text {
+	return domain.T("Exhale only stops tracking it: cancel it with the provider too.")
+}
+
+// describe writes the card of a proposal from the arguments and the dry
+// run. It returns the id of the subscription it is about, if any. Every
+// name and number comes from the arguments, the dry run or the database;
+// nothing from the model's own text.
+func (a *Assistant) describe(ctx context.Context, agent app.Actor, t tool, args map[string]any, preview any, locale string) (title domain.Text, lines []domain.Text, subID string) {
+	names := map[string]string{}
+	if info, err := a.svc.GetHousehold(ctx, agent, struct{}{}); err == nil {
+		for _, m := range info.Members {
+			names[m.ID] = m.Name
+		}
+		for _, c := range info.Categories {
+			names[c.ID] = c.Name
+		}
+		for _, p := range info.PaymentMethods {
+			names[p.ID] = p.Label()
+		}
+	}
+	switch out := preview.(type) {
+	case app.SubscriptionDetail:
+		s := out.Subscription
+		subID = s.ID
+		switch t.Name {
+		case "create_subscription":
+			subID = "" // not saved yet
+			lines = []domain.Text{domain.T("%s %s", s.Price.Format(locale), cadence(s.Cadence))}
+			if !s.NextCharge.IsZero() {
+				lines = append(lines, domain.T("First charge: %s", s.NextCharge.String()))
+			}
+			lines = append(lines, argLines(args, names, "name", "price", "currency", "interval", "unit", "firstCharge")...)
+			return domain.T("Add %s", s.Name), lines, subID
+		case "set_subscription_status":
+			name := str(args, "name")
+			if sub, err := a.svc.GetSubscription(ctx, agent, app.GetSubscriptionInput{ID: str(args, "id")}); err == nil {
+				name = sub.Subscription.Name
+			}
+			switch str(args, "action") {
+			case "pause":
+				return domain.T("Pause %s", name), []domain.Text{domain.T("No charges or reminders until it is resumed.")}, subID
+			case "resume":
+				return domain.T("Resume %s", name), []domain.Text{}, subID
+			case "cancel_now":
+				return domain.T("Cancel %s now", name), []domain.Text{domain.T("No more charges from today."), providerHint()}, subID
+			default:
+				lines = []domain.Text{domain.T("No more charges.")}
+				if !s.CancelledUntil.IsZero() {
+					lines = []domain.Text{domain.T("Service until %s. No more charges.", s.CancelledUntil.String())}
+				}
+				return domain.T("Cancel %s at the end of the period", name), append(lines, providerHint()), subID
+			}
+		default:
+			name := s.Name
+			if before, err := a.svc.GetSubscription(ctx, agent, app.GetSubscriptionInput{ID: str(args, "id")}); err == nil {
+				name = before.Subscription.Name
+			}
+			return domain.T("Change %s", name), argLines(args, names), subID
+		}
+	case app.ChargeResult:
+		subID = out.Subscription.ID
+		name, due := out.Subscription.Name, out.Charge.DueDate.String()
+		if list, err := a.svc.ListCharges(ctx, agent, app.ListChargesInput{From: "2000-01-01", To: "2100-12-31"}); err == nil {
+			for _, c := range list.Charges {
+				if c.ID == str(args, "chargeId") {
+					due = c.DueDate.String() // the date before the change
+				}
+			}
+		}
+		amount := out.Charge.Amount.Format(locale)
+		switch t.Name {
+		case "change_charge_date":
+			return domain.T("Move the %s charge of %s to %s", due, name, str(args, "newDate")), []domain.Text{scopeLine(args, "this")}, subID
+		case "change_charge_amount":
+			return domain.T("Change the %s charge of %s to %s", due, name, amount), []domain.Text{scopeLine(args, "following")}, subID
+		case "set_charge_status":
+			lines := argLines(args, names, "status")
+			switch str(args, "status") {
+			case "paid":
+				return domain.T("Mark as paid: %s, %s (%s)", name, due, amount), lines, subID
+			case "failed":
+				return domain.T("Mark as failed: %s, %s (%s)", name, due, amount), lines, subID
+			case "skipped":
+				return domain.T("Skip: %s, %s (%s)", name, due, amount), lines, subID
+			case "pending":
+				return domain.T("Reopen: %s, %s (%s)", name, due, amount), lines, subID
+			}
+			return domain.T("Update: %s, %s (%s)", name, due, amount), lines, subID
+		case "decide_renewal":
+			return domain.T("Keep the %s renewal of %s", due, name), []domain.Text{}, subID
+		}
+		return domain.T("%s: %s", domain.Word(t.Title), name), argLines(args, names), subID
+	case app.DeleteResult:
+		if t.Name == "delete_subscription" {
+			name := out.Deleted
+			if sub, err := a.svc.GetSubscription(ctx, agent, app.GetSubscriptionInput{ID: str(args, "id")}); err == nil {
+				name = sub.Subscription.Name
+			}
+			return domain.T("Delete %s", name), []domain.Text{domain.T("Deletes the subscription and all its charges. To stop paying but keep the history, cancel it instead.")}, out.Deleted
+		}
+		name := names[str(args, "id")]
+		if name == "" {
+			name = str(args, "id")
+		}
+		return domain.T("%s: %s", domain.Word(t.Title), name), argLines(args, names), ""
+	case app.ImportResult:
+		lines = []domain.Text{}
+		for i, it := range out.Items {
+			if i == 8 {
+				lines = append(lines, domain.T("… and %d more", len(out.Items)-8))
+				break
+			}
+			switch it.Action {
+			case "create":
+				lines = append(lines, domain.T("+ %s", it.Name))
+			case "duplicate":
+				lines = append(lines, domain.T("= %s (already in Exhale, skipped)", it.Name))
+			default:
+				lines = append(lines, domain.T("! %s (skipped: %s)", it.Name, it.Message))
+			}
+		}
+		if len(out.NewCategories) > 0 {
+			lines = append(lines, domain.T("New categories: %s", strings.Join(out.NewCategories, ", ")))
+		}
+		if len(out.NewPaymentMethods) > 0 {
+			lines = append(lines, domain.T("New payment methods: %s", strings.Join(out.NewPaymentMethods, ", ")))
+		}
+		if out.Created == 1 {
+			return domain.T("Import 1 subscription"), lines, ""
+		}
+		return domain.T("Import %d subscriptions", out.Created), lines, ""
+	case app.BulkResult:
+		// The dry run says what changes for each subscription (bulk changes and
+		// tag renames).
+		lines = []domain.Text{}
+		for i, it := range out.Items {
+			if i == 8 {
+				lines = append(lines, domain.T("… and %d more", len(out.Items)-8))
+				break
+			}
+			parts := []domain.Text{}
+			for _, c := range it.Changes {
+				switch c.Field {
+				case "deleted":
+					parts = append(parts, domain.T("deleted with its charges"))
+				case "status":
+					parts = append(parts, domain.T("status %s → %s", domain.Word(c.From), domain.Word(c.To)))
+				case "category":
+					parts = append(parts, domain.T("category %s → %s", cmp.Or(c.From, "–"), cmp.Or(c.To, "–")))
+				case "paymentMethod":
+					parts = append(parts, domain.T("payment method %s → %s", cmp.Or(c.From, "–"), cmp.Or(c.To, "–")))
+				default:
+					parts = append(parts, domain.T("tags %s → %s", cmp.Or(c.From, "–"), cmp.Or(c.To, "–")))
+				}
+			}
+			if len(parts) == 0 {
+				parts = []domain.Text{domain.T("no change")}
+			}
+			line := domain.T("• %s: %s", it.Name, parts[0])
+			for _, p := range parts[1:] {
+				line = domain.T("%s, %s", line, p)
+			}
+			lines = append(lines, line)
+		}
+		if a := str(args, "action"); a == "delete" || strings.HasPrefix(a, "cancel") {
+			lines = append(lines, domain.T("Exhale only stops tracking them: cancel them with the provider too."))
+		}
+		if out.Changed == 1 {
+			return domain.T("%s (1 subscription)", domain.Word(t.Title)), lines, ""
+		}
+		return domain.T("%s (%d subscriptions)", domain.Word(t.Title), out.Changed), lines, ""
+	}
+	// Everything else: the use case's own title and its arguments.
+	title = domain.T("%s", domain.Word(t.Title))
+	if n := names[str(args, "id")]; n != "" {
+		title = domain.T("%s: %s", domain.Word(t.Title), n)
+	} else if n := str(args, "name"); n != "" {
+		title = domain.T("%s: %s", domain.Word(t.Title), n)
+	}
+	return title, argLines(args, names, "name"), ""
+}
+
+// cadence translates the service's description of a billing cycle
+// ("monthly", "every 3 months").
+func cadence(c string) domain.Text {
+	var n int
+	var unit string
+	if _, err := fmt.Sscanf(c, "every %d %s", &n, &unit); err == nil {
+		switch unit {
+		case "days":
+			return domain.T("every %d days", n)
+		case "weeks":
+			return domain.T("every %d weeks", n)
+		case "months":
+			return domain.T("every %d months", n)
+		case "years":
+			return domain.T("every %d years", n)
+		}
+	}
+	return domain.T("%s", domain.Word(c))
+}

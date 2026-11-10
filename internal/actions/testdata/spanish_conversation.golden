@@ -1,0 +1,85 @@
+# Recordatorios
+SEND #1
+🔔 Netflix se renueva en 3 días
+  💶 13,99 € · dom, 8 nov 2026
+  💳 Visa ••4421
+  [✅ Ya pagado](paid|chg_X) [📅 Cambiar fecha](date|chg_X|2026-11)
+  [💳 Método de pago](pm|chg_X) [✏️ Importe](amount|chg_X)
+  [⏭ Saltar este](skip|chg_X) [❌ Cancelar suscripción](cancel|chg_X)
+  [💤 Recuérdamelo mañana](snz|chg_X|1|r) [💤 En 3 días](snz|chg_X|3|r)
+
+SEND #2
+⏰ Quedan 7 días para cancelar Gimnasio
+  💶 39,00 € · sáb, 12 dic 2026
+  ⏰ Cancelar antes del jue, 12 nov 2026
+  Después se renueva por 39,00 €.
+  [👍 La mantengo](keep|chg_X) [❌ Cancelar](cancel|chg_X)
+  [💤 Recuérdamelo mañana](snz|chg_X|1|d) [💤 En 3 días](snz|chg_X|3|d)
+
+SEND #3
+⏳ La prueba gratis de Notion AI termina en 3 días
+  Después, 10,00 US$ al mes.
+  [👍 La mantengo](keep|chg_X) [❌ Cancelar antes del cobro](cancel|chg_X)
+  [📅 Cambiar fecha](date|chg_X|2026-11) [✏️ Importe](amount|chg_X)
+  [💳 Método de pago](pm|chg_X) [⏭ Saltar este](skip|chg_X)
+  [💤 Recuérdamelo mañana](snz|chg_X|1|r) [💤 En 3 días](snz|chg_X|3|r)
+
+# Inicio
+🏠 Casa
+  💶 26,99 € / mes · 323,88 € / año
+  📦 3 suscripciones en curso
+  Fuera de los totales (sin tipo de cambio): USD
+  ## Próximos 7 días
+  2 cobros: toca uno para gestionarlo.
+  [⏰ 2 plazos a punto de vencer](a|chk)
+  [dom 8 nov · Netflix · 13,99 €](a|chg|chg_X)
+  [dom 8 nov · Notion AI · 10,00 US$](a|chg|chg_X)
+  [📋 Suscripciones](a|subs|0) [📅 Próximos](a|next)
+  [➕ Añadir](a|add) [🩺 Revisión](a|chk)
+  [📊 Resumen](a|sum) [⚙️ Ajustes](a|set)
+
+> pulsa Suscripciones
+📋 Suscripciones (3)
+  Toca una para abrirla.
+  [Netflix · 13,99 €/mes](a|sub|sub_X)
+  [Notion AI · 10,00 US$/mes](a|sub|sub_X)
+  [Gimnasio · 13,00 €/mes](a|sub|sub_X)
+  [🏠 Inicio](a|home)
+
+> pulsa Gimnasio
+Gimnasio
+  💶 39,00 € · cada 3 meses
+  📅 Próximo cobro: sáb, 12 dic 2026
+  ⏰ Cancelar antes del jue, 12 nov 2026
+  👤 Alex
+  [🔔 Próximo cobro · sáb 12 dic](a|chg|chg_X)
+  [⏸ Pausar](a|st|sub_X|pause) [❌ Cancelar](a|cx|sub_X)
+  [✏️ Editar](a|ed|sub_X)
+  [‹ Suscripciones](a|subs|0) [🏠 Inicio](a|home)
+
+> pulsa Cancelar
+❌ ¿Cancelar Gimnasio?
+  Al final del periodo: no hay más cobros y mantienes el servicio hasta el día antes del siguiente.
+  Exhale solo deja de seguirla: cancélala también con el proveedor.
+  [Al final del periodo](a|st|sub_X|cancel_at_period_end) [Ahora mismo](a|st|sub_X|cancel_now)
+  [↩︎ Mantenerla](a|sub|sub_X)
+
+> pulsa Al final del periodo
+(aviso: Cancelada al final del periodo)
+✖ Gimnasio (cancelada)
+  💶 39,00 € · cada 3 meses
+  Servicio hasta el vie, 11 dic 2026
+  👤 Alex
+  [✏️ Editar](a|ed|sub_X)
+  [‹ Suscripciones](a|subs|0) [🏠 Inicio](a|home)
+
+# Ayuda
+Comandos:
+/home — Abrir Exhale: gasto, próximos cobros, todo
+/subs — Tus suscripciones
+/upcoming — Cobros de los próximos 30 días
+/summary — Gasto por mes, categoría y método de pago
+/add — Añadir una suscripción, paso a paso
+/checkup — Lo que merece un vistazo: pruebas, plazos, subidas
+/methods — Tarjetas y cuentas con las que pagas
+/settings — Hora de aviso, día de nómina, moneda, idioma

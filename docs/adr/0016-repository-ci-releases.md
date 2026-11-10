@@ -23,7 +23,7 @@ docs/                vision, ADRs, docs site (Starlight)
 deploy/              Dockerfile, compose examples (incl. observability profile), Grafana dashboards
 testdata/migrations/ one sample DB per released version
 .github/             workflows, issue forms, PR template
-mise.toml · go.mod · sqlc.yaml · .goreleaser.yaml · renovate.json · pnpm-workspace.yaml
+mise.toml · go.mod · sqlc.yaml · .goreleaser.yaml · .github/dependabot.yml · pnpm-workspace.yaml
 ```
 
 There is no Nx or Turborepo: one Go module plus two JS packages (`web`, `docs`) in a pnpm workspace.
@@ -36,7 +36,7 @@ There is no Nx or Turborepo: one Go module plus two JS packages (`web`, `docs`) 
 | Generated code | **Committed**. CI regenerates it and fails on any diff |
 | Go lint | golangci-lint v2 (gosec, exhaustive…) |
 | Vulnerabilities | **osv-scanner** (Go and npm in one tool) |
-| CI security | Actions pinned by SHA (updated by Renovate), least-privilege permissions, **zizmor** |
+| CI security | Actions pinned by SHA (updated by Dependabot), least-privilege permissions, **zizmor** |
 | Dependency licenses | Checked in CI against our license (0017) |
 | Commits | **Conventional Commits** in PR titles, **squash merge** |
 | Versioning | **SemVer**. 0.x while building; **1.0 when Telegram + Slack + web are done**. Released migrations are immutable |

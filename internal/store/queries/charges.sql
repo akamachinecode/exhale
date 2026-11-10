@@ -31,8 +31,8 @@ ORDER BY c.due_date;
 -- name: UpdateCharge :execrows
 UPDATE charges SET
     due_date = ?, amount_minor = ?, currency = ?, charged_minor = ?,
-    charged_currency = ?, status = ?, resolved_at = ?, note = ?, updated_at = ?,
-    version = version + 1
+    charged_currency = ?, status = ?, resolved_at = ?, note = ?, decision = ?,
+    updated_at = ?, version = version + 1
 WHERE id = ? AND version = ?;
 
 -- name: DeleteFuturePendingCharges :exec
@@ -51,3 +51,23 @@ UPDATE audit_log SET undone_by = ? WHERE id = ?;
 
 -- name: ListAudit :many
 SELECT * FROM audit_log ORDER BY at DESC LIMIT ?;
+
+-- name: ListPaidChargesBetween :many
+SELECT c.* FROM charges c
+JOIN subscriptions s ON s.id = c.subscription_id
+WHERE s.household_id = sqlc.arg(household_id) AND c.status = 'paid'
+  AND c.due_date >= sqlc.arg(from_date) AND c.due_date <= sqlc.arg(to_date)
+ORDER BY c.due_date;
+
+-- name: ListChargesForHousehold :many
+SELECT c.* FROM charges c
+JOIN subscriptions s ON s.id = c.subscription_id
+WHERE s.household_id = ?
+ORDER BY c.subscription_id, c.original_date;
+
+-- name: RestoreCharge :exec
+INSERT INTO charges (
+    id, subscription_id, original_date, due_date, amount_minor, currency,
+    charged_minor, charged_currency, status, resolved_at, note, decision, updated_at, version
+) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+ON CONFLICT (subscription_id, original_date) DO NOTHING;

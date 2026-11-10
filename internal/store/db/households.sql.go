@@ -9,6 +9,17 @@ import (
 	"context"
 )
 
+const countOwners = `-- name: CountOwners :one
+SELECT count(*) FROM members WHERE household_id = ? AND role = 'owner'
+`
+
+func (q *Queries) CountOwners(ctx context.Context, householdID string) (int64, error) {
+	row := q.db.QueryRowContext(ctx, countOwners, householdID)
+	var count int64
+	err := row.Scan(&count)
+	return count, err
+}
+
 const createCategory = `-- name: CreateCategory :exec
 INSERT INTO categories (id, household_id, name, color) VALUES (?, ?, ?, ?)
 `
@@ -112,8 +123,59 @@ func (q *Queries) CreatePaymentMethod(ctx context.Context, arg CreatePaymentMeth
 	return err
 }
 
+const deleteCategory = `-- name: DeleteCategory :exec
+DELETE FROM categories WHERE id = ? AND household_id = ?
+`
+
+type DeleteCategoryParams struct {
+	ID          string
+	HouseholdID string
+}
+
+func (q *Queries) DeleteCategory(ctx context.Context, arg DeleteCategoryParams) error {
+	_, err := q.db.ExecContext(ctx, deleteCategory, arg.ID, arg.HouseholdID)
+	return err
+}
+
+const deleteMember = `-- name: DeleteMember :exec
+DELETE FROM members WHERE id = ? AND household_id = ?
+`
+
+type DeleteMemberParams struct {
+	ID          string
+	HouseholdID string
+}
+
+func (q *Queries) DeleteMember(ctx context.Context, arg DeleteMemberParams) error {
+	_, err := q.db.ExecContext(ctx, deleteMember, arg.ID, arg.HouseholdID)
+	return err
+}
+
+const deletePaymentMethod = `-- name: DeletePaymentMethod :exec
+DELETE FROM payment_methods WHERE id = ? AND household_id = ?
+`
+
+type DeletePaymentMethodParams struct {
+	ID          string
+	HouseholdID string
+}
+
+func (q *Queries) DeletePaymentMethod(ctx context.Context, arg DeletePaymentMethodParams) error {
+	_, err := q.db.ExecContext(ctx, deletePaymentMethod, arg.ID, arg.HouseholdID)
+	return err
+}
+
+const deleteSetting = `-- name: DeleteSetting :exec
+DELETE FROM settings WHERE key = ?
+`
+
+func (q *Queries) DeleteSetting(ctx context.Context, key string) error {
+	_, err := q.db.ExecContext(ctx, deleteSetting, key)
+	return err
+}
+
 const firstHousehold = `-- name: FirstHousehold :one
-SELECT id, name, currency, timezone, locale, created_at, reminder_hour, reminder_minute FROM households ORDER BY created_at LIMIT 1
+SELECT id, name, currency, timezone, locale, created_at, reminder_hour, reminder_minute, payday, confirm_times, confirm_every_days FROM households ORDER BY created_at LIMIT 1
 `
 
 func (q *Queries) FirstHousehold(ctx context.Context) (Household, error) {
@@ -128,12 +190,15 @@ func (q *Queries) FirstHousehold(ctx context.Context) (Household, error) {
 		&i.CreatedAt,
 		&i.ReminderHour,
 		&i.ReminderMinute,
+		&i.Payday,
+		&i.ConfirmTimes,
+		&i.ConfirmEveryDays,
 	)
 	return i, err
 }
 
 const getHousehold = `-- name: GetHousehold :one
-SELECT id, name, currency, timezone, locale, created_at, reminder_hour, reminder_minute FROM households WHERE id = ?
+SELECT id, name, currency, timezone, locale, created_at, reminder_hour, reminder_minute, payday, confirm_times, confirm_every_days FROM households WHERE id = ?
 `
 
 func (q *Queries) GetHousehold(ctx context.Context, id string) (Household, error) {
@@ -148,12 +213,15 @@ func (q *Queries) GetHousehold(ctx context.Context, id string) (Household, error
 		&i.CreatedAt,
 		&i.ReminderHour,
 		&i.ReminderMinute,
+		&i.Payday,
+		&i.ConfirmTimes,
+		&i.ConfirmEveryDays,
 	)
 	return i, err
 }
 
 const getMember = `-- name: GetMember :one
-SELECT id, household_id, name, email, role, password_hash, created_at, session_version FROM members WHERE id = ?
+SELECT id, household_id, name, email, role, password_hash, created_at, session_version, oidc_issuer, oidc_subject, locale FROM members WHERE id = ?
 `
 
 func (q *Queries) GetMember(ctx context.Context, id string) (Member, error) {
@@ -168,6 +236,9 @@ func (q *Queries) GetMember(ctx context.Context, id string) (Member, error) {
 		&i.PasswordHash,
 		&i.CreatedAt,
 		&i.SessionVersion,
+		&i.OidcIssuer,
+		&i.OidcSubject,
+		&i.Locale,
 	)
 	return i, err
 }
@@ -240,7 +311,7 @@ func (q *Queries) ListCategories(ctx context.Context, householdID string) ([]Cat
 }
 
 const listMembers = `-- name: ListMembers :many
-SELECT id, household_id, name, email, role, password_hash, created_at, session_version FROM members WHERE household_id = ? ORDER BY created_at
+SELECT id, household_id, name, email, role, password_hash, created_at, session_version, oidc_issuer, oidc_subject, locale FROM members WHERE household_id = ? ORDER BY created_at
 `
 
 func (q *Queries) ListMembers(ctx context.Context, householdID string) ([]Member, error) {
@@ -261,6 +332,9 @@ func (q *Queries) ListMembers(ctx context.Context, householdID string) ([]Member
 			&i.PasswordHash,
 			&i.CreatedAt,
 			&i.SessionVersion,
+			&i.OidcIssuer,
+			&i.OidcSubject,
+			&i.Locale,
 		); err != nil {
 			return nil, err
 		}
@@ -325,8 +399,91 @@ func (q *Queries) PutSetting(ctx context.Context, arg PutSettingParams) error {
 	return err
 }
 
+const reassignPayer = `-- name: ReassignPayer :exec
+UPDATE subscriptions SET payer_id = ?1, updated_at = ?2, version = version + 1
+WHERE household_id = ?3 AND payer_id = ?4
+`
+
+type ReassignPayerParams struct {
+	ToID        *string
+	UpdatedAt   string
+	HouseholdID string
+	FromID      *string
+}
+
+func (q *Queries) ReassignPayer(ctx context.Context, arg ReassignPayerParams) error {
+	_, err := q.db.ExecContext(ctx, reassignPayer,
+		arg.ToID,
+		arg.UpdatedAt,
+		arg.HouseholdID,
+		arg.FromID,
+	)
+	return err
+}
+
+const reassignPaymentMethod = `-- name: ReassignPaymentMethod :execrows
+UPDATE subscriptions SET payment_method_id = ?1, updated_at = ?2, version = version + 1
+WHERE household_id = ?3 AND payment_method_id = ?4
+`
+
+type ReassignPaymentMethodParams struct {
+	ToID        *string
+	UpdatedAt   string
+	HouseholdID string
+	FromID      *string
+}
+
+func (q *Queries) ReassignPaymentMethod(ctx context.Context, arg ReassignPaymentMethodParams) (int64, error) {
+	result, err := q.db.ExecContext(ctx, reassignPaymentMethod,
+		arg.ToID,
+		arg.UpdatedAt,
+		arg.HouseholdID,
+		arg.FromID,
+	)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected()
+}
+
+const setHouseholdConfirmRepeat = `-- name: SetHouseholdConfirmRepeat :exec
+UPDATE households SET confirm_times = ?, confirm_every_days = ? WHERE id = ?
+`
+
+type SetHouseholdConfirmRepeatParams struct {
+	ConfirmTimes     int64
+	ConfirmEveryDays int64
+	ID               string
+}
+
+func (q *Queries) SetHouseholdConfirmRepeat(ctx context.Context, arg SetHouseholdConfirmRepeatParams) error {
+	_, err := q.db.ExecContext(ctx, setHouseholdConfirmRepeat, arg.ConfirmTimes, arg.ConfirmEveryDays, arg.ID)
+	return err
+}
+
+const updateCategory = `-- name: UpdateCategory :exec
+UPDATE categories SET name = ?, color = ? WHERE id = ? AND household_id = ?
+`
+
+type UpdateCategoryParams struct {
+	Name        string
+	Color       string
+	ID          string
+	HouseholdID string
+}
+
+func (q *Queries) UpdateCategory(ctx context.Context, arg UpdateCategoryParams) error {
+	_, err := q.db.ExecContext(ctx, updateCategory,
+		arg.Name,
+		arg.Color,
+		arg.ID,
+		arg.HouseholdID,
+	)
+	return err
+}
+
 const updateHousehold = `-- name: UpdateHousehold :exec
-UPDATE households SET name = ?, currency = ?, timezone = ?, locale = ?, reminder_hour = ?, reminder_minute = ?
+UPDATE households SET name = ?, currency = ?, timezone = ?, locale = ?, reminder_hour = ?, reminder_minute = ?, payday = ?
 WHERE id = ?
 `
 
@@ -337,6 +494,7 @@ type UpdateHouseholdParams struct {
 	Locale         string
 	ReminderHour   int64
 	ReminderMinute int64
+	Payday         int64
 	ID             string
 }
 
@@ -348,8 +506,39 @@ func (q *Queries) UpdateHousehold(ctx context.Context, arg UpdateHouseholdParams
 		arg.Locale,
 		arg.ReminderHour,
 		arg.ReminderMinute,
+		arg.Payday,
 		arg.ID,
 	)
+	return err
+}
+
+const updateMemberName = `-- name: UpdateMemberName :exec
+UPDATE members SET name = ? WHERE id = ? AND household_id = ?
+`
+
+type UpdateMemberNameParams struct {
+	Name        string
+	ID          string
+	HouseholdID string
+}
+
+func (q *Queries) UpdateMemberName(ctx context.Context, arg UpdateMemberNameParams) error {
+	_, err := q.db.ExecContext(ctx, updateMemberName, arg.Name, arg.ID, arg.HouseholdID)
+	return err
+}
+
+const updateMemberRole = `-- name: UpdateMemberRole :exec
+UPDATE members SET role = ? WHERE id = ? AND household_id = ?
+`
+
+type UpdateMemberRoleParams struct {
+	Role        string
+	ID          string
+	HouseholdID string
+}
+
+func (q *Queries) UpdateMemberRole(ctx context.Context, arg UpdateMemberRoleParams) error {
+	_, err := q.db.ExecContext(ctx, updateMemberRole, arg.Role, arg.ID, arg.HouseholdID)
 	return err
 }
 

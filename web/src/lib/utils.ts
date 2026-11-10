@@ -1,12 +1,11 @@
 import { type ClassValue, clsx } from "clsx";
 import { twMerge } from "tailwind-merge";
 import type { Money } from "@/gen/api";
+import { locale, t } from "@/lib/i18n";
 
 export function cn(...inputs: ClassValue[]) {
 	return twMerge(clsx(inputs));
 }
-
-const locale = typeof navigator === "undefined" ? "en" : navigator.language;
 
 function fractionDigits(currency: string) {
 	return (
@@ -47,10 +46,92 @@ export function date(d?: string | null, style: "short" | "long" | "day" = "short
 }
 
 export function relativeDays(days: number) {
-	if (days === 0) return "today";
-	if (days === 1) return "tomorrow";
-	if (days === -1) return "yesterday";
-	return days > 0 ? `in ${days} days` : `${-days} days ago`;
+	if (days === 0) return t("today");
+	if (days === 1) return t("tomorrow");
+	if (days === -1) return t("yesterday");
+	return days > 0 ? t("in {0} days", days) : t("{0} days ago", -days);
+}
+
+const unitNames: Record<string, [string, string]> = {
+	day: [t("Day"), t("Days")],
+	week: [t("Week"), t("Weeks")],
+	month: [t("Month"), t("Months")],
+	year: [t("Year"), t("Years")],
+};
+
+/** "Month" or "Months" for a billing unit. */
+export function unitLabel(unit: string, many = false) {
+	return unitNames[unit]?.[many ? 1 : 0] ?? unit;
+}
+
+const everyOne: Record<string, string> = {
+	day: t("every day"),
+	week: t("every week"),
+	month: t("every month"),
+	year: t("every year"),
+};
+const everyMany: Record<string, (n: number) => string> = {
+	day: (n) => t("every {0} days", n),
+	week: (n) => t("every {0} weeks", n),
+	month: (n) => t("every {0} months", n),
+	year: (n) => t("every {0} years", n),
+};
+
+/** A billing cycle in words: "every month", "every 3 months". */
+export function every(interval: number, unit: string) {
+	return interval > 1 ? (everyMany[unit]?.(interval) ?? `${interval} ${unit}`) : (everyOne[unit] ?? unit);
+}
+
+const cadences: Record<string, string> = {
+	daily: t("daily"),
+	weekly: t("weekly"),
+	monthly: t("monthly"),
+	yearly: t("yearly"),
+};
+
+/** Translates the server's description of a billing cycle ("monthly", "every 3 months"). */
+export function cadenceText(cadence: string) {
+	const m = /^every (\d+) (day|week|month|year)s$/.exec(cadence);
+	return m ? every(Number(m[1]), m[2]) : (cadences[cadence] ?? cadence);
+}
+
+// --- billing rules: weekday of the month, weekend shift ---------------------
+
+export type DayRule = "day" | "weekday" | "last-weekday";
+export type WeekendShift = "none" | "next" | "previous";
+
+/**
+ * What a civil date offers as a billing day: its day number, its week of the
+ * month (1–4; 0 for a fifth weekday) and whether it is the last such weekday.
+ * This only describes the date; the engine computes the charges.
+ */
+export function dayFacts(d: string) {
+	const [y, mo, da] = d.split("-").map(Number);
+	const daysInMonth = new Date(Date.UTC(y, mo, 0)).getUTCDate();
+	const weekday = new Intl.DateTimeFormat(locale, { weekday: "long", timeZone: "UTC" }).format(
+		new Date(Date.UTC(y, mo - 1, da, 12)),
+	);
+	return { day: da, week: da <= 28 ? Math.ceil(da / 7) : 0, last: da + 7 > daysInMonth, weekday };
+}
+
+/** "Day 15", "The third Wednesday", "The last Friday", for a rule anchored on d. */
+export function billingDayText(rule: string | undefined, d: string) {
+	const f = dayFacts(d);
+	if (rule === "last-weekday") return t("The last {0}", f.weekday);
+	if (rule === "weekday") {
+		if (f.week === 1) return t("The first {0}", f.weekday);
+		if (f.week === 2) return t("The second {0}", f.weekday);
+		if (f.week === 3) return t("The third {0}", f.weekday);
+		if (f.week === 4) return t("The fourth {0}", f.weekday);
+	}
+	return t("Day {0}", f.day);
+}
+
+/** What happens to a charge that falls on a weekend. */
+export function weekendText(shift: string | undefined) {
+	if (shift === "next") return t("Moved to the next business day");
+	if (shift === "previous") return t("Moved to the previous business day");
+	return t("Kept on the weekend");
 }
 
 export function todayISO() {

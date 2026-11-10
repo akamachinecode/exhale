@@ -11,6 +11,7 @@ import (
 	"log/slog"
 	"net"
 	"net/http"
+	"reflect"
 	"strings"
 	"time"
 
@@ -21,8 +22,11 @@ import (
 
 	"github.com/akamachinecode/exhale/internal/agents"
 	"github.com/akamachinecode/exhale/internal/app"
+	"github.com/akamachinecode/exhale/internal/assistant"
 	"github.com/akamachinecode/exhale/internal/auth"
+	"github.com/akamachinecode/exhale/internal/channels/notifiers"
 	"github.com/akamachinecode/exhale/internal/domain"
+	"github.com/akamachinecode/exhale/internal/oauth"
 	"github.com/akamachinecode/exhale/web"
 )
 
@@ -39,7 +43,28 @@ type Config struct {
 	// Telegram configures and reports the household's bot (nil when not
 	// available, e.g. in tests).
 	Telegram TelegramControl
-	Log      *slog.Logger
+	// Channels runs the notify-only channels: email, ntfy and webhooks
+	// (nil when not available, e.g. when exporting the OpenAPI document).
+	Channels *notifiers.Manager
+	// Slack configures and reports the team's Slack app (nil when not
+	// available, e.g. in tests).
+	Slack SlackControl
+	// Assistant is the model Exhale itself uses (ADR 0018, part B). When
+	// nil, one is made that is off until an owner sets it up in the web.
+	Assistant *assistant.Assistant
+	Log       *slog.Logger
+	// PublicURL is the address people reach Exhale at, e.g.
+	// https://exhale.example.com. Single sign-on builds its redirect URI
+	// from it; without it only this machine's own address works.
+	PublicURL string
+	// OIDC enables sign-in with an OpenID Connect provider (nil: off).
+	OIDC *auth.OIDC
+	// DisablePasswordLogin turns password sign-in off. Only honoured when
+	// OIDC is set.
+	DisablePasswordLogin bool
+	// OAuth is the authorization server of remote MCP (ADR 0024). When nil
+	// one is made over the service's store; tests pass their own clock.
+	OAuth *oauth.Service
 }
 
 type ctxKey struct{}
@@ -56,12 +81,35 @@ func New(svc *app.Service, cfg Config) (http.Handler, huma.API, error) {
 	hc.Info.Description = "Self-hosted subscription manager. Every operation is also available to AI agents over MCP at /mcp."
 	hc.OpenAPIPath, hc.DocsPath, hc.SchemasPath = "/api/openapi", "/api/docs", "/api/schemas"
 	hc.Components.SecuritySchemes = map[string]*huma.SecurityScheme{"bearer": {Type: "http", Scheme: "bearer", Description: "Personal access token (exhale_pat_…)"}}
+	// A domain.Text travels as its web form: a key and arguments.
+	hc.Components.Schemas.RegisterTypeAlias(reflect.TypeFor[domain.Text](), reflect.TypeFor[domain.Wire]())
 	api := humago.New(mux, hc)
 	registerAll(api, svc)
+	if cfg.Assistant == nil {
+		a, err := assistant.New(svc, cfg.Log, assistant.Env{})
+		if err != nil {
+			return nil, nil, err
+		}
+		cfg.Assistant = a
+	}
 	sm := auth.NewSessions(svc.Store(), cfg.SecureCookies)
 	aa := &authAPI{svc: svc, sm: sm, cfg: cfg}
 	registerAuth(api, aa)
 	registerSettings(api, aa)
+	registerSlack(api, aa)
+	registerAssistant(api, aa)
+	mux.HandleFunc("POST /api/v1/assistant/messages/stream", assistantStream(aa))
+	registerData(api, mux, svc, cfg.Assistant)
+	registerFiles(api, mux, svc, cfg.Assistant)
+	registerMembers(api, aa)
+	if err := registerOIDC(mux, aa); err != nil {
+		return nil, nil, err
+	}
+	registerChannels(api, aa)
+	registerTwoFactor(api, aa)
+	oa := newOAuthAPI(aa)
+	registerOAuth(api, mux, oa)
+	registerPush(api, aa)
 
 	mux.HandleFunc("GET /healthz", func(w http.ResponseWriter, _ *http.Request) { w.Write([]byte("ok")) })
 	mux.HandleFunc("GET /api/v1/events", events(svc))
@@ -71,7 +119,8 @@ func New(svc *app.Service, cfg Config) (http.Handler, huma.API, error) {
 		if !ok {
 			return app.Actor{}, auth.ErrUnauthorized
 		}
-		if name := agents.ClientName(session); name != "" && a.Kind == app.ActorAgent {
+		// An OAuth connection is already named after its application.
+		if name := agents.ClientName(session); name != "" && a.Kind == app.ActorAgent && !viaOAuth(ctx) {
 			a.Label = name + " (" + a.Label + ")"
 		}
 		return a, nil
@@ -85,19 +134,31 @@ func New(svc *app.Service, cfg Config) (http.Handler, huma.API, error) {
 	// CSRF: browsers' cross-origin writes are rejected (Sec-Fetch-Site and
 	// Origin checks); the session cookie is also SameSite=Lax.
 	csrf := http.NewCrossOriginProtection()
-	return csrf.Handler(sm.LoadAndSave(authenticate(svc, sm, cfg, mux))), api, nil
+	// The OAuth endpoints use no cookies, and browser-based MCP clients
+	// call them from another origin.
+	for _, p := range []string{oauthRegister, oauthToken, oauthRevoke} {
+		csrf.AddInsecureBypassPattern("POST " + p)
+	}
+	return csrf.Handler(sm.LoadAndSave(authenticate(svc, sm, cfg, oa, mux))), api, nil
 }
 
+type oauthKey struct{}
+
+// viaOAuth reports whether the request came with an OAuth access token.
+func viaOAuth(ctx context.Context) bool { v, _ := ctx.Value(oauthKey{}).(bool); return v }
+
 // authenticate resolves the actor of every API and MCP request: an API
-// token (agents, scripts), else the web session, else (with TrustLocal) the
-// owner for requests from this machine.
-func authenticate(svc *app.Service, sm *scs.SessionManager, cfg Config, next http.Handler) http.Handler {
+// token (agents, scripts) or, at /mcp only, an OAuth access token (remote
+// assistants), else the web session, else (with TrustLocal) the owner for
+// requests from this machine.
+func authenticate(svc *app.Service, sm *scs.SessionManager, cfg Config, oa *oauthAPI, next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		ctx := context.WithValue(r.Context(), localKey{}, isLoopback(r))
 		host, _, _ := net.SplitHostPort(r.RemoteAddr)
 		ctx = context.WithValue(ctx, ipKey{}, host)
 		r = r.WithContext(ctx)
-		protected := strings.HasPrefix(r.URL.Path, "/api/v1") || r.URL.Path == "/mcp"
+		isMCP := r.URL.Path == mcpPath
+		protected := strings.HasPrefix(r.URL.Path, "/api/v1") || isMCP
 		if !protected {
 			next.ServeHTTP(w, r)
 			return
@@ -105,8 +166,22 @@ func authenticate(svc *app.Service, sm *scs.SessionManager, cfg Config, next htt
 		var actor app.Actor
 		ok := false
 		if tok := auth.BearerToken(r.Header); tok != "" {
-			a, err := auth.ResolveToken(ctx, svc.Store(), tok)
+			var a app.Actor
+			var err error
+			switch {
+			case strings.HasPrefix(tok, oauth.AccessPrefix) && isMCP:
+				a, err = oa.accessActor(r, tok)
+				ctx = context.WithValue(ctx, oauthKey{}, true)
+			case strings.HasPrefix(tok, oauth.AccessPrefix):
+				// Its audience is the MCP endpoint (RFC 8707), nothing else.
+				err = errors.New("an OAuth token only works at /mcp")
+			default:
+				a, err = auth.ResolveToken(ctx, svc.Store(), tok)
+			}
 			if err != nil {
+				if isMCP {
+					w.Header().Set("WWW-Authenticate", oa.challenge(r, "invalid_token"))
+				}
 				writeProblem(w, http.StatusUnauthorized, "invalid token")
 				return
 			}
@@ -121,8 +196,8 @@ func authenticate(svc *app.Service, sm *scs.SessionManager, cfg Config, next htt
 		if ok {
 			r = r.WithContext(context.WithValue(ctx, ctxKey{}, actor))
 		} else if !publicPath(r.URL.Path) {
-			if r.URL.Path == "/mcp" {
-				w.Header().Set("WWW-Authenticate", `Bearer realm="exhale"`)
+			if isMCP {
+				w.Header().Set("WWW-Authenticate", oa.challenge(r, ""))
 			}
 			writeProblem(w, http.StatusUnauthorized, "sign in or send a bearer token")
 			return
@@ -138,6 +213,13 @@ func isLoopback(r *http.Request) bool {
 	}
 	ip := net.ParseIP(host)
 	return ip != nil && ip.IsLoopback() && r.Header.Get("X-Forwarded-For") == ""
+}
+
+// writeJSONProblem writes a problem outside huma, with its text.
+func writeJSONProblem(w http.ResponseWriter, p *problem) {
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(p.Status)
+	_ = json.NewEncoder(w).Encode(p)
 }
 
 func writeProblem(w http.ResponseWriter, status int, detail string) {
@@ -159,16 +241,37 @@ func registerAll(api huma.API, svc *app.Service) {
 	register(api, svc, app.OpSetSubscriptionStatus)
 	register(api, svc, app.OpDeleteSubscription)
 	register(api, svc, app.OpListCharges)
+	register(api, svc, app.OpCalendar)
 	register(api, svc, app.OpNeedsAttention)
 	register(api, svc, app.OpChangeChargeDate)
 	register(api, svc, app.OpChangeChargeAmount)
 	register(api, svc, app.OpSetChargeStatus)
+	register(api, svc, app.OpDecideRenewal)
 	register(api, svc, app.OpPreviewSchedule)
 	register(api, svc, app.OpSummary)
+	register(api, svc, app.OpSpendHistory)
+	register(api, svc, app.OpBalances)
+	register(api, svc, app.OpAudit)
 	register(api, svc, app.OpSavePaymentMethod)
+	register(api, svc, app.OpReassignPaymentMethod)
+	register(api, svc, app.OpDeletePaymentMethod)
+	register(api, svc, app.OpUpdateCategory)
+	register(api, svc, app.OpDeleteCategory)
+	register(api, svc, app.OpExport)
+	register(api, svc, app.OpImport)
+	register(api, svc, app.OpReminders)
 	register(api, svc, app.OpCreateCategory)
 	register(api, svc, app.OpListAudit)
 	register(api, svc, app.OpUndo)
+	register(api, svc, app.OpBulkUpdate)
+	register(api, svc, app.OpRenameTag)
+	register(api, svc, app.OpDeleteTag)
+	register(api, svc, app.OpSnooze)
+	register(api, svc, app.OpDismissDuplicate)
+	register(api, svc, app.OpListDocuments)
+	register(api, svc, app.OpDeleteDocument)
+	register(api, svc, app.OpRemoveLogo)
+	register(api, svc, app.OpMatchStatement)
 }
 
 func operation(m app.Meta) huma.Operation {
@@ -200,17 +303,36 @@ func register[In, Out any](api huma.API, svc *app.Service, op app.Op[In, Out]) {
 }
 
 func httpError(err error) error {
+	status := 0
+	var sentinel error
 	switch {
 	case errors.Is(err, domain.ErrValidation):
-		return huma.Error422UnprocessableEntity(humanize(err, domain.ErrValidation))
+		status, sentinel = http.StatusUnprocessableEntity, domain.ErrValidation
 	case errors.Is(err, domain.ErrNotFound):
-		return huma.Error404NotFound(humanize(err, domain.ErrNotFound))
+		status, sentinel = http.StatusNotFound, domain.ErrNotFound
 	case errors.Is(err, domain.ErrConflict):
-		return huma.Error409Conflict(humanize(err, domain.ErrConflict))
+		status, sentinel = http.StatusConflict, domain.ErrConflict
 	case errors.Is(err, app.ErrForbidden):
-		return huma.Error403Forbidden(humanize(err, app.ErrForbidden))
+		status, sentinel = http.StatusForbidden, app.ErrForbidden
+	default:
+		return huma.Error500InternalServerError("internal error", err)
 	}
-	return huma.Error500InternalServerError("internal error", err)
+	if t, ok := domain.TextOf(err); ok {
+		return newProblem(status, t)
+	}
+	return huma.NewError(status, humanize(err, sentinel))
+}
+
+// problem is an RFC 9457 problem whose sentence the web can translate:
+// detail is English, text the same sentence as a key and its arguments
+// (web/src/locales/server).
+type problem struct {
+	huma.ErrorModel
+	Text *domain.Text `json:"text,omitempty" doc:"the detail as a translatable text: key and arguments"`
+}
+
+func newProblem(status int, t domain.Text) *problem {
+	return &problem{ErrorModel: huma.ErrorModel{Status: status, Title: http.StatusText(status), Detail: domain.Capitalize(t.String())}, Text: &t}
 }
 
 // humanize drops the sentinel prefix ("validation failed: …") so the detail
@@ -280,6 +402,10 @@ func spa() http.Handler {
 				_ = f.Close()
 				if strings.HasPrefix(p, "assets/") {
 					w.Header().Set("Cache-Control", "public, max-age=31536000, immutable")
+				}
+				if p == "sw.js" {
+					// The service worker updates as soon as a new binary ships.
+					w.Header().Set("Cache-Control", "no-cache")
 				}
 				files.ServeHTTP(w, r)
 				return

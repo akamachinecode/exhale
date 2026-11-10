@@ -14,6 +14,7 @@ import (
 
 	"github.com/akamachinecode/exhale/internal/app"
 	"github.com/akamachinecode/exhale/internal/domain"
+	"github.com/akamachinecode/exhale/internal/i18n"
 	"github.com/akamachinecode/exhale/internal/store"
 	"github.com/akamachinecode/exhale/internal/store/db"
 )
@@ -77,10 +78,10 @@ func validateName(name string) (string, error) {
 	return name, nil
 }
 
-// SetupRequired reports whether nobody can sign in yet, so the setup wizard
-// must run.
+// SetupRequired reports whether nobody can sign in yet (no member has a
+// password or a provider identity), so the setup wizard must run.
 func SetupRequired(ctx context.Context, st *store.Store) (bool, error) {
-	n, err := st.Q.CountMembersWithPassword(ctx)
+	n, err := st.Q.CountMembersWithLogin(ctx)
 	return n == 0, err
 }
 
@@ -262,6 +263,18 @@ type JoinInput struct {
 	Name     string `json:"name"`
 	Email    string `json:"email"`
 	Password string `json:"password"`
+	// Language is the one the person used to join: it becomes theirs when
+	// it is not the household's.
+	Language string `json:"language,omitempty" doc:"code of a registered language; kept as the person's own when it differs from the household's"`
+}
+
+// SetLanguage saves the language a member chose; empty follows the
+// household's.
+func SetLanguage(ctx context.Context, st *store.Store, memberID, code string) error {
+	if code != "" && !i18n.Supported(code) {
+		return domain.Invalid("unknown language %q", code)
+	}
+	return st.Q.SetMemberLocale(ctx, db.SetMemberLocaleParams{Locale: code, ID: memberID})
 }
 
 // Join creates a member from an invite.
@@ -294,7 +307,13 @@ func Join(ctx context.Context, st *store.Store, in JoinInput) (app.Actor, error)
 		if n, err := q.UseInvite(ctx, db.UseInviteParams{UsedAt: store.Ptr(store.FormatTime(time.Now())), CodeHash: codeHash}); err != nil || n != 1 {
 			return fmt.Errorf("%w: this invite was already used", domain.ErrConflict)
 		}
-		return q.CreateMember(ctx, db.CreateMemberParams{ID: id, HouseholdID: inv.HouseholdID, Name: name, Email: email, Role: inv.Role, PasswordHash: hash, CreatedAt: store.FormatTime(time.Now())})
+		if err := q.CreateMember(ctx, db.CreateMemberParams{ID: id, HouseholdID: inv.HouseholdID, Name: name, Email: email, Role: inv.Role, PasswordHash: hash, CreatedAt: store.FormatTime(time.Now())}); err != nil {
+			return err
+		}
+		if h, err := q.GetHousehold(ctx, inv.HouseholdID); err == nil && i18n.Supported(in.Language) && in.Language != h.Locale {
+			return q.SetMemberLocale(ctx, db.SetMemberLocaleParams{Locale: in.Language, ID: id})
+		}
+		return nil
 	})
 	if err != nil {
 		return app.Actor{}, err

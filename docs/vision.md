@@ -34,5 +34,5 @@ Around that core, a modern, beautiful and powerful dashboard: multi-currency, ca
 
 ## Channels
 
-- **v1.0:** web, Telegram (milestone 1), Slack (milestone 2), email, ntfy, Gotify, Pushover, Discord webhooks and generic webhooks (reminders only).
+- **v1.0:** web, Telegram and Slack (interactive), and email, ntfy and templated webhooks (reminders only). The webhook with a body template covers Discord, Gotify, Pushover-style services and Home Assistant (ADR 0007).
 - **Later:** interactive Discord, Telegram Mini App (requires HTTPS), PWA web push with action buttons, Signal (text only).

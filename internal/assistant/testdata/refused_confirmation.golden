@@ -1,0 +1,11 @@
+> netflix is 15.99 now
+  model → update_subscription({"id":"sub_X","price":"15.99"})
+  exhale ← PREVIEW ONLY — nothing was changed. Exhale now shows the person this change with a button to confirm it. Do not call this tool again for it; say in a sentence what you prepared.
+< I prepared the new price.
+  [proposal] Change Netflix
+    Price: 15.99
+  [link] Netflix
+> press Discard
+  [discarded] Change Netflix
+> press Confirm
+  [discarded] Change Netflix

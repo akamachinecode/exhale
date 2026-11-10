@@ -7,21 +7,30 @@ package telegram
 
 import (
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
 	"errors"
 	"fmt"
 	"html"
+	"io"
 	"log/slog"
+	"net/http"
 	"strconv"
 	"strings"
 	"sync/atomic"
+	"time"
 
 	"github.com/go-telegram/bot"
 	"github.com/go-telegram/bot/models"
 
 	"github.com/akamachinecode/exhale/internal/actions"
 	"github.com/akamachinecode/exhale/internal/app"
+	"github.com/akamachinecode/exhale/internal/assistant"
 	"github.com/akamachinecode/exhale/internal/auth"
 	"github.com/akamachinecode/exhale/internal/domain"
+	"github.com/akamachinecode/exhale/internal/i18n"
+	"github.com/akamachinecode/exhale/internal/importer"
+	"github.com/akamachinecode/exhale/internal/store/db"
 )
 
 // Name is the channel name stored in channel links.
@@ -72,19 +81,63 @@ func (a *Adapter) Serve(ctx context.Context) error {
 	} else {
 		a.log.Warn("telegram: could not read the bot's name", "err", err)
 	}
-	cmds := make([]models.BotCommand, len(actions.Commands))
-	for i, c := range actions.Commands {
-		cmds[i] = models.BotCommand{Command: c.Command, Description: c.Description}
-	}
-	if _, err := a.b.SetMyCommands(ctx, &bot.SetMyCommandsParams{Commands: cmds}); err != nil {
-		a.log.Warn("telegram: could not set the command menu", "err", err)
-	}
-	// The profile people see before pressing Start, so a fresh bot from
-	// BotFather needs no manual setup.
-	_, _ = a.b.SetMyShortDescription(ctx, &bot.SetMyShortDescriptionParams{ShortDescription: "Your subscriptions, handled. Reminders you can act on, right here."})
-	_, _ = a.b.SetMyDescription(ctx, &bot.SetMyDescriptionParams{Description: "This is your private Exhale bot. It reminds you before every charge and lets you fix anything from the message: mark it paid, move the date, change the card or cancel. Only people you link from Exhale can use it."})
+	a.publishProfile(ctx)
 	a.b.Start(ctx)
 	return nil
+}
+
+const (
+	shortDescription = "Your subscriptions, handled. Reminders you can act on, right here."
+	description      = "This is your private Exhale bot. It reminds you before every charge and lets you fix anything from the message: mark it paid, move the date, change the card or cancel. Only people you link from Exhale can use it."
+	// profileKey remembers which profile was last published to which bot.
+	profileKey = "telegram_profile"
+)
+
+// publishProfile sets the bot's command menu (in English, and in every other
+// registered language for people whose Telegram speaks it) and the texts
+// people see before pressing Start, so a fresh bot from BotFather needs no
+// manual setup. It
+// only talks to Telegram when something changed: these calls are rate
+// limited, and a server that restarts often must not burn that limit.
+func (a *Adapter) publishProfile(ctx context.Context) {
+	menus := map[string][]models.BotCommand{}
+	sum := sha256.New()
+	username, _ := a.username.Load().(string)
+	fmt.Fprint(sum, username, shortDescription, description)
+	codes := []string{""} // the default menu, in English
+	for _, l := range i18n.Languages() {
+		if l.Code != i18n.Source {
+			codes = append(codes, l.Code)
+		}
+	}
+	for _, code := range codes {
+		for _, c := range actions.Commands {
+			cmd := models.BotCommand{Command: c.Command, Description: actions.CommandDescription(actions.Language(code), c.Description)}
+			menus[code] = append(menus[code], cmd)
+			fmt.Fprint(sum, code, cmd.Command, cmd.Description)
+		}
+	}
+	want := hex.EncodeToString(sum.Sum(nil))
+	q := a.svc.Store().Q
+	if got, err := q.GetSetting(ctx, profileKey); err == nil && got == want {
+		return
+	}
+	ok := true
+	for _, code := range codes {
+		if _, err := a.b.SetMyCommands(ctx, &bot.SetMyCommandsParams{Commands: menus[code], LanguageCode: code}); err != nil {
+			a.log.Warn("telegram: could not set the command menu", "err", err)
+			ok = false
+		}
+	}
+	if _, err := a.b.SetMyShortDescription(ctx, &bot.SetMyShortDescriptionParams{ShortDescription: shortDescription}); err != nil {
+		ok = false
+	}
+	if _, err := a.b.SetMyDescription(ctx, &bot.SetMyDescriptionParams{Description: description}); err != nil {
+		ok = false
+	}
+	if ok {
+		_ = q.PutSetting(ctx, db.PutSettingParams{Key: profileKey, Value: want})
+	}
 }
 
 // Send posts a message and returns its id.
@@ -111,12 +164,20 @@ func (a *Adapter) Edit(ctx context.Context, chatID, messageID string, m actions.
 
 func format(m actions.Message) string {
 	var b strings.Builder
-	b.WriteString("<b>" + html.EscapeString(m.Title) + "</b>")
+	if m.Title != "" { // an assistant's answer has no title, only lines
+		b.WriteString("<b>" + html.EscapeString(m.Title) + "</b>")
+	}
 	for _, l := range m.Lines {
-		b.WriteString("\n" + html.EscapeString(l))
+		if b.Len() > 0 {
+			b.WriteString("\n")
+		}
+		b.WriteString(html.EscapeString(l))
 	}
 	for _, s := range m.Sections {
-		b.WriteString("\n\n<b>" + html.EscapeString(s.Heading) + "</b>")
+		b.WriteString("\n")
+		if s.Heading != "" {
+			b.WriteString("\n<b>" + html.EscapeString(s.Heading) + "</b>")
+		}
 		for _, l := range s.Lines {
 			b.WriteString("\n" + html.EscapeString(l))
 		}
@@ -135,6 +196,10 @@ func keyboard(m actions.Message) models.ReplyMarkup {
 	for _, r := range m.Rows {
 		row := make([]models.InlineKeyboardButton, 0, len(r))
 		for _, btn := range r {
+			if btn.URL != "" {
+				row = append(row, models.InlineKeyboardButton{Text: btn.Label, URL: btn.URL})
+				continue
+			}
 			row = append(row, models.InlineKeyboardButton{Text: btn.Label, CallbackData: btn.Data})
 		}
 		rows = append(rows, row)
@@ -148,8 +213,104 @@ func (a *Adapter) handle(ctx context.Context, _ *bot.Bot, u *models.Update) {
 		a.handleButton(ctx, u.CallbackQuery)
 	case u.Message != nil && u.Message.Text != "":
 		a.handleText(ctx, u.Message)
+	case u.Message != nil && (u.Message.Document != nil || len(u.Message.Photo) > 0):
+		a.handleFile(ctx, u.Message)
 	}
 }
+
+// handleFile imports a document or a photo sent to the bot (ADR 0022): a
+// bank export, a PDF statement or a screenshot is read like an upload in
+// the web, and the review comes back as a message with buttons. The file
+// is read in memory and not kept.
+func (a *Adapter) handleFile(ctx context.Context, m *models.Message) {
+	chatID := strconv.FormatInt(m.Chat.ID, 10)
+	actor, err := auth.MemberForChannel(ctx, a.svc.Store(), Name, chatID)
+	if err != nil {
+		return // unlinked chats are ignored (ADR 0006)
+	}
+	locale := a.eng.Locale(ctx, actor)
+	fileID, size, limit := "", int64(0), int64(importer.MaxFileSize)
+	if d := m.Document; d != nil {
+		fileID, size = d.FileID, d.FileSize
+	} else {
+		// Telegram sends a photo in several sizes, smallest first; the
+		// largest is still compressed, well under the picture limit.
+		p := m.Photo[len(m.Photo)-1]
+		fileID, size, limit = p.FileID, int64(p.FileSize), assistant.MaxImageSize
+	}
+	if size > limit {
+		a.reply(ctx, chatID, actions.FileTooLargeText(locale))
+		return
+	}
+	actor.Label += " (Telegram)"
+	chat := actions.ChatRef{Channel: Name, ChatID: chatID}
+	// Off the polling loop: reading a file can take a model seconds.
+	go func(ctx context.Context) {
+		ctx, cancel := context.WithTimeout(ctx, 3*time.Minute)
+		defer cancel()
+		typing, stop := context.WithCancel(ctx)
+		go func() {
+			for {
+				_, _ = a.b.SendChatAction(typing, &bot.SendChatActionParams{ChatID: chatID, Action: models.ChatActionTyping})
+				select {
+				case <-typing.Done():
+					return
+				case <-time.After(4 * time.Second): // Telegram shows it for five
+				}
+			}
+		}()
+		data, err := a.download(ctx, fileID, limit)
+		if err != nil {
+			stop()
+			a.log.Warn("telegram: could not download a file", "err", err)
+			if errors.Is(err, errTooLarge) {
+				a.reply(ctx, chatID, actions.FileTooLargeText(locale))
+			} else {
+				a.reply(ctx, chatID, actions.FailedText(locale))
+			}
+			return
+		}
+		msg := a.eng.ImportFile(ctx, actor, chat, data)
+		stop()
+		if _, err := a.Send(ctx, chatID, msg); err != nil {
+			a.log.Warn("telegram send failed", "err", err)
+		}
+	}(context.WithoutCancel(ctx))
+}
+
+// download fetches a file the person sent, refusing more than limit bytes.
+func (a *Adapter) download(ctx context.Context, fileID string, limit int64) ([]byte, error) {
+	f, err := a.b.GetFile(ctx, &bot.GetFileParams{FileID: fileID})
+	if err != nil {
+		return nil, err
+	}
+	if f.FileSize > limit {
+		return nil, errTooLarge
+	}
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, a.b.FileDownloadLink(f), nil)
+	if err != nil {
+		return nil, err
+	}
+	res, err := http.DefaultClient.Do(req)
+	if err != nil {
+		// The error carries the address, and the address the bot token.
+		return nil, errors.New("the download failed")
+	}
+	defer res.Body.Close()
+	if res.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("the download answered %d", res.StatusCode)
+	}
+	data, err := io.ReadAll(io.LimitReader(res.Body, limit+1))
+	if err != nil {
+		return nil, errors.New("the download failed")
+	}
+	if int64(len(data)) > limit {
+		return nil, errTooLarge
+	}
+	return data, nil
+}
+
+var errTooLarge = errors.New("the file is over the import limit")
 
 func (a *Adapter) reply(ctx context.Context, chatID string, text string) {
 	if _, err := a.b.SendMessage(ctx, &bot.SendMessageParams{ChatID: chatID, Text: text}); err != nil {
@@ -161,21 +322,25 @@ func (a *Adapter) handleText(ctx context.Context, m *models.Message) {
 	chatID := strconv.FormatInt(m.Chat.ID, 10)
 	chat := actions.ChatRef{Channel: Name, ChatID: chatID}
 	text := strings.TrimSpace(m.Text)
+	// Until the chat is linked, speak the language of the person's Telegram.
+	guess := "en"
+	if m.From != nil {
+		guess = actions.Language(m.From.LanguageCode)
+	}
 	if code, ok := strings.CutPrefix(text, "/start join-"); ok {
 		a.join(ctx, m, chat, code)
 		return
 	}
 	if code, ok := strings.CutPrefix(text, "/start "); ok {
 		if _, err := auth.RedeemLinkCode(ctx, a.svc.Store(), Name, strings.TrimSpace(code), chatID); err != nil {
-			a.reply(ctx, chatID, "That code is not valid anymore: codes work once and for 10 minutes. "+
-				"In Exhale, press “Link Telegram” again and scan the new QR code (or send the new /start message).")
+			a.reply(ctx, chatID, actions.CodeExpiredText(guess))
 			return
 		}
 		// Pins left by an earlier link (e.g. an older database) would point to
 		// screens that no longer exist.
 		_, _ = a.b.UnpinAllChatMessages(ctx, &bot.UnpinAllChatMessagesParams{ChatID: chatID})
-		a.reply(ctx, chatID, "✅ Linked. Reminders arrive here, and the message below is Exhale itself: tap around.")
 		if actor, err := auth.MemberForChannel(ctx, a.svc.Store(), Name, chatID); err == nil {
+			a.reply(ctx, chatID, actions.LinkedText(a.eng.Locale(ctx, actor)))
 			a.openApp(ctx, actor, chat, actions.RouteHome)
 		}
 		return
@@ -183,7 +348,7 @@ func (a *Adapter) handleText(ctx context.Context, m *models.Message) {
 	actor, err := auth.MemberForChannel(ctx, a.svc.Store(), Name, chatID)
 	if err != nil {
 		if strings.HasPrefix(text, "/start") {
-			a.reply(ctx, chatID, "Hi! This is a private Exhale bot. To link this chat, open Exhale, press “Link Telegram” and scan the QR code.")
+			a.reply(ctx, chatID, actions.PrivateBotText(guess))
 		}
 		return // unlinked chats are ignored (ADR 0006)
 	}
@@ -196,17 +361,48 @@ func (a *Adapter) handleText(ctx context.Context, m *models.Message) {
 		return
 	}
 	if cmd, _, _ := strings.Cut(text, " "); strings.HasPrefix(cmd, "/") {
+		if rep, ok := a.eng.Command(ctx, actor, chat, cmd); ok {
+			a.apply(ctx, chat, 0, rep)
+			return
+		}
 		if r, ok := actions.CommandRoute(cmd); ok {
 			a.openApp(ctx, actor, chat, r)
 			return
 		}
 	}
-	var help strings.Builder
-	help.WriteString("Commands:")
-	for _, c := range actions.Commands {
-		help.WriteString("\n/" + c.Command + " — " + c.Description)
+	if !strings.HasPrefix(text, "/") && a.eng.CanAsk(ctx) {
+		// Off the polling loop: a model takes seconds, and buttons must keep
+		// working meanwhile.
+		go a.ask(context.WithoutCancel(ctx), actor, chat, text)
+		return
 	}
-	a.reply(ctx, chatID, help.String())
+	a.reply(ctx, chatID, actions.HelpText(a.eng.Locale(ctx, actor)))
+}
+
+// liveEvery is the shortest gap between two edits of an answer being
+// written: about twenty edits a minute, Telegram's limit in a group.
+var liveEvery = 3 * time.Second
+
+// ask sends free text to the built-in assistant (ADR 0018) and posts what
+// it answers. "typing…" shows while the model works; once it writes, its
+// answer appears in one message that is edited as it grows (at most once
+// every liveEvery) and ends as the finished answer.
+func (a *Adapter) ask(ctx context.Context, actor app.Actor, chat actions.ChatRef, text string) {
+	ctx, cancel := context.WithTimeout(ctx, 3*time.Minute)
+	defer cancel()
+	typing, stop := context.WithCancel(ctx)
+	go func() {
+		for {
+			_, _ = a.b.SendChatAction(typing, &bot.SendChatActionParams{ChatID: chat.ChatID, Action: models.ChatActionTyping})
+			select {
+			case <-typing.Done():
+				return
+			case <-time.After(4 * time.Second): // Telegram shows it for five
+			}
+		}
+	}()
+	a.eng.AskLive(ctx, actor, chat, text, a, liveEvery)
+	stop()
 }
 
 // join accepts a household invite from Telegram: the person becomes a
@@ -219,14 +415,14 @@ func (a *Adapter) join(ctx context.Context, m *models.Message, chat actions.Chat
 	actor, household, err := auth.JoinFromChat(ctx, a.svc.Store(), strings.TrimSpace(code), Name, chat.ChatID, name)
 	switch {
 	case errors.Is(err, domain.ErrConflict):
-		a.reply(ctx, chat.ChatID, "This chat is already linked to Exhale.")
+		a.reply(ctx, chat.ChatID, actions.AlreadyLinkedText(actions.Language(m.From.LanguageCode)))
 		return
 	case err != nil:
-		a.reply(ctx, chat.ChatID, "This invite has expired or was already used. Ask for a new one.")
+		a.reply(ctx, chat.ChatID, actions.InviteExpiredText(actions.Language(m.From.LanguageCode)))
 		return
 	}
 	_, _ = a.b.UnpinAllChatMessages(ctx, &bot.UnpinAllChatMessagesParams{ChatID: chat.ChatID})
-	a.reply(ctx, chat.ChatID, fmt.Sprintf("👋 Welcome to %s, %s. Your reminders arrive here, and the message below is Exhale itself: tap around.", household, actor.Label))
+	a.reply(ctx, chat.ChatID, actions.WelcomeText(a.eng.Locale(ctx, actor), household, actor.Label))
 	a.openApp(ctx, actor, chat, actions.RouteHome)
 }
 
@@ -236,7 +432,7 @@ func (a *Adapter) openApp(ctx context.Context, actor app.Actor, chat actions.Cha
 	m, err := a.eng.OpenApp(ctx, actor, route)
 	if err != nil {
 		a.log.Error("telegram app", "route", route, "err", err)
-		a.reply(ctx, chat.ChatID, "Something went wrong opening Exhale.")
+		a.reply(ctx, chat.ChatID, actions.OpenFailedText(a.eng.Locale(ctx, actor)))
 		return
 	}
 	id, err := a.Send(ctx, chat.ChatID, m)

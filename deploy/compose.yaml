@@ -1,14 +1,36 @@
-# docker compose -f deploy/compose.yaml up -d
+# Exhale with Docker Compose.
+#
+#   docker compose -f deploy/compose.yaml up -d
+#   docker compose -f deploy/compose.yaml logs exhale    # address and one-time setup code
+#
+# Docs: https://github.com/akamachinecode/exhale/blob/main/docs/install/docker.md
 services:
   exhale:
     image: ghcr.io/akamachinecode/exhale:latest
     restart: unless-stopped
     ports:
+      # Reachable from your network over plain HTTP. Fine at home; never
+      # forward this port to the internet. Behind a reverse proxy on this
+      # machine, use "127.0.0.1:8484:8484" instead (docs/install/https.md).
       - "8484:8484"
     volumes:
+      # Everything Exhale stores: the database and its daily backups.
       - exhale-data:/data
+      # Keep the backups on another disk (and uncomment EXHALE_BACKUP_DIR).
+      # The directory must be writable by uid 65532.
+      # - /mnt/backups/exhale:/backups
     environment:
+      # EXHALE_SECURE_COOKIES: "true"        # only when served over HTTPS
+      # EXHALE_BACKUP_DIR: /backups
+      # EXHALE_BACKUP_KEEP: "14"
+      # EXHALE_TELEGRAM_TOKEN: "123456:ABC..." # usually set from the web instead
+      # Time zone of the log timestamps. Reminders use the household's time
+      # zone, which you choose in the web.
       TZ: Europe/Madrid
-      # EXHALE_TELEGRAM_TOKEN: "123456:ABC..."   # from @BotFather
+      # The built-in assistant is off unless set here or in the web (docs/guides/assistant.md):
+      # EXHALE_ASSISTANT_PROVIDER: anthropic       # or openai (OpenAI, OpenRouter, Ollama, LM Studio)
+      # EXHALE_ASSISTANT_API_KEY: "sk-ant-..."
+      # EXHALE_ASSISTANT_BASE_URL: "http://ollama:11434/v1"
+      # EXHALE_ASSISTANT_MODEL: llama3.1
 volumes:
   exhale-data:

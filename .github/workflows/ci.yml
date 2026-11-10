@@ -13,7 +13,7 @@ jobs:
         os: [ubuntu-latest, macos-latest, windows-latest]
     runs-on: ${{ matrix.os }}
     steps:
-      - uses: actions/checkout@v5 # pin by SHA via Renovate
+      - uses: actions/checkout@v5 # pin by SHA via Dependabot
       - uses: jdx/mise-action@v3
       # Through mise tasks: mise.toml sets CGO_ENABLED=0 for builds, and only
       # a task's own env overrides it (an inline CGO_ENABLED=1 does not).
@@ -33,11 +33,34 @@ jobs:
         run: |
           sqlc generate
           git diff --exit-code -- internal/store/db
+  web:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: jdx/mise-action@v3
+      - name: Install
+        run: pnpm -C web install --frozen-lockfile
+      - name: Lint and types
+        run: |
+          pnpm -C web lint
+          pnpm -C web exec tsc --noEmit
+          pnpm -C web i18n
+      - name: The API client is up to date
+        run: |
+          go run ./cmd/exhale openapi > web/openapi.json
+          pnpm -C web gen
+          git diff --exit-code -- web/openapi.json web/src/gen
+      - name: Build
+        run: pnpm -C web build
+      - name: End-to-end test in a browser
+        run: |
+          pnpm -C web exec playwright install --with-deps chromium
+          mise run test:e2e
   security:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5
-      - uses: google/osv-scanner-action/osv-scanner-action@v2.7.0 # pin by SHA via Renovate
+      - uses: google/osv-scanner-action/osv-scanner-action@v2.7.0 # pin by SHA via Dependabot
         with:
           scan-args: --recursive ./
   pr-title:
@@ -51,7 +74,8 @@ jobs:
           echo "$TITLE" | grep -Eq '^(feat|fix|docs|refactor|perf|test|build|ci|chore|revert)(\([a-z0-9-]+\))?!?: .+' \
             || { echo "PR title must follow Conventional Commits, e.g. 'feat(engine): add yearly rules'"; exit 1; }
   dco:
-    if: github.event_name == 'pull_request'
+    # Dependabot cannot sign off its commits; its PRs are reviewed before merge.
+    if: github.event_name == 'pull_request' && github.event.pull_request.user.login != 'dependabot[bot]'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5

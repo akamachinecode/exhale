@@ -6,15 +6,13 @@ package agents
 import (
 	"context"
 	"encoding/json"
-	"errors"
-	"fmt"
 	"strings"
 
 	"github.com/google/jsonschema-go/jsonschema"
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 
 	"github.com/akamachinecode/exhale/internal/app"
-	"github.com/akamachinecode/exhale/internal/domain"
+	"github.com/akamachinecode/exhale/internal/toolschema"
 )
 
 // ActorFunc resolves who is calling. extra carries the HTTP headers (bearer
@@ -57,19 +55,16 @@ func NewServer(svc *app.Service, version string, actor ActorFunc) (*mcp.Server, 
 }
 
 func toolFor(b app.Binding) (*mcp.Tool, error) {
-	in, err := jsonschema.ForType(b.In, &jsonschema.ForOptions{})
+	in, err := toolschema.Input(b)
 	if err != nil {
-		return nil, fmt.Errorf("tool %s: input schema: %w", b.Name, err)
-	}
-	if in.Properties == nil {
-		in.Properties = map[string]*jsonschema.Schema{}
+		return nil, err
 	}
 	if b.Destructive {
 		in.Properties["confirm"] = &jsonschema.Schema{Type: "boolean", Description: "Set to true to apply after showing the user the preview. Without it (and without a trusted token) the call only previews."}
 	}
-	out, err := jsonschema.ForType(b.Out, &jsonschema.ForOptions{})
+	out, err := toolschema.Output(b)
 	if err != nil {
-		return nil, fmt.Errorf("tool %s: output schema: %w", b.Name, err)
+		return nil, err
 	}
 	destructive := b.Destructive
 	openWorld := false
@@ -116,16 +111,7 @@ func handlerFor(svc *app.Service, b app.Binding, actorFn ActorFunc) mcp.ToolHand
 // toolError reports errors inside the result so the model can read them and
 // recover, as the MCP spec recommends.
 func toolError(err error) *mcp.CallToolResult {
-	hint := ""
-	switch {
-	case errors.Is(err, domain.ErrNotFound):
-		hint = " (check the id with list_subscriptions or get_context)"
-	case errors.Is(err, domain.ErrConflict):
-		hint = " (the data changed meanwhile; read it again and retry)"
-	case errors.Is(err, app.ErrForbidden):
-		hint = " (this token is read-only)"
-	}
-	return &mcp.CallToolResult{IsError: true, Content: []mcp.Content{&mcp.TextContent{Text: "error: " + err.Error() + hint}}}
+	return &mcp.CallToolResult{IsError: true, Content: []mcp.Content{&mcp.TextContent{Text: "error: " + toolschema.ErrorText(err)}}}
 }
 
 func addResources(srv *mcp.Server, svc *app.Service, actorFn ActorFunc) {

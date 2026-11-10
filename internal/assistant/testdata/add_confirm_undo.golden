@@ -1,0 +1,13 @@
+> add Netflix 13.99 on the 6th
+  model → create_subscription({"currency":"EUR","firstCharge":"2026-11-06","name":"Netflix","price":"13.99"})
+  exhale ← PREVIEW ONLY — nothing was changed. Exhale now shows the person this change with a button to confirm it. Do not call this tool again for it; say in a sentence what you prepared.
+< I prepared Netflix at 13.99 EUR a month, first charge on 6 November. Confirm it to add it.
+  [proposal] Add Netflix
+    €13.99 monthly
+    First charge: 2026-11-06
+> press Confirm
+  [applied] Add Netflix (Undo offered)
+> press Undo
+  [undone] Add Netflix
+> thanks
+< It is gone again.

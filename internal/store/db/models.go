@@ -15,6 +15,22 @@ type ApiToken struct {
 	RevokedAt  *string
 }
 
+type AssistantUsage struct {
+	ID           string
+	HouseholdID  string
+	MemberID     string
+	At           string
+	Kind         string
+	Surface      string
+	Provider     string
+	Model        string
+	Rounds       int64
+	InputTokens  int64
+	OutputTokens int64
+	CostMicros   *int64
+	Failed       int64
+}
+
 type AuditLog struct {
 	ID         string
 	At         string
@@ -58,6 +74,31 @@ type Charge struct {
 	Note            string
 	UpdatedAt       string
 	Version         int64
+	Decision        string
+}
+
+type DismissedFinding struct {
+	HouseholdID string
+	Kind        string
+	Key         string
+	MemberID    *string
+	CreatedAt   string
+}
+
+type File struct {
+	ID             string
+	HouseholdID    string
+	SubscriptionID string
+	ChargeID       string
+	Kind           string
+	Name           string
+	MediaType      string
+	Size           int64
+	Sha256         string
+	CreatedAt      string
+	CreatedBy      string
+	DeletedAt      string
+	Data           []byte
 }
 
 type Flow struct {
@@ -76,14 +117,17 @@ type FxRate struct {
 }
 
 type Household struct {
-	ID             string
-	Name           string
-	Currency       string
-	Timezone       string
-	Locale         string
-	CreatedAt      string
-	ReminderHour   int64
-	ReminderMinute int64
+	ID               string
+	Name             string
+	Currency         string
+	Timezone         string
+	Locale           string
+	CreatedAt        string
+	ReminderHour     int64
+	ReminderMinute   int64
+	Payday           int64
+	ConfirmTimes     int64
+	ConfirmEveryDays int64
 }
 
 type Invite struct {
@@ -111,6 +155,23 @@ type Member struct {
 	PasswordHash   string
 	CreatedAt      string
 	SessionVersion int64
+	OidcIssuer     string
+	OidcSubject    string
+	Locale         string
+}
+
+type MemberBackupCode struct {
+	MemberID string
+	CodeHash string
+	UsedAt   *string
+}
+
+type MemberTotp struct {
+	MemberID  string
+	Secret    string
+	CreatedAt string
+	EnabledAt *string
+	LastStep  int64
 }
 
 type Message struct {
@@ -125,6 +186,52 @@ type Message struct {
 	Route     string
 }
 
+type OauthClient struct {
+	ID           string
+	Kind         string
+	Name         string
+	Uri          string
+	RedirectUris string
+	SecretHash   string
+	CreatedAt    string
+	LastUsedAt   *string
+	FreshUntil   *string
+}
+
+type OauthCode struct {
+	CodeHash       string
+	ClientID       string
+	MemberID       string
+	RedirectUri    string
+	CodeChallenge  string
+	Scope          string
+	Resource       string
+	SessionVersion int64
+	ExpiresAt      string
+	UsedAt         *string
+	GrantID        *string
+}
+
+type OauthGrant struct {
+	ID             string
+	MemberID       string
+	ClientID       string
+	Scope          string
+	Resource       string
+	SessionVersion int64
+	CreatedAt      string
+	LastUsedAt     *string
+}
+
+type OauthToken struct {
+	TokenHash string
+	GrantID   string
+	Kind      string
+	CreatedAt string
+	ExpiresAt string
+	UsedAt    *string
+}
+
 type Outbox struct {
 	ID        string
 	Kind      string
@@ -137,6 +244,7 @@ type Outbox struct {
 	LastError string
 	SentAt    *string
 	CreatedAt string
+	Ref       string
 }
 
 type PaymentMethod struct {
@@ -147,6 +255,14 @@ type PaymentMethod struct {
 	Last4       string
 	ExpiresOn   *string
 	OwnerID     *string
+}
+
+type PushSubscription struct {
+	LinkID    string
+	P256dh    string
+	Auth      string
+	Device    string
+	CreatedAt string
 }
 
 type Session struct {
@@ -180,4 +296,5 @@ type Subscription struct {
 	CreatedAt       string
 	UpdatedAt       string
 	Version         int64
+	Details         string
 }

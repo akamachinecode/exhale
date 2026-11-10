@@ -18,6 +18,43 @@ func (q *Queries) CancelOutboxForCharge(ctx context.Context, chargeID *string) e
 	return err
 }
 
+const cancelOutboxKey = `-- name: CancelOutboxKey :exec
+UPDATE outbox SET status = 'cancelled' WHERE dedupe_key = ? AND status = 'pending'
+`
+
+func (q *Queries) CancelOutboxKey(ctx context.Context, dedupeKey string) error {
+	_, err := q.db.ExecContext(ctx, cancelOutboxKey, dedupeKey)
+	return err
+}
+
+const cancelOutboxKindForCharge = `-- name: CancelOutboxKindForCharge :exec
+UPDATE outbox SET status = 'cancelled' WHERE charge_id = ? AND kind = ? AND status = 'pending'
+`
+
+type CancelOutboxKindForChargeParams struct {
+	ChargeID *string
+	Kind     string
+}
+
+func (q *Queries) CancelOutboxKindForCharge(ctx context.Context, arg CancelOutboxKindForChargeParams) error {
+	_, err := q.db.ExecContext(ctx, cancelOutboxKindForCharge, arg.ChargeID, arg.Kind)
+	return err
+}
+
+const cancelOutboxRef = `-- name: CancelOutboxRef :exec
+UPDATE outbox SET status = 'cancelled' WHERE kind = ? AND ref = ? AND status = 'pending'
+`
+
+type CancelOutboxRefParams struct {
+	Kind string
+	Ref  string
+}
+
+func (q *Queries) CancelOutboxRef(ctx context.Context, arg CancelOutboxRefParams) error {
+	_, err := q.db.ExecContext(ctx, cancelOutboxRef, arg.Kind, arg.Ref)
+	return err
+}
+
 const channelLinksForMember = `-- name: ChannelLinksForMember :many
 SELECT id, member_id, channel, external_id, created_at FROM channel_links WHERE member_id = ?
 `
@@ -112,6 +149,62 @@ DELETE FROM flows WHERE id = ?
 
 func (q *Queries) DeleteFlow(ctx context.Context, id string) error {
 	_, err := q.db.ExecContext(ctx, deleteFlow, id)
+	return err
+}
+
+const dismissFinding = `-- name: DismissFinding :exec
+INSERT INTO dismissed_findings (household_id, kind, key, member_id, created_at) VALUES (?, ?, ?, ?, ?)
+ON CONFLICT (household_id, kind, key) DO NOTHING
+`
+
+type DismissFindingParams struct {
+	HouseholdID string
+	Kind        string
+	Key         string
+	MemberID    *string
+	CreatedAt   string
+}
+
+func (q *Queries) DismissFinding(ctx context.Context, arg DismissFindingParams) error {
+	_, err := q.db.ExecContext(ctx, dismissFinding,
+		arg.HouseholdID,
+		arg.Kind,
+		arg.Key,
+		arg.MemberID,
+		arg.CreatedAt,
+	)
+	return err
+}
+
+const enqueueNotice = `-- name: EnqueueNotice :exec
+
+INSERT INTO outbox (id, kind, dedupe_key, member_id, ref, due_at, status, created_at)
+VALUES (?, ?, ?, ?, ?, ?, 'pending', ?)
+ON CONFLICT (dedupe_key) DO NOTHING
+`
+
+type EnqueueNoticeParams struct {
+	ID        string
+	Kind      string
+	DedupeKey string
+	MemberID  *string
+	Ref       string
+	DueAt     string
+	CreatedAt string
+}
+
+// Reminders that end in an answer: snoozes, repeats, notices that are not
+// about a charge.
+func (q *Queries) EnqueueNotice(ctx context.Context, arg EnqueueNoticeParams) error {
+	_, err := q.db.ExecContext(ctx, enqueueNotice,
+		arg.ID,
+		arg.Kind,
+		arg.DedupeKey,
+		arg.MemberID,
+		arg.Ref,
+		arg.DueAt,
+		arg.CreatedAt,
+	)
 	return err
 }
 
@@ -298,6 +391,38 @@ func (q *Queries) ListAppMessagesForChat(ctx context.Context, arg ListAppMessage
 	return items, nil
 }
 
+const listDismissedFindings = `-- name: ListDismissedFindings :many
+SELECT key FROM dismissed_findings WHERE household_id = ? AND kind = ?
+`
+
+type ListDismissedFindingsParams struct {
+	HouseholdID string
+	Kind        string
+}
+
+func (q *Queries) ListDismissedFindings(ctx context.Context, arg ListDismissedFindingsParams) ([]string, error) {
+	rows, err := q.db.QueryContext(ctx, listDismissedFindings, arg.HouseholdID, arg.Kind)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []string{}
+	for rows.Next() {
+		var key string
+		if err := rows.Scan(&key); err != nil {
+			return nil, err
+		}
+		items = append(items, key)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const listLiveAppMessages = `-- name: ListLiveAppMessages :many
 SELECT id, channel, chat_id, message_id, charge_id, member_id, created_at, kind, route FROM messages WHERE kind = 'app' AND route <> ''
 `
@@ -373,7 +498,7 @@ func (q *Queries) ListMessagesForCharge(ctx context.Context, chargeID *string) (
 }
 
 const listOutbox = `-- name: ListOutbox :many
-SELECT id, kind, dedupe_key, charge_id, member_id, due_at, status, attempts, last_error, sent_at, created_at FROM outbox ORDER BY due_at DESC LIMIT ?
+SELECT id, kind, dedupe_key, charge_id, member_id, due_at, status, attempts, last_error, sent_at, created_at, ref FROM outbox ORDER BY due_at DESC LIMIT ?
 `
 
 func (q *Queries) ListOutbox(ctx context.Context, limit int64) ([]Outbox, error) {
@@ -397,6 +522,7 @@ func (q *Queries) ListOutbox(ctx context.Context, limit int64) ([]Outbox, error)
 			&i.LastError,
 			&i.SentAt,
 			&i.CreatedAt,
+			&i.Ref,
 		); err != nil {
 			return nil, err
 		}
@@ -412,7 +538,7 @@ func (q *Queries) ListOutbox(ctx context.Context, limit int64) ([]Outbox, error)
 }
 
 const listOutboxDue = `-- name: ListOutboxDue :many
-SELECT id, kind, dedupe_key, charge_id, member_id, due_at, status, attempts, last_error, sent_at, created_at FROM outbox WHERE status = 'pending' AND due_at <= ? ORDER BY due_at LIMIT ?
+SELECT id, kind, dedupe_key, charge_id, member_id, due_at, status, attempts, last_error, sent_at, created_at, ref FROM outbox WHERE status = 'pending' AND due_at <= ? ORDER BY due_at LIMIT ?
 `
 
 type ListOutboxDueParams struct {
@@ -441,6 +567,119 @@ func (q *Queries) ListOutboxDue(ctx context.Context, arg ListOutboxDueParams) ([
 			&i.LastError,
 			&i.SentAt,
 			&i.CreatedAt,
+			&i.Ref,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listOutboxForChargeKind = `-- name: ListOutboxForChargeKind :many
+SELECT dedupe_key, due_at, status, member_id FROM outbox
+WHERE charge_id = ? AND kind = ? AND status IN ('pending', 'sent')
+`
+
+type ListOutboxForChargeKindParams struct {
+	ChargeID *string
+	Kind     string
+}
+
+type ListOutboxForChargeKindRow struct {
+	DedupeKey string
+	DueAt     string
+	Status    string
+	MemberID  *string
+}
+
+func (q *Queries) ListOutboxForChargeKind(ctx context.Context, arg ListOutboxForChargeKindParams) ([]ListOutboxForChargeKindRow, error) {
+	rows, err := q.db.QueryContext(ctx, listOutboxForChargeKind, arg.ChargeID, arg.Kind)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ListOutboxForChargeKindRow{}
+	for rows.Next() {
+		var i ListOutboxForChargeKindRow
+		if err := rows.Scan(
+			&i.DedupeKey,
+			&i.DueAt,
+			&i.Status,
+			&i.MemberID,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listOutboxForHousehold = `-- name: ListOutboxForHousehold :many
+SELECT o.id, o.kind, o.status, o.due_at, o.sent_at, o.attempts, o.last_error, o.member_id,
+       c.id AS charge_id, c.due_date AS charge_due, s.id AS subscription_id, s.name AS subscription_name
+FROM outbox o
+JOIN charges c ON c.id = o.charge_id
+JOIN subscriptions s ON s.id = c.subscription_id
+WHERE s.household_id = ?
+ORDER BY o.due_at DESC
+LIMIT ?
+`
+
+type ListOutboxForHouseholdParams struct {
+	HouseholdID string
+	Limit       int64
+}
+
+type ListOutboxForHouseholdRow struct {
+	ID               string
+	Kind             string
+	Status           string
+	DueAt            string
+	SentAt           *string
+	Attempts         int64
+	LastError        string
+	MemberID         *string
+	ChargeID         string
+	ChargeDue        string
+	SubscriptionID   string
+	SubscriptionName string
+}
+
+func (q *Queries) ListOutboxForHousehold(ctx context.Context, arg ListOutboxForHouseholdParams) ([]ListOutboxForHouseholdRow, error) {
+	rows, err := q.db.QueryContext(ctx, listOutboxForHousehold, arg.HouseholdID, arg.Limit)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ListOutboxForHouseholdRow{}
+	for rows.Next() {
+		var i ListOutboxForHouseholdRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.Kind,
+			&i.Status,
+			&i.DueAt,
+			&i.SentAt,
+			&i.Attempts,
+			&i.LastError,
+			&i.MemberID,
+			&i.ChargeID,
+			&i.ChargeDue,
+			&i.SubscriptionID,
+			&i.SubscriptionName,
 		); err != nil {
 			return nil, err
 		}
@@ -478,6 +717,20 @@ func (q *Queries) MarkOutboxAttemptFailed(ctx context.Context, arg MarkOutboxAtt
 	return err
 }
 
+const markOutboxObsolete = `-- name: MarkOutboxObsolete :exec
+UPDATE outbox SET status = 'cancelled', last_error = ? WHERE id = ? AND status = 'pending'
+`
+
+type MarkOutboxObsoleteParams struct {
+	LastError string
+	ID        string
+}
+
+func (q *Queries) MarkOutboxObsolete(ctx context.Context, arg MarkOutboxObsoleteParams) error {
+	_, err := q.db.ExecContext(ctx, markOutboxObsolete, arg.LastError, arg.ID)
+	return err
+}
+
 const markOutboxSent = `-- name: MarkOutboxSent :exec
 UPDATE outbox SET status = 'sent', sent_at = ?, attempts = attempts + 1 WHERE id = ?
 `
@@ -489,6 +742,20 @@ type MarkOutboxSentParams struct {
 
 func (q *Queries) MarkOutboxSent(ctx context.Context, arg MarkOutboxSentParams) error {
 	_, err := q.db.ExecContext(ctx, markOutboxSent, arg.SentAt, arg.ID)
+	return err
+}
+
+const markOutboxUndeliverable = `-- name: MarkOutboxUndeliverable :exec
+UPDATE outbox SET status = 'failed', last_error = ?, attempts = attempts + 1 WHERE id = ?
+`
+
+type MarkOutboxUndeliverableParams struct {
+	LastError string
+	ID        string
+}
+
+func (q *Queries) MarkOutboxUndeliverable(ctx context.Context, arg MarkOutboxUndeliverableParams) error {
+	_, err := q.db.ExecContext(ctx, markOutboxUndeliverable, arg.LastError, arg.ID)
 	return err
 }
 

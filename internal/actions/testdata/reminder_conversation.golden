@@ -5,6 +5,7 @@ SEND #1
   [✅ Already paid](paid|chg_X) [📅 Change date](date|chg_X|2026-11)
   [💳 Payment method](pm|chg_X) [✏️ Amount](amount|chg_X)
   [⏭ Skip this one](skip|chg_X) [❌ Cancel subscription](cancel|chg_X)
+  [💤 Remind me tomorrow](snz|chg_X|1|r) [💤 In 3 days](snz|chg_X|3|r)
 
 > press Change date
 📅 New date for Spotify Family

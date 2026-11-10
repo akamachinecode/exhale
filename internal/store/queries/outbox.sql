@@ -23,6 +23,9 @@ WHERE id = ?;
 -- name: CancelOutboxForCharge :exec
 UPDATE outbox SET status = 'cancelled' WHERE charge_id = ? AND status = 'pending';
 
+-- name: CancelOutboxKindForCharge :exec
+UPDATE outbox SET status = 'cancelled' WHERE charge_id = ? AND kind = ? AND status = 'pending';
+
 -- name: ListOutbox :many
 SELECT * FROM outbox ORDER BY due_at DESC LIMIT ?;
 
@@ -98,3 +101,44 @@ ON CONFLICT (day, currency) DO UPDATE SET rate = excluded.rate, source = exclude
 
 -- name: FxRateOnOrBefore :one
 SELECT rate, day FROM fx_rates WHERE currency = ? AND day <= ? ORDER BY day DESC LIMIT 1;
+
+-- name: ListOutboxForHousehold :many
+SELECT o.id, o.kind, o.status, o.due_at, o.sent_at, o.attempts, o.last_error, o.member_id,
+       c.id AS charge_id, c.due_date AS charge_due, s.id AS subscription_id, s.name AS subscription_name
+FROM outbox o
+JOIN charges c ON c.id = o.charge_id
+JOIN subscriptions s ON s.id = c.subscription_id
+WHERE s.household_id = ?
+ORDER BY o.due_at DESC
+LIMIT ?;
+
+-- name: MarkOutboxUndeliverable :exec
+UPDATE outbox SET status = 'failed', last_error = ?, attempts = attempts + 1 WHERE id = ?;
+
+-- Reminders that end in an answer: snoozes, repeats, notices that are not
+-- about a charge.
+
+-- name: EnqueueNotice :exec
+INSERT INTO outbox (id, kind, dedupe_key, member_id, ref, due_at, status, created_at)
+VALUES (?, ?, ?, ?, ?, ?, 'pending', ?)
+ON CONFLICT (dedupe_key) DO NOTHING;
+
+-- name: ListOutboxForChargeKind :many
+SELECT dedupe_key, due_at, status, member_id FROM outbox
+WHERE charge_id = ? AND kind = ? AND status IN ('pending', 'sent');
+
+-- name: CancelOutboxKey :exec
+UPDATE outbox SET status = 'cancelled' WHERE dedupe_key = ? AND status = 'pending';
+
+-- name: CancelOutboxRef :exec
+UPDATE outbox SET status = 'cancelled' WHERE kind = ? AND ref = ? AND status = 'pending';
+
+-- name: DismissFinding :exec
+INSERT INTO dismissed_findings (household_id, kind, key, member_id, created_at) VALUES (?, ?, ?, ?, ?)
+ON CONFLICT (household_id, kind, key) DO NOTHING;
+
+-- name: ListDismissedFindings :many
+SELECT key FROM dismissed_findings WHERE household_id = ? AND kind = ?;
+
+-- name: MarkOutboxObsolete :exec
+UPDATE outbox SET status = 'cancelled', last_error = ? WHERE id = ? AND status = 'pending';

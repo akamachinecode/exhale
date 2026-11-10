@@ -146,11 +146,16 @@ func RevokeToken(ctx context.Context, st *store.Store, memberID, id string) erro
 	return err
 }
 
-// LinkInfo describes a linked chat account.
+// LinkInfo describes a linked chat account or notify-only destination.
 type LinkInfo struct {
 	ID        string `json:"id"`
 	Channel   string `json:"channel"`
 	CreatedAt string `json:"createdAt"`
+	// Destination and HasTemplate are filled by the API for notify-only
+	// channels (email, ntfy, webhook); ExternalID never leaves the server.
+	Destination string `json:"destination,omitempty" doc:"email address, ntfy topic or webhook host; empty for chat accounts"`
+	HasTemplate bool   `json:"hasTemplate,omitempty" doc:"the webhook has its own body template"`
+	ExternalID  string `json:"-"`
 }
 
 // ListLinks returns a member's linked chat accounts.
@@ -158,7 +163,7 @@ func ListLinks(ctx context.Context, st *store.Store, memberID string) ([]LinkInf
 	rows, err := st.Q.ChannelLinksForMember(ctx, memberID)
 	out := make([]LinkInfo, 0, len(rows))
 	for _, r := range rows {
-		out = append(out, LinkInfo{ID: r.ID, Channel: r.Channel, CreatedAt: r.CreatedAt})
+		out = append(out, LinkInfo{ID: r.ID, Channel: r.Channel, CreatedAt: r.CreatedAt, ExternalID: r.ExternalID})
 	}
 	return out, err
 }

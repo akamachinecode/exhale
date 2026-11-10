@@ -5,10 +5,15 @@ import { createRoot } from "react-dom/client";
 import { Toaster } from "sonner";
 import { getAuthSessionQueryKey } from "@/gen/api";
 import { ApiError } from "@/lib/fetcher";
+import { lang } from "@/lib/i18n";
+import { registerServiceWorker } from "@/lib/push";
 import { ActivityPage } from "@/routes/activity";
 import { AgentsPage } from "@/routes/agents";
 import { JoinPage, Root } from "@/routes/auth";
+import { AuthorizePage } from "@/routes/authorize";
 import { Calendar } from "@/routes/calendar";
+import { Checkup } from "@/routes/checkup";
+import { Insights } from "@/routes/insights";
 import { Overview } from "@/routes/overview";
 import { SettingsPage } from "@/routes/settings";
 import { SubscriptionDetail } from "@/routes/subscription-detail";
@@ -24,9 +29,14 @@ const routeTree = root.addChildren([
 		getParentRoute: () => root,
 		path: "/subscriptions/",
 		component: Subscriptions,
-		validateSearch: (s: Record<string, unknown>): { status?: string; q?: string } => ({
+		validateSearch: (
+			s: Record<string, unknown>,
+		): { status?: string; q?: string; cat?: string; pm?: string; tag?: string } => ({
 			status: str(s.status),
 			q: str(s.q),
+			cat: str(s.cat),
+			pm: str(s.pm),
+			tag: str(s.tag),
 		}),
 	}),
 	createRoute({ getParentRoute: () => root, path: "/subscriptions/$id", component: SubscriptionDetail }),
@@ -38,9 +48,16 @@ const routeTree = root.addChildren([
 			month: str(s.month)?.match(/^\d{4}-\d{2}$/)?.[0],
 		}),
 	}),
+	createRoute({ getParentRoute: () => root, path: "/insights", component: Insights }),
+	createRoute({ getParentRoute: () => root, path: "/checkup", component: Checkup }),
 	createRoute({ getParentRoute: () => root, path: "/activity", component: ActivityPage }),
 	createRoute({ getParentRoute: () => root, path: "/agents", component: AgentsPage }),
-	createRoute({ getParentRoute: () => root, path: "/settings", component: SettingsPage }),
+	createRoute({
+		getParentRoute: () => root,
+		path: "/settings",
+		component: SettingsPage,
+		validateSearch: (s: Record<string, unknown>): { tab?: string } => ({ tab: str(s.tab) }),
+	}),
 	createRoute({
 		getParentRoute: () => root,
 		path: "/welcome",
@@ -49,6 +66,7 @@ const routeTree = root.addChildren([
 		},
 	}),
 	createRoute({ getParentRoute: () => root, path: "/join/$code", component: JoinPage }),
+	createRoute({ getParentRoute: () => root, path: "/authorize", component: AuthorizePage }),
 ]);
 
 const router = createRouter({ routeTree, defaultPreload: "intent" });
@@ -75,6 +93,9 @@ const queryClient: QueryClient = new QueryClient({
 		},
 	},
 });
+
+document.documentElement.lang = lang;
+registerServiceWorker(); // push notifications only; it caches nothing (ADR 0026)
 
 const el = document.getElementById("root");
 if (el) {

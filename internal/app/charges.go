@@ -18,6 +18,17 @@ type ChargeResult struct {
 	Subscription SubscriptionView `json:"subscription"`
 	AuditID      string           `json:"auditId,omitempty" jsonschema:"pass to undo to revert this change"`
 	DryRun       bool             `json:"dryRun,omitempty"`
+	// PriceChange is set when a charge was paid at a different amount than
+	// expected, in the same currency: probably a new price.
+	PriceChange *PriceChangeHint `json:"priceChange,omitempty" jsonschema:"the bank took a different amount than expected. Ask the user whether this is the new price; if so call update_subscription with price"`
+}
+
+// PriceChangeHint says a charge was paid at another amount.
+type PriceChangeHint struct {
+	Expected    money.Money `json:"expected"`
+	Charged     money.Money `json:"charged"`
+	Change      string      `json:"changePercent"`
+	YearlyDelta money.Money `json:"yearlyDelta" jsonschema:"difference per year if this is the new price, in the subscription currency"`
 }
 
 // ChangeChargeDateInput moves a charge.
@@ -33,7 +44,7 @@ type ChangeChargeDateInput struct {
 func (s *Service) ChangeChargeDate(ctx context.Context, actor Actor, in ChangeChargeDateInput) (ChargeResult, error) {
 	newDate, err := engine.ParseDate(in.NewDate)
 	if err != nil {
-		return ChargeResult{}, fmt.Errorf("%w: new date: %v", domain.ErrValidation, err)
+		return ChargeResult{}, domain.BadDate("new date", in.NewDate)
 	}
 	scope := domain.EditScope(in.Scope)
 	if scope == "" {
@@ -46,7 +57,7 @@ func (s *Service) ChangeChargeDate(ctx context.Context, actor Actor, in ChangeCh
 			return err
 		}
 		if !ch.Open() {
-			return fmt.Errorf("%w: charge %s is %s; reopen it first", domain.ErrValidation, ch.ID, ch.Status)
+			return domain.Invalid("charge %s is %s; reopen it first", ch.ID, domain.Word(ch.Status))
 		}
 		before := ch
 		resultID := ch.ID
@@ -58,18 +69,16 @@ func (s *Service) ChangeChargeDate(ctx context.Context, actor Actor, in ChangeCh
 			}
 		case domain.ScopeThisAndAfter:
 			beforeSub := sub
-			rule := sub.Schedule.Current(ch.OriginalDate)
-			sub.Schedule, err = sub.Schedule.ChangeFrom(ch.OriginalDate, newDate, rule.Interval, rule.Unit)
+			// The rule keeps its kind (weekday of the month, weekend shift).
+			rule := sub.Schedule.Current(ch.OriginalDate).Reanchor(newDate)
+			sub.Schedule, err = sub.Schedule.ChangeRule(ch.OriginalDate, rule)
 			if err != nil {
-				return fmt.Errorf("%w: %v", domain.ErrValidation, err)
+				return domain.BadRule(rule.Interval, string(rule.Unit), err)
 			}
 			if err := s.saveSubscription(ctx, q, sub); err != nil {
 				return err
 			}
-			cut := ch.OriginalDate
-			if newDate.Before(cut) {
-				cut = newDate
-			}
+			cut := minDate(ch.OriginalDate, minDate(newDate, rule.Occurrence(0)))
 			if err := q.DeleteFuturePendingCharges(ctx, db.DeleteFuturePendingChargesParams{SubscriptionID: sub.ID, OriginalDate: cut.String()}); err != nil {
 				return err
 			}
@@ -80,12 +89,12 @@ func (s *Service) ChangeChargeDate(ctx context.Context, actor Actor, in ChangeCh
 			if _, err := c.record(q, "subscription.reschedule", "subscription", sub.ID, beforeSub, sub); err != nil {
 				return err
 			}
-			r, err := q.GetChargeByOriginalDate(ctx, db.GetChargeByOriginalDateParams{SubscriptionID: sub.ID, OriginalDate: newDate.String()})
+			r, err := q.GetChargeByOriginalDate(ctx, db.GetChargeByOriginalDateParams{SubscriptionID: sub.ID, OriginalDate: rule.Occurrence(0).String()})
 			if err == nil {
 				resultID = r.ID
 			}
 		default:
-			return fmt.Errorf("%w: unknown scope %q", domain.ErrValidation, in.Scope)
+			return domain.Invalid("unknown scope %q", in.Scope)
 		}
 		if scope == domain.ScopeThisCharge {
 			if out.AuditID, err = c.record(q, "charge.move", "charge", ch.ID, before, ch); err != nil {
@@ -127,7 +136,7 @@ func (s *Service) ChangeChargeAmount(ctx context.Context, actor Actor, in Change
 		}
 		amount, err := money.Parse(in.Amount, ch.Amount.Currency)
 		if err != nil {
-			return fmt.Errorf("%w: %v", domain.ErrValidation, err)
+			return domain.BadPrice(in.Amount, ch.Amount.Currency)
 		}
 		before := ch
 		ch.Amount = amount
@@ -189,7 +198,7 @@ func (s *Service) SetChargeStatus(ctx context.Context, actor Actor, in SetCharge
 				cur = ch.Amount.Currency
 			}
 			if ch.ChargedAmount, err = money.Parse(in.ChargedAmount, cur); err != nil {
-				return fmt.Errorf("%w: charged amount: %v", domain.ErrValidation, err)
+				return domain.Invalid("charged amount: %v", domain.BadPrice(in.ChargedAmount, cur))
 			}
 		}
 		if in.Status == string(domain.ChargePending) {
@@ -209,11 +218,68 @@ func (s *Service) SetChargeStatus(ctx context.Context, actor Actor, in SetCharge
 		if out.AuditID, err = c.record(q, "charge."+in.Status, "charge", ch.ID, before, ch); err != nil {
 			return err
 		}
+		out.PriceChange = priceChangeHint(ch, sub)
 		c.emit(bus.Event{Type: bus.ChargeUpdated, HouseholdID: sub.HouseholdID, SubscriptionID: sub.ID, ChargeID: ch.ID})
 		return s.fillResult(ctx, q, actor, ch.ID, &out)
 	})
 	out.DryRun = in.DryRun
 	return out, err
+}
+
+// DecideRenewalInput records what the member decided about a renewal.
+type DecideRenewalInput struct {
+	ChargeID string `json:"chargeId"`
+	Decision string `json:"decision" jsonschema:"keep: stop asking before the last day to cancel; undecided: ask again" enum:"keep,undecided"`
+	DryRun   bool   `json:"dryRun,omitempty"`
+}
+
+// DecideRenewal records that the member wants to keep a renewal (or takes
+// that back), so the "keep or cancel?" reminders stop. To cancel instead,
+// use SetSubscriptionStatus.
+func (s *Service) DecideRenewal(ctx context.Context, actor Actor, in DecideRenewalInput) (ChargeResult, error) {
+	var out ChargeResult
+	err := s.write(ctx, actor, in.DryRun, func(q *db.Queries, c *change) error {
+		ch, sub, err := s.charge(ctx, q, actor, in.ChargeID)
+		if err != nil {
+			return err
+		}
+		before := ch
+		switch in.Decision {
+		case "keep":
+			ch.Decision = "keep"
+		case "undecided":
+			ch.Decision = ""
+		default:
+			return domain.Invalid("decision must be keep or undecided")
+		}
+		if err := s.saveCharge(ctx, q, ch); err != nil {
+			return err
+		}
+		if ch.Decision != "" {
+			if err := q.CancelOutboxKindForCharge(ctx, db.CancelOutboxKindForChargeParams{ChargeID: store.Ptr(ch.ID), Kind: KindDecision}); err != nil {
+				return err
+			}
+		}
+		if out.AuditID, err = c.record(q, "charge.decide", "charge", ch.ID, before, ch); err != nil {
+			return err
+		}
+		c.emit(bus.Event{Type: bus.ChargeUpdated, HouseholdID: sub.HouseholdID, SubscriptionID: sub.ID, ChargeID: ch.ID})
+		return s.fillResult(ctx, q, actor, ch.ID, &out)
+	})
+	out.DryRun = in.DryRun
+	return out, err
+}
+
+// priceChangeHint compares what was charged with what was expected.
+func priceChangeHint(ch domain.Charge, sub domain.Subscription) *PriceChangeHint {
+	got := ch.ChargedAmount
+	if ch.Status != domain.ChargePaid || got.IsZero() || got.Currency != ch.Amount.Currency || got == ch.Amount || ch.Amount.Minor == 0 || got == sub.Price {
+		return nil
+	}
+	delta := money.Money{Minor: got.Minor - ch.Amount.Minor, Currency: got.Currency}
+	perMonth, _ := delta.Scale(monthlyFactor(sub.Schedule.Current(ch.OriginalDate)))
+	yearly, _ := perMonth.Scale("12")
+	return &PriceChangeHint{Expected: ch.Amount, Charged: got, Change: fmt.Sprintf("%+.1f", float64(delta.Minor)*100/float64(ch.Amount.Minor)), YearlyDelta: yearly}
 }
 
 func (s *Service) saveCharge(ctx context.Context, q *db.Queries, ch domain.Charge) error {
@@ -222,7 +288,7 @@ func (s *Service) saveCharge(ctx context.Context, q *db.Queries, ch domain.Charg
 		return err
 	}
 	if n == 0 {
-		return fmt.Errorf("charge %s changed meanwhile: %w", ch.ID, domain.ErrConflict)
+		return domain.Conflict("charge %s changed meanwhile", ch.ID)
 	}
 	return nil
 }
@@ -230,7 +296,7 @@ func (s *Service) saveCharge(ctx context.Context, q *db.Queries, ch domain.Charg
 func (s *Service) fillResult(ctx context.Context, q *db.Queries, actor Actor, chargeID string, out *ChargeResult) error {
 	r, err := q.GetCharge(ctx, chargeID)
 	if err != nil {
-		return store.NotFound(err, "charge "+chargeID)
+		return store.NotFound(err, "charge %s: not found", chargeID)
 	}
 	sub, err := s.subscription(ctx, q, actor, r.SubscriptionID)
 	if err != nil {

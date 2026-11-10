@@ -1,5 +1,6 @@
 import { Eye, EyeOff } from "lucide-react";
 import { type InputHTMLAttributes, type ReactNode, type SelectHTMLAttributes, useState } from "react";
+import { t } from "@/lib/i18n";
 import { cn } from "@/lib/utils";
 
 const control =
@@ -18,7 +19,7 @@ export function PasswordInput({ className, ...props }: Omit<InputHTMLAttributes<
 			<button
 				type="button"
 				onClick={() => setVisible(!visible)}
-				aria-label={visible ? "Hide password" : "Show password"}
+				aria-label={visible ? t("Hide password") : t("Show password")}
 				aria-pressed={visible}
 				className="absolute inset-y-0 right-0 grid w-10 place-items-center rounded-r-lg text-faint transition-colors hover:text-fg"
 			>

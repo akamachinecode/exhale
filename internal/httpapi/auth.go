@@ -30,7 +30,9 @@ func isLocal(ctx context.Context) bool { v, _ := ctx.Value(localKey{}).(bool); r
 // publicAuthPaths answer without credentials.
 func publicPath(p string) bool {
 	switch p {
-	case "/api/v1/auth/session", "/api/v1/auth/setup", "/api/v1/auth/login", "/api/v1/auth/join", "/api/v1/auth/logout":
+	case "/api/v1/auth/session", "/api/v1/auth/setup", "/api/v1/auth/login", "/api/v1/auth/join", "/api/v1/auth/logout",
+		oidcStart, oidcCallback, loginTwoFactorPath,
+		pushActionPath: // web push buttons carry their own signed token
 		return true
 	}
 	return strings.HasPrefix(p, "/api/v1/auth/invites/")
@@ -41,6 +43,10 @@ func publicPath(p string) bool {
 type limiter struct {
 	mu sync.Mutex
 	m  map[string]*rate.Limiter
+	// every and burst override the sign-in rate (10 at once, then one
+	// every 6 s) when set.
+	every time.Duration
+	burst int
 }
 
 func (l *limiter) allow(key string) bool {
@@ -51,7 +57,11 @@ func (l *limiter) allow(key string) bool {
 	}
 	lim, ok := l.m[key]
 	if !ok {
-		lim = rate.NewLimiter(rate.Every(6*time.Second), 10) // 10 at once, then 10 per minute
+		every, burst := 6*time.Second, 10 // 10 at once, then 10 per minute
+		if l.every > 0 {
+			every, burst = l.every, l.burst
+		}
+		lim = rate.NewLimiter(rate.Every(every), burst)
 		l.m[key] = lim
 	}
 	return lim.Allow()
@@ -63,10 +73,18 @@ func clientIP(ctx context.Context) string { v, _ := ctx.Value(ipKey{}).(string);
 
 // SessionUser is the signed-in person.
 type SessionUser struct {
-	ID    string      `json:"id"`
-	Name  string      `json:"name"`
-	Email string      `json:"email"`
-	Role  domain.Role `json:"role"`
+	ID          string      `json:"id"`
+	Name        string      `json:"name"`
+	Email       string      `json:"email"`
+	Role        domain.Role `json:"role"`
+	HasPassword bool        `json:"hasPassword" doc:"the account has a password (accounts made through single sign-on have none)"`
+	SSOHost     string      `json:"ssoHost,omitempty" doc:"host of the identity provider this account is linked to, if any"`
+	Locale      string      `json:"locale,omitempty" doc:"the language this person chose; empty: the household's"`
+}
+
+// SSOInfo describes the configured OpenID Connect provider.
+type SSOInfo struct {
+	Name string `json:"name" doc:"what the sign-in button says after \"Continue with\""`
 }
 
 // AuthSession tells the web what to show: the setup wizard, the sign-in
@@ -76,7 +94,16 @@ type AuthSession struct {
 	SetupNeedsCode bool         `json:"setupNeedsCode" doc:"the wizard must ask for the setup code (request not from the server's machine)"`
 	HasHousehold   bool         `json:"hasHousehold" doc:"a household exists (made with exhale init); setup only creates the owner's login"`
 	User           *SessionUser `json:"user,omitempty"`
+	Language       string       `json:"language,omitempty" doc:"the language to show the signed-in person: their own, else the household's"`
 	TelegramBot    string       `json:"telegramBot,omitempty" doc:"username of the Telegram bot, when Telegram is enabled"`
+	SSO            *SSOInfo     `json:"sso,omitempty" doc:"present when single sign-on (OpenID Connect) is enabled; start it by navigating to /api/v1/auth/oidc/start"`
+	// PasswordLoginDisabled hides the password forms: sign-in, sign-up and
+	// join only go through the provider.
+	PasswordLoginDisabled bool `json:"passwordLoginDisabled" doc:"password sign-in is turned off: only show single sign-on"`
+	Assistant             bool `json:"assistant" doc:"the built-in assistant is on: show Ask Exhale"`
+	// TwoFactor is set by a sign-in whose password was right and that now
+	// needs a code (ADR 0025).
+	TwoFactor *TwoFactorStep `json:"twoFactor,omitempty" doc:"the password was right; send a code to /api/v1/auth/login/two-factor to finish signing in"`
 }
 
 type authAPI struct {
@@ -85,6 +112,13 @@ type authAPI struct {
 	cfg    Config
 	ips    limiter
 	emails limiter
+	// Single sign-on: attempts in progress and their own throttle.
+	flows     flowStore
+	ssoStarts limiter
+	// Two-factor sign-in: logins waiting for a code and their throttles.
+	pending     pendingLogins
+	codeIPs     limiter
+	codeMembers limiter
 }
 
 func (a *authAPI) session(ctx context.Context) (AuthSession, error) {
@@ -93,7 +127,10 @@ func (a *authAPI) session(ctx context.Context) (AuthSession, error) {
 	if err != nil {
 		return AuthSession{}, err
 	}
-	out := AuthSession{SetupRequired: req, SetupNeedsCode: req && !isLocal(ctx)}
+	out := AuthSession{SetupRequired: req, SetupNeedsCode: req && !isLocal(ctx), PasswordLoginDisabled: a.passwordOff()}
+	if a.cfg.OIDC != nil {
+		out.SSO = &SSOInfo{Name: a.cfg.OIDC.Name()}
+	}
 	if a.cfg.Telegram != nil {
 		out.TelegramBot = a.cfg.Telegram.Username()
 	}
@@ -103,9 +140,15 @@ func (a *authAPI) session(ctx context.Context) (AuthSession, error) {
 	if actor, ok := auth.SessionActor(ctx, a.sm, st); ok {
 		m, err := st.Q.GetMember(ctx, actor.MemberID)
 		if err == nil {
-			out.User = &SessionUser{ID: m.ID, Name: m.Name, Email: m.Email, Role: domain.Role(m.Role)}
+			out.User = &SessionUser{ID: m.ID, Name: m.Name, Email: m.Email, Role: domain.Role(m.Role), HasPassword: m.PasswordHash != "", SSOHost: auth.IdentityHost(m), Locale: m.Locale}
+			out.Language = m.Locale
+			if h, err := st.Q.GetHousehold(ctx, m.HouseholdID); err == nil && out.Language == "" {
+				out.Language = h.Locale
+			}
 		}
 	}
+	// Only someone signed in learns whether the assistant is on.
+	out.Assistant = out.User != nil && a.cfg.Assistant != nil && a.cfg.Assistant.Enabled(ctx)
 	return out, nil
 }
 
@@ -154,6 +197,9 @@ func registerAuth(api huma.API, a *authAPI) {
 
 	huma.Register(api, authOp("auth_setup", http.MethodPost, "/setup", "Create the first account"),
 		func(ctx context.Context, in *struct{ Body auth.SetupInput }) (*resp[AuthSession], error) {
+			if err := a.passwordRefused(); err != nil {
+				return nil, err
+			}
 			if err := a.throttle(ctx, ""); err != nil {
 				return nil, err
 			}
@@ -170,6 +216,9 @@ func registerAuth(api huma.API, a *authAPI) {
 	}
 	huma.Register(api, authOp("auth_login", http.MethodPost, "/login", "Sign in"),
 		func(ctx context.Context, in *struct{ Body loginIn }) (*resp[AuthSession], error) {
+			if err := a.passwordRefused(); err != nil {
+				return nil, err
+			}
 			if err := a.throttle(ctx, in.Body.Email); err != nil {
 				return nil, err
 			}
@@ -179,6 +228,9 @@ func registerAuth(api huma.API, a *authAPI) {
 			}
 			if err != nil {
 				return nil, httpError(err)
+			}
+			if out, err := a.askForCode(ctx, m); out != nil || err != nil {
+				return out, err
 			}
 			return a.signIn(ctx, m.ID)
 		})
@@ -211,6 +263,25 @@ func registerAuth(api huma.API, a *authAPI) {
 				return nil, httpError(err)
 			}
 			return &resp[empty]{}, nil
+		})
+
+	type languageIn struct {
+		Language string `json:"language" doc:"code of a registered language; empty follows the household's"`
+	}
+	huma.Register(api, authOp("auth_set_language", http.MethodPost, "/language", "Choose your own language (empty: the household's)"),
+		func(ctx context.Context, in *struct{ Body languageIn }) (*resp[AuthSession], error) {
+			actor, err := a.member(ctx)
+			if err != nil {
+				return nil, err
+			}
+			if err := auth.SetLanguage(ctx, a.svc.Store(), actor.MemberID, in.Body.Language); err != nil {
+				return nil, httpError(err)
+			}
+			s, err := a.session(ctx)
+			if err != nil {
+				return nil, httpError(err)
+			}
+			return &resp[AuthSession]{Body: s}, nil
 		})
 
 	type inviteIn struct {
@@ -257,6 +328,9 @@ func registerAuth(api huma.API, a *authAPI) {
 
 	huma.Register(api, authOp("auth_join", http.MethodPost, "/join", "Accept an invite and create your account"),
 		func(ctx context.Context, in *struct{ Body auth.JoinInput }) (*resp[AuthSession], error) {
+			if err := a.passwordRefused(); err != nil {
+				return nil, err
+			}
 			if err := a.throttle(ctx, ""); err != nil {
 				return nil, err
 			}
@@ -321,7 +395,7 @@ func registerAuth(api huma.API, a *authAPI) {
 	type linksOut struct {
 		Links []auth.LinkInfo `json:"links"`
 	}
-	huma.Register(api, authOp("auth_list_links", http.MethodGet, "/links", "Your linked chat accounts"),
+	huma.Register(api, authOp("auth_list_links", http.MethodGet, "/links", "Your linked chat accounts and notification destinations"),
 		func(ctx context.Context, _ *struct{}) (*resp[linksOut], error) {
 			actor, err := a.member(ctx)
 			if err != nil {
@@ -330,6 +404,9 @@ func registerAuth(api huma.API, a *authAPI) {
 			list, err := auth.ListLinks(ctx, a.svc.Store(), actor.MemberID)
 			if err != nil {
 				return nil, httpError(err)
+			}
+			for i := range list {
+				list[i] = a.describe(ctx, list[i])
 			}
 			return &resp[linksOut]{Body: linksOut{Links: list}}, nil
 		})
@@ -359,14 +436,21 @@ func registerAuth(api huma.API, a *authAPI) {
 			return &resp[linkCodeOut]{Body: out}, nil
 		})
 
-	huma.Register(api, authOp("auth_unlink", http.MethodPost, "/links/unlink", "Unlink a chat account"),
+	huma.Register(api, authOp("auth_unlink", http.MethodPost, "/links/unlink", "Unlink a chat account or remove a destination"),
 		func(ctx context.Context, in *struct{ Body idIn }) (*resp[empty], error) {
 			actor, err := a.member(ctx)
 			if err != nil {
 				return nil, err
 			}
+			link, err := auth.Link(ctx, a.svc.Store(), actor.MemberID, in.Body.ID)
+			if err != nil {
+				return nil, httpError(err)
+			}
 			if err := auth.Unlink(ctx, a.svc.Store(), actor.MemberID, in.Body.ID); err != nil {
 				return nil, httpError(err)
+			}
+			if a.cfg.Channels != nil {
+				_ = a.cfg.Channels.Forget(ctx, link.Channel, link.ExternalID)
 			}
 			return &resp[empty]{}, nil
 		})

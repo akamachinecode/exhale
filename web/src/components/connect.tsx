@@ -3,6 +3,7 @@ import { Check, Copy, ExternalLink, Loader2, Trash2, UserPlus } from "lucide-rea
 import { type FormEvent, useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 import { encode } from "uqr";
+import { MemberRow } from "@/components/manage";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Field, Input, Select } from "@/components/ui/field";
@@ -24,6 +25,7 @@ import {
 	useUpdateHousehold,
 } from "@/gen/api";
 import { ApiError } from "@/lib/fetcher";
+import { languages, t } from "@/lib/i18n";
 import { currencies, timezones } from "@/lib/locale";
 import { cn } from "@/lib/utils";
 
@@ -56,7 +58,7 @@ export function CodeBlock({ code, className }: { code: string; className?: strin
 		<div className={cn("relative rounded-lg border border-line bg-raised", className)}>
 			<button
 				type="button"
-				aria-label="Copy"
+				aria-label={t("Copy")}
 				onClick={async () => {
 					if (await copy(code)) {
 						setCopied(true);
@@ -67,7 +69,7 @@ export function CodeBlock({ code, className }: { code: string; className?: strin
 			>
 				{copied ? <Check className="size-3.5 text-ok" /> : <Copy className="size-3.5" />}
 			</button>
-			<pre className="overflow-x-auto p-3 pr-10 font-mono text-[12px] leading-relaxed break-all whitespace-pre-wrap">
+			<pre className="overflow-x-auto p-3 pr-10 font-mono text-[12px] leading-relaxed break-all whitespace-pre-wrap select-all">
 				{code}
 			</pre>
 		</div>
@@ -87,7 +89,7 @@ function CopyChip({ text, label }: { text: string; label?: string }) {
 				}
 			}}
 			className="inline-flex max-w-full items-center gap-2 rounded-lg border border-line bg-raised px-2.5 py-1.5 font-mono text-[12.5px] transition-colors hover:border-fg/30"
-			aria-label={`Copy ${label ?? text}`}
+			aria-label={t("Copy {0}", label ?? text)}
 		>
 			<span className="truncate">{text}</span>
 			{copied ? (
@@ -147,13 +149,13 @@ export function TelegramSetup() {
 		return isOwner ? (
 			<BotFatherGuide />
 		) : (
-			<p className="text-sm text-muted">The owner hasn't set up the Telegram bot yet.</p>
+			<p className="text-sm text-muted">{t("The owner hasn't set up the Telegram bot yet.")}</p>
 		);
 	}
 	if (!s.running) {
 		return (
 			<p className="flex items-center gap-2 text-sm text-muted">
-				<Loader2 className="size-4 animate-spin" /> Starting your bot…
+				<Loader2 className="size-4 animate-spin" /> {t("Starting your bot…")}
 			</p>
 		);
 	}
@@ -161,7 +163,7 @@ export function TelegramSetup() {
 		<div className="grid gap-5">
 			<div className="flex flex-wrap items-center justify-between gap-3">
 				<p className="text-sm">
-					Your bot:{" "}
+					{t("Your bot:")}{" "}
 					<a
 						href={`https://t.me/${s.username}`}
 						target="_blank"
@@ -170,7 +172,7 @@ export function TelegramSetup() {
 					>
 						@{s.username}
 					</a>
-					{s.source === "env" && <span className="text-muted"> · set on the server</span>}
+					{s.source === "env" && <span className="text-muted"> {t("· set on the server")}</span>}
 				</p>
 				{isOwner && s.source !== "env" && <ChangeBot />}
 			</div>
@@ -195,8 +197,8 @@ function suggestUsername(name: string) {
 
 function usernameProblem(u: string) {
 	if (!/^[a-zA-Z][a-zA-Z0-9_]{4,31}$/.test(u))
-		return "5 to 32 letters, numbers or _, starting with a letter.";
-	if (!/bot$/i.test(u)) return "It must end in “bot”.";
+		return t("5 to 32 letters, numbers or _, starting with a letter.");
+	if (!/bot$/i.test(u)) return t("It must end in “bot”.");
 	return undefined;
 }
 
@@ -219,29 +221,29 @@ function BotFatherGuide() {
 	const connect = async (text: string) => {
 		const token = findToken(text);
 		if (!token) {
-			setError("No token found. Paste BotFather's last message, the one that starts with “Done!”.");
+			setError(t("No token found. Paste BotFather's last message, the one that starts with “Done!”."));
 			return;
 		}
 		setError(undefined);
 		try {
 			const s = await set.mutateAsync({ data: { token } });
 			await qc.invalidateQueries();
-			toast.success(`@${s.username} is ready`);
+			toast.success(t("@{0} is ready", s.username));
 		} catch (err) {
-			setError(errText(err, "Could not connect the bot"));
+			setError(errText(err, t("Could not connect the bot")));
 		}
 	};
 
 	return (
 		<div className="grid gap-5">
 			<p className="text-sm text-muted">
-				Telegram makes you create the bot yourself. We prepared everything.
+				{t("Telegram makes you create the bot yourself. We prepared everything.")}
 			</p>
 			<div className="grid gap-3 sm:grid-cols-2">
-				<Field label="Bot name">
+				<Field label={t("Bot name")}>
 					<Input value={name} onChange={(e) => setName(e.target.value)} maxLength={64} />
 				</Field>
-				<Field label="Username" error={problem}>
+				<Field label={t("Username")} error={problem}>
 					<Input
 						value={username}
 						onChange={(e) => setUsername(e.target.value.replace(/^@/, ""))}
@@ -260,27 +262,28 @@ function BotFatherGuide() {
 							rel="noopener"
 							className="inline-flex items-center gap-1 font-medium underline underline-offset-4"
 						>
-							Open @BotFather <ExternalLink className="size-3.5" />
+							{t("Open @BotFather")} <ExternalLink className="size-3.5" />
 						</a>{" "}
-						<span className="text-muted sm:hidden">in Telegram</span>
-						<span className="hidden text-muted sm:inline">or scan the code with your phone</span>
+						<span className="text-muted sm:hidden">{t("in Telegram")}</span>
+						<span className="hidden text-muted sm:inline">{t("or scan the code with your phone")}</span>
 					</li>
 					<li className="grid gap-2">
 						<span>
-							<span className="text-muted">2.</span> Send these three messages, one by one (tap to copy):
+							<span className="text-muted">2.</span>{" "}
+							{t("Send these three messages, one by one (tap to copy):")}
 						</span>
 						<span className="flex flex-wrap gap-2">
 							<CopyChip text="/newbot" />
-							<CopyChip text={name} label="bot name" />
-							<CopyChip text={username} label="username" />
+							<CopyChip text={name} label={t("bot name")} />
+							<CopyChip text={username} label={t("username")} />
 						</span>
 					</li>
 					<li>
-						<span className="text-muted">3.</span> Paste BotFather's reply here:
+						<span className="text-muted">3.</span> {t("Paste BotFather's reply here:")}
 					</li>
 				</ol>
 				<div className="hidden sm:block">
-					<QrCode value="https://t.me/BotFather" size={104} label="QR code that opens BotFather" />
+					<QrCode value="https://t.me/BotFather" size={104} label={t("QR code that opens BotFather")} />
 				</div>
 			</div>
 			<form
@@ -301,14 +304,14 @@ function BotFatherGuide() {
 							connect(text);
 						}
 					}}
-					placeholder="Done! Congratulations on your new bot…"
-					aria-label="BotFather's reply"
+					placeholder={t("Done! Congratulations on your new bot…")}
+					aria-label={t("BotFather's reply")}
 					autoComplete="off"
 					spellCheck={false}
 				/>
 				<Button type="submit" variant="primary" disabled={set.isPending || pasted.trim() === ""}>
 					{set.isPending && <Loader2 className="animate-spin" />}
-					Connect
+					{t("Connect")}
 				</Button>
 			</form>
 			{error && <p className="text-xs text-bad">{error}</p>}
@@ -323,13 +326,13 @@ function ChangeBot() {
 	if (!confirm) {
 		return (
 			<Button variant="ghost" size="sm" onClick={() => setConfirm(true)}>
-				Use another bot
+				{t("Use another bot")}
 			</Button>
 		);
 	}
 	return (
 		<span className="flex items-center gap-2 text-xs text-muted">
-			Disconnect this bot?
+			{t("Disconnect this bot?")}
 			<Button
 				variant="danger"
 				size="sm"
@@ -339,10 +342,10 @@ function ChangeBot() {
 					setConfirm(false);
 				}}
 			>
-				Disconnect
+				{t("Disconnect")}
 			</Button>
 			<Button variant="ghost" size="sm" onClick={() => setConfirm(false)}>
-				Keep
+				{t("Keep")}
 			</Button>
 		</span>
 	);
@@ -371,16 +374,16 @@ function LinkChat({ username }: { username: string }) {
 	return (
 		<div className="grid items-center gap-5 sm:grid-cols-[auto_1fr]">
 			{code ? (
-				<QrCode value={url} label={`QR code that opens @${username} with your link code`} />
+				<QrCode value={url} label={t("QR code that opens @{0} with your link code", username)} />
 			) : (
 				<div className="grid size-[192px] place-items-center rounded-xl bg-raised">
 					<Loader2 className="size-5 animate-spin text-muted" />
 				</div>
 			)}
 			<div className="grid gap-2 text-sm">
-				<p className="font-medium">Scan it with your phone, then tap Start</p>
+				<p className="font-medium">{t("Scan it with your phone, then tap Start")}</p>
 				<p className="flex items-center gap-2 text-xs text-muted">
-					<Loader2 className="size-3.5 animate-spin" /> Waiting for Telegram…
+					<Loader2 className="size-3.5 animate-spin" /> {t("Waiting for Telegram…")}
 				</p>
 				{code?.url && (
 					<a
@@ -389,7 +392,7 @@ function LinkChat({ username }: { username: string }) {
 						rel="noopener"
 						className="inline-flex items-center gap-1.5 text-xs text-muted hover:text-fg"
 					>
-						<ExternalLink className="size-3.5" /> Telegram is on this computer
+						<ExternalLink className="size-3.5" /> {t("Telegram is on this computer")}
 					</a>
 				)}
 			</div>
@@ -412,7 +415,10 @@ function LinkedChats() {
 					>
 						<span className="flex items-center gap-2 text-sm">
 							<Check className="size-4 text-ok" />
-							Your chat is linked <span className="text-muted">· since {when(l.createdAt)}</span>
+							{t("Your chat is linked")}{" "}
+							<span className="text-muted">
+								{t("· since")} {when(l.createdAt)}
+							</span>
 						</span>
 						<Button
 							variant="ghost"
@@ -420,10 +426,10 @@ function LinkedChats() {
 							onClick={async () => {
 								await unlink.mutateAsync({ data: { id: l.id } });
 								qc.invalidateQueries();
-								toast.success("Telegram unlinked");
+								toast.success(t("Telegram unlinked"));
 							}}
 						>
-							Unlink
+							{t("Unlink")}
 						</Button>
 					</div>
 				))}
@@ -442,7 +448,7 @@ function useSavePreferences() {
 			await qc.invalidateQueries();
 			toast.success(ok);
 		} catch (err) {
-			toast.error(errText(err, "Could not save"));
+			toast.error(errText(err, t("Could not save")));
 		}
 	};
 }
@@ -461,7 +467,7 @@ function TimezoneSelect({
 		<Select
 			value={value}
 			disabled={disabled}
-			aria-label="Time zone"
+			aria-label={t("Time zone")}
 			className={className}
 			onChange={(e) =>
 				save({ timezone: e.target.value }, `Time zone: ${e.target.value.replaceAll("_", " ")}`)
@@ -487,23 +493,23 @@ export function ReminderTime({ withTimezone = true }: { withTimezone?: boolean }
 	const editable = session.data?.user?.role === "owner";
 	return (
 		<div className="flex flex-wrap items-center gap-2 text-sm">
-			<span aria-hidden>Reminders at</span>
+			<span aria-hidden>{t("Reminders at")}</span>
 			<Input
 				type="time"
-				aria-label="Reminder time"
+				aria-label={t("Reminder time")}
 				className="w-36"
 				defaultValue={value}
 				key={value}
 				disabled={!editable}
 				onBlur={(e) => {
 					if (e.target.value && e.target.value !== value)
-						save({ reminderTime: e.target.value }, `Reminders at ${e.target.value}`);
+						save({ reminderTime: e.target.value }, t("Reminders at {0}", e.target.value));
 				}}
 			/>
 			{withTimezone && (
 				<>
 					<span aria-hidden className="text-muted">
-						in
+						{t("in")}
 					</span>
 					<TimezoneSelect value={h.timezone} disabled={!editable} className="w-auto min-w-48" />
 				</>
@@ -522,28 +528,31 @@ export function PreferencesForm() {
 	const editable = session.data?.user?.role === "owner";
 	return (
 		<div className="grid gap-4 sm:grid-cols-3">
-			<Field label="Display currency" hint="Totals convert into it.">
+			<Field label={t("Display currency")} hint={t("Totals convert into it.")}>
 				<Select
 					value={h.currency}
 					disabled={!editable}
-					onChange={(e) => save({ currency: e.target.value }, `Showing totals in ${e.target.value}`)}
+					onChange={(e) => save({ currency: e.target.value }, t("Showing totals in {0}", e.target.value))}
 				>
 					{[...new Set([h.currency, ...currencies])].map((c) => (
 						<option key={c}>{c}</option>
 					))}
 				</Select>
 			</Field>
-			<Field label="Time zone">
+			<Field label={t("Time zone")}>
 				<TimezoneSelect value={h.timezone} disabled={!editable} />
 			</Field>
-			<Field label="Reminder language">
+			<Field label={t("Reminder language")}>
 				<Select
 					value={h.locale}
 					disabled={!editable}
-					onChange={(e) => save({ locale: e.target.value }, "Language saved")}
+					onChange={(e) => save({ locale: e.target.value }, t("Language saved"))}
 				>
-					<option value="en">English</option>
-					<option value="es">Español</option>
+					{languages.map((l) => (
+						<option key={l.code} value={l.code} lang={l.code}>
+							{l.name}
+						</option>
+					))}
 				</Select>
 			</Field>
 		</div>
@@ -565,22 +574,19 @@ export function Sharing() {
 			{members.length > 1 && (
 				<ul className="divide-y divide-line rounded-lg border border-line">
 					{members.map((m) => (
-						<li key={m.id} className="flex items-center justify-between gap-3 px-3 py-2.5">
-							<div className="min-w-0">
-								<p className="truncate text-sm font-medium">
-									{m.name}
-									{m.id === session.data?.user?.id && <span className="font-normal text-muted"> (you)</span>}
-								</p>
-								{m.email && <p className="truncate text-xs text-muted">{m.email}</p>}
-							</div>
-							<Badge>{m.role}</Badge>
-						</li>
+						<MemberRow
+							key={m.id}
+							member={m}
+							me={session.data?.user?.id}
+							isOwner={isOwner}
+							owners={members.filter((x) => x.role === "owner").length}
+						/>
 					))}
 				</ul>
 			)}
 			{isOwner && !inv && !canInvite && (
 				<p className="text-sm text-muted">
-					Set up Telegram first: invites go through it, so they work from anywhere.
+					{t("Set up Telegram first: invites go through it, so they work from anywhere.")}
 				</p>
 			)}
 			{isOwner && !inv && canInvite && (
@@ -590,35 +596,38 @@ export function Sharing() {
 						onClick={async () => setInv(await invite.mutateAsync({ data: { role: "member" } }))}
 					>
 						<UserPlus />
-						Invite someone
+						{t("Invite someone")}
 					</Button>
 					<span className="text-sm text-muted">
-						A partner, family or flatmates. Private subscriptions stay private.
+						{t("A partner, family or flatmates. Private subscriptions stay private.")}
 					</span>
 				</div>
 			)}
 			{inv &&
 				(inv.telegramUrl ? (
 					<div className="grid items-center gap-5 sm:grid-cols-[auto_1fr]">
-						<QrCode value={inv.telegramUrl} size={144} label="QR code with the invite" />
+						<QrCode value={inv.telegramUrl} size={144} label={t("QR code with the invite")} />
 						<div className="grid gap-2 text-sm">
-							<p className="font-medium">Send them this link, or let them scan the code</p>
-							<p className="text-muted">It opens in Telegram and they're in. Works once, for 7 days.</p>
-							<CopyChip text={inv.telegramUrl} label="invite link" />
+							<p className="font-medium">{t("Send them this link, or let them scan the code")}</p>
+							<p className="text-muted">
+								{t("It opens in Telegram and they're in. Works once, for 7 days.")}
+							</p>
+							<CopyChip text={inv.telegramUrl} label={t("invite link")} />
 							{!localOrigin && (
 								<p className="text-xs text-muted">
-									Or on the web: <CopyChip text={window.location.origin + inv.path} label="web invite link" />
+									{t("Or on the web:")}{" "}
+									<CopyChip text={window.location.origin + inv.path} label={t("web invite link")} />
 								</p>
 							)}
 						</div>
 					</div>
 				) : localOrigin ? (
 					<p className="text-sm text-muted">
-						Set up Telegram first: invites are sent through it, so they work from anywhere.
+						{t("Set up Telegram first: invites are sent through it, so they work from anywhere.")}
 					</p>
 				) : (
 					<div className="grid gap-2">
-						<p className="text-sm">Send them this link. It works once, for 7 days.</p>
+						<p className="text-sm">{t("Send them this link. It works once, for 7 days.")}</p>
 						<CodeBlock code={window.location.origin + inv.path} />
 					</div>
 				))}
@@ -632,50 +641,64 @@ export function ClaudeConnect() {
 	const qc = useQueryClient();
 	const [command, setCommand] = useState<string>();
 	const [copied, setCopied] = useState(false);
+	const [shown, setShown] = useState(false);
 	const tokens = useAuthListTokens({ query: { refetchInterval: command ? 2000 : false } });
 	const connected = (tokens.data?.tokens ?? []).some((t) => t.lastUsedAt);
 	if (connected && !command) {
 		return (
 			<p className="flex items-center gap-2 text-sm">
-				<Check className="size-4 text-ok" /> Claude is connected. Ask it anything about your subscriptions.
+				<Check className="size-4 text-ok" />{" "}
+				{t("Claude is connected. Ask it anything about your subscriptions.")}
 			</p>
 		);
 	}
 	if (connected) {
 		return (
 			<p className="flex items-center gap-2 text-sm">
-				<Check className="size-4 text-ok" /> Claude is connected. Try:{" "}
-				<i>“add Netflix, 13.99 € on the 6th”</i>
+				<Check className="size-4 text-ok" /> {t("Claude is connected. Try:")}{" "}
+				<i>{t("“add Netflix, 13.99 € on the 6th”")}</i>
 			</p>
 		);
 	}
+	// One token per visit: copying again or showing reuses the same command.
+	const ensureCommand = async () => {
+		if (command) return command;
+		const made = await create.mutateAsync({ data: { name: "Claude Code", scope: "write" } });
+		const cmd = `claude mcp add --scope user --transport http exhale ${apiOrigin}/mcp --header "Authorization: Bearer ${made.token}"`;
+		setCommand(cmd);
+		qc.invalidateQueries();
+		return cmd;
+	};
 	return (
 		<div className="grid gap-3">
-			<div className="flex flex-wrap items-center gap-3">
+			<div className="flex flex-wrap items-center gap-2">
 				<Button
 					variant="primary"
 					disabled={create.isPending}
+					onClick={async () => setCopied(await copy(await ensureCommand()))}
+				>
+					{copied ? t("Copy again") : t("Copy the command")}
+				</Button>
+				<Button
+					variant="ghost"
+					disabled={create.isPending}
 					onClick={async () => {
-						const t = await create.mutateAsync({ data: { name: "Claude Code", scope: "write" } });
-						const cmd = `claude mcp add --scope user --transport http exhale ${apiOrigin}/mcp --header "Authorization: Bearer ${t.token}"`;
-						setCommand(cmd);
-						setCopied(await copy(cmd));
-						qc.invalidateQueries();
+						await ensureCommand();
+						setShown(!shown);
 					}}
 				>
-					{command ? "Copy again" : "Copy the command"}
+					{shown ? t("Hide it") : t("Show it")}
 				</Button>
-				{command && (
+				{copied && (
 					<span className="flex items-center gap-2 text-sm text-muted">
-						{copied && <Check className="size-4 text-ok" />}
-						{copied ? "Copied. Paste it in a terminal." : "Copy it below and paste it in a terminal."}
+						<Check className="size-4 text-ok" /> {t("Copied. Paste it in a terminal.")}
 					</span>
 				)}
 			</div>
-			{command && !copied && <CodeBlock code={command} />}
+			{command && shown && <CodeBlock code={command} />}
 			{command && (
 				<p className="flex items-center gap-2 text-xs text-muted">
-					<Loader2 className="size-3.5 animate-spin" /> Waiting for Claude…
+					<Loader2 className="size-3.5 animate-spin" /> {t("Waiting for Claude…")}
 				</p>
 			)}
 		</div>
@@ -683,9 +706,9 @@ export function ClaudeConnect() {
 }
 
 const scopes = {
-	read: "Read only",
-	write: "Read and change (asks before destructive changes)",
-	trusted: "Read and change without asking",
+	read: t("Read only"),
+	write: t("Read and change (asks before destructive changes)"),
+	trusted: t("Read and change without asking"),
 } as const;
 
 /** API tokens: create (shown once), list, revoke. */
@@ -702,12 +725,12 @@ export function TokensManager() {
 		e.preventDefault();
 		setError(undefined);
 		try {
-			const t = await create.mutateAsync({ data: { name: name.trim(), scope } });
-			setCreated(t.token);
+			const made = await create.mutateAsync({ data: { name: name.trim(), scope } });
+			setCreated(made.token);
 			setName("");
 			qc.invalidateQueries();
 		} catch (err) {
-			setError(errText(err, "Could not create the token"));
+			setError(errText(err, t("Could not create the token")));
 		}
 	};
 	const list = tokens.data?.tokens ?? [];
@@ -715,25 +738,25 @@ export function TokensManager() {
 		<div className="grid gap-4">
 			{list.length > 0 && (
 				<ul className="divide-y divide-line rounded-lg border border-line">
-					{list.map((t) => (
-						<li key={t.id} className="flex items-center justify-between gap-3 px-3 py-2.5">
+					{list.map((tok) => (
+						<li key={tok.id} className="flex items-center justify-between gap-3 px-3 py-2.5">
 							<div className="min-w-0">
-								<p className="truncate text-sm font-medium">{t.name}</p>
+								<p className="truncate text-sm font-medium">{tok.name}</p>
 								<p className="text-xs text-muted">
-									Created {when(t.createdAt)} ·{" "}
-									{t.lastUsedAt ? `last used ${when(t.lastUsedAt)}` : "never used"}
+									{t("Created")} {when(tok.createdAt)} ·{" "}
+									{tok.lastUsedAt ? t("last used {0}", when(tok.lastUsedAt)) : t("never used")}
 								</p>
 							</div>
 							<div className="flex items-center gap-2">
-								<Badge>{t.scope}</Badge>
+								<Badge>{tok.scope}</Badge>
 								<Button
 									variant="ghost"
 									size="icon"
-									aria-label={`Revoke ${t.name}`}
+									aria-label={t("Revoke {0}", tok.name)}
 									onClick={async () => {
-										await revoke.mutateAsync({ data: { id: t.id } });
+										await revoke.mutateAsync({ data: { id: tok.id } });
 										qc.invalidateQueries();
-										toast.success(`${t.name} revoked`);
+										toast.success(`${tok.name} revoked`);
 									}}
 								>
 									<Trash2 />
@@ -745,12 +768,12 @@ export function TokensManager() {
 			)}
 			{created && (
 				<div className="grid gap-2">
-					<p className="text-sm font-medium">Copy it now: it will not be shown again.</p>
+					<p className="text-sm font-medium">{t("Copy it now: it will not be shown again.")}</p>
 					<CodeBlock code={created} />
 				</div>
 			)}
 			<form onSubmit={onSubmit} className="grid gap-3 sm:grid-cols-[1fr_1fr_auto] sm:items-end">
-				<Field label="Name">
+				<Field label={t("Name")}>
 					<Input
 						value={name}
 						onChange={(e) => setName(e.target.value)}
@@ -759,7 +782,7 @@ export function TokensManager() {
 						maxLength={60}
 					/>
 				</Field>
-				<Field label="Access">
+				<Field label={t("Access")}>
 					<Select value={scope} onChange={(e) => setScope(e.target.value as keyof typeof scopes)}>
 						{Object.entries(scopes).map(([k, label]) => (
 							<option key={k} value={k}>
@@ -769,7 +792,7 @@ export function TokensManager() {
 					</Select>
 				</Field>
 				<Button type="submit" disabled={create.isPending}>
-					Create token
+					{t("Create token")}
 				</Button>
 			</form>
 			{error && <p className="text-xs text-bad">{error}</p>}

@@ -1,0 +1,6 @@
+> what do I pay per month?
+  model → spending_summary({})
+  exhale ← ok
+< You pay €31.98 a month for 2 subscriptions: Netflix and Spotify Family.
+  [link] Netflix
+  [link] Spotify Family

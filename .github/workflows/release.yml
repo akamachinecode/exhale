@@ -15,10 +15,12 @@ jobs:
       released: ${{ steps.rp.outputs.release_created }}
       tag: ${{ steps.rp.outputs.tag_name }}
     steps:
+      # Versions come from release-please-config.json and
+      # .release-please-manifest.json: the first release is 0.1.0, and while
+      # below 1.0 a breaking change bumps the minor (ADR 0016). Do not pass
+      # release-type here: it would make the action ignore both files.
       - id: rp
         uses: googleapis/release-please-action@v4
-        with:
-          release-type: go
   goreleaser:
     needs: release-please
     if: needs.release-please.outputs.released == 'true'

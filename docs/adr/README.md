@@ -36,6 +36,14 @@ Accepted ADRs are not rewritten. A decision that changes gets a new ADR that sup
 | [0017](0017-license.md) | License: AGPL-3.0-or-later + DCO | Accepted |
 | [0018](0018-agent-ready.md) | Agent-ready app: AI is a first-class feature of v1 | Accepted |
 | [0019](0019-the-message-is-the-app.md) | The message is the app: one screen format, a living home message in chat | Accepted |
+| [0020](0020-one-binary-for-homes-and-teams.md) | One binary for homes and teams | Accepted |
+| [0021](0021-dates-that-matter.md) | The dates that matter: trials, notice periods and expiries | Accepted |
+| [0022](0022-data-in-and-out.md) | Data in and out: import with a review list, export, calendar feed | Accepted |
+| [0023](0023-message-translations.md) | Translating chat messages | Accepted |
+| [0025](0025-two-factor-sign-in.md) | Two-factor sign-in: TOTP and backup codes, standard library, QR in the browser | Accepted |
+| [0027](0027-logos-and-documents.md) | Own logos and documents: stored in the database, served as inert files | Accepted |
+| [0024](0024-oauth-authorization-server.md) | Remote MCP: own minimal OAuth 2.1 authorization server | Accepted |
+| [0026](0026-web-push.md) | Web Push from the installed app, on the standard library | Accepted |
 
 Open questions are tracked in [../open-questions.md](../open-questions.md).
 

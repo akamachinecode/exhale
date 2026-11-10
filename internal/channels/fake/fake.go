@@ -60,7 +60,9 @@ func Render(m actions.Message) string {
 		b.WriteString("  " + l + "\n")
 	}
 	for _, s := range m.Sections {
-		b.WriteString("  ## " + s.Heading + "\n")
+		if s.Heading != "" {
+			b.WriteString("  ## " + s.Heading + "\n")
+		}
 		for _, l := range s.Lines {
 			b.WriteString("  " + l + "\n")
 		}
@@ -73,7 +75,7 @@ func Render(m actions.Message) string {
 	for _, row := range m.Rows {
 		parts := make([]string, len(row))
 		for i, btn := range row {
-			parts[i] = fmt.Sprintf("[%s](%s)", btn.Label, btn.Data)
+			parts[i] = fmt.Sprintf("[%s](%s)", btn.Label, btn.Data+btn.URL)
 		}
 		b.WriteString("  " + strings.Join(parts, " ") + "\n")
 	}

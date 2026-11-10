@@ -5,6 +5,7 @@ package scheduler
 
 import (
 	"context"
+	"errors"
 	"log/slog"
 	"time"
 
@@ -45,6 +46,11 @@ func (s *Scheduler) Serve(ctx context.Context) error {
 			if err := s.svc.Plan(ctx); err != nil {
 				s.log.Error("planning reminders failed", "err", err)
 			}
+			if n, err := s.svc.PurgeDeletedFiles(ctx); err != nil {
+				s.log.Error("purging deleted files failed", "err", err)
+			} else if n > 0 {
+				s.log.Info("purged deleted files", "count", n)
+			}
 			lastPlan = now
 		}
 		s.Tick(ctx)
@@ -80,7 +86,16 @@ func (s *Scheduler) Tick(ctx context.Context) {
 		if s.deliver == nil {
 			continue
 		}
-		if err := s.deliver.Deliver(ctx, it); err != nil {
+		err := s.deliver.Deliver(ctx, it)
+		if errors.Is(err, app.ErrNoDestination) {
+			_ = s.svc.MarkUndeliverable(ctx, it, err)
+			continue
+		}
+		if errors.Is(err, app.ErrObsolete) {
+			_ = s.svc.MarkObsolete(ctx, it)
+			continue
+		}
+		if err != nil {
 			s.log.Warn("delivery failed, will retry", "kind", it.Kind, "charge", it.ChargeID, "attempt", it.Attempts+1, "err", err)
 			_ = s.svc.MarkFailed(ctx, it, err)
 			continue

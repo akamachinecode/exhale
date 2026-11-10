@@ -25,6 +25,10 @@ run = "go test -race ./..."
 description = "Run Go tests without the race detector"
 run = "go test ./..."
 
+[tasks."test:e2e"]
+description = "Browser test against a fresh server (needs: pnpm -C web exec playwright install chromium)"
+run = "sh scripts/e2e.sh"
+
 [tasks.lint]
 description = "Lint Go code"
 run = "golangci-lint run ./..."
