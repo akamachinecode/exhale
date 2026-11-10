@@ -1,0 +1,120 @@
+[
+  {
+    "type": "header",
+    "text": {
+      "type": "plain_text",
+      "text": "🔔 Netflix renews in 3 days",
+      "emoji": true
+    }
+  },
+  {
+    "type": "section",
+    "text": {
+      "type": "mrkdwn",
+      "text": "💶 €19.99 · Sun, 8 Nov 2026\n💳 Visa ••4421\n🏷 Streaming"
+    }
+  },
+  {
+    "type": "context",
+    "elements": [
+      {
+        "type": "mrkdwn",
+        "text": "Changed by Marta (Slack)"
+      }
+    ]
+  },
+  {
+    "type": "actions",
+    "block_id": "row0",
+    "elements": [
+      {
+        "type": "button",
+        "text": {
+          "type": "plain_text",
+          "text": "✅ Already paid",
+          "emoji": true
+        },
+        "action_id": "act:0:0",
+        "value": "paid|chg_1"
+      },
+      {
+        "type": "button",
+        "text": {
+          "type": "plain_text",
+          "text": "📅 Change date",
+          "emoji": true
+        },
+        "action_id": "act:0:1",
+        "value": "date|chg_1|2026-11"
+      }
+    ]
+  },
+  {
+    "type": "actions",
+    "block_id": "row1",
+    "elements": [
+      {
+        "type": "button",
+        "text": {
+          "type": "plain_text",
+          "text": "💳 Payment method",
+          "emoji": true
+        },
+        "action_id": "act:1:0",
+        "value": "pm|chg_1"
+      },
+      {
+        "type": "button",
+        "text": {
+          "type": "plain_text",
+          "text": "✏️ Amount",
+          "emoji": true
+        },
+        "action_id": "act:1:1",
+        "value": "amount|chg_1"
+      }
+    ]
+  },
+  {
+    "type": "actions",
+    "block_id": "row2",
+    "elements": [
+      {
+        "type": "button",
+        "text": {
+          "type": "plain_text",
+          "text": "⏭ Skip this one",
+          "emoji": true
+        },
+        "action_id": "act:2:0",
+        "value": "skip|chg_1"
+      },
+      {
+        "type": "button",
+        "text": {
+          "type": "plain_text",
+          "text": "❌ Cancel subscription",
+          "emoji": true
+        },
+        "action_id": "act:2:1",
+        "value": "cancel|chg_1"
+      }
+    ]
+  },
+  {
+    "type": "actions",
+    "block_id": "row3",
+    "elements": [
+      {
+        "type": "button",
+        "text": {
+          "type": "plain_text",
+          "text": "🔗 Open the cancel page",
+          "emoji": true
+        },
+        "action_id": "url:3:0",
+        "url": "https://www.netflix.com/cancelplan"
+      }
+    ]
+  }
+]

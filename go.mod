@@ -11,9 +11,11 @@ require (
 	github.com/go-telegram/bot v1.27.0
 	github.com/google/go-cmp v0.7.0
 	github.com/google/jsonschema-go v0.4.3
+	github.com/gorilla/websocket v1.5.3
 	github.com/lmittmann/tint v1.2.1
 	github.com/modelcontextprotocol/go-sdk v1.8.0
 	github.com/pressly/goose/v3 v3.29.0
+	github.com/slack-go/slack v0.35.0
 	github.com/thejerf/suture/v4 v4.0.6
 	golang.org/x/term v0.47.0
 	golang.org/x/time v0.16.0

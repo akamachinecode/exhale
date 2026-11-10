@@ -1,0 +1,47 @@
+[
+  {
+    "type": "header",
+    "text": {
+      "type": "plain_text",
+      "text": "📊 Summary",
+      "emoji": true
+    }
+  },
+  {
+    "type": "section",
+    "text": {
+      "type": "mrkdwn",
+      "text": "💶 €142.50 / month · €1,710.00 / year\n📦 9 active subscriptions"
+    }
+  },
+  {
+    "type": "section",
+    "text": {
+      "type": "mrkdwn",
+      "text": "*Per month by category*\n```\nCloud &amp; Dev    €61.00  3\nStreaming      €45.50  4\nAT&amp;T &lt;family&gt;  €36.00  2\n```"
+    }
+  },
+  {
+    "type": "section",
+    "text": {
+      "type": "mrkdwn",
+      "text": "*Next 7 days*\nNothing due. Breathe out."
+    }
+  },
+  {
+    "type": "actions",
+    "block_id": "row0",
+    "elements": [
+      {
+        "type": "button",
+        "text": {
+          "type": "plain_text",
+          "text": "🏠 Home",
+          "emoji": true
+        },
+        "action_id": "act:0:0",
+        "value": "a|home"
+      }
+    ]
+  }
+]
