@@ -85,7 +85,15 @@ Requests get a **card** that says exactly what would change, with **Confirm** / 
 
 The card is written by Exhale, not by the model: if the model misunderstood, the card shows it. Cancelling here stops the reminders; cancel with the provider too.
 
-It answers in the language you write in.
+When a list says it better, the answer comes with a **screen**: your subscriptions, the charges of a period, or what you pay per month or year broken down by category, payment method or subscription. The model only chooses what to show; every name, date and amount on it is read by Exhale from your data. Tap a row to open it (in chat, each one is a button). Try:
+
+- Show me all my subscriptions
+- What is charged between now and Christmas?
+- What do I pay per year, by payment method?
+
+The answer appears as it is written. In Telegram it grows in one message (updated every few seconds, within Telegram's limits); the cards and screens come when it is finished. Behind a reverse proxy that buffers responses, the web answer may arrive whole instead; it still works.
+
+It answers in the language you write in. The cards, screens, buttons and error messages follow your language: in chat the household's, in the web your browser's (or the one you picked).
 
 ## Import a statement or a screenshot
 
@@ -129,7 +137,14 @@ Limits: PDFs up to 10 MB (the size of an attachment), pictures up to 5 MB. Witho
 
 ## Limits and costs
 
-You pay your provider for what the assistant uses. To keep that bounded, one message calls the model at most 6 times, prepares at most 5 changes, and each member can send a burst of 12 messages and then one every 15 seconds. The server log shows the tokens of each answer (`assistant answered … input_tokens=… output_tokens=…`), never the words.
+You pay your provider for what the assistant uses. To keep that bounded, one message calls the model at most 6 times, prepares at most 5 changes, and each member can send a burst of 12 messages and then one every 15 seconds.
+
+To see what it costs:
+
+- **Activity → Assistant** lists every question and every file a model read: who, where, the model, how many calls, the tokens and an estimated cost. Owners see everyone's; others see their own. Never the words.
+- **Settings → Built-in assistant** shows this month's total.
+
+The cost is an estimate from a price list (US dollars per million tokens) that Exhale knows for Claude models. For another model, or if your price differs, type it under **Price** in the same settings; for a local model type 0. A model without a price shows tokens only: Exhale never invents a cost. The server log has the same numbers (`assistant usage … input_tokens=… output_tokens=… cost_usd=…`).
 
 ## When it does not work
 
@@ -151,5 +166,7 @@ The assistant is tested with a scripted model; it has not been run against every
 3. Ask to add a subscription: a card appears, and nothing exists until you confirm. Confirm, then Undo.
 4. Ask to cancel one: the card is marked as destructive and names the right subscription. Discard it.
 5. Import a screenshot: the list matches the picture.
+6. Ask "show me all my subscriptions": a screen lists them, and the answer appears as it is written.
+7. **Activity → Assistant** shows the question with its tokens, and a cost if the model has a price.
 
 Developers can run the eval set against a real model: `EXHALE_EVAL_API_KEY=… go test ./internal/assistant -run TestEval -v`.

@@ -8,7 +8,10 @@ const src = readFileSync(new URL("../src/lib/es.ts", import.meta.url), "utf8");
 // The catalog is a plain object literal: evaluate it without the TypeScript.
 const es = new Function(`return ${src.slice(src.indexOf("= {") + 2).replace(/;\s*$/, "")}`)();
 
-const used = keys();
+// Texts written by the server (errors, the assistant's cards) reach the web
+// as a key and arguments; the Go test in internal/actions lists them.
+const server = JSON.parse(readFileSync(new URL("./server-texts.json", import.meta.url), "utf8"));
+const used = [...new Set([...keys(), ...server])];
 const args = (s) => [...s.matchAll(/\{(\d+|n)\}/g)].map((m) => m[1]).sort().join(",");
 const problems = [];
 for (const k of used) {

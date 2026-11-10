@@ -184,7 +184,7 @@ func TestRoundsCap(t *testing.T) {
 	if w.fake.Calls() != MaxRounds {
 		t.Fatalf("the model was called %d times, the cap is %d", w.fake.Calls(), MaxRounds)
 	}
-	if !strings.Contains(turn.Note, "stopped") {
+	if turn.Note == nil || !strings.Contains(turn.Note.String(), "stopped") {
 		t.Fatalf("the person must be told it stopped: %+v", turn)
 	}
 	testutil.Golden(t, "rounds_cap", w.transcript())
@@ -251,7 +251,7 @@ func TestInjectedInstructionCannotWrite(t *testing.T) {
 	if got := w.names(w.owner); !strings.Contains(got, "Netflix:active") {
 		t.Fatalf("the injected instruction deleted a subscription: %q", got)
 	}
-	if len(turn.Proposals) != 1 || !turn.Proposals[0].Destructive || turn.Proposals[0].Title != "Delete Netflix" {
+	if len(turn.Proposals) != 1 || !turn.Proposals[0].Destructive || turn.Proposals[0].Title.String() != "Delete Netflix" {
 		t.Fatalf("the person must see exactly what was asked for, as a destructive change: %+v", turn.Proposals)
 	}
 	first := w.fake.Requests[0]
@@ -459,7 +459,7 @@ func TestBulkChangeShowsEachAndUndoesAsOne(t *testing.T) {
 		t.Fatalf("expected one destructive proposal, got %+v", turn.Proposals)
 	}
 	p := turn.Proposals[0]
-	if p.Title != "Change several subscriptions (2 subscriptions)" || len(p.Lines) != 2 || p.Lines[0] != "• Figma: status active → paused" {
+	if p.Title.String() != "Change several subscriptions (2 subscriptions)" || len(p.Lines) != 2 || p.Lines[0].String() != "• Figma: status active → paused" {
 		t.Fatalf("card: %q %q", p.Title, p.Lines)
 	}
 	w.confirm(w.owner, p)

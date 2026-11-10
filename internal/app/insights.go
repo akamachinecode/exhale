@@ -299,7 +299,7 @@ func (s *Service) MonthBalances(ctx context.Context, actor Actor, in BalancesInp
 	}
 	from, err := engine.ParseDate(month + "-01")
 	if err != nil {
-		return Balances{}, fmt.Errorf("%w: month must look like 2026-11", domain.ErrValidation)
+		return Balances{}, domain.Invalid("month must look like 2026-11")
 	}
 	to := from.AddDays(engine.DaysIn(from.Year(), from.Month()) - 1)
 	zero := money.Money{Currency: h.Currency}

@@ -109,6 +109,8 @@ func New(svc *app.Service, log *slog.Logger, env Env) (*Assistant, error) {
 		a.tools = append(a.tools, Tool{Name: b.Name, Description: desc, Schema: raw})
 		a.bindings[b.Name] = t
 	}
+	// Not a use case: it only chooses what Exhale shows (screens.go).
+	a.tools = append(a.tools, Tool{Name: showTool, Description: showDescription, Schema: showSchema})
 	return a, nil
 }
 
@@ -145,10 +147,11 @@ func agentFor(actor app.Actor) app.Actor {
 
 // Turn is the assistant's answer to one message.
 type Turn struct {
-	Text      string     `json:"text" doc:"the answer, plain text"`
-	Proposals []Proposal `json:"proposals" doc:"changes prepared for the person to confirm or discard; nothing is applied until they confirm"`
-	Mentions  []Mention  `json:"mentions" doc:"subscriptions the answer talks about, for links"`
-	Note      string     `json:"note,omitempty" doc:"why the answer may be incomplete, e.g. the step limit was reached"`
+	Text      string       `json:"text" doc:"the answer, plain text"`
+	Proposals []Proposal   `json:"proposals" doc:"changes prepared for the person to confirm or discard; nothing is applied until they confirm"`
+	Mentions  []Mention    `json:"mentions" doc:"subscriptions the answer talks about, for links"`
+	Screens   []Screen     `json:"screens" doc:"screens the model chose to show; every name and number in them comes from the database"`
+	Note      *domain.Text `json:"note,omitempty" doc:"why the answer may be incomplete, e.g. the step limit was reached; a translatable text"`
 }
 
 // Mention is a subscription the answer talks about.
@@ -265,11 +268,23 @@ func (a *Assistant) addEvent(ctx context.Context, actor app.Actor, conv, event s
 	a.saveMemory(ctx, actor, conv, m)
 }
 
+// Progress is told the answer as it is written: the text of the current
+// call to the model so far. After tools run, the next call starts again
+// from empty. The changes prepared (and any screen) arrive only with the
+// finished Turn, written by Exhale.
+type Progress func(text string)
+
 // Ask answers one message of a conversation. conv identifies the
 // conversation (a chat, or a member's web panel); its last turns are kept
 // for half an hour so follow-up questions work.
 func (a *Assistant) Ask(ctx context.Context, actor app.Actor, conv, text string) (Turn, error) {
-	turn := Turn{Proposals: []Proposal{}, Mentions: []Mention{}}
+	return a.AskStream(ctx, actor, conv, text, nil)
+}
+
+// AskStream is Ask, telling progress the answer as it is written when the
+// provider can stream.
+func (a *Assistant) AskStream(ctx context.Context, actor app.Actor, conv, text string, progress Progress) (Turn, error) {
+	turn := Turn{Proposals: []Proposal{}, Mentions: []Mention{}, Screens: []Screen{}}
 	text = strings.TrimSpace(text)
 	if text == "" {
 		return turn, nil
@@ -315,31 +330,39 @@ func (a *Assistant) Ask(ctx context.Context, actor app.Actor, conv, text string)
 
 	st := &turnState{conv: conv, actor: actor, agent: agent, seen: map[string]bool{}}
 	var usage Usage
-	rounds := 0
+	rounds, model, failed := 0, "", false
+	// What the question cost is recorded however it ends (safety rule 6).
+	defer func() {
+		a.record(ctx, actor, usageRecord{kind: "question", surface: surfaceOf(conv), provider: p.Name(), model: model, rounds: rounds, usage: usage, failed: failed})
+	}()
 	for rounds < MaxRounds {
 		rounds++
-		res, err := p.Complete(ctx, Request{System: systemPrompt, Messages: msgs, Tools: a.tools, MaxTokens: chatTokens})
+		res, err := call(ctx, p, Request{System: systemPrompt, Messages: msgs, Tools: a.tools, MaxTokens: chatTokens}, progress)
+		usage.Input, usage.Output = usage.Input+res.Usage.Input, usage.Output+res.Usage.Output
+		if res.Model != "" {
+			model = res.Model
+		}
 		if err != nil {
 			a.log.Warn("assistant: the model call failed", "provider", p.Name(), "round", rounds, "err", err)
+			failed = true
 			if len(st.proposals) == 0 {
 				return turn, err
 			}
 			// Keep what was prepared before the failure.
-			turn.Note = Explain(err)
+			turn.Note = new(Explain(err))
 			break
 		}
-		usage.Input, usage.Output = usage.Input+res.Usage.Input, usage.Output+res.Usage.Output
 		if res.Text != "" {
 			turn.Text = res.Text
 		}
 		if res.Stop == StopLength {
-			turn.Note = "The answer was cut short because it was too long."
+			turn.Note = new(domain.T("The answer was cut short because it was too long."))
 		}
 		if len(res.ToolCalls) == 0 {
 			break
 		}
 		if rounds == MaxRounds {
-			turn.Note = fmt.Sprintf("I stopped after %d steps. Ask for one thing at a time if something is missing.", MaxRounds)
+			turn.Note = new(domain.T("I stopped after %d steps. Ask for one thing at a time if something is missing.", MaxRounds))
 			break
 		}
 		msgs = append(msgs, Message{Role: RoleAssistant, Text: res.Text, ToolCalls: res.ToolCalls, Raw: res.Raw})
@@ -350,16 +373,20 @@ func (a *Assistant) Ask(ctx context.Context, actor app.Actor, conv, text string)
 		msgs = append(msgs, Message{Role: RoleTool, ToolResults: results})
 	}
 	turn.Proposals = append(turn.Proposals, st.proposals...)
-	if turn.Text == "" && len(turn.Proposals) == 0 && turn.Note == "" {
-		turn.Text = "I have no answer for that."
+	turn.Screens = append(turn.Screens, st.screens...)
+	if turn.Text == "" && len(turn.Proposals) == 0 && len(turn.Screens) == 0 && turn.Note == nil {
+		turn.Note = new(domain.T("I have no answer for that."))
 	}
 	turn.Mentions = a.mentions(ctx, agent, turn, st)
-	// Token counts and round counts only: never the words.
-	a.log.Info("assistant answered", "provider", p.Name(), "rounds", rounds, "proposals", len(turn.Proposals), "input_tokens", usage.Input, "output_tokens", usage.Output)
+	// Counts only, never the words (the usage itself is logged by record).
+	a.log.Info("assistant answered", "provider", p.Name(), "rounds", rounds, "proposals", len(turn.Proposals))
 
 	said := turn.Text
 	for _, pr := range turn.Proposals {
-		said += "\n[prepared for confirmation: " + pr.Title + "]"
+		said += "\n[prepared for confirmation: " + pr.Title.String() + "]"
+	}
+	for _, sc := range turn.Screens {
+		said += "\n[showed a screen: " + sc.Kind + "]"
 	}
 	if strings.TrimSpace(said) == "" {
 		said = "(no answer)"
@@ -376,7 +403,8 @@ type turnState struct {
 	agent     app.Actor
 	proposals []Proposal
 	seen      map[string]bool // write calls already prepared in this turn
-	touched   []string        // subscription ids the proposals are about
+	screens   []Screen
+	touched   []string // subscription ids the proposals are about
 }
 
 // runTool runs one tool call. Reads run as the member. Writes never apply
@@ -384,6 +412,14 @@ type turnState struct {
 func (a *Assistant) runTool(ctx context.Context, st *turnState, c ToolCall) ToolResult {
 	fail := func(msg string) ToolResult {
 		return ToolResult{CallID: c.ID, Name: c.Name, Content: "error: " + msg, IsError: true}
+	}
+	if c.Name == showTool {
+		screen, problems := a.show(ctx, st, c.Arguments)
+		if len(problems) > 0 {
+			return fail("nothing was shown. Fix these and call " + showTool + " again:\n- " + strings.Join(problems, "\n- "))
+		}
+		st.screens = append(st.screens, screen)
+		return ToolResult{CallID: c.ID, Name: c.Name, Content: shown(screen)}
 	}
 	t, ok := a.bindings[c.Name]
 	if !ok {
@@ -492,3 +528,22 @@ func (a *Assistant) mentions(ctx context.Context, agent app.Actor, turn Turn, st
 }
 
 func sortStrings(s []string) { sort.Strings(s) }
+
+// call asks the model once: streaming when someone watches and the
+// provider can, whole otherwise. A provider that refuses a streaming
+// request before writing anything is asked again without streaming.
+func call(ctx context.Context, p Provider, req Request, progress Progress) (Response, error) {
+	st, ok := p.(Streamer)
+	if progress == nil || !ok {
+		return p.Complete(ctx, req)
+	}
+	var b strings.Builder
+	res, err := st.Stream(ctx, req, func(delta string) {
+		b.WriteString(delta)
+		progress(b.String())
+	})
+	if err != nil && b.Len() == 0 && IsKind(err, KindRejected) {
+		return p.Complete(ctx, req)
+	}
+	return res, err
+}

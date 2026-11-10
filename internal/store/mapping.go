@@ -25,10 +25,11 @@ func ParseTime(s string) time.Time {
 	return t
 }
 
-// NotFound converts sql.ErrNoRows into domain.ErrNotFound.
-func NotFound(err error, what string) error {
+// NotFound converts sql.ErrNoRows into domain.ErrNotFound, with a sentence
+// such as "subscription %s: not found" (see domain.Missing).
+func NotFound(err error, format string, args ...any) error {
 	if errors.Is(err, sql.ErrNoRows) {
-		return fmt.Errorf("%s: %w", what, domain.ErrNotFound)
+		return domain.Missing(format, args...)
 	}
 	return err
 }

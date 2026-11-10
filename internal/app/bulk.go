@@ -3,7 +3,6 @@ package app
 import (
 	"cmp"
 	"context"
-	"fmt"
 	"slices"
 	"strings"
 
@@ -80,7 +79,7 @@ func cleanTags(tags []string) ([]string, error) {
 		}
 	}
 	if len(out) > domain.MaxTags {
-		return nil, fmt.Errorf("%w: at most %d tags", domain.ErrValidation, domain.MaxTags)
+		return nil, domain.Invalid("at most %d tags", domain.MaxTags)
 	}
 	if len(out) == 0 {
 		return nil, nil
@@ -95,7 +94,7 @@ func altPrice(price, unit, current, currency string) (*domain.AltPrice, error) {
 	}
 	p, err := money.Parse(price, currency)
 	if err != nil {
-		return nil, fmt.Errorf("%w: other price: %v", domain.ErrValidation, err)
+		return nil, domain.Invalid("other price: %v", domain.BadPrice(price, currency))
 	}
 	u := engine.Unit(cmp.Or(unit, current, string(engine.Year)))
 	return &domain.AltPrice{Price: p, Unit: u}, nil
@@ -213,20 +212,20 @@ func (s *Service) BulkUpdate(ctx context.Context, actor Actor, in BulkUpdateInpu
 		}
 	}
 	if len(ids) == 0 || len(ids) > MaxBulk {
-		return out, fmt.Errorf("%w: pass between 1 and %d subscription ids", domain.ErrValidation, MaxBulk)
+		return out, domain.Invalid("pass between 1 and %d subscription ids", MaxBulk)
 	}
 	action := cmp.Or(in.Action, "update")
 	switch action {
 	case "update":
 		if in.CategoryID == nil && in.PaymentMethodID == nil && in.AddTags == nil && in.RemoveTags == nil {
-			return out, fmt.Errorf("%w: say what to change: categoryId, paymentMethodId, addTags or removeTags", domain.ErrValidation)
+			return out, domain.Invalid("say what to change: categoryId, paymentMethodId, addTags or removeTags")
 		}
 	case "pause", "resume", "cancel_at_period_end", "cancel_now", "delete":
 		if in.CategoryID != nil || in.PaymentMethodID != nil || in.AddTags != nil || in.RemoveTags != nil {
-			return out, fmt.Errorf("%w: fields can only be changed with action update", domain.ErrValidation)
+			return out, domain.Invalid("fields can only be changed with action update")
 		}
 	default:
-		return out, fmt.Errorf("%w: unknown action %q", domain.ErrValidation, action)
+		return out, domain.Invalid("unknown action %q", action)
 	}
 	add, err := cleanTags(in.AddTags)
 	if err != nil {
@@ -389,7 +388,7 @@ func (s *Service) DeleteTag(ctx context.Context, actor Actor, in DeleteTagInput)
 func (s *Service) retag(ctx context.Context, actor Actor, tag string, dryRun bool, edit func([]string) []string) (BulkResult, error) {
 	out := BulkResult{Items: []BulkItem{}, AuditIDs: []string{}, DryRun: dryRun}
 	if strings.TrimSpace(tag) == "" {
-		return out, fmt.Errorf("%w: say which tag", domain.ErrValidation)
+		return out, domain.Invalid("say which tag")
 	}
 	err := s.write(ctx, actor, dryRun, func(q *db.Queries, c *change) error {
 		subs, err := s.visibleSubscriptions(ctx, q, actor)
@@ -417,7 +416,7 @@ func (s *Service) retag(ctx context.Context, actor Actor, tag string, dryRun boo
 			out.Items = append(out.Items, item)
 		}
 		if len(out.Items) == 0 {
-			return fmt.Errorf("%w: no subscription has the tag %q", domain.ErrValidation, tag)
+			return domain.Invalid("no subscription has the tag %q", tag)
 		}
 		return nil
 	})

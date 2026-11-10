@@ -167,7 +167,7 @@ func (e *Engine) setRoute(ctx context.Context, chat ChatRef, r string) {
 func (e *Engine) handleApp(ctx context.Context, actor app.Actor, chat ChatRef, raw string) (Reply, error) {
 	if rep, live, ok, err := e.manage(ctx, actor, chat, strings.Split(raw, "|")); ok {
 		if err != nil {
-			return e.fail(err)
+			return e.fail(ctx, actor, err)
 		}
 		if rep.Edit != nil {
 			e.setRoute(ctx, chat, live)
@@ -176,7 +176,7 @@ func (e *Engine) handleApp(ctx context.Context, actor app.Actor, chat ChatRef, r
 	}
 	m, toast, err := e.screen(ctx, actor, raw)
 	if err != nil {
-		return e.fail(err)
+		return e.fail(ctx, actor, err)
 	}
 	next := raw
 	if p := strings.Split(raw, "|"); len(p) > 2 && p[1] == actStatus {
@@ -238,7 +238,7 @@ func (e *Engine) screen(ctx context.Context, actor app.Actor, r string) (Message
 		return ""
 	}
 	if arg(0) != appPrefix {
-		return Message{}, "", fmt.Errorf("%w: not an app route", domain.ErrNotFound)
+		return Message{}, "", domain.NotFound("not an app route")
 	}
 	today, locale := e.context(ctx, actor)
 	switch arg(1) {
@@ -309,7 +309,7 @@ func (e *Engine) screen(ctx context.Context, actor app.Actor, r string) (Message
 		toast := map[string]string{"pause": tr(locale, "Paused ⏸"), "resume": tr(locale, "Resumed ▶️"), "cancel_now": tr(locale, "Cancelled"), "cancel_at_period_end": tr(locale, "Cancelled at period end")}[arg(3)]
 		return m, toast, err
 	}
-	return Message{}, "", fmt.Errorf("%w: unknown screen %q", domain.ErrNotFound, arg(1))
+	return Message{}, "", domain.NotFound("unknown screen %q", arg(1))
 }
 
 func homeRow(locale string) []Button {

@@ -7,7 +7,6 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
-	"fmt"
 	"log/slog"
 	"time"
 
@@ -152,7 +151,7 @@ func marshalOrEmpty(v any) (string, error) {
 // gets an exact preview of the result.
 func (s *Service) write(ctx context.Context, actor Actor, dryRun bool, fn func(q *db.Queries, c *change) error) error {
 	if !actor.CanWrite() {
-		return fmt.Errorf("%w: %s has read-only access", ErrForbidden, actor.Label)
+		return domain.Fail(ErrForbidden, "%s has read-only access", actor.Label)
 	}
 	c := &change{actor: actor, now: s.now()}
 	err := s.st.Tx(ctx, func(q *db.Queries) error {
@@ -188,7 +187,7 @@ func (s *Service) write(ctx context.Context, actor Actor, dryRun bool, fn func(q
 func (s *Service) household(ctx context.Context, q *db.Queries, id string) (domain.Household, error) {
 	h, err := q.GetHousehold(ctx, id)
 	if err != nil {
-		return domain.Household{}, store.NotFound(err, "household")
+		return domain.Household{}, store.NotFound(err, "household: not found")
 	}
 	return store.HouseholdFromRow(h), nil
 }
@@ -196,7 +195,7 @@ func (s *Service) household(ctx context.Context, q *db.Queries, id string) (doma
 func (s *Service) subscription(ctx context.Context, q *db.Queries, actor Actor, id string) (domain.Subscription, error) {
 	r, err := q.GetSubscription(ctx, db.GetSubscriptionParams{ID: id, HouseholdID: actor.HouseholdID})
 	if err != nil {
-		return domain.Subscription{}, store.NotFound(err, "subscription "+id)
+		return domain.Subscription{}, store.NotFound(err, "subscription %s: not found", id)
 	}
 	sub, err := store.SubscriptionFromRow(r)
 	if err != nil {
@@ -204,7 +203,7 @@ func (s *Service) subscription(ctx context.Context, q *db.Queries, actor Actor, 
 	}
 	if actor.Kind == ActorMember || actor.Kind == ActorAgent {
 		if !sub.VisibleTo(actor.MemberID) {
-			return domain.Subscription{}, fmt.Errorf("subscription %s: %w", id, domain.ErrNotFound)
+			return domain.Subscription{}, domain.Missing("subscription %s: not found", id)
 		}
 	}
 	return sub, nil
@@ -213,7 +212,7 @@ func (s *Service) subscription(ctx context.Context, q *db.Queries, actor Actor, 
 func (s *Service) charge(ctx context.Context, q *db.Queries, actor Actor, id string) (domain.Charge, domain.Subscription, error) {
 	r, err := q.GetCharge(ctx, id)
 	if err != nil {
-		return domain.Charge{}, domain.Subscription{}, store.NotFound(err, "charge "+id)
+		return domain.Charge{}, domain.Subscription{}, store.NotFound(err, "charge %s: not found", id)
 	}
 	sub, err := s.subscription(ctx, q, actor, r.SubscriptionID)
 	if err != nil {

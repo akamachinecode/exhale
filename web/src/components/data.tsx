@@ -22,7 +22,7 @@ import {
 	useImportReview,
 	useImportSubscriptions,
 } from "@/gen/api";
-import { ApiError } from "@/lib/fetcher";
+import { ApiError, problemDetail } from "@/lib/fetcher";
 import { t, tn } from "@/lib/i18n";
 import { date, decimal, every, money } from "@/lib/utils";
 
@@ -118,7 +118,7 @@ export function ImportData() {
 				body: file,
 			});
 			const body = await res.json();
-			if (!res.ok) throw new ApiError(res.status, body?.detail ?? t("Could not read the file"));
+			if (!res.ok) throw new ApiError(res.status, problemDetail(body, t("Could not read the file")));
 			await load(body as Parsed);
 			setFromChat(false);
 			setPasted("");

@@ -44,6 +44,7 @@ Exhale is a self-hosted subscription manager written in Go (backend, single bina
 - The web never computes charge dates; it calls `preview_schedule`.
 - Every text shown in chat goes through `tr(locale, "English text")` and has a Spanish entry in `internal/actions/i18n_es.go`; a test fails otherwise (ADR 0023).
 - Every text of the web goes through `t("English text")` or `tn(n, "one", "many")` from `web/src/lib/i18n.ts` and has a Spanish entry in `web/src/lib/es.ts`; `pnpm -C web i18n` fails otherwise.
+- Errors people may see are written with `domain.Invalid`, `NotFound`, `Missing`, `Conflict` or `Fail` (never `fmt.Errorf` with a sentinel), and other server texts people read (the assistant's cards) with `domain.T`; a field name or a status passed as an argument is a `domain.Word`. The format is a constant English sentence. Then run `go test ./internal/actions -update` (it lists the texts in `web/scripts/server-texts.json`) and add the Spanish to `internal/actions/i18n_es.go` (Go verbs) and to `web/src/lib/es.ts` (`{0}` placeholders). MCP agents keep getting the English `Error()`. A new op's `Title` needs both entries too.
 - New migrations get a number above every existing one; never renumber or reuse one that shipped.
 - `mise run test:e2e` drives a real browser against a fresh server; keep it green when changing web flows.
 - Commits: Conventional Commits, signed off (`git commit -s`).

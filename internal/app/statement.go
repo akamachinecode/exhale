@@ -3,7 +3,6 @@ package app
 import (
 	"cmp"
 	"context"
-	"fmt"
 	"slices"
 	"strings"
 
@@ -83,7 +82,7 @@ const (
 // Exhale expects in the same period. It changes nothing.
 func (s *Service) MatchStatement(ctx context.Context, actor Actor, in MatchStatementInput) (StatementMatch, error) {
 	if len(in.Transactions) > MaxStatementLines {
-		return StatementMatch{}, fmt.Errorf("%w: at most %d transactions per call", domain.ErrValidation, MaxStatementLines)
+		return StatementMatch{}, domain.Invalid("at most %d transactions per call", MaxStatementLines)
 	}
 	q := s.st.Q
 	h, err := s.household(ctx, q, actor.HouseholdID)
@@ -101,12 +100,12 @@ func (s *Service) MatchStatement(ctx context.Context, actor Actor, in MatchState
 	for i, t := range in.Transactions {
 		d, err := engine.ParseDate(strings.TrimSpace(t.Date))
 		if err != nil {
-			return StatementMatch{}, fmt.Errorf("%w: transaction %d: date: %v", domain.ErrValidation, i+1, err)
+			return StatementMatch{}, domain.Invalid("transaction %d: %v", i+1, domain.BadDate("date", t.Date))
 		}
 		cur := cmp.Or(strings.ToUpper(strings.TrimSpace(t.Currency)), h.Currency)
 		paid, err := money.Parse(strings.TrimPrefix(strings.TrimSpace(t.Amount), "+"), cur)
 		if err != nil {
-			return StatementMatch{}, fmt.Errorf("%w: transaction %d: amount: %v", domain.ErrValidation, i+1, err)
+			return StatementMatch{}, domain.Invalid("transaction %d: %v", i+1, domain.BadPrice(t.Amount, cur))
 		}
 		if from.IsZero() || d.Before(from) {
 			from = d
@@ -126,16 +125,16 @@ func (s *Service) MatchStatement(ctx context.Context, actor Actor, in MatchState
 	}
 	if in.From != "" {
 		if out.From, err = engine.ParseDate(in.From); err != nil {
-			return StatementMatch{}, fmt.Errorf("%w: from: %v", domain.ErrValidation, err)
+			return StatementMatch{}, domain.BadDate("from", in.From)
 		}
 	}
 	if in.To != "" {
 		if out.To, err = engine.ParseDate(in.To); err != nil {
-			return StatementMatch{}, fmt.Errorf("%w: to: %v", domain.ErrValidation, err)
+			return StatementMatch{}, domain.BadDate("to", in.To)
 		}
 	}
 	if out.To.Before(out.From) {
-		return StatementMatch{}, fmt.Errorf("%w: to is before from", domain.ErrValidation)
+		return StatementMatch{}, domain.Invalid("to is before from")
 	}
 	list, err := s.ListCharges(ctx, actor, ListChargesInput{From: out.From.AddDays(-matchDays).String(), To: out.To.AddDays(matchDays).String()})
 	if err != nil {

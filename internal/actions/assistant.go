@@ -3,9 +3,12 @@ package actions
 import (
 	"context"
 	"strings"
+	"sync"
+	"time"
 
 	"github.com/akamachinecode/exhale/internal/app"
 	"github.com/akamachinecode/exhale/internal/assistant"
+	"github.com/akamachinecode/exhale/internal/domain"
 )
 
 // Plain language in chat (ADR 0018, part B). Free text that is neither a
@@ -27,7 +30,7 @@ const (
 // it; an Engine without one answers free text with the channel's help.
 type Assistant interface {
 	Enabled(ctx context.Context) bool
-	Ask(ctx context.Context, actor app.Actor, conv, text string) (assistant.Turn, error)
+	AskStream(ctx context.Context, actor app.Actor, conv, text string, progress assistant.Progress) (assistant.Turn, error)
 	Decide(ctx context.Context, actor app.Actor, id string, accept bool) (assistant.Outcome, error)
 	Undo(ctx context.Context, actor app.Actor, id string) (assistant.Outcome, error)
 }
@@ -45,33 +48,111 @@ func (e *Engine) CanAsk(ctx context.Context) bool {
 // the answer, then one message per prepared change with its buttons. ok is
 // false when the assistant is off; the channel then shows its help.
 func (e *Engine) Ask(ctx context.Context, actor app.Actor, chat ChatRef, text string) (msgs []Message, ok bool) {
+	return e.AskStream(ctx, actor, chat, text, nil)
+}
+
+// AskStream is Ask, telling progress the answer as it is written (see
+// AskLive). The cards come only in the messages returned at the end.
+func (e *Engine) AskStream(ctx context.Context, actor app.Actor, chat ChatRef, text string, progress func(Message)) (msgs []Message, ok bool) {
 	if !e.CanAsk(ctx) {
 		return nil, false
 	}
-	turn, err := e.assistant.Ask(ctx, actor, chat.Channel+"_"+chat.ChatID, text)
-	if err != nil {
-		return []Message{{Lines: []string{"⚠️ " + assistant.Explain(err)}}}, true
+	locale := e.Locale(ctx, actor)
+	var watch assistant.Progress
+	if progress != nil {
+		watch = func(text string) { progress(Message{Lines: strings.Split(strings.TrimSpace(text)+" …", "\n")}) }
 	}
-	if turn.Text != "" || turn.Note != "" {
-		m := Message{Footer: turn.Note}
+	turn, err := e.assistant.AskStream(ctx, actor, chat.Channel+"_"+chat.ChatID, text, watch)
+	if err != nil {
+		return []Message{{Lines: []string{"⚠️ " + Say(locale, assistant.Explain(err))}}}, true
+	}
+	if turn.Text != "" || turn.Note != nil {
+		m := Message{}
+		if turn.Note != nil {
+			m.Footer = Say(locale, *turn.Note)
+		}
 		if turn.Text != "" {
 			m.Lines = strings.Split(turn.Text, "\n")
 		}
 		msgs = append(msgs, m)
 	}
+	if len(turn.Screens) > 0 {
+		today, _ := e.context(ctx, actor)
+		for _, sc := range turn.Screens {
+			msgs = append(msgs, screenMessage(sc, today, locale))
+		}
+	}
 	for _, p := range turn.Proposals {
-		msgs = append(msgs, proposalMessage(p, e.Locale(ctx, actor)))
+		msgs = append(msgs, proposalMessage(p, locale))
 	}
 	return msgs, true
 }
 
+// lines renders the lines of a card, each a sentence.
+func lines(locale string, ts []domain.Text) []string {
+	out := make([]string, len(ts))
+	for i, t := range ts {
+		out[i] = domain.Capitalize(Say(locale, t))
+	}
+	return out
+}
+
+// AskLive answers free text in a chat whose messages can be edited: the
+// answer appears in one message as it is written, edited at most once per
+// every (chat platforms limit edits: Telegram allows about one message a
+// second per chat and twenty a minute in a group), and that message then
+// becomes the finished answer. The cards follow as their own messages.
+// ok is false when the assistant is off.
+func (e *Engine) AskLive(ctx context.Context, actor app.Actor, chat ChatRef, text string, ch Channel, every time.Duration) (ok bool) {
+	var mu sync.Mutex
+	var live string // the id of the message being written
+	var last time.Time
+	progress := func(m Message) {
+		mu.Lock()
+		defer mu.Unlock()
+		now := time.Now()
+		switch {
+		case live == "":
+			if id, err := ch.Send(ctx, chat.ChatID, m); err == nil && id != "" {
+				live, last = id, now
+			}
+		case now.Sub(last) >= every:
+			if err := ch.Edit(ctx, chat.ChatID, live, m); err == nil {
+				last = now
+			}
+		}
+	}
+	msgs, ok := e.AskStream(ctx, actor, chat, text, progress)
+	if !ok {
+		return false
+	}
+	mu.Lock()
+	defer mu.Unlock()
+	if live != "" && len(msgs) > 0 {
+		// The last edit waits its turn, so the limit holds to the end.
+		select {
+		case <-ctx.Done():
+		case <-time.After(every - time.Since(last)):
+		}
+		if err := ch.Edit(ctx, chat.ChatID, live, msgs[0]); err == nil {
+			msgs = msgs[1:]
+		}
+	}
+	for _, m := range msgs {
+		if _, err := ch.Send(ctx, chat.ChatID, m); err != nil {
+			e.log.Warn("could not send the assistant's answer", "channel", ch.Name(), "err", err)
+		}
+	}
+	return true
+}
+
 func proposalMessage(p assistant.Proposal, locale string) Message {
-	title := p.Title + "?"
+	title := tr(locale, "%s?", Say(locale, p.Title))
 	if p.Destructive {
 		title = "⚠️ " + title
 	}
 	return Message{
-		Title: title, Lines: p.Lines,
+		Title: title, Lines: lines(locale, p.Lines),
 		Rows: [][]Button{{{Label: tr(locale, "✅ Do it"), Data: data(aiPrefix, aiDo, p.ID)}, {Label: tr(locale, "✖ Don't"), Data: data(aiPrefix, aiDont, p.ID)}}},
 	}
 }
@@ -97,22 +178,23 @@ func (e *Engine) handleAssistant(ctx context.Context, actor app.Actor, raw strin
 		return Reply{Toast: tr(locale, "Unknown action.")}, nil
 	}
 	if err != nil {
-		return Reply{Toast: assistant.Explain(err)}, nil
+		return Reply{Toast: Say(locale, assistant.Explain(err))}, nil
 	}
-	m := Message{Lines: out.Lines}
+	m := Message{Lines: lines(locale, out.Lines)}
+	title := Say(locale, out.Title)
 	toast := ""
 	switch out.Status {
 	case assistant.StatusApplied:
-		m.Title, toast = tr(locale, "✅ Done: %s", out.Title), tr(locale, "Done ✅")
+		m.Title, toast = tr(locale, "✅ Done: %s", title), tr(locale, "Done ✅")
 		if out.CanUndo {
 			m.Rows = [][]Button{{{Label: tr(locale, "↩︎ Undo"), Data: data(aiPrefix, aiUndo, out.ID)}}}
 		}
 	case assistant.StatusDiscarded:
-		m.Title, toast = tr(locale, "✖ Not done: %s", out.Title), tr(locale, "Nothing was changed")
+		m.Title, toast = tr(locale, "✖ Not done: %s", title), tr(locale, "Nothing was changed")
 	case assistant.StatusUndone:
-		m.Title, toast = tr(locale, "↩︎ Undone: %s", out.Title), tr(locale, "Undone ↩︎")
+		m.Title, toast = tr(locale, "↩︎ Undone: %s", title), tr(locale, "Undone ↩︎")
 	case assistant.StatusFailed:
-		m.Title, toast = tr(locale, "⚠️ Could not do it: %s", out.Title), tr(locale, "It could not be done")
+		m.Title, toast = tr(locale, "⚠️ Could not do it: %s", title), tr(locale, "It could not be done")
 	default:
 		return Reply{Edit: new(proposalMessage(assistant.Proposal{ID: out.ID, Title: out.Title, Lines: out.Lines}, locale))}, nil
 	}

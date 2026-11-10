@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
-	"fmt"
 	"time"
 
 	"github.com/akamachinecode/exhale/internal/app"
@@ -35,7 +34,7 @@ type Review struct {
 const ReviewTTL = 24 * time.Hour
 
 // ErrNoReview is returned when the member has no review waiting.
-var ErrNoReview = fmt.Errorf("%w: no import is waiting for review", domain.ErrNotFound)
+var ErrNoReview = domain.NotFound("no import is waiting for review")
 
 func reviewKey(memberID string) string { return "imr_" + memberID }
 

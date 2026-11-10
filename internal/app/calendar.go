@@ -2,7 +2,6 @@ package app
 
 import (
 	"context"
-	"fmt"
 	"slices"
 
 	"github.com/akamachinecode/exhale/internal/domain"
@@ -67,7 +66,7 @@ func (s *Service) Calendar(ctx context.Context, actor Actor, in CalendarInput) (
 		to = from.AddDays(365)
 	}
 	if to.Before(from) || from.DaysUntil(to) > 3*366 {
-		return CalendarView{}, fmt.Errorf("%w: choose a period of at most three years", domain.ErrValidation)
+		return CalendarView{}, domain.Invalid("choose a period of at most three years")
 	}
 	out := CalendarView{From: from, To: to, Events: []CalendarEvent{}}
 	list, err := s.ListSubscriptions(ctx, actor, ListSubscriptionsInput{})

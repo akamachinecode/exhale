@@ -39,19 +39,19 @@ const (
 
 // ErrNeedsAssistant is returned for files only a model can read while the
 // assistant is off.
-var ErrNeedsAssistant = fmt.Errorf("%w: reading a PDF, a picture or free text needs the built-in assistant. An owner can turn it on in Settings; a spreadsheet saved as CSV works without it", domain.ErrValidation)
+var ErrNeedsAssistant = domain.Invalid("reading a PDF, a picture or free text needs the built-in assistant. An owner can turn it on in Settings; a spreadsheet saved as CSV works without it")
 
 // ErrScanNeedsAssistant is returned for a PDF without text (a scan) while
 // the assistant is off.
-var ErrScanNeedsAssistant = fmt.Errorf("%w: this PDF has no text (it is probably a scan): reading it needs the built-in assistant. An owner can turn it on in Settings; or export the statement as CSV from your bank", domain.ErrValidation)
+var ErrScanNeedsAssistant = domain.Invalid("this PDF has no text (it is probably a scan): reading it needs the built-in assistant. An owner can turn it on in Settings; or export the statement as CSV from your bank")
 
 // ErrPDFUnreadable is returned for a PDF Exhale cannot open, while the
 // assistant is off.
-var ErrPDFUnreadable = fmt.Errorf("%w: Exhale could not open this PDF (it may be damaged or protected with a password). Export the statement as CSV from your bank, or ask an owner to turn on the built-in assistant in Settings", domain.ErrValidation)
+var ErrPDFUnreadable = domain.Invalid("Exhale could not open this PDF (it may be damaged or protected with a password). Export the statement as CSV from your bank, or ask an owner to turn on the built-in assistant in Settings")
 
 // ErrPDFNeedsAssistant is returned for a PDF with text in which Exhale
 // found no transactions, while the assistant is off.
-var ErrPDFNeedsAssistant = fmt.Errorf("%w: Exhale found no list of transactions in this PDF. Export the statement as CSV from your bank, or ask an owner to turn on the built-in assistant in Settings to read it", domain.ErrValidation)
+var ErrPDFNeedsAssistant = domain.Invalid("Exhale found no list of transactions in this PDF. Export the statement as CSV from your bank, or ask an owner to turn on the built-in assistant in Settings to read it")
 
 const reportTool = "report_recurring_charges"
 
@@ -130,12 +130,12 @@ func (a *Assistant) ReadImport(ctx context.Context, actor app.Actor, data []byte
 	kind, media := importer.Sniff(data)
 	switch kind {
 	case importer.FilePDF, importer.FileImage:
-		limit, what := MaxImageSize, "picture"
+		limit, what := MaxImageSize, domain.Word("picture")
 		if kind == importer.FilePDF {
 			limit, what = MaxPDFSize, "PDF"
 		}
 		if len(data) > limit {
-			return importer.Result{}, fmt.Errorf("%w: the %s is larger than %d MB", domain.ErrValidation, what, limit>>20)
+			return importer.Result{}, domain.Invalid("the %s is larger than %d MB", what, limit>>20)
 		}
 		source := "statement"
 		if kind == importer.FileImage {
@@ -183,7 +183,7 @@ func (a *Assistant) ReadImport(ctx context.Context, actor app.Actor, data []byte
 			if sheet, err := importer.Parse(ctx, data, cur); err == nil {
 				return sheet, nil
 			}
-			return importer.Result{}, fmt.Errorf("%w: no charge repeats in these transactions. A subscription shows after two charges from the same merchant: export a longer period", domain.ErrValidation)
+			return importer.Result{}, domain.Invalid("no charge repeats in these transactions. A subscription shows after two charges from the same merchant: export a longer period")
 		}
 		return a.extractText(ctx, actor, cur, today, data)
 	}
@@ -250,7 +250,7 @@ func (a *Assistant) matchStatement(ctx context.Context, actor app.Actor, res *im
 
 func (a *Assistant) extractText(ctx context.Context, actor app.Actor, cur string, today engine.Date, data []byte) (importer.Result, error) {
 	if len(data) > MaxTextSize {
-		return importer.Result{}, fmt.Errorf("%w: the text is longer than the model reads in one go (%d KB). Import a shorter period", domain.ErrValidation, MaxTextSize/1000)
+		return importer.Result{}, domain.Invalid("the text is longer than the model reads in one go (%d KB). Import a shorter period", MaxTextSize/1000)
 	}
 	return a.extract(ctx, actor, "text", cur, today, "Report the recurring charges in this document.\n\n<document>\n"+dataText(string(data))+"\n</document>", nil)
 }
@@ -278,6 +278,7 @@ func (a *Assistant) extract(ctx context.Context, actor app.Actor, source, cur st
 		Tools:     []Tool{{Name: reportTool, Description: "Report the recurring charges found in the document, for the person to review.", Schema: reportSchema}},
 		MaxTokens: extractToken,
 	})
+	a.record(ctx, actor, usageRecord{kind: "import", surface: "import", provider: p.Name(), model: res.Model, rounds: 1, usage: res.Usage, failed: err != nil})
 	if err != nil {
 		a.log.Warn("assistant: reading a document failed", "provider", p.Name(), "source", source, "err", err)
 		return importer.Result{}, err
@@ -444,6 +445,7 @@ func (a *Assistant) tidyNames(ctx context.Context, actor app.Actor, res *importe
 		Tools:     []Tool{{Name: namesTool, Description: "Report the readable name of each merchant.", Schema: namesSchema}},
 		MaxTokens: 4096,
 	})
+	a.record(ctx, actor, usageRecord{kind: "import", surface: "import", provider: p.Name(), model: out.Model, rounds: 1, usage: out.Usage, failed: err != nil})
 	if err != nil {
 		a.log.Info("assistant: merchant names were not tidied", "err", err)
 		return

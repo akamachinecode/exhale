@@ -34,6 +34,9 @@ func TestEveryMessageIsTranslated(t *testing.T) {
 	for _, k := range dynamicKeys {
 		used[k] = true
 	}
+	for k := range serverTexts(t) {
+		used[k] = true // checked by TestServerTextsAreTranslated
+	}
 	for _, c := range Commands {
 		if !used[c.Description] {
 			t.Errorf("command /%s: add its description to dynamicKeys and to the Spanish catalog", c.Command)

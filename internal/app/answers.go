@@ -97,7 +97,7 @@ func SnoozeDay(kind string, c ChargeView, today engine.Date, days int) (on engin
 func (s *Service) Snooze(ctx context.Context, actor Actor, in SnoozeInput) (SnoozeResult, error) {
 	out := SnoozeResult{ChargeID: in.ChargeID, Kind: in.Kind, DryRun: in.DryRun}
 	if in.Days < 1 || in.Days > 30 {
-		return out, fmt.Errorf("%w: snooze for 1 to 30 days", domain.ErrValidation)
+		return out, domain.Invalid("snooze for 1 to 30 days")
 	}
 	err := s.write(ctx, actor, in.DryRun, func(q *db.Queries, c *change) error {
 		ch, sub, err := s.charge(ctx, q, actor, in.ChargeID)
@@ -113,18 +113,18 @@ func (s *Service) Snooze(ctx context.Context, actor Actor, in SnoozeInput) (Snoo
 		switch in.Kind {
 		case KindReminder, KindConfirm:
 			if !ch.Open() {
-				return fmt.Errorf("%w: this charge is already %s", domain.ErrValidation, ch.Status)
+				return domain.Invalid("this charge is already %s", domain.Word(ch.Status))
 			}
 		case KindDecision:
 			if ch.Status != domain.ChargePending || cv.CancelBy.IsZero() || ch.Decision != "" {
-				return fmt.Errorf("%w: there is no keep-or-cancel question for this charge", domain.ErrValidation)
+				return domain.Invalid("there is no keep-or-cancel question for this charge")
 			}
 		default:
-			return fmt.Errorf("%w: kind must be reminder, decision or confirm", domain.ErrValidation)
+			return domain.Invalid("kind must be reminder, decision or confirm")
 		}
 		on, clamped, ok := SnoozeDay(in.Kind, cv, today, in.Days)
 		if !ok {
-			return fmt.Errorf("%w: it is too late to snooze it: the date is today", domain.ErrValidation)
+			return domain.Invalid("it is too late to snooze it: the date is today")
 		}
 		loc := h.Location()
 		out.On, out.Clamped = on, clamped
@@ -284,7 +284,7 @@ func (s *Service) DismissDuplicate(ctx context.Context, actor Actor, in DismissD
 	if _, ok, err := s.Duplicate(ctx, actor, in.Key); err != nil {
 		return out, err
 	} else if !ok {
-		return out, fmt.Errorf("duplicate %s: %w", in.Key, domain.ErrNotFound)
+		return out, domain.Missing("duplicate %s: not found", in.Key)
 	}
 	err := s.write(ctx, actor, in.DryRun, func(q *db.Queries, c *change) error {
 		if err := q.DismissFinding(ctx, db.DismissFindingParams{HouseholdID: actor.HouseholdID, Kind: KindDuplicate, Key: in.Key,

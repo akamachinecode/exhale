@@ -6,7 +6,6 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
-	"fmt"
 	"image"
 	_ "image/jpeg" // decode uploaded logos
 	"image/png"
@@ -128,7 +127,7 @@ func (s *Service) AddDocument(ctx context.Context, actor Actor, in AddDocumentIn
 		}
 	case DocContract, DocInvoice, DocOther:
 	default:
-		return DocumentResult{}, fmt.Errorf("%w: kind must be contract, invoice or other", domain.ErrValidation)
+		return DocumentResult{}, domain.Invalid("kind must be contract, invoice or other")
 	}
 	var out DocumentResult
 	err = s.write(ctx, actor, in.DryRun, func(q *db.Queries, c *change) error {
@@ -142,7 +141,7 @@ func (s *Service) AddDocument(ctx context.Context, actor Actor, in AddDocumentIn
 				return err
 			}
 			if chSub.ID != sub.ID {
-				return fmt.Errorf("%w: charge %s is not one of %s", domain.ErrValidation, in.ChargeID, sub.Name)
+				return domain.Invalid("charge %s is not one of %s", in.ChargeID, sub.Name)
 			}
 		}
 		meta, err := s.storeFile(ctx, q, c, actor, sub, in.ChargeID, in.Kind, cleanFileName(in.Name, media), media, in.Data)
@@ -164,21 +163,21 @@ func (s *Service) AddDocument(ctx context.Context, actor Actor, in AddDocumentIn
 // the type the browser sent are not trusted.
 func documentType(data []byte) (string, error) {
 	if len(data) == 0 {
-		return "", fmt.Errorf("%w: the file is empty", domain.ErrValidation)
+		return "", domain.Invalid("the file is empty")
 	}
 	if len(data) > MaxDocumentSize {
-		return "", fmt.Errorf("%w: the file is larger than %d MB", domain.ErrValidation, MaxDocumentSize>>20)
+		return "", domain.Invalid("the file is larger than %d MB", MaxDocumentSize>>20)
 	}
 	if bytes.HasPrefix(data, []byte("%PDF-")) {
 		return "application/pdf", nil
 	}
 	if media := imageType(data); media != "" {
 		if _, _, err := image.DecodeConfig(bytes.NewReader(data)); err != nil {
-			return "", fmt.Errorf("%w: the picture cannot be read", domain.ErrValidation)
+			return "", domain.Invalid("the picture cannot be read")
 		}
 		return media, nil
 	}
-	return "", fmt.Errorf("%w: attach a PDF or a picture (PNG, JPEG or WebP)", domain.ErrValidation)
+	return "", domain.Invalid("attach a PDF or a picture (PNG, JPEG or WebP)")
 }
 
 func imageType(data []byte) string {
@@ -226,7 +225,7 @@ func (s *Service) storeFile(ctx context.Context, q *db.Queries, c *change, actor
 		return Document{}, err
 	}
 	if used+int64(len(data)) > MaxHouseholdFiles {
-		return Document{}, fmt.Errorf("%w: this Exhale keeps up to %d MB of files and that is full. Deleted files count for 30 days", domain.ErrValidation, MaxHouseholdFiles>>20)
+		return Document{}, domain.Invalid("this Exhale keeps up to %d MB of files and that is full. Deleted files count for 30 days", MaxHouseholdFiles>>20)
 	}
 	sum := sha256.Sum256(data)
 	row := db.GetFileMetaRow{
@@ -275,14 +274,14 @@ func (s *Service) ListDocuments(ctx context.Context, actor Actor, in ListDocumen
 func (s *Service) file(ctx context.Context, q *db.Queries, actor Actor, id string) (Document, domain.Subscription, error) {
 	r, err := q.GetFileMeta(ctx, db.GetFileMetaParams{ID: id, HouseholdID: actor.HouseholdID})
 	if err != nil {
-		return Document{}, domain.Subscription{}, store.NotFound(err, "document "+id)
+		return Document{}, domain.Subscription{}, store.NotFound(err, "document %s: not found", id)
 	}
 	if r.DeletedAt != "" {
-		return Document{}, domain.Subscription{}, fmt.Errorf("document %s: %w", id, domain.ErrNotFound)
+		return Document{}, domain.Subscription{}, domain.Missing("document %s: not found", id)
 	}
 	sub, err := s.subscription(ctx, q, actor, r.SubscriptionID)
 	if err != nil {
-		return Document{}, domain.Subscription{}, fmt.Errorf("document %s: %w", id, domain.ErrNotFound)
+		return Document{}, domain.Subscription{}, domain.Missing("document %s: not found", id)
 	}
 	return documentFromRow(r), sub, nil
 }
@@ -294,10 +293,10 @@ func (s *Service) DocumentFile(ctx context.Context, actor Actor, id string) (Doc
 		return d, nil, err
 	}
 	if d.Kind == kindLogo {
-		return Document{}, nil, fmt.Errorf("document %s: %w", id, domain.ErrNotFound)
+		return Document{}, nil, domain.Missing("document %s: not found", id)
 	}
 	data, err := s.st.Q.GetFileData(ctx, db.GetFileDataParams{ID: id, HouseholdID: actor.HouseholdID})
-	return d, data, store.NotFound(err, "document "+id)
+	return d, data, store.NotFound(err, "document %s: not found", id)
 }
 
 // DeleteDocumentInput names the document.
@@ -316,7 +315,7 @@ func (s *Service) DeleteDocument(ctx context.Context, actor Actor, in DeleteDocu
 			return err
 		}
 		if d.Kind == kindLogo {
-			return fmt.Errorf("document %s: %w", in.ID, domain.ErrNotFound)
+			return domain.Missing("document %s: not found", in.ID)
 		}
 		if err := q.TrashFile(ctx, db.TrashFileParams{DeletedAt: store.FormatTime(c.now), ID: d.ID, HouseholdID: sub.HouseholdID}); err != nil {
 			return err
@@ -389,27 +388,27 @@ func (s *Service) SetLogo(ctx context.Context, actor Actor, in SetLogoInput) (Lo
 // that fits in LogoSize×LogoSize, keeping its proportions.
 func NormalizeLogo(data []byte) ([]byte, error) {
 	if len(data) == 0 {
-		return nil, fmt.Errorf("%w: the file is empty", domain.ErrValidation)
+		return nil, domain.Invalid("the file is empty")
 	}
 	if len(data) > MaxLogoUpload {
-		return nil, fmt.Errorf("%w: a logo can be up to %d MB", domain.ErrValidation, MaxLogoUpload>>20)
+		return nil, domain.Invalid("a logo can be up to %d MB", MaxLogoUpload>>20)
 	}
 	if imageType(data) == "" {
 		if looksLikeSVG(data) {
-			return nil, fmt.Errorf("%w: SVG logos are not accepted, because an SVG can carry a script. Upload a PNG, JPEG or WebP", domain.ErrValidation)
+			return nil, domain.Invalid("SVG logos are not accepted, because an SVG can carry a script. Upload a PNG, JPEG or WebP")
 		}
-		return nil, fmt.Errorf("%w: upload a PNG, JPEG or WebP picture", domain.ErrValidation)
+		return nil, domain.Invalid("upload a PNG, JPEG or WebP picture")
 	}
 	cfg, _, err := image.DecodeConfig(bytes.NewReader(data))
 	if err != nil {
-		return nil, fmt.Errorf("%w: the picture cannot be read", domain.ErrValidation)
+		return nil, domain.Invalid("the picture cannot be read")
 	}
 	if cfg.Width <= 0 || cfg.Height <= 0 || cfg.Width*cfg.Height > maxLogoPixels {
-		return nil, fmt.Errorf("%w: the picture is too large (%d×%d pixels)", domain.ErrValidation, cfg.Width, cfg.Height)
+		return nil, domain.Invalid("the picture is too large (%d×%d pixels)", cfg.Width, cfg.Height)
 	}
 	src, _, err := image.Decode(bytes.NewReader(data))
 	if err != nil {
-		return nil, fmt.Errorf("%w: the picture cannot be read", domain.ErrValidation)
+		return nil, domain.Invalid("the picture cannot be read")
 	}
 	b := src.Bounds()
 	w, h := b.Dx(), b.Dy()
@@ -477,10 +476,10 @@ func (s *Service) Logo(ctx context.Context, actor Actor, subscriptionID string) 
 	}
 	r, err := s.st.Q.GetLogo(ctx, db.GetLogoParams{SubscriptionID: sub.ID, HouseholdID: sub.HouseholdID})
 	if err != nil {
-		return Document{}, nil, store.NotFound(err, "logo of "+sub.ID)
+		return Document{}, nil, store.NotFound(err, "logo of %s: not found", sub.ID)
 	}
 	data, err := s.st.Q.GetFileData(ctx, db.GetFileDataParams{ID: r.ID, HouseholdID: sub.HouseholdID})
-	return documentFromRow(db.GetFileMetaRow(r)), data, store.NotFound(err, "logo of "+sub.ID)
+	return documentFromRow(db.GetFileMetaRow(r)), data, store.NotFound(err, "logo of %s: not found", sub.ID)
 }
 
 // logoOf is the path of a subscription's uploaded logo, or "".
@@ -511,7 +510,7 @@ func (s *Service) undoFile(ctx context.Context, q *db.Queries, actor Actor, c *c
 			ref = after
 		}
 		if ref == nil {
-			return fmt.Errorf("%w: change %s cannot be undone", domain.ErrValidation, a.ID)
+			return domain.Invalid("change %s cannot be undone", a.ID)
 		}
 		subID = ref.SubscriptionID
 	}
@@ -534,7 +533,7 @@ func (s *Service) undoFile(ctx context.Context, q *db.Queries, actor Actor, c *c
 	}
 	if before != nil {
 		if _, err := q.GetFileMeta(ctx, db.GetFileMetaParams{ID: before.ID, HouseholdID: sub.HouseholdID}); err != nil {
-			return fmt.Errorf("%w: the file was deleted more than 30 days ago and is gone for good", domain.ErrValidation)
+			return domain.Invalid("the file was deleted more than 30 days ago and is gone for good")
 		}
 		if err := q.RestoreFile(ctx, db.RestoreFileParams{ID: before.ID, HouseholdID: sub.HouseholdID}); err != nil {
 			return err
@@ -584,5 +583,5 @@ func (s *Service) FileData(ctx context.Context, actor Actor, id string) ([]byte,
 		return nil, err
 	}
 	data, err := s.st.Q.GetFileData(ctx, db.GetFileDataParams{ID: id, HouseholdID: actor.HouseholdID})
-	return data, store.NotFound(err, "file "+id)
+	return data, store.NotFound(err, "file %s: not found", id)
 }

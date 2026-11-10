@@ -3,7 +3,6 @@ package actions
 import (
 	"context"
 	"errors"
-	"fmt"
 	"slices"
 	"strings"
 
@@ -88,7 +87,7 @@ type PushResult struct {
 func (e *Engine) HandlePush(ctx context.Context, memberID, device, verb, chargeID string) (PushResult, error) {
 	base, button := pushData(verb, chargeID)
 	if !slices.Contains(PushVerbs, base) || chargeID == "" {
-		return PushResult{}, fmt.Errorf("%w: unknown action", domain.ErrValidation)
+		return PushResult{}, domain.Invalid("unknown action")
 	}
 	actor, err := e.svc.ActorForMember(ctx, memberID)
 	if err != nil {

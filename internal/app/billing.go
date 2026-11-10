@@ -21,7 +21,7 @@ func parseDayRule(s string) (engine.DayRule, error) {
 	case "last-weekday", "last weekday", "last":
 		return engine.LastWeekday, nil
 	}
-	return "", fmt.Errorf("%w: day rule must be day, weekday or last-weekday, not %q", domain.ErrValidation, s)
+	return "", domain.Invalid("day rule must be day, weekday or last-weekday, not %q", s)
 }
 
 func parseShift(s string) (engine.Shift, error) {
@@ -33,7 +33,7 @@ func parseShift(s string) (engine.Shift, error) {
 	case "previous":
 		return engine.PreviousBusinessDay, nil
 	}
-	return "", fmt.Errorf("%w: weekend shift must be none, next or previous, not %q", domain.ErrValidation, s)
+	return "", domain.Invalid("weekend shift must be none, next or previous, not %q", s)
 }
 
 // newRule builds the rule of a new subscription from the API's words.
@@ -47,7 +47,7 @@ func newRule(interval int, unit, dayRule, shift string, first engine.Date) (engi
 		return r, err
 	}
 	if err := r.Validate(); err != nil {
-		return r, fmt.Errorf("%w: %v", domain.ErrValidation, err)
+		return r, domain.BadBillingRule(r, err)
 	}
 	return r, nil
 }
@@ -69,7 +69,7 @@ func changedRule(s engine.Schedule, at engine.Date, in UpdateSubscriptionInput) 
 	if in.NextCharge != nil && *in.NextCharge != "" {
 		var err error
 		if anchor, err = engine.ParseDate(*in.NextCharge); err != nil {
-			return rule, fmt.Errorf("%w: next charge: %v", domain.ErrValidation, err)
+			return rule, domain.BadDate("next charge", *in.NextCharge)
 		}
 	}
 	rule = rule.Reanchor(anchor)
@@ -88,7 +88,7 @@ func changedRule(s engine.Schedule, at engine.Date, in UpdateSubscriptionInput) 
 		}
 	}
 	if err := rule.Validate(); err != nil {
-		return rule, fmt.Errorf("%w: %v", domain.ErrValidation, err)
+		return rule, domain.BadBillingRule(rule, err)
 	}
 	return rule, nil
 }

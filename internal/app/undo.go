@@ -3,7 +3,6 @@ package app
 import (
 	"context"
 	"encoding/json"
-	"fmt"
 	"slices"
 
 	"github.com/akamachinecode/exhale/internal/bus"
@@ -77,7 +76,7 @@ func (s *Service) Undo(ctx context.Context, actor Actor, in UndoInput) (UndoResu
 		}
 	}
 	if len(ids) == 0 || len(ids) > MaxBulk {
-		return UndoResult{}, fmt.Errorf("%w: pass auditId, or between 1 and %d auditIds", domain.ErrValidation, MaxBulk)
+		return UndoResult{}, domain.Invalid("pass auditId, or between 1 and %d auditIds", MaxBulk)
 	}
 	var out UndoResult
 	err := s.write(ctx, actor, in.DryRun, func(q *db.Queries, c *change) error {
@@ -101,10 +100,10 @@ func (s *Service) Undo(ctx context.Context, actor Actor, in UndoInput) (UndoResu
 func (s *Service) undoOne(ctx context.Context, q *db.Queries, c *change, actor Actor, auditID string) (UndoResult, error) {
 	a, err := q.GetAudit(ctx, auditID)
 	if err != nil {
-		return UndoResult{}, store.NotFound(err, "change "+auditID)
+		return UndoResult{}, store.NotFound(err, "change %s: not found", auditID)
 	}
 	if a.UndoneBy != "" {
-		return UndoResult{}, fmt.Errorf("%w: change %s was already undone", domain.ErrValidation, a.ID)
+		return UndoResult{}, domain.Invalid("change %s was already undone", a.ID)
 	}
 	switch a.Entity {
 	case "charge":
@@ -130,7 +129,7 @@ func (s *Service) undoOne(ctx context.Context, q *db.Queries, c *change, actor A
 			return UndoResult{}, err
 		}
 	default:
-		return UndoResult{}, fmt.Errorf("%w: changes to %s cannot be undone yet", domain.ErrValidation, a.Entity)
+		return UndoResult{}, domain.Invalid("changes to %s cannot be undone yet", a.Entity)
 	}
 	id, err := c.record(q, "undo", a.Entity, a.EntityID, nil, map[string]string{"undid": a.ID})
 	if err != nil {

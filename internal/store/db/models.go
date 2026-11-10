@@ -15,6 +15,22 @@ type ApiToken struct {
 	RevokedAt  *string
 }
 
+type AssistantUsage struct {
+	ID           string
+	HouseholdID  string
+	MemberID     string
+	At           string
+	Kind         string
+	Surface      string
+	Provider     string
+	Model        string
+	Rounds       int64
+	InputTokens  int64
+	OutputTokens int64
+	CostMicros   *int64
+	Failed       int64
+}
+
 type AuditLog struct {
 	ID         string
 	At         string

@@ -135,7 +135,7 @@
           },
           "lines": {
             "items": {
-              "type": "string"
+              "$ref": "#/components/schemas/Wire"
             },
             "type": [
               "array",
@@ -156,7 +156,7 @@
             "type": "string"
           },
           "title": {
-            "type": "string"
+            "$ref": "#/components/schemas/Wire"
           }
         },
         "required": [
@@ -195,6 +195,10 @@
           "model": {
             "description": "model id; required for openai, optional for anthropic",
             "type": "string"
+          },
+          "price": {
+            "$ref": "#/components/schemas/Price",
+            "description": "the price of the model, to estimate costs; both empty forgets it. Omit to keep it"
           },
           "provider": {
             "description": "anthropic for Claude; openai for any OpenAI-compatible endpoint (OpenAI, OpenRouter, Ollama, LM Studio…)",
@@ -254,9 +258,26 @@
           "model": {
             "type": "string"
           },
+          "month": {
+            "$ref": "#/components/schemas/MonthUsage",
+            "description": "what the assistant was asked this month"
+          },
           "on": {
             "description": "the on/off switch, whatever the configuration",
             "type": "boolean"
+          },
+          "price": {
+            "$ref": "#/components/schemas/Price",
+            "description": "the price used to estimate the cost of the current model; absent when it is not known"
+          },
+          "priceSource": {
+            "description": "where the price comes from: Exhale's table, the owner, or nowhere (tokens only)",
+            "enum": [
+              "default",
+              "settings",
+              "unknown"
+            ],
+            "type": "string"
           },
           "provider": {
             "enum": [
@@ -272,7 +293,8 @@
           "on",
           "hasKey",
           "locked",
-          "defaultModel"
+          "defaultModel",
+          "priceSource"
         ],
         "type": "object"
       },
@@ -338,7 +360,8 @@
             "type": "string"
           },
           "message": {
-            "type": "string"
+            "$ref": "#/components/schemas/Wire",
+            "description": "a translatable text"
           },
           "model": {
             "description": "the model that answered",
@@ -377,13 +400,23 @@
             ]
           },
           "note": {
-            "description": "why the answer may be incomplete, e.g. the step limit was reached",
-            "type": "string"
+            "$ref": "#/components/schemas/Wire",
+            "description": "why the answer may be incomplete, e.g. the step limit was reached; a translatable text"
           },
           "proposals": {
             "description": "changes prepared for the person to confirm or discard; nothing is applied until they confirm",
             "items": {
               "$ref": "#/components/schemas/Proposal"
+            },
+            "type": [
+              "array",
+              "null"
+            ]
+          },
+          "screens": {
+            "description": "screens the model chose to show; every name and number in them comes from the database",
+            "items": {
+              "$ref": "#/components/schemas/Screen"
             },
             "type": [
               "array",
@@ -398,7 +431,35 @@
         "required": [
           "text",
           "proposals",
-          "mentions"
+          "mentions",
+          "screens"
+        ],
+        "type": "object"
+      },
+      "AssistantUsage": {
+        "additionalProperties": false,
+        "properties": {
+          "$schema": {
+            "description": "A URL to the JSON Schema for this object.",
+            "examples": [
+              "https://example.com/api/schemas/AssistantUsage.json"
+            ],
+            "format": "uri",
+            "readOnly": true,
+            "type": "string"
+          },
+          "entries": {
+            "items": {
+              "$ref": "#/components/schemas/UsageEntry"
+            },
+            "type": [
+              "array",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "entries"
         ],
         "type": "object"
       },
@@ -861,6 +922,88 @@
         },
         "required": [
           "token"
+        ],
+        "type": "object"
+      },
+      "Breakdown": {
+        "additionalProperties": false,
+        "properties": {
+          "by": {
+            "enum": [
+              "category",
+              "payment_method",
+              "subscription"
+            ],
+            "type": "string"
+          },
+          "converted": {
+            "description": "other currencies were converted at the latest ECB reference rate",
+            "type": "boolean"
+          },
+          "period": {
+            "enum": [
+              "month",
+              "year"
+            ],
+            "type": "string"
+          },
+          "rows": {
+            "description": "largest first",
+            "items": {
+              "$ref": "#/components/schemas/BreakdownRow"
+            },
+            "type": [
+              "array",
+              "null"
+            ]
+          },
+          "total": {
+            "$ref": "#/components/schemas/Money",
+            "description": "in the main currency"
+          },
+          "unconverted": {
+            "description": "currencies without a known rate, left out",
+            "items": {
+              "type": "string"
+            },
+            "type": [
+              "array",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "period",
+          "by",
+          "total",
+          "rows",
+          "converted",
+          "unconverted"
+        ],
+        "type": "object"
+      },
+      "BreakdownRow": {
+        "additionalProperties": false,
+        "properties": {
+          "amount": {
+            "$ref": "#/components/schemas/Money"
+          },
+          "count": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "label": {
+            "type": "string"
+          },
+          "subscriptionId": {
+            "description": "when the breakdown is by subscription",
+            "type": "string"
+          }
+        },
+        "required": [
+          "label",
+          "amount",
+          "count"
         ],
         "type": "object"
       },
@@ -3683,6 +3826,45 @@
         ],
         "type": "object"
       },
+      "MonthUsage": {
+        "additionalProperties": false,
+        "properties": {
+          "costUsd": {
+            "description": "estimated cost in US dollars of the entries whose price is known",
+            "type": "string"
+          },
+          "inputTokens": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "month": {
+            "description": "e.g. 2026-11, in the household's time zone",
+            "type": "string"
+          },
+          "outputTokens": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "questions": {
+            "description": "questions and imports read by a model",
+            "format": "int64",
+            "type": "integer"
+          },
+          "unpriced": {
+            "description": "entries whose model has no price: their tokens count, their cost does not",
+            "format": "int64",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "month",
+          "questions",
+          "inputTokens",
+          "outputTokens",
+          "unpriced"
+        ],
+        "type": "object"
+      },
       "NtfyInput": {
         "additionalProperties": false,
         "properties": {
@@ -4069,6 +4251,24 @@
         ],
         "type": "object"
       },
+      "Price": {
+        "additionalProperties": false,
+        "properties": {
+          "input": {
+            "description": "US dollars per million input tokens, e.g. 4 or 0.10",
+            "type": "string"
+          },
+          "output": {
+            "description": "US dollars per million output tokens, e.g. 20 or 0.50",
+            "type": "string"
+          }
+        },
+        "required": [
+          "input",
+          "output"
+        ],
+        "type": "object"
+      },
       "PriceChange": {
         "additionalProperties": false,
         "properties": {
@@ -4196,9 +4396,9 @@
             "type": "string"
           },
           "lines": {
-            "description": "the details of the change",
+            "description": "the details of the change, as translatable texts",
             "items": {
-              "type": "string"
+              "$ref": "#/components/schemas/Wire"
             },
             "type": [
               "array",
@@ -4206,8 +4406,8 @@
             ]
           },
           "title": {
-            "description": "what would happen, e.g. Add Netflix",
-            "type": "string"
+            "$ref": "#/components/schemas/Wire",
+            "description": "what would happen, e.g. Add Netflix, as a translatable text"
           },
           "tool": {
             "description": "the use case that would run, e.g. create_subscription",
@@ -4941,6 +5141,46 @@
         },
         "required": [
           "dates"
+        ],
+        "type": "object"
+      },
+      "Screen": {
+        "additionalProperties": false,
+        "properties": {
+          "charges": {
+            "$ref": "#/components/schemas/ChargeList",
+            "description": "kind charges: the period and its charges"
+          },
+          "kind": {
+            "enum": [
+              "subscriptions",
+              "charges",
+              "total"
+            ],
+            "type": "string"
+          },
+          "more": {
+            "description": "records left out because the screen is full",
+            "format": "int64",
+            "type": "integer"
+          },
+          "subscriptions": {
+            "description": "kind subscriptions: in the order the model chose",
+            "items": {
+              "$ref": "#/components/schemas/SubscriptionView"
+            },
+            "type": [
+              "array",
+              "null"
+            ]
+          },
+          "total": {
+            "$ref": "#/components/schemas/Breakdown",
+            "description": "kind total"
+          }
+        },
+        "required": [
+          "kind"
         ],
         "type": "object"
       },
@@ -6632,6 +6872,73 @@
         ],
         "type": "object"
       },
+      "UsageEntry": {
+        "additionalProperties": false,
+        "properties": {
+          "at": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "costUsd": {
+            "description": "estimated cost in US dollars; absent when the model's price is not known",
+            "type": "string"
+          },
+          "failed": {
+            "type": "boolean"
+          },
+          "id": {
+            "type": "string"
+          },
+          "inputTokens": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "kind": {
+            "enum": [
+              "question",
+              "import"
+            ],
+            "type": "string"
+          },
+          "member": {
+            "description": "who asked",
+            "type": "string"
+          },
+          "model": {
+            "type": "string"
+          },
+          "outputTokens": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "provider": {
+            "type": "string"
+          },
+          "rounds": {
+            "description": "calls to the model",
+            "format": "int64",
+            "type": "integer"
+          },
+          "surface": {
+            "description": "web, telegram, slack or import",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "at",
+          "member",
+          "kind",
+          "surface",
+          "provider",
+          "model",
+          "rounds",
+          "inputTokens",
+          "outputTokens",
+          "failed"
+        ],
+        "type": "object"
+      },
       "Version": {
         "additionalProperties": false,
         "properties": {
@@ -6645,6 +6952,26 @@
         "required": [
           "from",
           "rule"
+        ],
+        "type": "object"
+      },
+      "Wire": {
+        "additionalProperties": false,
+        "properties": {
+          "args": {
+            "items": {},
+            "type": [
+              "array",
+              "null"
+            ]
+          },
+          "key": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "key",
+          "args"
         ],
         "type": "object"
       }
@@ -6793,6 +7120,51 @@
           }
         },
         "summary": "Confirm, discard or undo a change the assistant prepared",
+        "tags": [
+          "Assistant"
+        ]
+      }
+    },
+    "/api/v1/assistant/usage": {
+      "get": {
+        "operationId": "assistant_usage",
+        "parameters": [
+          {
+            "explode": false,
+            "in": "query",
+            "name": "limit",
+            "schema": {
+              "default": 100,
+              "format": "int64",
+              "maximum": 500,
+              "minimum": 1,
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AssistantUsage"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorModel"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "summary": "What the assistant was asked: tokens and estimated cost, newest first",
         "tags": [
           "Assistant"
         ]

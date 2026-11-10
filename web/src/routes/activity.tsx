@@ -3,11 +3,12 @@ import { Link } from "@tanstack/react-router";
 import { Bot, Clock, Undo2, User } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
+import { AssistantActivity } from "@/components/assistant";
 import { PageHeader } from "@/components/layout";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import { useListChanges, useListReminders, useUndo } from "@/gen/api";
+import { useAssistantUsage, useAuthSession, useListChanges, useListReminders, useUndo } from "@/gen/api";
 import { ApiError } from "@/lib/fetcher";
 import { locale, t } from "@/lib/i18n";
 import { cn, date } from "@/lib/utils";
@@ -54,7 +55,10 @@ export function ActivityPage() {
 		},
 	});
 	const entries = q.data?.entries ?? [];
-	const [tab, setTab] = useState<"changes" | "reminders">("changes");
+	const [tab, setTab] = useState<"changes" | "reminders" | "assistant">("changes");
+	const session = useAuthSession();
+	const usage = useAssistantUsage({ limit: 200 });
+	const withAssistant = Boolean(session.data?.assistant) || (usage.data?.entries?.length ?? 0) > 0;
 	return (
 		<>
 			<PageHeader
@@ -64,11 +68,18 @@ export function ActivityPage() {
 						? t(
 								"Every change, by you, the people you share with, the scheduler or an AI agent. Anything can be undone.",
 							)
-						: t("Every reminder Exhale planned and what happened to it.")
+						: tab === "assistant"
+							? t(
+									"Every question to the built-in assistant: the model, the tokens and what it cost. Never the words.",
+								)
+							: t("Every reminder Exhale planned and what happened to it.")
 				}
 			/>
 			<div className="mb-4 inline-flex gap-1 rounded-lg bg-raised p-1" role="tablist">
-				{(["changes", "reminders"] as const).map((name) => (
+				{(withAssistant
+					? (["changes", "reminders", "assistant"] as const)
+					: (["changes", "reminders"] as const)
+				).map((name) => (
 					<button
 						key={name}
 						type="button"
@@ -80,11 +91,13 @@ export function ActivityPage() {
 							tab === name && "bg-surface text-fg shadow-sm",
 						)}
 					>
-						{name === "changes" ? t("Changes") : t("Reminders")}
+						{name === "changes" ? t("Changes") : name === "reminders" ? t("Reminders") : t("Assistant")}
 					</button>
 				))}
 			</div>
-			{tab === "reminders" ? (
+			{tab === "assistant" ? (
+				<AssistantActivity entries={usage.data?.entries ?? []} />
+			) : tab === "reminders" ? (
 				<Reminders />
 			) : (
 				<Card>

@@ -97,7 +97,7 @@ func (a *Assistant) ReadTerms(ctx context.Context, actor app.Actor, documentID s
 		limit = MaxPDFSize
 	}
 	if len(data) > limit {
-		return TermsProposal{}, fmt.Errorf("%w: the file is larger than the %d MB a model reads", domain.ErrValidation, limit>>20)
+		return TermsProposal{}, domain.Invalid("the file is larger than the %d MB a model reads", limit>>20)
 	}
 	detail, err := a.svc.GetSubscription(ctx, actor, app.GetSubscriptionInput{ID: doc.SubscriptionID})
 	if err != nil {
@@ -178,7 +178,7 @@ func (f TermsField) Update(id string) (app.UpdateSubscriptionInput, error) {
 	case "noticeDays":
 		n, err := strconv.Atoi(v)
 		if err != nil {
-			return in, fmt.Errorf("%w: not a number of days", domain.ErrValidation)
+			return in, domain.Invalid("not a number of days")
 		}
 		in.NoticeDays = &n
 	case "cancelUrl":
@@ -190,7 +190,7 @@ func (f TermsField) Update(id string) (app.UpdateSubscriptionInput, error) {
 	case "account":
 		in.Account = &v
 	default:
-		return in, fmt.Errorf("%w: unknown field", domain.ErrValidation)
+		return in, domain.Invalid("unknown field")
 	}
 	return in, nil
 }

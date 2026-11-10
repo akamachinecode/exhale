@@ -32,7 +32,7 @@ Texts a channel says outside any screen (linking a chat, joining, help) live in 
 
 The **web** follows the same idea in TypeScript: `t("English text {0}", value)` and `tn(count, "one", "many")` in `web/src/lib/i18n.ts`, with the Spanish catalog in `web/src/lib/es.ts`. The language is the browser's unless the person switches it (saved in that browser); dates, amounts and billing cycles follow it. `pnpm i18n`, run in CI, applies the same three checks as the Go test.
 
-Errors raised by the service (validation messages) stay in English for now.
+Errors raised by the service (validation messages) stay in English for now. *(Updated 2026-11-10: they are translated now, with the English text still as the key; see "Finished later" in ADR 0018's implementation notes and the rule in AGENTS.md.)*
 
 ## Consequences — cost we accept
 

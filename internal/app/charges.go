@@ -44,7 +44,7 @@ type ChangeChargeDateInput struct {
 func (s *Service) ChangeChargeDate(ctx context.Context, actor Actor, in ChangeChargeDateInput) (ChargeResult, error) {
 	newDate, err := engine.ParseDate(in.NewDate)
 	if err != nil {
-		return ChargeResult{}, fmt.Errorf("%w: new date: %v", domain.ErrValidation, err)
+		return ChargeResult{}, domain.BadDate("new date", in.NewDate)
 	}
 	scope := domain.EditScope(in.Scope)
 	if scope == "" {
@@ -57,7 +57,7 @@ func (s *Service) ChangeChargeDate(ctx context.Context, actor Actor, in ChangeCh
 			return err
 		}
 		if !ch.Open() {
-			return fmt.Errorf("%w: charge %s is %s; reopen it first", domain.ErrValidation, ch.ID, ch.Status)
+			return domain.Invalid("charge %s is %s; reopen it first", ch.ID, domain.Word(ch.Status))
 		}
 		before := ch
 		resultID := ch.ID
@@ -73,7 +73,7 @@ func (s *Service) ChangeChargeDate(ctx context.Context, actor Actor, in ChangeCh
 			rule := sub.Schedule.Current(ch.OriginalDate).Reanchor(newDate)
 			sub.Schedule, err = sub.Schedule.ChangeRule(ch.OriginalDate, rule)
 			if err != nil {
-				return fmt.Errorf("%w: %v", domain.ErrValidation, err)
+				return domain.BadRule(rule.Interval, string(rule.Unit), err)
 			}
 			if err := s.saveSubscription(ctx, q, sub); err != nil {
 				return err
@@ -94,7 +94,7 @@ func (s *Service) ChangeChargeDate(ctx context.Context, actor Actor, in ChangeCh
 				resultID = r.ID
 			}
 		default:
-			return fmt.Errorf("%w: unknown scope %q", domain.ErrValidation, in.Scope)
+			return domain.Invalid("unknown scope %q", in.Scope)
 		}
 		if scope == domain.ScopeThisCharge {
 			if out.AuditID, err = c.record(q, "charge.move", "charge", ch.ID, before, ch); err != nil {
@@ -136,7 +136,7 @@ func (s *Service) ChangeChargeAmount(ctx context.Context, actor Actor, in Change
 		}
 		amount, err := money.Parse(in.Amount, ch.Amount.Currency)
 		if err != nil {
-			return fmt.Errorf("%w: %v", domain.ErrValidation, err)
+			return domain.BadPrice(in.Amount, ch.Amount.Currency)
 		}
 		before := ch
 		ch.Amount = amount
@@ -198,7 +198,7 @@ func (s *Service) SetChargeStatus(ctx context.Context, actor Actor, in SetCharge
 				cur = ch.Amount.Currency
 			}
 			if ch.ChargedAmount, err = money.Parse(in.ChargedAmount, cur); err != nil {
-				return fmt.Errorf("%w: charged amount: %v", domain.ErrValidation, err)
+				return domain.Invalid("charged amount: %v", domain.BadPrice(in.ChargedAmount, cur))
 			}
 		}
 		if in.Status == string(domain.ChargePending) {
@@ -250,7 +250,7 @@ func (s *Service) DecideRenewal(ctx context.Context, actor Actor, in DecideRenew
 		case "undecided":
 			ch.Decision = ""
 		default:
-			return fmt.Errorf("%w: decision must be keep or undecided", domain.ErrValidation)
+			return domain.Invalid("decision must be keep or undecided")
 		}
 		if err := s.saveCharge(ctx, q, ch); err != nil {
 			return err
@@ -288,7 +288,7 @@ func (s *Service) saveCharge(ctx context.Context, q *db.Queries, ch domain.Charg
 		return err
 	}
 	if n == 0 {
-		return fmt.Errorf("charge %s changed meanwhile: %w", ch.ID, domain.ErrConflict)
+		return domain.Conflict("charge %s changed meanwhile", ch.ID)
 	}
 	return nil
 }
@@ -296,7 +296,7 @@ func (s *Service) saveCharge(ctx context.Context, q *db.Queries, ch domain.Charg
 func (s *Service) fillResult(ctx context.Context, q *db.Queries, actor Actor, chargeID string, out *ChargeResult) error {
 	r, err := q.GetCharge(ctx, chargeID)
 	if err != nil {
-		return store.NotFound(err, "charge "+chargeID)
+		return store.NotFound(err, "charge %s: not found", chargeID)
 	}
 	sub, err := s.subscription(ctx, q, actor, r.SubscriptionID)
 	if err != nil {

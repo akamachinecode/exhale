@@ -62,7 +62,7 @@ func CanTransition(from, to ChargeStatus) bool {
 // Transition moves the charge to a new status.
 func (c *Charge) Transition(to ChargeStatus, at time.Time) error {
 	if !CanTransition(c.Status, to) {
-		return invalid("a %s charge cannot become %s", c.Status, to)
+		return invalid("a %s charge cannot become %s", Word(c.Status), Word(to))
 	}
 	c.Status = to
 	if to == ChargePending {

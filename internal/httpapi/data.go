@@ -60,20 +60,24 @@ func parseImport(asst *assistant.Assistant) http.HandlerFunc {
 		// goes to the model, if an owner turned the assistant on.
 		res, err := asst.ReadImport(r.Context(), actor, data)
 		if err != nil {
-			status, msg := http.StatusUnprocessableEntity, "could not read the file"
+			status, msg := http.StatusUnprocessableEntity, domain.T("could not read the file")
 			var ae *assistant.Error
 			switch {
 			case errors.Is(err, importer.ErrUnknownFormat):
-				msg = strings.ToUpper(err.Error()[:1]) + err.Error()[1:]
-			case errors.Is(err, domain.ErrValidation):
-				msg = humanize(err, domain.ErrValidation)
+				// The importer's own sentence, in English.
+				writeProblem(w, status, strings.ToUpper(err.Error()[:1])+err.Error()[1:])
+				return
 			case errors.As(err, &ae):
 				status, msg = http.StatusBadGateway, assistant.Explain(err)
 				if ae.Kind == assistant.KindBusy || ae.Kind == assistant.KindRateLimited {
 					status = http.StatusTooManyRequests
 				}
+			default:
+				if t, ok := domain.TextOf(err); ok {
+					msg = t
+				}
 			}
-			writeProblem(w, status, msg)
+			writeJSONProblem(w, newProblem(status, msg))
 			return
 		}
 		w.Header().Set("Content-Type", "application/json")

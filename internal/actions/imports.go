@@ -150,13 +150,9 @@ func importError(err error, locale string) string {
 	case errors.Is(err, importer.ErrUnknownFormat):
 		return tr(locale, "I can't read this kind of file. Send your bank's export (CSV), a PDF statement or a Wallos export.")
 	case errors.As(err, &ae):
-		return assistant.Explain(err)
+		return Say(locale, assistant.Explain(err))
 	case errors.Is(err, domain.ErrValidation):
-		msg := err.Error()
-		if i := strings.Index(msg, ": "); i > 0 {
-			msg = msg[i+2:]
-		}
-		return msg
+		return ErrorText(locale, err)
 	}
 	return tr(locale, "I could not read that file.")
 }

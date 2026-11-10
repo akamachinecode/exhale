@@ -2,7 +2,6 @@ package assistant
 
 import (
 	"context"
-	"fmt"
 	"net/url"
 	"strings"
 	"time"
@@ -53,15 +52,18 @@ func (c Config) Ready() bool {
 // Status describes the assistant for the settings UI. It never carries the
 // API key, only whether one is saved.
 type Status struct {
-	Enabled      bool     `json:"enabled" doc:"the assistant answers: it is configured and switched on"`
-	Configured   bool     `json:"configured" doc:"a provider, and what it needs, is set"`
-	On           bool     `json:"on" doc:"the on/off switch, whatever the configuration"`
-	Provider     string   `json:"provider,omitempty" enum:"anthropic,openai"`
-	Model        string   `json:"model,omitempty"`
-	BaseURL      string   `json:"baseUrl,omitempty"`
-	HasKey       bool     `json:"hasKey" doc:"an API key is saved; it is never returned"`
-	Locked       []string `json:"locked" doc:"fields set by environment variables on the server, not editable here: provider, apiKey, model, baseUrl"`
-	DefaultModel string   `json:"defaultModel" doc:"the model used with Anthropic when none is given"`
+	Enabled      bool        `json:"enabled" doc:"the assistant answers: it is configured and switched on"`
+	Configured   bool        `json:"configured" doc:"a provider, and what it needs, is set"`
+	On           bool        `json:"on" doc:"the on/off switch, whatever the configuration"`
+	Provider     string      `json:"provider,omitempty" enum:"anthropic,openai"`
+	Model        string      `json:"model,omitempty"`
+	BaseURL      string      `json:"baseUrl,omitempty"`
+	HasKey       bool        `json:"hasKey" doc:"an API key is saved; it is never returned"`
+	Locked       []string    `json:"locked" doc:"fields set by environment variables on the server, not editable here: provider, apiKey, model, baseUrl"`
+	DefaultModel string      `json:"defaultModel" doc:"the model used with Anthropic when none is given"`
+	Price        *Price      `json:"price,omitempty" doc:"the price used to estimate the cost of the current model; absent when it is not known"`
+	PriceSource  string      `json:"priceSource" enum:"default,settings,unknown" doc:"where the price comes from: Exhale's table, the owner, or nowhere (tokens only)"`
+	Month        *MonthUsage `json:"month,omitempty" doc:"what the assistant was asked this month"`
 }
 
 // Settings is what the owner saves from the web.
@@ -71,6 +73,7 @@ type Settings struct {
 	Model    string `json:"model,omitempty" doc:"model id; required for openai, optional for anthropic"`
 	BaseURL  string `json:"baseUrl,omitempty" doc:"address of the endpoint, e.g. http://localhost:11434/v1 for Ollama; empty for the provider's own API"`
 	Enabled  *bool  `json:"enabled,omitempty" doc:"on/off switch; on when omitted"`
+	Price    *Price `json:"price,omitempty" doc:"the price of the model, to estimate costs; both empty forgets it. Omit to keep it"`
 }
 
 func (a *Assistant) setting(ctx context.Context, key string) string {
@@ -111,7 +114,12 @@ func (a *Assistant) Status(ctx context.Context) Status {
 	c := a.Config(ctx)
 	st := Status{
 		Configured: c.Ready(), On: c.Enabled, Enabled: a.Enabled(ctx), Provider: c.Provider, Model: c.Model, BaseURL: c.BaseURL,
-		HasKey: c.APIKey != "", Locked: []string{}, DefaultModel: DefaultAnthropicModel,
+		HasKey: c.APIKey != "", Locked: []string{}, DefaultModel: DefaultAnthropicModel, PriceSource: "unknown",
+	}
+	if c.Model != "" {
+		if p, src := a.priceFor(ctx, c.Model); src != "" {
+			st.Price, st.PriceSource = &p, src
+		}
 	}
 	for name, v := range map[string]string{"provider": a.env.Provider, "apiKey": a.env.APIKey, "model": a.env.Model, "baseUrl": a.env.BaseURL} {
 		if v != "" {
@@ -140,12 +148,12 @@ func (a *Assistant) Configure(ctx context.Context, in Settings) (Status, error) 
 		in.Provider = strings.ToLower(a.env.Provider)
 	}
 	if in.Provider != ProviderAnthropic && in.Provider != ProviderOpenAI {
-		return Status{}, fmt.Errorf("%w: pick a provider: Anthropic or an OpenAI-compatible endpoint", domain.ErrValidation)
+		return Status{}, domain.Invalid("pick a provider: Anthropic or an OpenAI-compatible endpoint")
 	}
 	if in.BaseURL != "" {
 		u, err := url.Parse(in.BaseURL)
 		if err != nil || (u.Scheme != "http" && u.Scheme != "https") || u.Host == "" {
-			return Status{}, fmt.Errorf("%w: the address must start with http:// or https://", domain.ErrValidation)
+			return Status{}, domain.Invalid("the address must start with http:// or https://")
 		}
 	}
 	key := in.APIKey
@@ -154,10 +162,10 @@ func (a *Assistant) Configure(ctx context.Context, in Settings) (Status, error) 
 	}
 	hasKey := key != "" || a.env.APIKey != ""
 	if in.Provider == ProviderAnthropic && !hasKey {
-		return Status{}, fmt.Errorf("%w: paste an API key from console.anthropic.com", domain.ErrValidation)
+		return Status{}, domain.Invalid("paste an API key from console.anthropic.com")
 	}
 	if in.Provider == ProviderOpenAI && in.Model == "" && a.env.Model == "" {
-		return Status{}, fmt.Errorf("%w: say which model to use, e.g. gpt-5 or llama3.1", domain.ErrValidation)
+		return Status{}, domain.Invalid("say which model to use, e.g. gpt-5 or llama3.1")
 	}
 	enabled := "1"
 	if in.Enabled != nil && !*in.Enabled {
@@ -168,6 +176,16 @@ func (a *Assistant) Configure(ctx context.Context, in Settings) (Status, error) 
 		if err := q.PutSetting(ctx, db.PutSettingParams{Key: k, Value: v}); err != nil {
 			return Status{}, err
 		}
+	}
+	model := in.Model
+	if a.env.Model != "" {
+		model = a.env.Model
+	}
+	if model == "" && in.Provider == ProviderAnthropic {
+		model = DefaultAnthropicModel
+	}
+	if err := a.setPrice(ctx, model, in.Price); err != nil {
+		return Status{}, err
 	}
 	// The key and the messages are never logged; the provider and model are.
 	a.log.Info("built-in assistant configured from the web", "provider", in.Provider, "model", in.Model, "enabled", enabled == "1")
@@ -215,9 +233,9 @@ func (a *Assistant) provider(ctx context.Context) (Provider, error) {
 
 // TestResult is the outcome of the settings test.
 type TestResult struct {
-	OK      bool   `json:"ok"`
-	Message string `json:"message"`
-	Model   string `json:"model,omitempty" doc:"the model that answered"`
+	OK      bool        `json:"ok"`
+	Message domain.Text `json:"message" doc:"a translatable text"`
+	Model   string      `json:"model,omitempty" doc:"the model that answered"`
 }
 
 // Test makes one small call to the configured model, with a tool, and says
@@ -228,7 +246,7 @@ func (a *Assistant) Test(ctx context.Context) TestResult {
 	if p == nil {
 		c := a.Config(ctx)
 		if !c.Ready() {
-			return TestResult{Message: "Save a provider first."}
+			return TestResult{Message: domain.T("Save a provider first.")}
 		}
 		c.Enabled = true
 		switch c.Provider {
@@ -247,12 +265,13 @@ func (a *Assistant) Test(ctx context.Context) TestResult {
 	if err != nil {
 		msg := Explain(err)
 		if e, ok := err.(*Error); ok && e.Detail != "" {
-			msg += " (" + e.Detail + ")"
+			// The provider's own words help the owner fix the setting.
+			msg = domain.T("%s (%s)", msg, e.Detail)
 		}
 		return TestResult{Message: msg}
 	}
 	if len(res.ToolCalls) == 0 {
-		return TestResult{OK: true, Model: res.Model, Message: "The model answers, but it did not use the test tool. Asking questions and making changes needs a model that supports tools."}
+		return TestResult{OK: true, Model: res.Model, Message: domain.T("The model answers, but it did not use the test tool. Asking questions and making changes needs a model that supports tools.")}
 	}
-	return TestResult{OK: true, Model: res.Model, Message: "The model answers and can use Exhale's tools."}
+	return TestResult{OK: true, Model: res.Model, Message: domain.T("The model answers and can use Exhale's tools.")}
 }

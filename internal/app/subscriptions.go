@@ -66,13 +66,13 @@ func (t TermsInput) details() (domain.Details, error) {
 	return d, err
 }
 
-func optionalDate(s, what string) (engine.Date, error) {
+func optionalDate(s string, what domain.Word) (engine.Date, error) {
 	if s == "" {
 		return engine.Date{}, nil
 	}
 	d, err := engine.ParseDate(s)
 	if err != nil {
-		return d, fmt.Errorf("%w: %s: %v", domain.ErrValidation, what, err)
+		return d, domain.BadDate(what, s)
 	}
 	return d, nil
 }
@@ -99,7 +99,7 @@ func (s *Service) newSubscription(ctx context.Context, q *db.Queries, actor Acto
 	none := domain.Subscription{}
 	price, err := money.Parse(in.Price, in.Currency)
 	if err != nil {
-		return none, fmt.Errorf("%w: %v", domain.ErrValidation, err)
+		return none, domain.BadPrice(in.Price, in.Currency)
 	}
 	details, err := in.details()
 	if err != nil {
@@ -113,10 +113,10 @@ func (s *Service) newSubscription(ctx context.Context, q *db.Queries, actor Acto
 	}
 	first, err := engine.ParseDate(in.FirstCharge)
 	if err != nil {
-		return none, fmt.Errorf("%w: first charge: %v", domain.ErrValidation, err)
+		return none, domain.BadDate("first charge", in.FirstCharge)
 	}
 	if !details.TrialEndsOn.IsZero() && first.Before(details.TrialEndsOn) {
-		return none, fmt.Errorf("%w: the first charge (%s) cannot be before the trial ends (%s)", domain.ErrValidation, first, details.TrialEndsOn)
+		return none, domain.Invalid("the first charge (%s) cannot be before the trial ends (%s)", first, details.TrialEndsOn)
 	}
 	if in.Interval == 0 {
 		in.Interval = 1
@@ -130,11 +130,11 @@ func (s *Service) newSubscription(ctx context.Context, q *db.Queries, actor Acto
 	}
 	sched, err := engine.NewSchedule(rule)
 	if err != nil {
-		return none, fmt.Errorf("%w: %v", domain.ErrValidation, err)
+		return none, domain.BadRule(in.Interval, in.Unit, err)
 	}
 	if in.EndDate != "" {
 		if sched.Until, err = engine.ParseDate(in.EndDate); err != nil {
-			return none, fmt.Errorf("%w: end date: %v", domain.ErrValidation, err)
+			return none, domain.BadDate("end date", in.EndDate)
 		}
 	}
 	now := s.now()
@@ -292,7 +292,7 @@ func (s *Service) UpdateSubscription(ctx context.Context, actor Actor, in Update
 				return err
 			}
 			if sub.Schedule, err = sub.Schedule.ChangeRule(at, rule); err != nil {
-				return fmt.Errorf("%w: %v", domain.ErrValidation, err)
+				return domain.BadRule(rule.Interval, string(rule.Unit), err)
 			}
 			repriceFrom = minDate(at, minDate(rule.Anchor, rule.Occurrence(0)))
 		}
@@ -307,12 +307,12 @@ func (s *Service) UpdateSubscription(ctx context.Context, actor Actor, in Update
 		if in.Price != nil {
 			p, err := money.Parse(*in.Price, sub.Price.Currency)
 			if err != nil {
-				return fmt.Errorf("%w: %v", domain.ErrValidation, err)
+				return domain.BadPrice(*in.Price, sub.Price.Currency)
 			}
 			from := today
 			if in.PriceFrom != nil && *in.PriceFrom != "" {
 				if from, err = engine.ParseDate(*in.PriceFrom); err != nil {
-					return fmt.Errorf("%w: price from: %v", domain.ErrValidation, err)
+					return domain.BadDate("price from", *in.PriceFrom)
 				}
 			}
 			earliest := func(d engine.Date) {
@@ -408,7 +408,7 @@ func (s *Service) setStatus(ctx context.Context, q *db.Queries, c *change, actor
 			dropFrom = next
 		}
 	default:
-		return sub, "", fmt.Errorf("%w: unknown action %q", domain.ErrValidation, action)
+		return sub, "", domain.Invalid("unknown action %q", action)
 	}
 	if err := s.saveSubscription(ctx, q, sub); err != nil {
 		return sub, "", err
@@ -511,8 +511,8 @@ func (s *Service) insertSubscription(ctx context.Context, q *db.Queries, sub dom
 // exist in the household, so a wrong id fails with a clear message instead
 // of a database constraint.
 func (s *Service) checkRefs(ctx context.Context, q *db.Queries, sub domain.Subscription) error {
-	missing := func(what, id string) error {
-		return fmt.Errorf("%w: %s %s does not exist. Read ids from get_household; ids returned by a dry run are not saved", domain.ErrValidation, what, id)
+	missing := func(what domain.Word, id string) error {
+		return domain.Invalid("%s %s does not exist. Read ids from get_household; ids returned by a dry run are not saved", what, id)
 	}
 	if sub.CategoryID != "" {
 		found := false
@@ -559,7 +559,7 @@ func (s *Service) saveSubscription(ctx context.Context, q *db.Queries, sub domai
 		return err
 	}
 	if n == 0 {
-		return fmt.Errorf("subscription %s changed meanwhile: %w", sub.ID, domain.ErrConflict)
+		return domain.Conflict("subscription %s changed meanwhile", sub.ID)
 	}
 	return nil
 }

@@ -114,13 +114,13 @@ func TestSettingsTest(t *testing.T) {
 	if _, err := w.a.Configure(w.ctx, Settings{Provider: ProviderOpenAI, Model: "llama3.1", BaseURL: url, APIKey: "k", Enabled: &off}); err != nil {
 		t.Fatal(err)
 	}
-	if res := w.a.Test(context.Background()); !res.OK || res.Model != "llama3.1" || !strings.Contains(res.Message, "can use") {
+	if res := w.a.Test(context.Background()); !res.OK || res.Model != "llama3.1" || !strings.Contains(res.Message.String(), "can use") {
 		t.Fatalf("a model with tools, tested while switched off: %+v", res)
 	}
-	if res := w.a.Test(w.ctx); !res.OK || !strings.Contains(res.Message, "did not use the test tool") {
+	if res := w.a.Test(w.ctx); !res.OK || !strings.Contains(res.Message.String(), "did not use the test tool") {
 		t.Fatalf("a model without tools: %+v", res)
 	}
-	if res := w.a.Test(w.ctx); res.OK || !strings.Contains(res.Message, "rejected the API key") || !strings.Contains(res.Message, "Incorrect API key") {
+	if res := w.a.Test(w.ctx); res.OK || !strings.Contains(res.Message.String(), "rejected the API key") || !strings.Contains(res.Message.String(), "Incorrect API key") {
 		t.Fatalf("a bad key: %+v", res)
 	}
 	if rec.bodies[0]["model"] != "llama3.1" || len(rec.bodies[0]["tools"].([]any)) != 1 {

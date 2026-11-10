@@ -9,6 +9,7 @@ import (
 
 	"github.com/akamachinecode/exhale/internal/app"
 	"github.com/akamachinecode/exhale/internal/bus"
+	"github.com/akamachinecode/exhale/internal/domain"
 	"github.com/akamachinecode/exhale/internal/store"
 	"github.com/akamachinecode/exhale/internal/store/db"
 )
@@ -98,7 +99,7 @@ func (w *world) say(actor app.Actor, text string) Turn {
 	turn, err := w.a.Ask(w.ctx, actor, "test_"+actor.MemberID, text)
 	w.out.WriteString("> " + text + "\n")
 	if err != nil {
-		w.out.WriteString("! " + Explain(err) + "\n")
+		w.out.WriteString("! " + Explain(err).String() + "\n")
 		return turn
 	}
 	if n := w.fake.Calls(); n > before {
@@ -125,17 +126,17 @@ func (w *world) say(actor app.Actor, text string) Turn {
 	if turn.Text != "" {
 		w.out.WriteString("< " + strings.ReplaceAll(turn.Text, "\n", "\n  ") + "\n")
 	}
-	if turn.Note != "" {
-		w.out.WriteString("  (" + turn.Note + ")\n")
+	if turn.Note != nil {
+		w.out.WriteString("  (" + turn.Note.String() + ")\n")
 	}
 	for _, p := range turn.Proposals {
 		mark := "[proposal]"
 		if p.Destructive {
 			mark = "[proposal, destructive]"
 		}
-		w.out.WriteString("  " + mark + " " + p.Title + "\n")
+		w.out.WriteString("  " + mark + " " + p.Title.String() + "\n")
 		for _, l := range p.Lines {
-			w.out.WriteString("    " + l + "\n")
+			w.out.WriteString("    " + l.String() + "\n")
 		}
 	}
 	for _, m := range turn.Mentions {
@@ -148,16 +149,16 @@ func (w *world) outcome(label string, o Outcome, err error) Outcome {
 	w.t.Helper()
 	w.out.WriteString("> press " + label + "\n")
 	if err != nil {
-		w.out.WriteString("! " + Explain(err) + "\n")
+		w.out.WriteString("! " + Explain(err).String() + "\n")
 		return o
 	}
 	undo := ""
 	if o.CanUndo {
 		undo = " (Undo offered)"
 	}
-	w.out.WriteString("  [" + o.Status + "] " + o.Title + undo + "\n")
+	w.out.WriteString("  [" + o.Status + "] " + o.Title.String() + undo + "\n")
 	for _, l := range o.Lines {
-		w.out.WriteString("    " + l + "\n")
+		w.out.WriteString("    " + l.String() + "\n")
 	}
 	return o
 }
@@ -193,4 +194,13 @@ func lastUserText(req Request) string {
 		}
 	}
 	return ""
+}
+
+// joined is the English of texts, joined by spaces.
+func joined(ts []domain.Text) string {
+	out := make([]string, len(ts))
+	for i, t := range ts {
+		out[i] = t.String()
+	}
+	return strings.Join(out, " ")
 }

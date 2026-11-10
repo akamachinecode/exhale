@@ -122,7 +122,8 @@ func TestAskExhale(t *testing.T) {
 		t.Fatalf("ask: %d %v", code, turn)
 	}
 	p := turn["proposals"].([]any)[0].(map[string]any)
-	if p["title"] != "Add Netflix" || p["destructive"] != false {
+	title, _ := p["title"].(map[string]any)
+	if title["key"] != "Add {0}" || title["args"].([]any)[0] != "Netflix" || p["destructive"] != false {
 		t.Fatalf("proposal: %v", p)
 	}
 	path := "/api/v1/assistant/proposals/" + p["id"].(string)

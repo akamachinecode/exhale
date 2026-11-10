@@ -2,7 +2,6 @@ package app
 
 import (
 	"context"
-	"fmt"
 	"slices"
 	"strings"
 
@@ -118,12 +117,12 @@ func (s *Service) ListCharges(ctx context.Context, actor Actor, in ListChargesIn
 	var err error
 	if in.From != "" {
 		if from, err = engine.ParseDate(in.From); err != nil {
-			return ChargeList{}, fmt.Errorf("%w: from: %v", domain.ErrValidation, err)
+			return ChargeList{}, domain.BadDate("from", in.From)
 		}
 	}
 	if to = from.AddDays(30); in.To != "" {
 		if to, err = engine.ParseDate(in.To); err != nil {
-			return ChargeList{}, fmt.Errorf("%w: to: %v", domain.ErrValidation, err)
+			return ChargeList{}, domain.BadDate("to", in.To)
 		}
 	}
 	rows, err := q.ListChargesBetween(ctx, db.ListChargesBetweenParams{HouseholdID: actor.HouseholdID, FromDate: from.String(), ToDate: to.String()})
@@ -250,7 +249,7 @@ type SchedulePreview struct {
 func (s *Service) PreviewSchedule(_ context.Context, _ Actor, in PreviewScheduleInput) (SchedulePreview, error) {
 	first, err := engine.ParseDate(in.FirstCharge)
 	if err != nil {
-		return SchedulePreview{}, fmt.Errorf("%w: %v", domain.ErrValidation, err)
+		return SchedulePreview{}, domain.BadDate("first charge", in.FirstCharge)
 	}
 	if in.Interval == 0 {
 		in.Interval = 1
@@ -261,7 +260,7 @@ func (s *Service) PreviewSchedule(_ context.Context, _ Actor, in PreviewSchedule
 	}
 	sched, err := engine.NewSchedule(rule)
 	if err != nil {
-		return SchedulePreview{}, fmt.Errorf("%w: %v", domain.ErrValidation, err)
+		return SchedulePreview{}, domain.BadRule(in.Interval, in.Unit, err)
 	}
 	n := in.Count
 	if n <= 0 || n > 60 {
