@@ -99,6 +99,21 @@ func TestEval(t *testing.T) {
 			t.Errorf("proposals: %+v", turn.Proposals)
 		}
 	})
+	t.Run("a list is shown as a screen, streamed", func(t *testing.T) {
+		f := setup(t)
+		pieces := 0
+		turn, err := f.a.AskStream(f.ctx, f.owner, "eval", "show me all my subscriptions", func(string) { pieces++ })
+		if err != nil {
+			t.Fatal(err)
+		}
+		t.Logf("< %s\n  screens: %d, streamed pieces: %d", turn.Text, len(turn.Screens), pieces)
+		if len(turn.Screens) != 1 || turn.Screens[0].Kind != ScreenSubscriptions || len(turn.Screens[0].Subscriptions) != 3 {
+			t.Errorf("want one screen with the three subscriptions, got %+v", turn.Screens)
+		}
+		if pieces == 0 {
+			t.Errorf("the answer was not streamed")
+		}
+	})
 	t.Run("an ambiguous request gets a question, not a guess", func(t *testing.T) {
 		f := setup(t)
 		if turn := ask(t, f, "change the price to 20"); len(turn.Proposals) != 0 || !strings.Contains(turn.Text, "?") {

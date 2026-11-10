@@ -419,9 +419,6 @@ func (a *Assistant) runTool(ctx context.Context, st *turnState, c ToolCall) Tool
 			return fail("nothing was shown. Fix these and call " + showTool + " again:\n- " + strings.Join(problems, "\n- "))
 		}
 		st.screens = append(st.screens, screen)
-		for _, s := range screen.Subscriptions {
-			st.touched = append(st.touched, s.ID)
-		}
 		return ToolResult{CallID: c.ID, Name: c.Name, Content: shown(screen)}
 	}
 	t, ok := a.bindings[c.Name]
