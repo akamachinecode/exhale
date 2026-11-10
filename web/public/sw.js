@@ -28,7 +28,6 @@ self.addEventListener("push", (event) => {
 			tag: d.tag || "exhale",
 			renotify: true,
 			icon,
-			badge: icon,
 			data: { url: d.url || "/", actions },
 			actions: actions.slice(0, max).map((a) => ({ action: a.action, title: a.title })),
 		}),
@@ -58,7 +57,6 @@ async function run(act, n, url) {
 			body: out.message || "",
 			tag: n.tag,
 			icon,
-			badge: icon,
 			silent: true,
 			data: { url, actions: [] },
 		});
