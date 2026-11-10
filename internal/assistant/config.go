@@ -125,7 +125,7 @@ func (a *Assistant) Status(ctx context.Context) Status {
 // Enabled reports whether the assistant answers: configured and switched
 // on. While it is false nothing is sent to any provider.
 func (a *Assistant) Enabled(ctx context.Context) bool {
-	if a.fixed != nil {
+	if a.fixedProvider() != nil {
 		return true
 	}
 	c := a.Config(ctx)
@@ -190,8 +190,8 @@ func (a *Assistant) Remove(ctx context.Context) (Status, error) {
 // kept while the configuration stays the same, so what it learned about
 // the endpoint (see OpenAI.completionTokens) is not lost between calls.
 func (a *Assistant) provider(ctx context.Context) (Provider, error) {
-	if a.fixed != nil {
-		return a.fixed, nil
+	if p := a.fixedProvider(); p != nil {
+		return p, nil
 	}
 	c := a.Config(ctx)
 	if !c.Enabled || !c.Ready() {
@@ -224,7 +224,7 @@ type TestResult struct {
 // in a sentence whether chat will work. It works while the switch is off,
 // so the owner can test before turning it on.
 func (a *Assistant) Test(ctx context.Context) TestResult {
-	p := a.fixed
+	p := a.fixedProvider()
 	if p == nil {
 		c := a.Config(ctx)
 		if !c.Ready() {

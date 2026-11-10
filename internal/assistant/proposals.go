@@ -132,34 +132,39 @@ func undoable(r app.AuditRef) bool {
 // made for can decide, and only once: a second press returns what already
 // happened.
 func (a *Assistant) Decide(ctx context.Context, actor app.Actor, id string, accept bool) (Outcome, error) {
-	unlock := a.lock("proposal:" + id)
-	defer unlock()
-	s, err := a.loadProposal(ctx, actor, id)
+	s, event, err := a.decide(ctx, actor, id, accept)
 	if err != nil {
 		return Outcome{}, err
 	}
+	if event != "" {
+		a.remember(ctx, actor, s.Conv, event)
+	}
+	return s.outcome(), nil
+}
+
+func (a *Assistant) decide(ctx context.Context, actor app.Actor, id string, accept bool) (s stored, event string, err error) {
+	a.deciding.Lock()
+	defer a.deciding.Unlock()
+	if s, err = a.loadProposal(ctx, actor, id); err != nil {
+		return s, "", err
+	}
 	if s.Status != StatusPending {
-		return s.outcome(), nil
+		return s, "", nil
 	}
 	t, ok := a.bindings[s.Tool]
 	if !ok {
-		return Outcome{}, errKind(KindExpired, "")
+		return s, "", errKind(KindExpired, "")
 	}
 	if !accept {
 		s.Status = StatusDiscarded
-		if err := a.saveProposal(ctx, actor.MemberID, s, proposalTTL); err != nil {
-			return Outcome{}, err
-		}
-		a.remember(ctx, actor, s.Conv, "The person discarded: "+s.Title+". Nothing was changed.")
-		return s.outcome(), nil
+		return s, "The person discarded: " + s.Title + ". Nothing was changed.", a.saveProposal(ctx, actor.MemberID, s, proposalTTL)
 	}
 	cctx, refs := app.CollectAudits(ctx)
 	out, err := t.Invoke(a.svc, cctx, agentFor(actor), s.Args)
 	if err != nil {
 		s.Status, s.Result = StatusFailed, []string{failure(err)}
 		_ = a.saveProposal(ctx, actor.MemberID, s, proposalTTL)
-		a.remember(ctx, actor, s.Conv, "The person confirmed: "+s.Title+", but it failed: "+failure(err))
-		return s.outcome(), nil
+		return s, "The person confirmed: " + s.Title + ", but it failed: " + failure(err), nil
 	}
 	s.Status, s.Audits, s.Result = StatusApplied, *refs, []string{}
 	if d, ok := out.(app.SubscriptionDetail); ok {
@@ -175,20 +180,30 @@ func (a *Assistant) Decide(ctx context.Context, actor app.Actor, id string, acce
 		a.log.Warn("assistant: could not keep the applied change for undo", "err", err)
 	}
 	a.log.Info("assistant change applied", "tool", s.Tool, "member", actor.MemberID, "audits", len(s.Audits))
-	a.remember(ctx, actor, s.Conv, "The person confirmed: "+s.Title+". It is done.")
-	return s.outcome(), nil
+	return s, "The person confirmed: " + s.Title + ". It is done.", nil
 }
 
 // Undo reverts a change applied from a proposal, newest part first.
 func (a *Assistant) Undo(ctx context.Context, actor app.Actor, id string) (Outcome, error) {
-	unlock := a.lock("proposal:" + id)
-	defer unlock()
-	s, err := a.loadProposal(ctx, actor, id)
+	o, conv, event, err := a.undo(ctx, actor, id)
 	if err != nil {
 		return Outcome{}, err
 	}
+	if event != "" {
+		a.remember(ctx, actor, conv, event)
+	}
+	return o, nil
+}
+
+func (a *Assistant) undo(ctx context.Context, actor app.Actor, id string) (o Outcome, conv, event string, err error) {
+	a.deciding.Lock()
+	defer a.deciding.Unlock()
+	s, err := a.loadProposal(ctx, actor, id)
+	if err != nil {
+		return Outcome{}, "", "", err
+	}
 	if s.Status != StatusApplied {
-		return s.outcome(), nil
+		return s.outcome(), s.Conv, "", nil
 	}
 	agent := agentFor(actor)
 	var kept []string
@@ -204,12 +219,12 @@ func (a *Assistant) Undo(ctx context.Context, actor app.Actor, id string) (Outco
 			_ = a.saveProposal(ctx, actor.MemberID, s, appliedTTL)
 			o := s.outcome()
 			o.Status = StatusFailed
-			return o, nil
+			return o, s.Conv, "", nil
 		}
 		undone++
 	}
 	if undone == 0 {
-		return s.outcome(), nil
+		return s.outcome(), s.Conv, "", nil
 	}
 	s.Status, s.Result = StatusUndone, []string{}
 	if len(kept) > 0 {
@@ -220,10 +235,9 @@ func (a *Assistant) Undo(ctx context.Context, actor app.Actor, id string) (Outco
 		s.SubscriptionID = ""
 	}
 	if err := a.saveProposal(ctx, actor.MemberID, s, proposalTTL); err != nil {
-		return Outcome{}, err
+		return Outcome{}, "", "", err
 	}
-	a.remember(ctx, actor, s.Conv, "The person undid: "+s.Title+".")
-	return s.outcome(), nil
+	return s.outcome(), s.Conv, "The person undid: " + s.Title + ".", nil
 }
 
 func compact(s []string) []string {

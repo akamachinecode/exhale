@@ -5,9 +5,12 @@ import (
 	"fmt"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/akamachinecode/exhale/internal/app"
 	"github.com/akamachinecode/exhale/internal/money"
+	"github.com/akamachinecode/exhale/internal/store"
+	"github.com/akamachinecode/exhale/internal/store/db"
 	"github.com/akamachinecode/exhale/internal/testutil"
 )
 
@@ -259,6 +262,88 @@ func TestInjectedInstructionCannotWrite(t *testing.T) {
 		t.Errorf("a name must not be able to close the briefing block:\n%s", text)
 	}
 	testutil.Golden(t, "injected_instruction", w.transcript())
+}
+
+// TestMemberEmailsStayHome: the model gets names and ids, not addresses.
+func TestMemberEmailsStayHome(t *testing.T) {
+	w := newWorld(t)
+	if err := w.st.Q.CreateMember(w.ctx, db.CreateMemberParams{ID: "mem_marta", HouseholdID: w.owner.HouseholdID, Name: "Marta", Email: "marta@example.com", Role: "member", CreatedAt: store.FormatTime(w.svc.Now())}); err != nil {
+		t.Fatal(err)
+	}
+	w.fake.Then(
+		Call("get_household", map[string]any{}),
+		Call("update_household", map[string]any{"name": "Casa"}),
+		Say("You share Exhale with Marta."),
+	)
+	w.say(w.owner, "who do I share this with?")
+	sawMarta := false
+	for _, req := range w.fake.Requests {
+		for _, m := range req.Messages {
+			all := m.Text
+			for _, r := range m.ToolResults {
+				all += r.Content
+			}
+			sawMarta = sawMarta || strings.Contains(all, "Marta")
+			if strings.Contains(all, "marta@example.com") {
+				t.Fatalf("a member's email was sent to the model:\n%s", all)
+			}
+		}
+	}
+	if !sawMarta {
+		t.Fatal("the model must still learn who the members are")
+	}
+}
+
+// TestButtonsDoNotWaitForTheModel: confirming a change while the model is
+// still answering another question in the same conversation is immediate,
+// and the model learns about it with the message after.
+func TestButtonsDoNotWaitForTheModel(t *testing.T) {
+	w := newWorld(t)
+	w.fake.Then(Call("create_subscription", map[string]any{"name": "Netflix", "price": "13.99", "currency": "EUR", "firstCharge": "2026-11-06"}), Say("Prepared."))
+	turn := w.say(w.owner, "add netflix")
+	release, asked := make(chan struct{}), make(chan struct{})
+	w.fake.Then(func(req Request) (Response, error) {
+		close(asked)
+		<-release
+		return Say("Still here.")(req)
+	})
+	answered := make(chan struct{})
+	go func() {
+		defer close(answered)
+		_, _ = w.a.Ask(w.ctx, w.owner, "test_"+w.owner.MemberID, "and what else?")
+	}()
+	<-asked
+	pressed := make(chan Outcome, 1)
+	go func() {
+		o, _ := w.a.Decide(w.ctx, w.owner, turn.Proposals[0].ID, true)
+		pressed <- o
+	}()
+	select {
+	case o := <-pressed:
+		if o.Status != StatusApplied {
+			t.Fatalf("outcome: %+v", o)
+		}
+	case <-time.After(2 * time.Second):
+		t.Fatal("the button waited for the model")
+	}
+	close(release)
+	<-answered
+	w.fake.Then(func(req Request) (Response, error) {
+		if !strings.Contains(lastUserText(req), "The person confirmed: Add Netflix") {
+			return Response{}, fmt.Errorf("the model was not told about the confirmation")
+		}
+		return Say("Noted.")(req)
+	})
+	deadline := time.Now().Add(2 * time.Second)
+	for {
+		if _, err := w.a.Ask(w.ctx, w.owner, "test_"+w.owner.MemberID, "ok"); err == nil {
+			break
+		} else if time.Now().After(deadline) {
+			t.Fatal(err)
+		}
+		w.fake.Then(w.fake.Steps[len(w.fake.Steps)-1])
+		time.Sleep(20 * time.Millisecond)
+	}
 }
 
 // TestProposalBelongsToItsMember: knowing a proposal's id is not enough to

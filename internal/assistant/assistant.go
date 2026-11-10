@@ -13,6 +13,7 @@ import (
 	"golang.org/x/time/rate"
 
 	"github.com/akamachinecode/exhale/internal/app"
+	"github.com/akamachinecode/exhale/internal/domain"
 	"github.com/akamachinecode/exhale/internal/store"
 	"github.com/akamachinecode/exhale/internal/store/db"
 	"github.com/akamachinecode/exhale/internal/toolschema"
@@ -57,7 +58,10 @@ type Assistant struct {
 	cachedFor Config
 	fixed     Provider // tests: use this provider whatever the settings say
 	limits    map[string]*rate.Limiter
-	locks     map[string]*sync.Mutex
+	locks     map[string]*sync.Mutex // per conversation
+	// deciding serialises confirm, discard and undo, so two presses of a
+	// button cannot apply a change twice. They are short database writes.
+	deciding sync.Mutex
 }
 
 type tool struct {
@@ -110,7 +114,17 @@ func New(svc *app.Service, log *slog.Logger, env Env) (*Assistant, error) {
 
 // SetProvider makes the assistant use p whatever the settings say. Tests
 // use it with the fake provider.
-func (a *Assistant) SetProvider(p Provider) { a.fixed = p }
+func (a *Assistant) SetProvider(p Provider) {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	a.fixed = p
+}
+
+func (a *Assistant) fixedProvider() Provider {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	return a.fixed
+}
 
 // Tools lists the tools offered to the model.
 func (a *Assistant) Tools() []Tool { return a.tools }
@@ -157,19 +171,20 @@ type memTurn struct {
 
 func memoryID(conv string) string { return "ai_" + conv }
 
-func (a *Assistant) lock(key string) func() {
+// conversation returns the lock of a conversation: one question at a time,
+// so its memory is not written by two answers at once.
+func (a *Assistant) conversation(conv string) *sync.Mutex {
 	a.mu.Lock()
-	m, ok := a.locks[key]
+	defer a.mu.Unlock()
+	m, ok := a.locks[conv]
 	if !ok {
 		if len(a.locks) > 10_000 {
 			a.locks = map[string]*sync.Mutex{}
 		}
 		m = &sync.Mutex{}
-		a.locks[key] = m
+		a.locks[conv] = m
 	}
-	a.mu.Unlock()
-	m.Lock()
-	return m.Unlock
+	return m
 }
 
 // allow applies the per-member limit: a burst of 12 messages, then one
@@ -218,13 +233,27 @@ func (a *Assistant) Reset(ctx context.Context, actor app.Actor, conv string) {
 }
 
 // remember adds what the person did with a proposal to the conversation,
-// so the model knows it with their next message.
+// so the model knows it with their next message. If the model is answering
+// in that conversation right now, the note is added when it has finished:
+// a button must not wait for a model.
 func (a *Assistant) remember(ctx context.Context, actor app.Actor, conv, event string) {
 	if conv == "" {
 		return
 	}
-	unlock := a.lock("conv:" + conv)
-	defer unlock()
+	lock := a.conversation(conv)
+	if !lock.TryLock() {
+		go func() {
+			lock.Lock()
+			defer lock.Unlock()
+			a.addEvent(context.WithoutCancel(ctx), actor, conv, event)
+		}()
+		return
+	}
+	defer lock.Unlock()
+	a.addEvent(ctx, actor, conv, event)
+}
+
+func (a *Assistant) addEvent(ctx context.Context, actor app.Actor, conv, event string) {
 	m := a.loadMemory(ctx, actor, conv)
 	if len(m.Turns) == 0 {
 		return // the conversation is over; nothing to add to
@@ -255,8 +284,9 @@ func (a *Assistant) Ask(ctx context.Context, actor app.Actor, conv, text string)
 	if !a.allow(actor.MemberID) {
 		return turn, errKind(KindBusy, "")
 	}
-	unlock := a.lock("conv:" + conv)
-	defer unlock()
+	lock := a.conversation(conv)
+	lock.Lock()
+	defer lock.Unlock()
 	ctx, cancel := context.WithTimeout(ctx, turnTimeout)
 	defer cancel()
 	_ = a.svc.Store().Q.DeleteExpiredFlows(ctx, store.FormatTime(time.Now()))
@@ -379,7 +409,7 @@ func (a *Assistant) runTool(ctx context.Context, st *turnState, c ToolCall) Tool
 		if err != nil {
 			return fail(toolschema.ErrorText(err))
 		}
-		return ToolResult{CallID: c.ID, Name: c.Name, Content: resultText(out)}
+		return ToolResult{CallID: c.ID, Name: c.Name, Content: resultText(scrub(out))}
 	}
 	final, _ := json.Marshal(args)
 	if st.seen[c.Name+string(final)] {
@@ -401,7 +431,24 @@ func (a *Assistant) runTool(ctx context.Context, st *turnState, c ToolCall) Tool
 	}
 	st.seen[c.Name+string(final)] = true
 	st.proposals = append(st.proposals, pr)
-	return ToolResult{CallID: c.ID, Name: c.Name, Content: "PREVIEW ONLY — nothing was changed. Exhale now shows the person this change with a button to confirm it. Do not call this tool again for it; say in a sentence what you prepared.\n" + resultText(preview)}
+	return ToolResult{CallID: c.ID, Name: c.Name, Content: "PREVIEW ONLY — nothing was changed. Exhale now shows the person this change with a button to confirm it. Do not call this tool again for it; say in a sentence what you prepared.\n" + resultText(scrub(preview))}
+}
+
+// scrub removes from a tool result what a model has no use for: the email
+// addresses of the household's members. Names and ids are enough to answer
+// and to prepare changes.
+func scrub(out any) any {
+	info, ok := out.(app.HouseholdInfo)
+	if !ok {
+		return out
+	}
+	members := make([]domain.Member, len(info.Members))
+	for i, m := range info.Members {
+		m.Email = ""
+		members[i] = m
+	}
+	info.Members = members
+	return info
 }
 
 // resultText renders a tool result for the model, bounded in size.
