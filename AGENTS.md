@@ -21,6 +21,7 @@ Exhale is a self-hosted subscription manager written in Go (backend, single bina
 | ⑬⑭ SQLite store, migrations, sqlc | `internal/store` |
 | ① REST API, SSE, MCP endpoint | `internal/httpapi` |
 | ⑰ MCP server | `internal/agents` |
+| ⑰ OAuth 2.1 authorization server for remote MCP (ADR 0024) | `internal/oauth` (endpoints in `internal/httpapi/oauth.go`) |
 | ⑰ in-app assistant: provider clients, tool loop, confirm gate, statement reader | `internal/assistant` (`docs/guides/assistant.md`) |
 | ⑰ tool schemas shared by MCP and the assistant | `internal/toolschema` |
 | ② Telegram | `internal/channels/telegram` |

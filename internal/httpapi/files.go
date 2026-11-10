@@ -99,12 +99,6 @@ func readUpload(w http.ResponseWriter, r *http.Request, limit int64) (data []byt
 	return data, fh.Filename, true
 }
 
-func writeJSON(w http.ResponseWriter, status int, v any) {
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(status)
-	_ = json.NewEncoder(w).Encode(v)
-}
-
 func uploadDocument(svc *app.Service) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		actor, ok := actorFrom(r.Context())

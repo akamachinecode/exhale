@@ -2,12 +2,13 @@
 
 **Never expose Exhale's plain HTTP port to the internet.** Over `http://`, passwords and the session cookie travel unencrypted. On your own network that is an accepted risk; on the internet it is not.
 
-You may not need any of this. Telegram reaches Exhale through outgoing connections, so reminders and buttons work from anywhere with nothing exposed. Remote access is only about opening the web page away from home.
+You may not need any of this. Telegram reaches Exhale through outgoing connections, so reminders and buttons work from anywhere with nothing exposed. Remote access is about opening the web page away from home, and about cloud assistants (Claude.ai, ChatGPT, Grok), which need a public address: see [Claude.ai, ChatGPT and Grok](../guides/remote-agents.md).
 
 | You want | Use |
 |---|---|
 | The web from your own devices, anywhere | [Tailscale](#tailscale-the-simple-private-option) |
 | A public `https://` address | A reverse proxy: [Caddy](#caddy) or [nginx](#nginx) |
+| Claude.ai, ChatGPT or Grok to reach Exhale | A public address (a reverse proxy, or `tailscale funnel`), then [Claude.ai, ChatGPT and Grok](../guides/remote-agents.md) |
 
 ## What Exhale needs from whatever sits in front
 

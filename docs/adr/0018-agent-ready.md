@@ -1,6 +1,6 @@
 # 0018. Agent-ready app: AI is a first-class feature of v1
 
-- Status: Accepted (OAuth authorization-server library to be evaluated before milestone 3)
+- Status: Accepted (OAuth authorization server: [ADR 0024](0024-oauth-authorization-server.md))
 - Date: 2026-11-06
 
 ## Context
@@ -181,3 +181,6 @@ With the assistant on, the model **only tidies the names**: it is sent the merch
 - **One op, all or nothing.** `bulk_update_subscriptions` sets category, payment method or tags (`action: update`), or pauses, resumes, cancels or deletes up to 500 subscriptions in one transaction. One unknown or hidden id fails the whole call. It is marked destructive (it can delete), so agents confirm first; its `dryRun` lists what changes for each subscription by name, and the ones already as asked show no change and get no audit entry.
 - **Audited per subscription, undone as one.** Each subscription gets its own audit entry, the same action names as the single-subscription ops, so **Activity** and per-item undo work unchanged. `undo` now also takes `auditIds` and reverts them in one transaction, newest first; the web's Undo and the assistant use it. We chose this over a "batch" audit entry because it needs no new table and no new undo path: a batch is just the list of ids its call returned.
 - **Tags renamed or deleted everywhere** (`rename_tag`, `delete_tag`) are the same kind of change: one audit entry per subscription touched, `auditIds` to undo. They only touch subscriptions the caller can see; someone else's private subscription keeps its tag.
+## Implementation notes: milestone 3, remote MCP (2026-11-10)
+
+Remote MCP with OAuth 2.1 shipped. Exhale is its own authorization server; the library question was settled by measurement in [ADR 0024](0024-oauth-authorization-server.md) (own minimal: +0.2 MB and no modules, against +1.8 MB for zitadel/oidc and +8.2 MB for ory/fosite). Both Client ID Metadata Documents and dynamic registration are supported. The "Connect an agent" page (**AI agents**) shows the remote address and lists the connected apps, each revocable; setup per assistant is in [docs/guides/remote-agents.md](../guides/remote-agents.md). Exposure guides (Tailscale Funnel, reverse proxy) are in [docs/install/https.md](../install/https.md).

@@ -42,6 +42,51 @@
         ],
         "type": "object"
       },
+      "App": {
+        "additionalProperties": false,
+        "properties": {
+          "clientHost": {
+            "description": "host of the application's address, when verified",
+            "type": "string"
+          },
+          "createdAt": {
+            "type": "string"
+          },
+          "id": {
+            "type": "string"
+          },
+          "lastUsedAt": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "redirectHost": {
+            "description": "where the application received its access",
+            "type": "string"
+          },
+          "scope": {
+            "enum": [
+              "read",
+              "write"
+            ],
+            "type": "string"
+          },
+          "verified": {
+            "description": "the application is identified by an address Exhale fetched (a client metadata document), not by what it said about itself",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "verified",
+          "redirectHost",
+          "scope",
+          "createdAt"
+        ],
+        "type": "object"
+      },
       "AskIn": {
         "additionalProperties": false,
         "properties": {
@@ -649,6 +694,27 @@
           "hasHousehold",
           "passwordLoginDisabled",
           "assistant"
+        ],
+        "type": "object"
+      },
+      "Auth_disconnect_appRequest": {
+        "additionalProperties": false,
+        "properties": {
+          "$schema": {
+            "description": "A URL to the JSON Schema for this object.",
+            "examples": [
+              "https://example.com/api/schemas/Auth_disconnect_appRequest.json"
+            ],
+            "format": "uri",
+            "readOnly": true,
+            "type": "string"
+          },
+          "id": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id"
         ],
         "type": "object"
       },
@@ -1474,6 +1540,38 @@
         },
         "required": [
           "code"
+        ],
+        "type": "object"
+      },
+      "ConnectedApps": {
+        "additionalProperties": false,
+        "properties": {
+          "$schema": {
+            "description": "A URL to the JSON Schema for this object.",
+            "examples": [
+              "https://example.com/api/schemas/ConnectedApps.json"
+            ],
+            "format": "uri",
+            "readOnly": true,
+            "type": "string"
+          },
+          "apps": {
+            "items": {
+              "$ref": "#/components/schemas/App"
+            },
+            "type": [
+              "array",
+              "null"
+            ]
+          },
+          "mcpUrl": {
+            "description": "the MCP address to give Claude.ai, ChatGPT or Grok; empty without EXHALE_PUBLIC_URL",
+            "type": "string"
+          }
+        },
+        "required": [
+          "apps",
+          "mcpUrl"
         ],
         "type": "object"
       },
@@ -3547,6 +3645,115 @@
         "required": [
           "server",
           "hasToken"
+        ],
+        "type": "object"
+      },
+      "OAuthRequestInfo": {
+        "additionalProperties": false,
+        "properties": {
+          "$schema": {
+            "description": "A URL to the JSON Schema for this object.",
+            "examples": [
+              "https://example.com/api/schemas/OAuthRequestInfo.json"
+            ],
+            "format": "uri",
+            "readOnly": true,
+            "type": "string"
+          },
+          "clientHost": {
+            "description": "host of that address, when verified",
+            "type": "string"
+          },
+          "clientName": {
+            "type": "string"
+          },
+          "clientUri": {
+            "description": "the application's home page, as it describes itself",
+            "type": "string"
+          },
+          "loopback": {
+            "description": "the answer goes to a program on this computer",
+            "type": "boolean"
+          },
+          "maxScope": {
+            "description": "the most the application asked for; the person may give less",
+            "enum": [
+              "read",
+              "write"
+            ],
+            "type": "string"
+          },
+          "memberName": {
+            "description": "the application will act as this member",
+            "type": "string"
+          },
+          "redirectHost": {
+            "description": "where the browser goes after the answer",
+            "type": "string"
+          },
+          "verified": {
+            "description": "the application is identified by an https address Exhale fetched; otherwise it registered itself and its name is unconfirmed",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "clientName",
+          "verified",
+          "redirectHost",
+          "loopback",
+          "maxScope",
+          "memberName"
+        ],
+        "type": "object"
+      },
+      "OauthDecision": {
+        "additionalProperties": false,
+        "properties": {
+          "$schema": {
+            "description": "A URL to the JSON Schema for this object.",
+            "examples": [
+              "https://example.com/api/schemas/OauthDecision.json"
+            ],
+            "format": "uri",
+            "readOnly": true,
+            "type": "string"
+          },
+          "approve": {
+            "type": "boolean"
+          },
+          "scope": {
+            "description": "required when approving",
+            "enum": [
+              "read",
+              "write"
+            ],
+            "type": "string"
+          }
+        },
+        "required": [
+          "approve"
+        ],
+        "type": "object"
+      },
+      "OauthRedirect": {
+        "additionalProperties": false,
+        "properties": {
+          "$schema": {
+            "description": "A URL to the JSON Schema for this object.",
+            "examples": [
+              "https://example.com/api/schemas/OauthRedirect.json"
+            ],
+            "format": "uri",
+            "readOnly": true,
+            "type": "string"
+          },
+          "redirectTo": {
+            "description": "send the browser here: the application's address with the answer",
+            "type": "string"
+          }
+        },
+        "required": [
+          "redirectTo"
         ],
         "type": "object"
       },
@@ -6322,6 +6529,78 @@
         ]
       }
     },
+    "/api/v1/auth/apps": {
+      "get": {
+        "operationId": "auth_list_apps",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ConnectedApps"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorModel"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "summary": "Applications connected to your account",
+        "tags": [
+          "Auth"
+        ]
+      }
+    },
+    "/api/v1/auth/apps/disconnect": {
+      "post": {
+        "operationId": "auth_disconnect_app",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/Auth_disconnect_appRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Empty"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorModel"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "summary": "Disconnect an application",
+        "tags": [
+          "Auth"
+        ]
+      }
+    },
     "/api/v1/auth/invites": {
       "post": {
         "operationId": "auth_create_invite",
@@ -6769,6 +7048,96 @@
           }
         },
         "summary": "Sign out",
+        "tags": [
+          "Auth"
+        ]
+      }
+    },
+    "/api/v1/auth/oauth/requests/{id}": {
+      "get": {
+        "operationId": "auth_oauth_request",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OAuthRequestInfo"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorModel"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "summary": "An application asking to connect",
+        "tags": [
+          "Auth"
+        ]
+      },
+      "post": {
+        "operationId": "auth_oauth_decide",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/OauthDecision"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OauthRedirect"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorModel"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "summary": "Allow or deny an application",
         "tags": [
           "Auth"
         ]

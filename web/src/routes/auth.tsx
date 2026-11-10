@@ -41,8 +41,12 @@ export function Root() {
 		);
 	}
 	if (path.startsWith("/join/")) return <Outlet />;
+	// The consent screen of remote MCP: an error needs no account, a
+	// request needs the member signed in, and neither shows the app around it.
+	if (path === "/authorize" && new URLSearchParams(window.location.search).has("error")) return <Outlet />;
 	if (session.data.setupRequired) return <SignUp session={session.data} />;
 	if (!session.data.user) return <SignIn session={session.data} />;
+	if (path === "/authorize") return <Outlet />;
 	return <Layout />;
 }
 

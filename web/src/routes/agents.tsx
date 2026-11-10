@@ -1,4 +1,5 @@
 import { apiOrigin, ClaudeConnect, CodeBlock, TokensManager } from "@/components/connect";
+import { RemoteAgents } from "@/components/connected-apps";
 import { PageHeader } from "@/components/layout";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardHeader } from "@/components/ui/card";
@@ -54,6 +55,7 @@ export function AgentsPage() {
 					</Card>
 				))}
 			</div>
+			<RemoteAgents />
 			<Card className="mt-4">
 				<CardHeader
 					title={t("Tokens")}

@@ -9,6 +9,7 @@ import { lang } from "@/lib/i18n";
 import { ActivityPage } from "@/routes/activity";
 import { AgentsPage } from "@/routes/agents";
 import { JoinPage, Root } from "@/routes/auth";
+import { AuthorizePage } from "@/routes/authorize";
 import { Calendar } from "@/routes/calendar";
 import { Checkup } from "@/routes/checkup";
 import { Insights } from "@/routes/insights";
@@ -64,6 +65,7 @@ const routeTree = root.addChildren([
 		},
 	}),
 	createRoute({ getParentRoute: () => root, path: "/join/$code", component: JoinPage }),
+	createRoute({ getParentRoute: () => root, path: "/authorize", component: AuthorizePage }),
 ]);
 
 const router = createRouter({ routeTree, defaultPreload: "intent" });
