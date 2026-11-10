@@ -154,12 +154,14 @@ func (o *oauthAPI) serverMetadata(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Cache-Control", "public, max-age=3600")
 	auth := []string{"none", "client_secret_basic", "client_secret_post"}
 	writeJSON(w, http.StatusOK, map[string]any{
-		"issuer":                                         base,
-		"authorization_endpoint":                         base + oauthAuthz,
-		"token_endpoint":                                 base + oauthToken,
-		"registration_endpoint":                          base + oauthRegister,
-		"revocation_endpoint":                            base + oauthRevoke,
-		"scopes_supported":                               oauth.Scopes,
+		"issuer":                 base,
+		"authorization_endpoint": base + oauthAuthz,
+		"token_endpoint":         base + oauthToken,
+		"registration_endpoint":  base + oauthRegister,
+		"revocation_endpoint":    base + oauthRevoke,
+		// offline_access only tells clients that refresh tokens exist
+		// (they always do); it is not a scope of the resource.
+		"scopes_supported":                               append(append([]string{}, oauth.Scopes...), "offline_access"),
 		"response_types_supported":                       []string{"code"},
 		"response_modes_supported":                       []string{"query"},
 		"grant_types_supported":                          []string{"authorization_code", "refresh_token"},

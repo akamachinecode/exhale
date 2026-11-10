@@ -281,6 +281,9 @@ func TestOAuthDiscovery(t *testing.T) {
 		as["client_id_metadata_document_supported"] != true || as["authorization_response_iss_parameter_supported"] != true {
 		t.Fatalf("server metadata: %d %v", code, as)
 	}
+	if sc := as["scopes_supported"].([]any); len(sc) != 3 || sc[2] != "offline_access" {
+		t.Fatalf("scopes: %v", sc)
+	}
 	if m := as["code_challenge_methods_supported"].([]any); len(m) != 1 || m[0] != "S256" {
 		t.Fatalf("only S256: %v", m)
 	}

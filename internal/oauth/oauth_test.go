@@ -82,7 +82,7 @@ func TestScopes(t *testing.T) {
 }
 
 func TestCleanNameAndFreshness(t *testing.T) {
-	if got := cleanName("  Chat‮GPT\n\tconnector  "); got != "ChatGPT connector" {
+	if got := cleanName("  Chat\u202eGPT\n\tconnector  "); got != "ChatGPT connector" {
 		t.Errorf("cleanName: %q", got)
 	}
 	if got := cleanName(strings.Repeat("é", 100)); len([]rune(got)) != 60 {
