@@ -1,12 +1,13 @@
 import { useQueryClient } from "@tanstack/react-query";
 import { Link, useNavigate, useParams } from "@tanstack/react-router";
-import { ArrowLeft, ExternalLink, Pause, Pencil, Play, Trash2, XCircle } from "lucide-react";
+import { ArrowLeft, Copy, ExternalLink, Pause, Pencil, Play, Trash2, XCircle } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
 import { ChargeActions } from "@/components/charge-actions";
 import { ServiceTile } from "@/components/service-tile";
 import { ChargeStatus, SubscriptionStatus } from "@/components/status";
 import { reminderLabel, SubscriptionDialog } from "@/components/subscription-form";
+import { TagChips } from "@/components/tags";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardHeader } from "@/components/ui/card";
@@ -31,6 +32,7 @@ export function SubscriptionDetail() {
 	const undo = useUndo({ mutation: { onSuccess: () => qc.invalidateQueries() } });
 	const household = useGetHousehold();
 	const [editing, setEditing] = useState(false);
+	const [copying, setCopying] = useState(false);
 	const usage = useUpdateSubscription({ mutation: { onSuccess: () => qc.invalidateQueries() } });
 	const onError = (e: unknown) => toast.error(e instanceof ApiError ? e.detail : t("Something went wrong"));
 	const status = useSetSubscriptionStatus({ mutation: { onSuccess: () => qc.invalidateQueries(), onError } });
@@ -55,6 +57,8 @@ export function SubscriptionDetail() {
 	const names = new Map((household.data?.members ?? []).map((m) => [m.id, m.name]));
 	const shares = s.shares ?? [];
 	const totalWeight = shares.reduce((a, x) => a + x.weight, 0);
+	const plan = s.planSwitch;
+	const per = (unit?: string) => (unit === "month" ? t("per month") : t("per year"));
 
 	return (
 		<>
@@ -80,10 +84,14 @@ export function SubscriptionDetail() {
 							s.serviceUntil &&
 							t(" · service until {0}", date(s.serviceUntil, "long"))}
 					</p>
+					<TagChips tags={s.tags} className="mt-1.5" />
 				</div>
 				<div className="flex flex-wrap gap-2">
 					<Button size="sm" onClick={() => setEditing(true)}>
 						<Pencil /> {t("Edit")}
+					</Button>
+					<Button size="sm" onClick={() => setCopying(true)}>
+						<Copy /> {t("Duplicate")}
 					</Button>
 					{s.status === "active" && (
 						<Button size="sm" onClick={() => act("pause")}>
@@ -112,6 +120,38 @@ export function SubscriptionDetail() {
 			</div>
 
 			<SubscriptionDialog open={editing} onOpenChange={setEditing} subscription={s} />
+			<SubscriptionDialog open={copying} onOpenChange={setCopying} copyOf={s} />
+			{s.status === "active" && plan && plan.yearlySaving.minor > 0 && s.altPrice && (
+				<Card className="mb-6 flex flex-wrap items-center gap-3 px-5 py-3.5 text-sm">
+					<span className="flex-1">
+						<span className="font-medium">
+							{t(
+								"Switching to {0} {1} saves {2} a year.",
+								money(s.altPrice.price),
+								per(s.altPrice.unit),
+								money(plan.yearlySaving),
+							)}
+						</span>{" "}
+						<span className="text-muted">
+							{t(
+								"Now {0} a year; the other price comes to {1}.",
+								money(plan.currentYearly),
+								money(plan.otherYearly),
+							)}
+						</span>
+					</span>
+					{s.cancelUrl && (
+						<a
+							href={s.cancelUrl}
+							target="_blank"
+							rel="noreferrer"
+							className="inline-flex items-center gap-1.5 text-[13px] font-medium hover:underline"
+						>
+							{t("Manage plan")} <ExternalLink className="size-3.5" />
+						</a>
+					)}
+				</Card>
+			)}
 			{s.status === "active" && s.cancelBy && (
 				<Card className="mb-6 flex flex-wrap items-center gap-3 border-warn/40 px-5 py-3.5 text-sm">
 					<span className="flex-1">
@@ -180,6 +220,21 @@ export function SubscriptionDetail() {
 								<Detail
 									label={t("Price change")}
 									value={`${money(s.nextPrice.price)} from ${date(s.nextPrice.from, "long")}`}
+								/>
+							)}
+							{s.altPrice && plan && (
+								<Detail
+									label={t("Also offered at")}
+									value={`${money(s.altPrice.price)} ${per(s.altPrice.unit)} · ${
+										plan.yearlySaving.minor > 0
+											? t("saves {0} a year", money(plan.yearlySaving))
+											: plan.yearlySaving.minor < 0
+												? t(
+														"{0} a year more than now",
+														money({ ...plan.yearlySaving, minor: -plan.yearlySaving.minor }),
+													)
+												: t("costs the same")
+									}`}
 								/>
 							)}
 							<Detail label={t("Payment method")} value={s.paymentMethod ?? "—"} />

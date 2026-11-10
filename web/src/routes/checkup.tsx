@@ -153,6 +153,25 @@ export function Checkup() {
 					)}
 				</Section>
 				<Section
+					title={t("Cheaper prices you recorded")}
+					hint={t("The provider also offers these prices. Switching saves this much a year.")}
+					items={a.cheaperPlans ?? []}
+				>
+					{(p) => (
+						<SubLine
+							key={p.subscription.id}
+							sub={p.subscription}
+							detail={t(
+								"{0} {1} instead of {2} a year",
+								money(p.other.price),
+								p.other.unit === "month" ? t("per month") : t("per year"),
+								money(p.currentYearly),
+							)}
+							value={t("{0} a year", money(p.yearlySaving))}
+						/>
+					)}
+				</Section>
+				<Section
 					title={t("You said you don't use")}
 					hint={t("What they cost if you keep them.")}
 					items={a.notUsed ?? []}

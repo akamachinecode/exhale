@@ -4,9 +4,15 @@ import { useState } from "react";
 import { PageHeader } from "@/components/layout";
 import { ServiceTile } from "@/components/service-tile";
 import { Card, CardHeader } from "@/components/ui/card";
-import { type MonthSpend, useMonthBalances, useSpendingHistory, useSpendingSummary } from "@/gen/api";
+import {
+	type MonthSpend,
+	useAudit,
+	useMonthBalances,
+	useSpendingHistory,
+	useSpendingSummary,
+} from "@/gen/api";
 import { locale, t, tn } from "@/lib/i18n";
-import { cn, date, money, todayISO } from "@/lib/utils";
+import { cn, date, money, sumMain, todayISO } from "@/lib/utils";
 
 const monthName = (m: string, long = false) =>
 	new Intl.DateTimeFormat(locale, {
@@ -128,12 +134,60 @@ export function Insights() {
 				</Card>
 				<BalancesCard />
 			</div>
+			<CheaperPlans />
 			{(h?.unconverted ?? []).length > 0 && (
 				<p className="mt-4 text-xs text-muted">
 					{t("Not included (no exchange rate):")} {(h?.unconverted ?? []).join(", ")}.
 				</p>
 			)}
 		</>
+	);
+}
+
+/** Only from prices the member recorded: Exhale never guesses one. */
+function CheaperPlans() {
+	const plans = useAudit().data?.cheaperPlans ?? [];
+	const summary = useSpendingSummary().data;
+	if (plans.length === 0) return null;
+	const total = sumMain(
+		plans.map((p) => p.yearlySaving),
+		summary?.rates,
+		summary?.mainCurrency ?? plans[0].yearlySaving.currency,
+	);
+	return (
+		<Card className="mt-6">
+			<CardHeader
+				title={total ? t("Switch and save {0} a year", money(total)) : t("Cheaper prices you recorded")}
+				description={t("From the other prices you recorded for these subscriptions.")}
+			/>
+			<ul className="divide-y divide-line border-t border-line">
+				{plans.map((p) => (
+					<li key={p.subscription.id} className="px-5 py-3 text-sm">
+						<Link
+							to="/subscriptions/$id"
+							params={{ id: p.subscription.id }}
+							className="group flex items-center gap-3"
+						>
+							<ServiceTile name={p.subscription.name} size="sm" />
+							<span className="min-w-0 flex-1">
+								<span className="block truncate font-medium group-hover:underline">
+									{p.subscription.name}
+								</span>
+								<span className="block text-xs text-muted">
+									{t(
+										"{0} {1} instead of {2} a year",
+										money(p.other.price),
+										p.other.unit === "month" ? t("per month") : t("per year"),
+										money(p.currentYearly),
+									)}
+								</span>
+							</span>
+							<span className="tnum font-medium text-ok">−{money(p.yearlySaving)}</span>
+						</Link>
+					</li>
+				))}
+			</ul>
+		</Card>
 	);
 }
 
