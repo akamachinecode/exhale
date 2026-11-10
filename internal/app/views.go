@@ -22,6 +22,9 @@ type SubscriptionView struct {
 	CancelBy       engine.Date `json:"cancelBy,omitzero" jsonschema:"last day to cancel before the next charge (next charge minus the notice period); empty when there is no notice period"`
 	Expires        bool        `json:"expires" jsonschema:"manual renewal: the next charge date is when it expires unless renewed"`
 	AskUsage       bool        `json:"askUsage" jsonschema:"it is time to ask the member whether they still use it (never asked, or asked over six months ago)"`
+	// Billing rules (weekday of the month, weekend shift).
+	BillingDay    string      `json:"billingDay,omitempty" jsonschema:"when in its cycle it is charged, in words, e.g. on the third Wednesday, moved to the next business day when it falls on a weekend; empty for a plain day of the month"`
+	NextScheduled engine.Date `json:"nextScheduled,omitzero" jsonschema:"the date the next charge is scheduled on before a weekend shift moves it; equals nextCharge when it was not moved"`
 }
 
 // ChargeView is a charge with its subscription context.

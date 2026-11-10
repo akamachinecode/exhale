@@ -69,18 +69,16 @@ func (s *Service) ChangeChargeDate(ctx context.Context, actor Actor, in ChangeCh
 			}
 		case domain.ScopeThisAndAfter:
 			beforeSub := sub
-			rule := sub.Schedule.Current(ch.OriginalDate)
-			sub.Schedule, err = sub.Schedule.ChangeFrom(ch.OriginalDate, newDate, rule.Interval, rule.Unit)
+			// The rule keeps its kind (weekday of the month, weekend shift).
+			rule := sub.Schedule.Current(ch.OriginalDate).Reanchor(newDate)
+			sub.Schedule, err = sub.Schedule.ChangeRule(ch.OriginalDate, rule)
 			if err != nil {
 				return fmt.Errorf("%w: %v", domain.ErrValidation, err)
 			}
 			if err := s.saveSubscription(ctx, q, sub); err != nil {
 				return err
 			}
-			cut := ch.OriginalDate
-			if newDate.Before(cut) {
-				cut = newDate
-			}
+			cut := minDate(ch.OriginalDate, minDate(newDate, rule.Occurrence(0)))
 			if err := q.DeleteFuturePendingCharges(ctx, db.DeleteFuturePendingChargesParams{SubscriptionID: sub.ID, OriginalDate: cut.String()}); err != nil {
 				return err
 			}
@@ -91,7 +89,7 @@ func (s *Service) ChangeChargeDate(ctx context.Context, actor Actor, in ChangeCh
 			if _, err := c.record(q, "subscription.reschedule", "subscription", sub.ID, beforeSub, sub); err != nil {
 				return err
 			}
-			r, err := q.GetChargeByOriginalDate(ctx, db.GetChargeByOriginalDateParams{SubscriptionID: sub.ID, OriginalDate: newDate.String()})
+			r, err := q.GetChargeByOriginalDate(ctx, db.GetChargeByOriginalDateParams{SubscriptionID: sub.ID, OriginalDate: rule.Occurrence(0).String()})
 			if err == nil {
 				resultID = r.ID
 			}

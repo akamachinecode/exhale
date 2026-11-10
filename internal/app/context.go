@@ -56,7 +56,11 @@ func (s *Service) BuildContext(ctx context.Context, actor Actor, _ struct{}) (Ag
 	}
 	b.WriteString("\n\n## Subscriptions\n\n| id | name | price | cadence | next charge | status | payment method | category | notes |\n|---|---|---|---|---|---|---|---|---|\n")
 	for _, v := range subs.Subscriptions {
-		fmt.Fprintf(&b, "| %s | %s | %s | %s | %s | %s | %s | %s | %s |\n", v.ID, v.Name, v.Price, v.Cadence, v.NextCharge, v.Status, v.PaymentMethod, v.CategoryName, strings.Join(termNotes(v), "; "))
+		cadence := v.Cadence
+		if v.BillingDay != "" {
+			cadence += ", " + v.BillingDay
+		}
+		fmt.Fprintf(&b, "| %s | %s | %s | %s | %s | %s | %s | %s | %s |\n", v.ID, v.Name, v.Price, cadence, v.NextCharge, v.Status, v.PaymentMethod, v.CategoryName, strings.Join(termNotes(v), "; "))
 	}
 	b.WriteString("\n## Next 30 days\n\n")
 	if len(up.Charges) == 0 {

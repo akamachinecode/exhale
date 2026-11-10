@@ -1233,6 +1233,14 @@
           "currency": {
             "type": "string"
           },
+          "dayRule": {
+            "enum": [
+              "day",
+              "weekday",
+              "last-weekday"
+            ],
+            "type": "string"
+          },
           "dryRun": {
             "type": "boolean"
           },
@@ -1323,6 +1331,14 @@
             "type": "string"
           },
           "url": {
+            "type": "string"
+          },
+          "weekendShift": {
+            "enum": [
+              "none",
+              "next",
+              "previous"
+            ],
             "type": "string"
           }
         },
@@ -1748,6 +1764,9 @@
           "autoConfirm": {
             "type": "boolean"
           },
+          "billingDay": {
+            "type": "string"
+          },
           "cadence": {
             "type": "string"
           },
@@ -1802,6 +1821,9 @@
           },
           "nextPrice": {
             "$ref": "#/components/schemas/PriceChange"
+          },
+          "nextScheduled": {
+            "type": "string"
           },
           "notes": {
             "type": "string"
@@ -2096,6 +2118,14 @@
           "currency": {
             "type": "string"
           },
+          "dayRule": {
+            "enum": [
+              "day",
+              "weekday",
+              "last-weekday"
+            ],
+            "type": "string"
+          },
           "endDate": {
             "type": "string"
           },
@@ -2169,6 +2199,14 @@
             "type": "string"
           },
           "url": {
+            "type": "string"
+          },
+          "weekendShift": {
+            "enum": [
+              "none",
+              "next",
+              "previous"
+            ],
             "type": "string"
           }
         },
@@ -2949,6 +2987,14 @@
             "maximum": 60,
             "type": "integer"
           },
+          "dayRule": {
+            "enum": [
+              "day",
+              "weekday",
+              "last-weekday"
+            ],
+            "type": "string"
+          },
           "firstCharge": {
             "type": "string"
           },
@@ -2963,6 +3009,14 @@
               "week",
               "month",
               "year"
+            ],
+            "type": "string"
+          },
+          "weekendShift": {
+            "enum": [
+              "none",
+              "next",
+              "previous"
             ],
             "type": "string"
           }
@@ -3309,11 +3363,17 @@
           "anchor": {
             "type": "string"
           },
+          "dayRule": {
+            "type": "string"
+          },
           "interval": {
             "format": "int64",
             "type": "integer"
           },
           "unit": {
+            "type": "string"
+          },
+          "weekendShift": {
             "type": "string"
           }
         },
@@ -4174,6 +4234,9 @@
           "autoConfirm": {
             "type": "boolean"
           },
+          "billingDay": {
+            "type": "string"
+          },
           "cadence": {
             "type": "string"
           },
@@ -4219,6 +4282,9 @@
           },
           "nextPrice": {
             "$ref": "#/components/schemas/PriceChange"
+          },
+          "nextScheduled": {
+            "type": "string"
           },
           "notes": {
             "type": "string"
@@ -4654,6 +4720,14 @@
           "categoryId": {
             "type": "string"
           },
+          "dayRule": {
+            "enum": [
+              "day",
+              "weekday",
+              "last-weekday"
+            ],
+            "type": "string"
+          },
           "dryRun": {
             "type": "boolean"
           },
@@ -4746,6 +4820,14 @@
           },
           "using": {
             "type": "boolean"
+          },
+          "weekendShift": {
+            "enum": [
+              "none",
+              "next",
+              "previous"
+            ],
+            "type": "string"
           }
         },
         "required": [

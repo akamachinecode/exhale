@@ -196,10 +196,12 @@ func (s *Service) chargeViews(ctx context.Context, q *db.Queries, actor Actor, r
 
 // PreviewScheduleInput describes a billing rule to preview.
 type PreviewScheduleInput struct {
-	Interval    int    `json:"interval" minimum:"1"`
-	Unit        string `json:"unit" enum:"day,week,month,year"`
-	FirstCharge string `json:"firstCharge" jsonschema:"YYYY-MM-DD"`
-	Count       int    `json:"count,omitempty" jsonschema:"how many dates, default 12" maximum:"60"`
+	Interval     int    `json:"interval" minimum:"1"`
+	Unit         string `json:"unit" enum:"day,week,month,year"`
+	FirstCharge  string `json:"firstCharge" jsonschema:"YYYY-MM-DD"`
+	DayRule      string `json:"dayRule,omitempty" jsonschema:"monthly and yearly cycles. day (default): the same day number as the first charge, the last day in shorter months. weekday: the same weekday and week of the month as the first charge, e.g. the third Wednesday (the first charge must be a 1st to 4th weekday of its month). last-weekday: the last such weekday of the month, e.g. the last Friday (the first charge must be in the last 7 days of its month)" enum:"day,weekday,last-weekday"`
+	WeekendShift string `json:"weekendShift,omitempty" jsonschema:"charges that fall on a Saturday or Sunday. none (default): kept. next: moved to the next business day (Monday). previous: moved to the previous business day (Friday). Weekends only, no public holidays. Later charges are still counted from the first one, so dates never drift" enum:"none,next,previous"`
+	Count        int    `json:"count,omitempty" jsonschema:"how many dates, default 12" maximum:"60"`
 }
 
 // SchedulePreview lists the computed charge dates.
@@ -218,7 +220,11 @@ func (s *Service) PreviewSchedule(_ context.Context, _ Actor, in PreviewSchedule
 	if in.Interval == 0 {
 		in.Interval = 1
 	}
-	sched, err := engine.NewSchedule(engine.Rule{Interval: in.Interval, Unit: engine.Unit(in.Unit), Anchor: first})
+	rule, err := newRule(in.Interval, in.Unit, in.DayRule, in.WeekendShift, first)
+	if err != nil {
+		return SchedulePreview{}, err
+	}
+	sched, err := engine.NewSchedule(rule)
 	if err != nil {
 		return SchedulePreview{}, fmt.Errorf("%w: %v", domain.ErrValidation, err)
 	}
@@ -226,7 +232,7 @@ func (s *Service) PreviewSchedule(_ context.Context, _ Actor, in PreviewSchedule
 	if n <= 0 || n > 60 {
 		n = 12
 	}
-	return SchedulePreview{Dates: sched.Upcoming(first, n)}, nil
+	return SchedulePreview{Dates: sched.Upcoming(sched.First(), n)}, nil
 }
 
 // SpendingSummary totals recurring spend.
