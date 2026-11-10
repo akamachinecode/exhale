@@ -169,6 +169,7 @@ func (e *Engine) manage(ctx context.Context, actor app.Actor, chat ChatRef, p []
 			"notice":  tr(locale, "How many days before a renewal must it be cancelled? Type a number; 0 for none."),
 			"link":    tr(locale, "Paste the link of the page where it is cancelled or managed."),
 			"account": tr(locale, "Type the login or email it lives under."),
+			"tags":    tr(locale, "Type its tags separated by commas, e.g. work, family. Send - to remove them all."),
 		}
 		if hints[arg(3)] == "" {
 			return Reply{Toast: tr(locale, "Unknown field.")}, "", true, nil
@@ -379,6 +380,11 @@ func (e *Engine) flowText(ctx context.Context, actor app.Actor, chat ChatRef, f 
 			in.CancelURL = &link
 		case "account":
 			in.Account = &text
+		case "tags":
+			in.Tags = []string{}
+			if text != "-" {
+				in.Tags = strings.Split(text, ",")
+			}
 		}
 		if _, err := e.svc.UpdateSubscription(ctx, actor, in); err != nil {
 			return e.fail(err)
@@ -847,13 +853,14 @@ func (e *Engine) editScreen(ctx context.Context, actor app.Actor, id, locale str
 		{tr(locale, "Reminders"), reminderText(s.Reminders.DaysBefore, locale)},
 		{tr(locale, "Notice"), notice},
 		{tr(locale, "Account"), or(s.Account, none)},
+		{tr(locale, "Tags"), or(strings.Join(s.Tags, ", "), none)},
 	}}}}
 	m.Rows = [][]Button{
 		{{Label: tr(locale, "✏️ Name"), Data: route(actEditAsk, id, "name")}, {Label: tr(locale, "💶 Price"), Data: route(actEditAsk, id, "price")}},
 		{{Label: tr(locale, "🏷 Category"), Data: route(scrEditCat, id)}, {Label: tr(locale, "💳 Payment method"), Data: route(scrEditPM, id)}},
 		{{Label: tr(locale, "🔔 Reminders"), Data: route(scrEditRem, id)}, {Label: tr(locale, "⏰ Notice period"), Data: route(actEditAsk, id, "notice")}},
 		{{Label: tr(locale, "🔗 Cancel link"), Data: route(actEditAsk, id, "link")}, {Label: tr(locale, "🔑 Account"), Data: route(actEditAsk, id, "account")}},
-		{{Label: tr(locale, "🗑 Delete"), Data: route(actDelete, id)}},
+		{{Label: tr(locale, "🔖 Tags"), Data: route(actEditAsk, id, "tags")}, {Label: tr(locale, "🗑 Delete"), Data: route(actDelete, id)}},
 		{{Label: "‹ " + truncate(s.Name, 20), Data: route(scrSub, id)}, {Label: tr(locale, "🏠 Home"), Data: RouteHome}},
 	}
 	return m, nil

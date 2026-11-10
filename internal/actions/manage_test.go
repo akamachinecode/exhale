@@ -119,6 +119,8 @@ func TestManageConversation(t *testing.T) {
 	press("Back")
 	press("Cancel link")
 	say("netflix.com/cancelplan")
+	press("Tags")
+	say("family, tv,  Family")
 
 	script.WriteString("\n# The bank took more than expected\n")
 	list, _ := svc.ListSubscriptions(ctx, owner, app.ListSubscriptionsInput{})
