@@ -12,23 +12,26 @@ import (
 
 // Callback verbs. Data is "verb|chargeID|arg…" and always fits in 64 bytes.
 const (
-	vPaid      = "paid"
-	vNotYet    = "notyet"
-	vFailed    = "failed"
-	vSkip      = "skip"
-	vReopen    = "reopen"
-	vDateMenu  = "date"   // date|chg|YYYY-MM  (calendar page)
-	vDatePick  = "pick"   // pick|chg|YYYY-MM-DD
-	vDateScope = "dscope" // dscope|chg|YYYY-MM-DD|this|following
-	vAmount    = "amount"
-	vMethod    = "pm"     // pm|chg            (menu)
-	vMethodSet = "pmset"  // pmset|chg|pm_id
-	vCancel    = "cancel" // cancel|chg        (confirmation)
-	vCancelOK  = "cancelok"
-	vBack      = "back"
-	vUndo      = "undo"   // undo|chg|aud_id
-	vKeep      = "keep"   // keep|chg     (keep this renewal: stop asking)
-	vExpire    = "expire" // expire|chg   (manual renewal: let it expire)
+	vPaid       = "paid"
+	vNotYet     = "notyet"
+	vFailed     = "failed"
+	vSkip       = "skip"
+	vReopen     = "reopen"
+	vDateMenu   = "date"   // date|chg|YYYY-MM  (calendar page)
+	vDatePick   = "pick"   // pick|chg|YYYY-MM-DD
+	vDateScope  = "dscope" // dscope|chg|YYYY-MM-DD|this|following
+	vAmount     = "amount"
+	vMethod     = "pm"     // pm|chg            (menu)
+	vMethodSet  = "pmset"  // pmset|chg|pm_id
+	vCancel     = "cancel" // cancel|chg        (confirmation)
+	vCancelOK   = "cancelok"
+	vBack       = "back"
+	vUndo       = "undo"   // undo|chg|aud_id
+	vKeep       = "keep"   // keep|chg     (keep this renewal: stop asking)
+	vExpire     = "expire" // expire|chg   (manual renewal: let it expire)
+	vPaidAmount = "pa"     // pa|chg       (paid, but another amount: type it)
+	vNewPrice   = "np"     // np|chg|12.99 (that amount is the new price)
+	vUse        = "use"    // use|chg|1|0  (still using it?)
 )
 
 func data(parts ...string) string { return strings.Join(parts, "|") }
@@ -65,6 +68,7 @@ func chargeMessage(kind string, r app.ChargeResult, today engine.Date, locale st
 		m.Rows = [][]Button{
 			{{Label: "✅ Paid", Data: data(vPaid, id)}, {Label: "⏳ Not yet", Data: data(vNotYet, id)}, {Label: "❌ Failed", Data: data(vFailed, id)}},
 			{{Label: "📅 New date", Data: data(vDateMenu, id, c.DueDate.String()[:7])}, {Label: "⏭ Skip", Data: data(vSkip, id)}},
+			{{Label: "💶 Paid, another amount", Data: data(vPaidAmount, id)}},
 		}
 	case c.Kind == app.ChargeExpiry:
 		m.Title = fmt.Sprintf("⌛ %s expires %s", sub.Name, when(days))
@@ -91,6 +95,11 @@ func chargeMessage(kind string, r app.ChargeResult, today engine.Date, locale st
 			{{Label: "✅ Already paid", Data: data(vPaid, id)}, {Label: "📅 Change date", Data: data(vDateMenu, id, c.DueDate.String()[:7])}},
 			{{Label: "💳 Payment method", Data: data(vMethod, id)}, {Label: "✏️ Amount", Data: data(vAmount, id)}},
 			{{Label: "⏭ Skip this one", Data: data(vSkip, id)}, {Label: "❌ Cancel subscription", Data: data(vCancel, id)}},
+		}
+		if sub.AskUsage {
+			// A cheap, honest "is it worth it?": one tap, asked rarely.
+			m.Lines = append(m.Lines, "Still using it?")
+			m.Rows = append(m.Rows, []Button{{Label: "👍 Yes", Data: data(vUse, id, "1")}, {Label: "👎 Not really", Data: data(vUse, id, "0")}})
 		}
 	}
 	if c.Decision == "keep" && c.Status == domain.ChargePending {
@@ -131,7 +140,7 @@ func details(c app.ChargeView, sub app.SubscriptionView, locale string) []string
 	if sub.CategoryName != "" {
 		lines = append(lines, "🏷 "+sub.CategoryName)
 	}
-	if !c.CancelBy.IsZero() && c.Status == domain.ChargePending {
+	if !c.CancelBy.IsZero() && !c.CancelPassed && c.Status == domain.ChargePending {
 		lines = append(lines, "⏰ Cancel by "+longDate(c.CancelBy))
 	}
 	if !c.ChargedAmount.IsZero() && c.ChargedAmount != c.Amount {
@@ -158,18 +167,27 @@ func longDate(d engine.Date) string {
 
 // calendar renders a month of day buttons for choosing a new date.
 func calendar(chargeID string, month engine.Date, selected engine.Date, today engine.Date) [][]Button {
+	rows := monthGrid(month, selected, today,
+		func(m string) string { return data(vDateMenu, chargeID, m) },
+		func(d string) string { return data(vDatePick, chargeID, d) })
+	return append(rows, []Button{{Label: "↩︎ Back", Data: data(vBack, chargeID)}})
+}
+
+// monthGrid renders a month as rows of day buttons, Monday first. nav builds
+// the data of the month arrows ("2026-12"), pick the data of a day.
+func monthGrid(month, selected, today engine.Date, nav, pick func(string) string) [][]Button {
 	first := engine.MustDate(month.Year(), month.Month(), 1)
 	prev := first.AddDays(-1)
 	next := first.AddDays(engine.DaysIn(first.Year(), first.Month()))
 	rows := [][]Button{{
-		{Label: "‹", Data: data(vDateMenu, chargeID, prev.String()[:7])},
-		{Label: first.At(12, 0, time.UTC).Format("January 2006"), Data: data(vDateMenu, chargeID, first.String()[:7])},
-		{Label: "›", Data: data(vDateMenu, chargeID, next.String()[:7])},
+		{Label: "‹", Data: nav(prev.String()[:7])},
+		{Label: first.At(12, 0, time.UTC).Format("January 2006"), Data: nav(first.String()[:7])},
+		{Label: "›", Data: nav(next.String()[:7])},
 	}}
 	week := []Button{}
-	offset := (int(first.At(12, 0, time.UTC).Weekday()) + 6) % 7 // Monday first
+	offset := (int(first.At(12, 0, time.UTC).Weekday()) + 6) % 7
 	for range offset {
-		week = append(week, Button{Label: " ", Data: data(vDateMenu, chargeID, first.String()[:7])})
+		week = append(week, Button{Label: " ", Data: nav(first.String()[:7])})
 	}
 	for d := 1; d <= engine.DaysIn(first.Year(), first.Month()); d++ {
 		day := engine.MustDate(first.Year(), first.Month(), d)
@@ -180,7 +198,7 @@ func calendar(chargeID string, month engine.Date, selected engine.Date, today en
 		case today:
 			label = "(" + label + ")"
 		}
-		week = append(week, Button{Label: label, Data: data(vDatePick, chargeID, day.String())})
+		week = append(week, Button{Label: label, Data: pick(day.String())})
 		if len(week) == 7 {
 			rows = append(rows, week)
 			week = []Button{}
@@ -188,9 +206,9 @@ func calendar(chargeID string, month engine.Date, selected engine.Date, today en
 	}
 	if len(week) > 0 {
 		for len(week) < 7 {
-			week = append(week, Button{Label: " ", Data: data(vDateMenu, chargeID, first.String()[:7])})
+			week = append(week, Button{Label: " ", Data: nav(first.String()[:7])})
 		}
 		rows = append(rows, week)
 	}
-	return append(rows, []Button{{Label: "↩︎ Back", Data: data(vBack, chargeID)}})
+	return rows
 }

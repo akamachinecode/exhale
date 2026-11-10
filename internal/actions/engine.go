@@ -262,6 +262,51 @@ func (e *Engine) handleCharge(ctx context.Context, actor app.Actor, chat ChatRef
 			m.Rows = append(m.Rows, link)
 		}
 		return Reply{Edit: &m, Toast: "Cancelled"}, nil
+	case vPaidAmount:
+		r, err := e.chargeResult(ctx, actor, chargeID)
+		if err != nil {
+			return e.fail(err)
+		}
+		if err := e.saveFlow(ctx, actor, chat, flowState{Kind: "paid", ChargeID: chargeID}); err != nil {
+			return e.fail(err)
+		}
+		m := Message{Title: "💶 How much did " + r.Subscription.Name + " take?", Lines: []string{fmt.Sprintf("Expected %s. Type the amount, e.g. %s, or with another currency: 11.20 EUR.", r.Charge.Amount.Format(locale), r.Charge.Amount.Decimal())}}
+		return Reply{Send: &m, Toast: "Type the amount"}, nil
+	case vNewPrice:
+		r, err := e.chargeResult(ctx, actor, chargeID)
+		if err != nil {
+			return e.fail(err)
+		}
+		price := arg(2)
+		if _, err := e.svc.UpdateSubscription(ctx, actor, app.UpdateSubscriptionInput{ID: r.Subscription.ID, Price: &price}); err != nil {
+			return e.fail(err)
+		}
+		m, err := e.Render(ctx, actor, "", chargeID)
+		if err != nil {
+			return e.fail(err)
+		}
+		m.Footer = "New price saved for the next charges."
+		return Reply{Edit: &m, Toast: "Price updated 💶"}, nil
+	case vUse:
+		r, err := e.chargeResult(ctx, actor, chargeID)
+		if err != nil {
+			return e.fail(err)
+		}
+		using := arg(2) == "1"
+		d, err := e.svc.UpdateSubscription(ctx, actor, app.UpdateSubscriptionInput{ID: r.Subscription.ID, Using: &using})
+		if err != nil {
+			return e.fail(err)
+		}
+		m, err := e.Render(ctx, actor, "", chargeID)
+		if err != nil {
+			return e.fail(err)
+		}
+		toast := "Good to know 👍"
+		if !using {
+			toast = "Noted"
+			m.Footer = fmt.Sprintf("You said you don't use it: it costs %s a year.", d.Subscription.YearlyCost.Format(locale))
+		}
+		return Reply{Edit: &m, Toast: toast}, nil
 	case vKeep:
 		res, err := e.svc.DecideRenewal(ctx, actor, app.DecideRenewalInput{ChargeID: chargeID, Decision: "keep"})
 		if err != nil {
@@ -317,17 +362,33 @@ type ChatRef struct {
 	MessageID string
 }
 
+// flowState is what a chat is in the middle of: a question waiting for a
+// typed answer, or the draft of the add wizard.
 type flowState struct {
-	Kind     string `json:"kind"`
-	ChargeID string `json:"chargeId"`
+	Kind     string            `json:"kind"`
+	ChargeID string            `json:"chargeId,omitempty"`
+	Ref      string            `json:"ref,omitempty"`   // subscription or payment method being edited
+	Field    string            `json:"field,omitempty"` // what the next typed answer is
+	Draft    map[string]string `json:"draft,omitempty"`
 }
+
+func decodeFlow(state string) flowState {
+	var f flowState
+	_ = json.Unmarshal([]byte(state), &f)
+	if f.Draft == nil {
+		f.Draft = map[string]string{}
+	}
+	return f
+}
+
+func parseTime(s string) time.Time { return store.ParseTime(s) }
 
 func flowID(c ChatRef) string { return domain.PrefixFlow + "_" + c.Channel + "_" + c.ChatID }
 
 func (e *Engine) saveFlow(ctx context.Context, actor app.Actor, chat ChatRef, f flowState) error {
 	b, _ := json.Marshal(f)
 	now := time.Now()
-	return e.svc.Store().Q.SaveFlow(ctx, db.SaveFlowParams{ID: flowID(chat), MemberID: actor.MemberID, State: string(b), ExpiresAt: store.FormatTime(now.Add(15 * time.Minute)), CreatedAt: store.FormatTime(now)})
+	return e.svc.Store().Q.SaveFlow(ctx, db.SaveFlowParams{ID: flowID(chat), MemberID: actor.MemberID, State: string(b), ExpiresAt: store.FormatTime(now.Add(flowTTL)), CreatedAt: store.FormatTime(now)})
 }
 
 // HandleText handles a typed message that answers a pending question (for
@@ -338,11 +399,15 @@ func (e *Engine) HandleText(ctx context.Context, actor app.Actor, chat ChatRef, 
 	if err != nil || store.ParseTime(row.ExpiresAt).Before(time.Now()) {
 		return Reply{}, false, nil
 	}
-	var f flowState
-	_ = json.Unmarshal([]byte(row.State), &f)
+	f := decodeFlow(row.State)
 	_ = q.DeleteFlow(ctx, row.ID)
+	text = strings.TrimSpace(text)
+	if strings.HasPrefix(text, "/") {
+		return Reply{}, false, nil // a command leaves the question unanswered
+	}
 	if f.Kind != "amount" {
-		return Reply{}, false, nil
+		rep, err := e.flowText(ctx, actor, chat, f, text)
+		return rep, true, err
 	}
 	amount := strings.ReplaceAll(strings.TrimSpace(text), ",", ".")
 	r, err := e.chargeResult(ctx, actor, f.ChargeID)

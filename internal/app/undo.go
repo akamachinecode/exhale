@@ -118,12 +118,23 @@ func (s *Service) undoSubscription(ctx context.Context, q *db.Queries, actor Act
 		c.emit(bus.Event{Type: bus.SubscriptionDeleted, HouseholdID: actor.HouseholdID, SubscriptionID: a.EntityID})
 		return nil
 	case a.After == "": // undo a deletion: recreate it
-		var sub domain.Subscription
-		if err := json.Unmarshal([]byte(a.Before), &sub); err != nil {
+		var gone deletedSubscription
+		if err := json.Unmarshal([]byte(a.Before), &gone); err != nil {
 			return err
 		}
+		sub := gone.Subscription
 		if err := s.insertSubscription(ctx, q, sub); err != nil {
 			return err
+		}
+		for _, ch := range gone.Charges {
+			p := store.ChargeUpdate(ch, ch.UpdatedAt)
+			if err := q.RestoreCharge(ctx, db.RestoreChargeParams{
+				ID: ch.ID, SubscriptionID: sub.ID, OriginalDate: ch.OriginalDate.String(), DueDate: p.DueDate, AmountMinor: p.AmountMinor,
+				Currency: p.Currency, ChargedMinor: p.ChargedMinor, ChargedCurrency: p.ChargedCurrency, Status: p.Status,
+				ResolvedAt: p.ResolvedAt, Note: p.Note, Decision: p.Decision, UpdatedAt: p.UpdatedAt, Version: int64(ch.Version),
+			}); err != nil {
+				return err
+			}
 		}
 		c.emit(bus.Event{Type: bus.SubscriptionCreated, HouseholdID: sub.HouseholdID, SubscriptionID: sub.ID})
 		return s.materialize(ctx, q, sub, today)

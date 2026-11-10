@@ -75,6 +75,7 @@ export const ChargeViewKind = {
 export interface ChargeView {
   amount: Money;
   cancelBy?: string;
+  cancelPassed: boolean;
   chargedAmount?: Money;
   daysUntil: number;
   decision?: string;

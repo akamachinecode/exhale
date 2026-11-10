@@ -469,6 +469,51 @@ func (q *Queries) MarkAuditUndone(ctx context.Context, arg MarkAuditUndoneParams
 	return err
 }
 
+const restoreCharge = `-- name: RestoreCharge :exec
+INSERT INTO charges (
+    id, subscription_id, original_date, due_date, amount_minor, currency,
+    charged_minor, charged_currency, status, resolved_at, note, decision, updated_at, version
+) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+ON CONFLICT (subscription_id, original_date) DO NOTHING
+`
+
+type RestoreChargeParams struct {
+	ID              string
+	SubscriptionID  string
+	OriginalDate    string
+	DueDate         string
+	AmountMinor     int64
+	Currency        string
+	ChargedMinor    *int64
+	ChargedCurrency *string
+	Status          string
+	ResolvedAt      *string
+	Note            string
+	Decision        string
+	UpdatedAt       string
+	Version         int64
+}
+
+func (q *Queries) RestoreCharge(ctx context.Context, arg RestoreChargeParams) error {
+	_, err := q.db.ExecContext(ctx, restoreCharge,
+		arg.ID,
+		arg.SubscriptionID,
+		arg.OriginalDate,
+		arg.DueDate,
+		arg.AmountMinor,
+		arg.Currency,
+		arg.ChargedMinor,
+		arg.ChargedCurrency,
+		arg.Status,
+		arg.ResolvedAt,
+		arg.Note,
+		arg.Decision,
+		arg.UpdatedAt,
+		arg.Version,
+	)
+	return err
+}
+
 const updateCharge = `-- name: UpdateCharge :execrows
 UPDATE charges SET
     due_date = ?, amount_minor = ?, currency = ?, charged_minor = ?,

@@ -116,7 +116,10 @@ func format(m actions.Message) string {
 		b.WriteString("\n" + html.EscapeString(l))
 	}
 	for _, s := range m.Sections {
-		b.WriteString("\n\n<b>" + html.EscapeString(s.Heading) + "</b>")
+		b.WriteString("\n")
+		if s.Heading != "" {
+			b.WriteString("\n<b>" + html.EscapeString(s.Heading) + "</b>")
+		}
 		for _, l := range s.Lines {
 			b.WriteString("\n" + html.EscapeString(l))
 		}
@@ -200,6 +203,10 @@ func (a *Adapter) handleText(ctx context.Context, m *models.Message) {
 		return
 	}
 	if cmd, _, _ := strings.Cut(text, " "); strings.HasPrefix(cmd, "/") {
+		if rep, ok := a.eng.Command(ctx, actor, chat, cmd); ok {
+			a.apply(ctx, chat, 0, rep)
+			return
+		}
 		if r, ok := actions.CommandRoute(cmd); ok {
 			a.openApp(ctx, actor, chat, r)
 			return

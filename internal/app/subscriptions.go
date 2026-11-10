@@ -373,6 +373,12 @@ type DeleteSubscriptionInput struct {
 	DryRun bool   `json:"dryRun,omitempty"`
 }
 
+// deletedSubscription is the audit snapshot of a deleted subscription.
+type deletedSubscription struct {
+	domain.Subscription
+	Charges []domain.Charge `json:"charges,omitempty"`
+}
+
 // DeleteResult confirms a deletion.
 type DeleteResult struct {
 	Deleted string `json:"deleted"`
@@ -387,10 +393,19 @@ func (s *Service) DeleteSubscription(ctx context.Context, actor Actor, in Delete
 		if err != nil {
 			return err
 		}
+		// The snapshot keeps every charge, so undo brings the history back.
+		gone := deletedSubscription{Subscription: sub}
+		rows, err := q.ListChargesForSubscription(ctx, db.ListChargesForSubscriptionParams{SubscriptionID: sub.ID, Limit: 5000})
+		if err != nil {
+			return err
+		}
+		for _, r := range rows {
+			gone.Charges = append(gone.Charges, store.ChargeFromRow(r))
+		}
 		if err := q.DeleteSubscription(ctx, db.DeleteSubscriptionParams{ID: sub.ID, HouseholdID: actor.HouseholdID}); err != nil {
 			return err
 		}
-		id, err := c.record(q, "subscription.delete", "subscription", sub.ID, sub, nil)
+		id, err := c.record(q, "subscription.delete", "subscription", sub.ID, gone, nil)
 		if err != nil {
 			return err
 		}
@@ -533,7 +548,23 @@ func (s *Service) view(ctx context.Context, q *db.Queries, sub domain.Subscripti
 		v.Expires = sub.ManualRenewal()
 		v.AskUsage = usageStale(sub, s.now())
 		if sub.NoticeDays > 0 && !v.NextCharge.IsZero() {
-			v.CancelBy = sub.CancelDeadline(v.NextCharge)
+			// The next deadline that can still be met: if the one for the next
+			// charge has passed, it is the one for the charge after.
+			due := v.NextCharge
+			for range 4 {
+				if v.CancelBy = sub.CancelDeadline(due); !v.CancelBy.Before(today) {
+					break
+				}
+				next, ok := sub.Schedule.NextOnOrAfter(due.AddDays(1))
+				if !ok {
+					v.CancelBy = engine.Date{}
+					break
+				}
+				due = next
+			}
+			if v.CancelBy.Before(today) {
+				v.CancelBy = engine.Date{}
+			}
 		}
 	}
 	if sub.CategoryID != "" {

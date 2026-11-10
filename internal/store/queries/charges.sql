@@ -64,3 +64,10 @@ SELECT c.* FROM charges c
 JOIN subscriptions s ON s.id = c.subscription_id
 WHERE s.household_id = ?
 ORDER BY c.subscription_id, c.original_date;
+
+-- name: RestoreCharge :exec
+INSERT INTO charges (
+    id, subscription_id, original_date, due_date, amount_minor, currency,
+    charged_minor, charged_currency, status, resolved_at, note, decision, updated_at, version
+) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+ON CONFLICT (subscription_id, original_date) DO NOTHING;

@@ -60,7 +60,9 @@ func Render(m actions.Message) string {
 		b.WriteString("  " + l + "\n")
 	}
 	for _, s := range m.Sections {
-		b.WriteString("  ## " + s.Heading + "\n")
+		if s.Heading != "" {
+			b.WriteString("  ## " + s.Heading + "\n")
+		}
 		for _, l := range s.Lines {
 			b.WriteString("  " + l + "\n")
 		}

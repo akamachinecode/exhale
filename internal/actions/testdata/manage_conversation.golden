@@ -1,0 +1,365 @@
+# A payment method
+
+> type /methods
+NEW MESSAGE
+💳 Payment methods (0)
+  None yet. Add the cards and accounts that pay your subscriptions.
+  [➕ Add a payment method](a|pmn)
+  [🏠 Home](a|home)
+
+> press Add a payment method
+(toast: Type your answer)
+NEW MESSAGE
+💳 New payment method
+  Type its name, e.g. Revolut or Visa ••4421.
+
+> type Visa ••4421
+NEW MESSAGE
+💳 Visa ••4421
+  What is it?
+  [💳 Card](a|pmk|card) [🏦 Bank account](a|pmk|bank)
+  [PayPal](a|pmk|paypal) [Something else](a|pmk|other)
+
+> press Card
+(toast: Added 💳)
+💳 Visa ••4421
+  Card
+  No subscription uses it.
+  [✏️ Name](a|pme|pm_X|name) [🔢 Last 4 digits](a|pme|pm_X|last4)
+  [📅 Expiry](a|pme|pm_X|exp) [🗑 Delete](a|pmd|pm_X)
+  [‹ Payment methods](a|pms) [🏠 Home](a|home)
+
+> press Expiry
+(toast: Type your answer)
+NEW MESSAGE
+💳 Edit payment method
+  Type when it expires, e.g. 08/27.
+
+> type 12/26
+NEW MESSAGE
+💳 Visa ••4421
+  Card
+  Expires 12/26
+  No subscription uses it.
+  [✏️ Name](a|pme|pm_X|name) [🔢 Last 4 digits](a|pme|pm_X|last4)
+  [📅 Expiry](a|pme|pm_X|exp) [🗑 Delete](a|pmd|pm_X)
+  [‹ Payment methods](a|pms) [🏠 Home](a|home)
+
+# A subscription, step by step
+
+> type /add
+(toast: Type its name)
+NEW MESSAGE
+➕ New subscription
+  What is it called? Type the name, e.g. Netflix.
+
+> type Netflix
+NEW MESSAGE
+➕ Netflix
+  How much is each charge? Type it like 12.99, or 12.99 USD for another currency.
+
+> type 13,99
+NEW MESSAGE
+➕ Netflix
+  How often is it charged?
+  [Every month](a|af|month|1) [Every year](a|af|year|1)
+  [Every week](a|af|week|1) [Every 3 months](a|af|month|3)
+  [Every 6 months](a|af|month|6) [Every 2 years](a|af|year|2)
+  [✖ Discard](a|ax)
+
+> press Every month
+➕ Netflix
+  When is the next charge? Pick the day, or type a date.
+  [‹](a|ad|2026-10) [November 2026](a|ad|2026-11) [›](a|ad|2026-12)
+  [ ](a|ad|2026-11) [ ](a|ad|2026-11) [ ](a|ad|2026-11) [ ](a|ad|2026-11) [ ](a|ad|2026-11) [ ](a|ad|2026-11) [1](a|ap|2026-11-01)
+  [2](a|ap|2026-11-02) [3](a|ap|2026-11-03) [4](a|ap|2026-11-04) [(5)](a|ap|2026-11-05) [6](a|ap|2026-11-06) [7](a|ap|2026-11-07) [8](a|ap|2026-11-08)
+  [9](a|ap|2026-11-09) [10](a|ap|2026-11-10) [11](a|ap|2026-11-11) [12](a|ap|2026-11-12) [13](a|ap|2026-11-13) [14](a|ap|2026-11-14) [15](a|ap|2026-11-15)
+  [16](a|ap|2026-11-16) [17](a|ap|2026-11-17) [18](a|ap|2026-11-18) [19](a|ap|2026-11-19) [20](a|ap|2026-11-20) [21](a|ap|2026-11-21) [22](a|ap|2026-11-22)
+  [23](a|ap|2026-11-23) [24](a|ap|2026-11-24) [25](a|ap|2026-11-25) [26](a|ap|2026-11-26) [27](a|ap|2026-11-27) [28](a|ap|2026-11-28) [29](a|ap|2026-11-29)
+  [30](a|ap|2026-11-30) [ ](a|ad|2026-11) [ ](a|ad|2026-11) [ ](a|ad|2026-11) [ ](a|ad|2026-11) [ ](a|ad|2026-11) [ ](a|ad|2026-11)
+  [✖ Discard](a|ax)
+
+> press 12
+➕ Netflix
+  Which payment method pays it?
+  [Visa ••4421](a|am|pm_X)
+  [Skip](a|am|-) [✖ Discard](a|ax)
+
+> press Visa
+➕ Netflix
+  Which category?
+  [AI](a|ac|cat_X) [Cloud & Dev](a|ac|cat_X)
+  [Gaming](a|ac|cat_X) [Health & Fitness](a|ac|cat_X)
+  [Music](a|ac|cat_X) [News](a|ac|cat_X)
+  [Other](a|ac|cat_X) [Software](a|ac|cat_X)
+  [Streaming](a|ac|cat_X) [Utilities](a|ac|cat_X)
+  [Skip](a|ac|-) [✖ Discard](a|ax)
+
+> press Streaming
+➕ Netflix
+  💶 €13.99 · monthly
+  📅 Next charge Thu, 12 Nov 2026
+  💳 Visa ••4421
+  🏷 Streaming
+  ## Then
+  Thu 12 Nov · Sat 12 Dec · Tue 12 Jan
+  [✅ Add it](a|aok)
+  [⏳ It's a free trial](a|at) [✖ Discard](a|ax)
+
+> press Add it
+(toast: Added ✅)
+✅ Netflix added
+  💶 €13.99 · monthly
+  📅 Next charge Thu, 12 Nov 2026
+  💳 Visa ••4421
+  🏷 Streaming
+  👤 Alex
+  [🔔 Next charge · Thu 12 Nov](a|chg|chg_X)
+  [⏸ Pause](a|st|sub_X|pause) [❌ Cancel](a|cx|sub_X)
+  [✏️ Edit](a|ed|sub_X)
+  [‹ Subscriptions](a|subs|0) [🏠 Home](a|home)
+
+# Editing it
+
+> press Edit
+✏️ Netflix
+  | Price               €13.99 monthly
+  | Category                 Streaming
+  | Paid with              Visa ••4421
+  | Reminders  3 days before, same day
+  | Notice                        none
+  | Account                       none
+  [✏️ Name](a|ef|sub_X|name) [💶 Price](a|ef|sub_X|price)
+  [🏷 Category](a|ec|sub_X) [💳 Payment method](a|em|sub_X)
+  [🔔 Reminders](a|er|sub_X) [⏰ Notice period](a|ef|sub_X|notice)
+  [🔗 Cancel link](a|ef|sub_X|link) [🔑 Account](a|ef|sub_X|account)
+  [🗑 Delete](a|del|sub_X)
+  [‹ Netflix](a|sub|sub_X) [🏠 Home](a|home)
+
+> press Notice period
+(toast: Type your answer)
+NEW MESSAGE
+✏️ Edit
+  How many days before a renewal must it be cancelled? Type a number; 0 for none.
+
+> type 30
+NEW MESSAGE
+✏️ Netflix
+  | Price               €13.99 monthly
+  | Category                 Streaming
+  | Paid with              Visa ••4421
+  | Reminders  3 days before, same day
+  | Notice                     30 days
+  | Account                       none
+  [✏️ Name](a|ef|sub_X|name) [💶 Price](a|ef|sub_X|price)
+  [🏷 Category](a|ec|sub_X) [💳 Payment method](a|em|sub_X)
+  [🔔 Reminders](a|er|sub_X) [⏰ Notice period](a|ef|sub_X|notice)
+  [🔗 Cancel link](a|ef|sub_X|link) [🔑 Account](a|ef|sub_X|account)
+  [🗑 Delete](a|del|sub_X)
+  [‹ Netflix](a|sub|sub_X) [🏠 Home](a|home)
+
+> press Reminders
+🔔 Reminders for Netflix
+  Now: 3 days before, same day. Tap to switch each one on or off.
+  [✅ same day](a|ert|sub_X|0) [1 day before](a|ert|sub_X|1)
+  [✅ 3 days before](a|ert|sub_X|3) [7 days before](a|ert|sub_X|7)
+  [14 days before](a|ert|sub_X|14) [30 days before](a|ert|sub_X|30)
+  [‹ Back](a|ed|sub_X)
+
+> press 7 days before
+🔔 Reminders for Netflix
+  Now: 7 days before, 3 days before, same day. Tap to switch each one on or off.
+  [✅ same day](a|ert|sub_X|0) [1 day before](a|ert|sub_X|1)
+  [✅ 3 days before](a|ert|sub_X|3) [✅ 7 days before](a|ert|sub_X|7)
+  [14 days before](a|ert|sub_X|14) [30 days before](a|ert|sub_X|30)
+  [‹ Back](a|ed|sub_X)
+
+> press Back
+✏️ Netflix
+  | Price                              €13.99 monthly
+  | Category                                Streaming
+  | Paid with                             Visa ••4421
+  | Reminders  7 days before, 3 days before, same day
+  | Notice                                    30 days
+  | Account                                      none
+  [✏️ Name](a|ef|sub_X|name) [💶 Price](a|ef|sub_X|price)
+  [🏷 Category](a|ec|sub_X) [💳 Payment method](a|em|sub_X)
+  [🔔 Reminders](a|er|sub_X) [⏰ Notice period](a|ef|sub_X|notice)
+  [🔗 Cancel link](a|ef|sub_X|link) [🔑 Account](a|ef|sub_X|account)
+  [🗑 Delete](a|del|sub_X)
+  [‹ Netflix](a|sub|sub_X) [🏠 Home](a|home)
+
+> press Cancel link
+(toast: Type your answer)
+NEW MESSAGE
+✏️ Edit
+  Paste the link of the page where it is cancelled or managed.
+
+> type netflix.com/cancelplan
+NEW MESSAGE
+✏️ Netflix
+  | Price                              €13.99 monthly
+  | Category                                Streaming
+  | Paid with                             Visa ••4421
+  | Reminders  7 days before, 3 days before, same day
+  | Notice                                    30 days
+  | Account                                      none
+  [✏️ Name](a|ef|sub_X|name) [💶 Price](a|ef|sub_X|price)
+  [🏷 Category](a|ec|sub_X) [💳 Payment method](a|em|sub_X)
+  [🔔 Reminders](a|er|sub_X) [⏰ Notice period](a|ef|sub_X|notice)
+  [🔗 Cancel link](a|ef|sub_X|link) [🔑 Account](a|ef|sub_X|account)
+  [🗑 Delete](a|del|sub_X)
+  [‹ Netflix](a|sub|sub_X) [🏠 Home](a|home)
+
+# The bank took more than expected
+❓ Was Netflix charged?
+  💶 €13.99 · Thu, 12 Nov 2026
+  💳 Visa ••4421
+  🏷 Streaming
+  ⏰ Cancel by Tue, 13 Oct 2026
+  [✅ Paid](paid|chg_X) [⏳ Not yet](notyet|chg_X) [❌ Failed](failed|chg_X)
+  [📅 New date](date|chg_X|2026-11) [⏭ Skip](skip|chg_X)
+  [💶 Paid, another amount](pa|chg_X)
+
+> press Paid, another amount
+(toast: Type the amount)
+NEW MESSAGE
+💶 How much did Netflix take?
+  Expected €13.99. Type the amount, e.g. 13.99, or with another currency: 11.20 EUR.
+
+> type 15.99
+NEW MESSAGE
+✅ Netflix paid
+  💶 €13.99 · Thu, 12 Nov 2026
+  💳 Visa ••4421
+  🏷 Streaming
+  🏦 charged €15.99
+  ## New price?
+  It took €15.99 instead of €13.99 (+14.3%, +€24.00 a year).
+  [Yes, from now on](np|chg_X|15.99) [Just this time](back|chg_X)
+  [↩︎ Reopen](reopen|chg_X)
+  [↩︎ Undo](undo|chg_X|aud_X)
+
+> press Yes, from now on
+(toast: Price updated 💶)
+✅ Netflix paid
+  💶 €13.99 · Thu, 12 Nov 2026
+  💳 Visa ••4421
+  🏷 Streaming
+  🏦 charged €15.99
+  [↩︎ Reopen](reopen|chg_X)
+  — New price saved for the next charges.
+
+# The check-up and settings
+
+> type /checkup
+NEW MESSAGE
+🩺 Check-up
+  ## Last days to cancel
+  Netflix: cancel by Thu 12 Nov
+  ## Prices that went up
+  Netflix: €13.99 → €15.99 (+14.3%, +€24.00 a year)
+  [⏰ Netflix](a|chg|chg_X)
+  [🏠 Home](a|home)
+
+> type /settings
+NEW MESSAGE
+⚙️ Settings
+  They apply to everyone you share Exhale with.
+  | Reminders at          09:00
+  | Time zone     Europe/Madrid
+  | Totals in               EUR
+  | Payday              not set
+  | Language            English
+  [🕘 Reminder time](a|sf|time) [💰 Payday](a|sf|payday)
+  [💱 Currency](a|sf|currency) [🌐 Español](a|sl|es)
+  [💳 Payment methods](a|pms)
+  [🏠 Home](a|home)
+
+> press Payday
+(toast: Type your answer)
+NEW MESSAGE
+⚙️ Settings
+  Which day of the month do you get paid? Type a number from 1 to 31, or 0 for none.
+
+> type 28
+NEW MESSAGE
+⚙️ Settings
+  They apply to everyone you share Exhale with.
+  | Reminders at          09:00
+  | Time zone     Europe/Madrid
+  | Totals in               EUR
+  | Payday               day 28
+  | Language            English
+  [🕘 Reminder time](a|sf|time) [💰 Payday](a|sf|payday)
+  [💱 Currency](a|sf|currency) [🌐 Español](a|sl|es)
+  [💳 Payment methods](a|pms)
+  [🏠 Home](a|home)
+
+# Delete, and take it back
+
+> type /subs
+NEW MESSAGE
+📋 Subscriptions (1)
+  Tap one to open it.
+  [Netflix · €15.99/mo](a|sub|sub_X)
+  [🏠 Home](a|home)
+
+> press Netflix
+Netflix
+  💶 €15.99 · monthly
+  📅 Next charge Sat, 12 Dec 2026
+  ⏰ Cancel by Thu, 12 Nov 2026
+  💳 Visa ••4421
+  🏷 Streaming
+  👤 Alex
+  ## Last charge
+  Thu 12 Nov · €13.99 · paid
+  [🔔 Next charge · Sat 12 Dec](a|chg|chg_X)
+  [⏸ Pause](a|st|sub_X|pause) [❌ Cancel](a|cx|sub_X)
+  [🔗 Manage or cancel page](https://netflix.com/cancelplan)
+  [✏️ Edit](a|ed|sub_X)
+  [‹ Subscriptions](a|subs|0) [🏠 Home](a|home)
+
+> press Edit
+✏️ Netflix
+  | Price                              €15.99 monthly
+  | Category                                Streaming
+  | Paid with                             Visa ••4421
+  | Reminders  7 days before, 3 days before, same day
+  | Notice                                    30 days
+  | Account                                      none
+  [✏️ Name](a|ef|sub_X|name) [💶 Price](a|ef|sub_X|price)
+  [🏷 Category](a|ec|sub_X) [💳 Payment method](a|em|sub_X)
+  [🔔 Reminders](a|er|sub_X) [⏰ Notice period](a|ef|sub_X|notice)
+  [🔗 Cancel link](a|ef|sub_X|link) [🔑 Account](a|ef|sub_X|account)
+  [🗑 Delete](a|del|sub_X)
+  [‹ Netflix](a|sub|sub_X) [🏠 Home](a|home)
+
+> press Delete
+🗑 Delete Netflix?
+  It disappears with its whole history. To stop paying but keep the history, cancel it instead.
+  [🗑 Delete](a|delok|sub_X) [↩︎ Keep it](a|sub|sub_X)
+
+> press Delete
+(toast: Deleted)
+🗑 Deleted
+  [↩︎ Undo](a|u|aud_X)
+  [🏠 Home](a|home)
+
+> press Undo
+(toast: Undone ↩︎)
+Netflix
+  💶 €15.99 · monthly
+  📅 Next charge Sat, 12 Dec 2026
+  ⏰ Cancel by Thu, 12 Nov 2026
+  💳 Visa ••4421
+  🏷 Streaming
+  👤 Alex
+  ## Last charge
+  Thu 12 Nov · €13.99 · paid
+  [🔔 Next charge · Sat 12 Dec](a|chg|chg_X)
+  [⏸ Pause](a|st|sub_X|pause) [❌ Cancel](a|cx|sub_X)
+  [🔗 Manage or cancel page](https://netflix.com/cancelplan)
+  [✏️ Edit](a|ed|sub_X)
+  [‹ Subscriptions](a|subs|0) [🏠 Home](a|home)

@@ -202,8 +202,8 @@ var symbols = map[string]string{"€": "EUR", "$": "USD", "£": "GBP", "¥": "JP
 
 var priceRe = regexp.MustCompile(`^\s*([^\d\s.,-]*)\s*(-?[\d.,]+)\s*([^\d\s.,-]*)\s*$`)
 
-// splitPrice separates "€12.99", "12,99 EUR" or "$5" into amount and currency.
-func splitPrice(s, fallback string) (amount, currency string) {
+// SplitPrice separates "€12.99", "12,99 EUR" or "$5" into amount and currency.
+func SplitPrice(s, fallback string) (amount, currency string) {
 	m := priceRe.FindStringSubmatch(s)
 	if m == nil {
 		return strings.TrimSpace(s), fallback
@@ -279,7 +279,7 @@ func fromJSON(data []byte, defaultCurrency string) (Result, error) {
 		}
 		it := app.ImportItem{Name: html.UnescapeString(str("Name")), Notes: html.UnescapeString(str("Notes")), URL: str("URL"),
 			Category: first(str("Category")), PaymentMethod: str("Payment Method"), NextCharge: dateOnly(str("Next Payment"))}
-		it.Price, it.Currency = splitPrice(str("Price"), defaultCurrency)
+		it.Price, it.Currency = SplitPrice(str("Price"), defaultCurrency)
 		var ok bool
 		if it.Interval, it.Unit, ok = cadence(str("Payment Cycle")); !ok {
 			it.Remark = "payment cycle “" + str("Payment Cycle") + "” not understood: set to monthly"
@@ -416,9 +416,9 @@ func fromCSV(data []byte, defaultCurrency string) (Result, error) {
 			continue
 		}
 		it := app.ImportItem{Name: get("name"), Category: get("category"), PaymentMethod: get("method"), Payer: get("payer"), Notes: get("notes"),
-			URL: get("url"), CancelURL: get("cancelurl"), Account: get("account"), NextCharge: anyDate(get("next")), StartedOn: anyDate(get("start")),
-			EndDate: anyDate(get("end")), TrialEndsOn: anyDate(get("trial"))}
-		it.Price, it.Currency = splitPrice(get("price"), defaultCurrency)
+			URL: get("url"), CancelURL: get("cancelurl"), Account: get("account"), NextCharge: AnyDate(get("next")), StartedOn: AnyDate(get("start")),
+			EndDate: AnyDate(get("end")), TrialEndsOn: AnyDate(get("trial"))}
+		it.Price, it.Currency = SplitPrice(get("price"), defaultCurrency)
 		if c := get("currency"); c != "" {
 			it.Currency = strings.ToUpper(c)
 			if code := symbols[c]; code != "" {
@@ -454,9 +454,9 @@ func fromCSV(data []byte, defaultCurrency string) (Result, error) {
 	return out, nil
 }
 
-// anyDate reads the date formats spreadsheets produce; ambiguous numeric
+// AnyDate reads the date formats spreadsheets produce; ambiguous numeric
 // dates are read day first (31/12/2026), the more common order worldwide.
-func anyDate(s string) string {
+func AnyDate(s string) string {
 	s = strings.TrimSpace(s)
 	if s == "" {
 		return ""

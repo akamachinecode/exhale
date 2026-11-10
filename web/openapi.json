@@ -777,6 +777,9 @@
           "cancelBy": {
             "type": "string"
           },
+          "cancelPassed": {
+            "type": "boolean"
+          },
           "chargedAmount": {
             "$ref": "#/components/schemas/Money"
           },
@@ -840,6 +843,7 @@
           "delayed",
           "daysUntil",
           "kind",
+          "cancelPassed",
           "id",
           "subscriptionId",
           "originalDate",

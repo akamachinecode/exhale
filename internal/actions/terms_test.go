@@ -18,7 +18,7 @@ import (
 	"github.com/akamachinecode/exhale/internal/testutil"
 )
 
-var termID = regexp.MustCompile(`(chg|sub|aud|pm)_[0-9a-z]{16}`)
+var termID = regexp.MustCompile(`(chg|sub|aud|pm|cat)_[0-9a-z]{16}`)
 
 // TestTermsConversation covers the dates that are not a plain renewal: a
 // free trial about to charge, the last day to cancel a contract with a

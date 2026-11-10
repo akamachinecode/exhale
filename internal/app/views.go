@@ -32,8 +32,9 @@ type ChargeView struct {
 	Delayed          bool   `json:"delayed" jsonschema:"true when the charge was moved from its scheduled date"`
 	DaysUntil        int    `json:"daysUntil" jsonschema:"days from today to the due date (negative if overdue)"`
 	// Kind tells what this date means to the member.
-	Kind     string      `json:"kind" jsonschema:"renewal (a normal charge), trial (the first charge after a free trial) or expiry (manual renewal: it expires on this date unless renewed)" enum:"renewal,trial,expiry"`
-	CancelBy engine.Date `json:"cancelBy,omitzero" jsonschema:"last day to cancel before this charge, when the subscription has a notice period"`
+	Kind         string      `json:"kind" jsonschema:"renewal (a normal charge), trial (the first charge after a free trial) or expiry (manual renewal: it expires on this date unless renewed)" enum:"renewal,trial,expiry"`
+	CancelBy     engine.Date `json:"cancelBy,omitzero" jsonschema:"last day to cancel before this charge, when the subscription has a notice period"`
+	CancelPassed bool        `json:"cancelPassed" jsonschema:"the last day to cancel before this charge has passed: it will renew"`
 }
 
 // Charge kinds.

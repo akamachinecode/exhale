@@ -57,6 +57,12 @@ func CommandRoute(cmd string) (r string, ok bool) {
 		return route(scrNext), true
 	case "summary", "stats":
 		return route(scrSummary), true
+	case "methods", "cards":
+		return route(scrMethods), true
+	case "checkup", "audit":
+		return route(scrCheckup), true
+	case "settings":
+		return route(scrSettings), true
 	}
 	return "", false
 }
@@ -67,6 +73,10 @@ var Commands = []struct{ Command, Description string }{
 	{"subs", "Your subscriptions"},
 	{"upcoming", "Charges in the next 30 days"},
 	{"summary", "Spend per month, category and payment method"},
+	{"add", "Add a subscription, step by step"},
+	{"checkup", "What deserves a look: trials, deadlines, price rises"},
+	{"methods", "Cards and accounts that pay"},
+	{"settings", "Reminder time, payday, currency, language"},
 }
 
 // OpenApp renders the screen at route for a new app message. After sending
@@ -114,7 +124,7 @@ func liveRoute(r string) string {
 		return ""
 	}
 	switch p[1] {
-	case scrHome, scrSubs, scrSub, scrNext, scrSummary, scrAttn, scrCharge:
+	case scrHome, scrSubs, scrSub, scrNext, scrSummary, scrAttn, scrCharge, scrMethods, scrMethod, scrSettings, scrCheckup:
 		return r
 	}
 	return ""
@@ -139,6 +149,15 @@ func (e *Engine) setRoute(ctx context.Context, chat ChatRef, r string) {
 
 // handleApp runs an app button: navigation or a subscription action.
 func (e *Engine) handleApp(ctx context.Context, actor app.Actor, chat ChatRef, raw string) (Reply, error) {
+	if rep, live, ok, err := e.manage(ctx, actor, chat, strings.Split(raw, "|")); ok {
+		if err != nil {
+			return e.fail(err)
+		}
+		if rep.Edit != nil {
+			e.setRoute(ctx, chat, live)
+		}
+		return rep, nil
+	}
 	m, toast, err := e.screen(ctx, actor, raw)
 	if err != nil {
 		return e.fail(err)
@@ -152,7 +171,7 @@ func (e *Engine) handleApp(ctx context.Context, actor app.Actor, chat ChatRef, r
 }
 
 // settled charge verbs end on the charge's main screen, which can stay live.
-var settled = map[string]bool{vKeep: true, vPaid: true, vFailed: true, vSkip: true, vReopen: true, vBack: true, vDateScope: true, vMethodSet: true, vUndo: true, vNotYet: true}
+var settled = map[string]bool{vNewPrice: true, vUse: true, vKeep: true, vPaid: true, vFailed: true, vSkip: true, vReopen: true, vBack: true, vDateScope: true, vMethodSet: true, vUndo: true, vNotYet: true}
 
 // inApp adapts the reply of a charge button pressed inside an app message:
 // settled screens become the app's charge screen (with navigation), and
@@ -224,6 +243,18 @@ func (e *Engine) screen(ctx context.Context, actor app.Actor, r string) (Message
 		return m, "", err
 	case scrAttn:
 		m, err := e.attentionScreen(ctx, actor, locale)
+		return m, "", err
+	case scrMethods:
+		m, err := e.methodsScreen(ctx, actor)
+		return m, "", err
+	case scrMethod:
+		m, err := e.methodScreen(ctx, actor, arg(2), today)
+		return m, "", err
+	case scrSettings:
+		m, err := e.settingsScreen(ctx, actor)
+		return m, "", err
+	case scrCheckup:
+		m, err := e.checkupScreen(ctx, actor, locale)
 		return m, "", err
 	case scrCharge:
 		res, err := e.chargeResult(ctx, actor, arg(2))
@@ -315,9 +346,16 @@ func (e *Engine) homeScreen(ctx context.Context, actor app.Actor, today engine.D
 	if n := len(attn.Unconfirmed); n > 0 {
 		m.Rows = append([][]Button{{{Label: fmt.Sprintf("⚠️ %d %s to confirm", n, plural(n, "charge", "charges")), Data: route(scrAttn)}}}, m.Rows...)
 	}
+	if n := len(attn.Deadlines); n > 0 {
+		m.Rows = append([][]Button{{{Label: fmt.Sprintf("⏰ %d %s close", n, plural(n, "deadline", "deadlines")), Data: route(scrCheckup)}}}, m.Rows...)
+	}
+	if p := sum.BeforePayday; p != nil && len(p.Charges) > 0 {
+		m.Lines = append(m.Lines, fmt.Sprintf("💰 %s due before payday (%s)", p.Due.Format(locale), shortDate(p.Payday)))
+	}
 	m.Rows = append(m.Rows,
 		[]Button{{Label: "📋 Subscriptions", Data: route(scrSubs, "0")}, {Label: "📅 Upcoming", Data: route(scrNext)}},
-		[]Button{{Label: "📊 Summary", Data: route(scrSummary)}, {Label: "🔄 Refresh", Data: RouteHome}},
+		[]Button{{Label: "➕ Add", Data: route(actAdd)}, {Label: "🩺 Check-up", Data: route(scrCheckup)}},
+		[]Button{{Label: "📊 Summary", Data: route(scrSummary)}, {Label: "⚙️ Settings", Data: route(scrSettings)}},
 	)
 	return m, nil
 }
@@ -348,7 +386,8 @@ func (e *Engine) subsScreen(ctx context.Context, actor app.Actor, page int, loca
 	page = min(max(page, 0), pages-1)
 	m := Message{Title: fmt.Sprintf("📋 Subscriptions (%d)", len(subs))}
 	if len(subs) == 0 {
-		m.Lines = []string{"No subscriptions yet. Add your first one in the web app."}
+		m.Lines = []string{"No subscriptions yet. Add your first one."}
+		m.Rows = append(m.Rows, []Button{{Label: "➕ Add a subscription", Data: route(actAdd)}})
 	} else {
 		m.Lines = []string{"Tap one to open it."}
 	}
@@ -443,6 +482,7 @@ func (e *Engine) subScreen(ctx context.Context, actor app.Actor, id, locale stri
 		link[0].Label = "🔗 Manage or cancel page"
 		m.Rows = append(m.Rows, link)
 	}
+	m.Rows = append(m.Rows, []Button{{Label: "✏️ Edit", Data: route(scrEdit, s.ID)}})
 	m.Rows = append(m.Rows, []Button{{Label: "‹ Subscriptions", Data: route(scrSubs, "0")}, {Label: "🏠 Home", Data: RouteHome}})
 	return m, nil
 }
@@ -485,6 +525,9 @@ func (e *Engine) summaryScreen(ctx context.Context, actor app.Actor, locale stri
 	}
 	if sum.Converted && sum.RatesDate != "" {
 		m.Lines = append(m.Lines, "Converted to "+sum.MainCurrency+" at ECB rates of "+sum.RatesDate)
+	}
+	if sum.SetAside.Minor > 0 {
+		m.Lines = append(m.Lines, fmt.Sprintf("🐖 Put away %s a month for the yearly ones", sum.SetAside.Format(locale)))
 	}
 	if len(sum.ByCategory) > 0 {
 		s := Section{Heading: "Per month by category"}
