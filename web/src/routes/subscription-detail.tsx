@@ -21,7 +21,7 @@ import {
 } from "@/gen/api";
 import { ApiError } from "@/lib/fetcher";
 import { t, tn } from "@/lib/i18n";
-import { cadenceText, date, money } from "@/lib/utils";
+import { billingDayText, cadenceText, date, money, weekendText } from "@/lib/utils";
 
 export function SubscriptionDetail() {
 	const { id } = useParams({ from: "/subscriptions/$id" });
@@ -55,6 +55,7 @@ export function SubscriptionDetail() {
 	const names = new Map((household.data?.members ?? []).map((m) => [m.id, m.name]));
 	const shares = s.shares ?? [];
 	const totalWeight = shares.reduce((a, x) => a + x.weight, 0);
+	const rule = s.schedule.versions?.at(-1)?.rule;
 
 	return (
 		<>
@@ -194,6 +195,12 @@ export function SubscriptionDetail() {
 										)
 										.join(" · ")}
 								/>
+							)}
+							{rule?.dayRule && rule.dayRule !== "day" && (
+								<Detail label={t("Charged on")} value={billingDayText(rule.dayRule, rule.anchor)} />
+							)}
+							{rule?.weekendShift && rule.weekendShift !== "none" && (
+								<Detail label={t("On weekends")} value={weekendText(rule.weekendShift)} />
 							)}
 							{s.account && <Detail label={t("Account")} value={s.account} />}
 							{s.startedOn && <Detail label={t("Subscribed since")} value={date(s.startedOn, "long")} />}

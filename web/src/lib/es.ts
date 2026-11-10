@@ -801,4 +801,18 @@ export const es: Record<string, string> = {
 	Price: "Precio",
 	"Per month": "Al mes",
 	shown: "mostradas",
+	// Billing rules: weekday of the month and weekend shift.
+	"The first {0}": "El primer {0}",
+	"The second {0}": "El segundo {0}",
+	"The third {0}": "El tercer {0}",
+	"The fourth {0}": "El cuarto {0}",
+	"The last {0}": "El último {0}",
+	"Moved to the next business day": "Pasa al siguiente día hábil",
+	"Moved to the previous business day": "Pasa al día hábil anterior",
+	"Kept on the weekend": "Se mantiene en fin de semana",
+	"Charged on": "Se cobra",
+	"On weekends": "En fin de semana",
+	"Keep the date": "Mantener la fecha",
+	"Next business day": "Siguiente día hábil",
+	"Previous business day": "Día hábil anterior",
 };

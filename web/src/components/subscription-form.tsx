@@ -17,7 +17,17 @@ import {
 } from "@/gen/api";
 import { ApiError } from "@/lib/fetcher";
 import { t } from "@/lib/i18n";
-import { cn, date, decimal, todayISO, unitLabel } from "@/lib/utils";
+import {
+	billingDayText,
+	cn,
+	type DayRule,
+	date,
+	dayFacts,
+	decimal,
+	todayISO,
+	unitLabel,
+	type WeekendShift,
+} from "@/lib/utils";
 
 const units = [{ value: "month" }, { value: "year" }, { value: "week" }, { value: "day" }] as const;
 type Unit = (typeof units)[number]["value"];
@@ -35,6 +45,8 @@ type Values = {
 	interval: number;
 	unit: Unit;
 	nextCharge: string;
+	dayRule: DayRule;
+	weekendShift: WeekendShift;
 	categoryId: string;
 	paymentMethodId: string;
 	trial: boolean;
@@ -62,7 +74,10 @@ function initial(s: SubscriptionView | undefined, currency: string): Values {
 		currency: s?.price.currency ?? currency,
 		interval: rule?.interval ?? 1,
 		unit: (rule?.unit as Unit) ?? "month",
-		nextCharge: s?.nextCharge ?? (s ? "" : todayISO()),
+		// The date before a weekend shift: the billing day itself.
+		nextCharge: s?.nextScheduled ?? s?.nextCharge ?? (s ? "" : todayISO()),
+		dayRule: (rule?.dayRule as DayRule) || "day",
+		weekendShift: (rule?.weekendShift as WeekendShift) || "none",
 		categoryId: s?.categoryId ?? "",
 		paymentMethodId: s?.paymentMethodId ?? "",
 		trial: Boolean(s?.trialEndsOn),
@@ -118,17 +133,40 @@ export function SubscriptionDialog({
 		}
 	}, [open, subscription?.id, mainCurrency]);
 
+	// Which billing days the chosen date offers ("day 18", "the third
+	// Wednesday", "the last Wednesday"); a choice the date no longer offers
+	// falls back to the day number.
+	const monthly = v.unit === "month" || v.unit === "year";
+	const facts = v.nextCharge ? dayFacts(v.nextCharge) : undefined;
+	const dayRules: DayRule[] = ["day"];
+	if (monthly && facts?.week) dayRules.push("weekday");
+	if (monthly && facts?.last) dayRules.push("last-weekday");
+	const dayRule: DayRule = dayRules.includes(v.dayRule) ? v.dayRule : "day";
+	// A shift moves a charge by up to two days: closer charges could collide.
+	const shiftable = v.unit !== "day" || v.interval >= 3;
+	const weekendShift: WeekendShift = shiftable ? v.weekendShift : "none";
+
 	const preview = usePreviewSchedule();
 	const { mutate } = preview;
 	// The web never computes charge dates: the engine previews them (ADR 0013).
 	useEffect(() => {
 		if (!open || !v.nextCharge) return;
 		const t = setTimeout(
-			() => mutate({ data: { interval: v.interval, unit: v.unit, firstCharge: v.nextCharge, count: 4 } }),
+			() =>
+				mutate({
+					data: {
+						interval: v.interval,
+						unit: v.unit,
+						firstCharge: v.nextCharge,
+						dayRule,
+						weekendShift,
+						count: 4,
+					},
+				}),
 			250,
 		);
 		return () => clearTimeout(t);
-	}, [open, v.interval, v.unit, v.nextCharge, mutate]);
+	}, [open, v.interval, v.unit, v.nextCharge, dayRule, weekendShift, mutate]);
 
 	const members = household.data?.members ?? [];
 	const shares = Object.entries(v.shares)
@@ -152,6 +190,8 @@ export function SubscriptionDialog({
 					interval: v.interval,
 					unit: v.unit,
 					firstCharge: v.nextCharge,
+					dayRule: dayRule === "day" ? undefined : dayRule,
+					weekendShift: weekendShift === "none" ? undefined : weekendShift,
 					categoryId: v.categoryId || undefined,
 					paymentMethodId: v.paymentMethodId || undefined,
 					payerId: v.payerId || undefined,
@@ -186,6 +226,8 @@ export function SubscriptionDialog({
 			if (v.interval !== base.interval) data.interval = v.interval;
 			if (v.unit !== base.unit) data.unit = v.unit;
 			if (v.nextCharge && v.nextCharge !== base.nextCharge) data.nextCharge = v.nextCharge;
+			if (dayRule !== base.dayRule) data.dayRule = dayRule;
+			if (weekendShift !== base.weekendShift) data.weekendShift = weekendShift;
 			if (v.categoryId !== base.categoryId) data.categoryId = v.categoryId;
 			if (v.paymentMethodId !== base.paymentMethodId) data.paymentMethodId = v.paymentMethodId;
 			if (v.payerId !== base.payerId) data.payerId = v.payerId;
@@ -273,6 +315,31 @@ export function SubscriptionDialog({
 					<Field label={dateLabel}>
 						<Input type="date" value={v.nextCharge} onChange={(e) => set("nextCharge", e.target.value)} />
 					</Field>
+				</div>
+				<div className="grid gap-3 sm:grid-cols-2">
+					{monthly && v.nextCharge && (
+						<Field label={t("Charged on")}>
+							<Select value={dayRule} onChange={(e) => set("dayRule", e.target.value as DayRule)}>
+								{dayRules.map((r) => (
+									<option key={r} value={r}>
+										{billingDayText(r, v.nextCharge)}
+									</option>
+								))}
+							</Select>
+						</Field>
+					)}
+					{shiftable && (
+						<Field label={t("On weekends")}>
+							<Select
+								value={weekendShift}
+								onChange={(e) => set("weekendShift", e.target.value as WeekendShift)}
+							>
+								<option value="none">{t("Keep the date")}</option>
+								<option value="next">{t("Next business day")}</option>
+								<option value="previous">{t("Previous business day")}</option>
+							</Select>
+						</Field>
+					)}
 				</div>
 				{v.nextCharge && (
 					<div className="rounded-lg border border-dashed border-line bg-raised/60 px-3 py-2.5 text-xs text-muted">

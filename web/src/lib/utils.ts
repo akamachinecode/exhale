@@ -95,6 +95,45 @@ export function cadenceText(cadence: string) {
 	return m ? every(Number(m[1]), m[2]) : (cadences[cadence] ?? cadence);
 }
 
+// --- billing rules: weekday of the month, weekend shift ---------------------
+
+export type DayRule = "day" | "weekday" | "last-weekday";
+export type WeekendShift = "none" | "next" | "previous";
+
+/**
+ * What a civil date offers as a billing day: its day number, its week of the
+ * month (1–4; 0 for a fifth weekday) and whether it is the last such weekday.
+ * This only describes the date; the engine computes the charges.
+ */
+export function dayFacts(d: string) {
+	const [y, mo, da] = d.split("-").map(Number);
+	const daysInMonth = new Date(Date.UTC(y, mo, 0)).getUTCDate();
+	const weekday = new Intl.DateTimeFormat(locale, { weekday: "long", timeZone: "UTC" }).format(
+		new Date(Date.UTC(y, mo - 1, da, 12)),
+	);
+	return { day: da, week: da <= 28 ? Math.ceil(da / 7) : 0, last: da + 7 > daysInMonth, weekday };
+}
+
+/** "Day 15", "The third Wednesday", "The last Friday", for a rule anchored on d. */
+export function billingDayText(rule: string | undefined, d: string) {
+	const f = dayFacts(d);
+	if (rule === "last-weekday") return t("The last {0}", f.weekday);
+	if (rule === "weekday") {
+		if (f.week === 1) return t("The first {0}", f.weekday);
+		if (f.week === 2) return t("The second {0}", f.weekday);
+		if (f.week === 3) return t("The third {0}", f.weekday);
+		if (f.week === 4) return t("The fourth {0}", f.weekday);
+	}
+	return t("Day {0}", f.day);
+}
+
+/** What happens to a charge that falls on a weekend. */
+export function weekendText(shift: string | undefined) {
+	if (shift === "next") return t("Moved to the next business day");
+	if (shift === "previous") return t("Moved to the previous business day");
+	return t("Kept on the weekend");
+}
+
 export function todayISO() {
 	const d = new Date();
 	return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
