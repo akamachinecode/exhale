@@ -20,7 +20,7 @@ It is one program with one data folder. No cloud, no account with us, no telemet
 - **Money done properly.** Any currency, exact amounts, totals converted with ECB reference rates, how much to put away each month for yearly bills, and what is due before payday.
 - **For AI agents.** Every operation is a tool over MCP, with a live briefing, previews before any change, confirmation for destructive ones and undo for everything. Claude, ChatGPT or a local model can read and manage your subscriptions safely.
 - **Tools for many subscriptions.** Search by name, notes, account, category or tag; free tags; duplicate a subscription; change many at once (category, payment method, tags, pause, cancel, delete) with a preview and one undo; and, when you record a plan's other price (say, yearly), what switching saves. See [the guide](docs/guides/many-subscriptions.md).
-- **Your data goes in and out.** Import a Wallos database, a CSV or an Exhale export through a review list; export everything as JSON, CSV or a ZIP with your attached documents; subscribe to a private calendar feed.
+- **Your data goes in and out.** Import a Wallos database, a CSV or an Exhale export through a review list; import your bank's statement (CSV or PDF, in the web or sent to the bot) to find subscriptions and confirm the charges you expected; export everything as JSON, CSV or a ZIP with your attached documents; subscribe to a private calendar feed.
 - **Easy to run.** A single binary, a container image, `.deb`/`.rpm` packages with a hardened systemd service, automatic daily backups, sign-in with a password or your identity provider (OpenID Connect). English and Spanish in chat.
 
 ## Quick start

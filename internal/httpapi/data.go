@@ -81,6 +81,12 @@ func parseImport(asst *assistant.Assistant) http.HandlerFunc {
 	}
 }
 
+// ImportReviewOut is the import waiting from a chat, if any.
+type ImportReviewOut struct {
+	Waiting bool              `json:"waiting"`
+	Review  *assistant.Review `json:"review,omitempty"`
+}
+
 // --- export: CSV downloads -------------------------------------------------------
 
 func exportCSV(svc *app.Service, kind string) http.HandlerFunc {
@@ -196,6 +202,33 @@ func registerData(api huma.API, mux *http.ServeMux, svc *app.Service, asst *assi
 	op := func(id, method, summary string) huma.Operation {
 		return huma.Operation{OperationID: id, Method: method, Path: "/api/v1/calendar/feed", Summary: summary, Tags: []string{"Data"}}
 	}
+	// A file sent to a chat waits here when its list is too long to tick
+	// there (ADR 0022): the web shows it in Settings → Data → Import.
+	reviewOp := func(id, method, summary string) huma.Operation {
+		return huma.Operation{OperationID: id, Method: method, Path: "/api/v1/import/review", Summary: summary, Tags: []string{"Data"}}
+	}
+	huma.Register(api, reviewOp("import_review", http.MethodGet, "The import waiting from a chat"), func(ctx context.Context, _ *struct{}) (*resp[ImportReviewOut], error) {
+		a, ok := actorFrom(ctx)
+		if !ok || a.Kind != app.ActorMember {
+			return &resp[ImportReviewOut]{Body: ImportReviewOut{}}, nil
+		}
+		rev, err := asst.LoadReview(ctx, a)
+		if err != nil {
+			return &resp[ImportReviewOut]{Body: ImportReviewOut{}}, nil
+		}
+		return &resp[ImportReviewOut]{Body: ImportReviewOut{Waiting: true, Review: &rev}}, nil
+	})
+	huma.Register(api, reviewOp("import_review_drop", http.MethodDelete, "Forget the import waiting from a chat"), func(ctx context.Context, _ *struct{}) (*resp[ImportReviewOut], error) {
+		a, ok := actorFrom(ctx)
+		if !ok || a.Kind != app.ActorMember {
+			return nil, huma.Error403Forbidden("sign in to manage your import")
+		}
+		if err := asst.DropReview(ctx, a); err != nil {
+			return nil, huma.Error500InternalServerError("could not forget the import", err)
+		}
+		return &resp[ImportReviewOut]{Body: ImportReviewOut{}}, nil
+	})
+
 	huma.Register(api, op("calendar_feed", http.MethodGet, "Calendar link status"), func(ctx context.Context, _ *struct{}) (*resp[FeedStatus], error) {
 		a, err := member(ctx)
 		if err != nil {

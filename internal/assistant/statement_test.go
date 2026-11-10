@@ -120,10 +120,24 @@ func TestImportLimits(t *testing.T) {
 
 	off := newWorld(t)
 	off.a.SetProvider(nil) // not configured
-	for name, data := range map[string][]byte{"pdf": pdf, "picture": []byte("\xff\xd8\xff\xe0jpeg"), "text": []byte("Netflix renews on the 6th")} {
+	for name, data := range map[string][]byte{"picture": []byte("\xff\xd8\xff\xe0jpeg"), "text": []byte("Netflix renews on the 6th")} {
 		if _, err := off.a.ReadImport(off.ctx, off.owner, data); !errors.Is(err, ErrNeedsAssistant) {
 			t.Errorf("%s with the assistant off: %v", name, err)
 		}
+	}
+	// A PDF is opened by Exhale: a damaged one, a scan and one without
+	// transactions each say what to do instead.
+	scan, _ := os.ReadFile("../importer/testdata/scan.pdf")
+	for name, c := range map[string]struct {
+		data []byte
+		want error
+	}{"damaged pdf": {pdf, ErrPDFUnreadable}, "scan": {scan, ErrScanNeedsAssistant}} {
+		if _, err := off.a.ReadImport(off.ctx, off.owner, c.data); !errors.Is(err, c.want) {
+			t.Errorf("%s with the assistant off: %v", name, err)
+		}
+	}
+	if off.fake.Calls() != 0 {
+		t.Fatal("the assistant is off: nothing may reach a model")
 	}
 	// Files Exhale reads by itself work as before.
 	res, err := off.a.ReadImport(off.ctx, off.owner, []byte("Service,Price,Cycle,Next payment\nNetflix,13.99 EUR,Monthly,2026-11-12\n"))

@@ -8,6 +8,7 @@ import (
 
 	"github.com/akamachinecode/exhale/internal/app"
 	"github.com/akamachinecode/exhale/internal/engine"
+	"github.com/akamachinecode/exhale/internal/merchant"
 )
 
 var today = engine.MustDate(2026, time.November, 10)
@@ -143,8 +144,8 @@ func TestParseAmountAndMerchant(t *testing.T) {
 		"NETFLIX.COM 866-579-7172 CA": "netflix", "Netflix.com Amsterdam": "netflix amsterdam", "SPOTIFY P1A2B3C4D5": "spotify",
 		"GOOGLE *YouTubePremium": "google youtubepremium", "CARD PAYMENT TO ADOBE CREATIVE CLOUD": "adobe creative", "PAYPAL *DROPBOX 4029357733": "dropbox",
 	} {
-		if got := merchantKey(in); got != want {
-			t.Errorf("merchantKey(%q) = %q, want %q", in, got, want)
+		if got := merchant.Key(in); got != want {
+			t.Errorf("merchant.Key(%q) = %q, want %q", in, got, want)
 		}
 	}
 }

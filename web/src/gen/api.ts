@@ -796,11 +796,34 @@ export interface ChargeList {
   to: string;
 }
 
+export type ChargeMatchAction = typeof ChargeMatchAction[keyof typeof ChargeMatchAction];
+
+
+export const ChargeMatchAction = {
+  mark_paid: 'mark_paid',
+  already_paid: 'already_paid',
+} as const;
+
 export interface PriceChangeHint {
   changePercent: string;
   charged: Money;
   expected: Money;
   yearlyDelta: Money;
+}
+
+export interface StatementLine {
+  amount: string;
+  currency?: string;
+  date: string;
+  description: string;
+}
+
+export interface ChargeMatch {
+  action: ChargeMatchAction;
+  charge: ChargeView;
+  paid: Money;
+  priceChange?: PriceChangeHint;
+  transaction: StatementLine;
 }
 
 export interface PriceChange {
@@ -1483,6 +1506,49 @@ export interface ImportResult {
   newPaymentMethods: string[] | null;
 }
 
+export interface StatementMatch {
+  /** A URL to the JSON Schema for this object. */
+  readonly $schema?: string;
+  from: string;
+  /** @nullable */
+  matches: ChargeMatch[] | null;
+  /** @nullable */
+  missing: ChargeView[] | null;
+  to: string;
+  unmatched: number;
+}
+
+export interface Result {
+  /** @nullable */
+  items: ImportItem[] | null;
+  match?: StatementMatch;
+  model?: string;
+  /** @nullable */
+  notes: string[] | null;
+  source: string;
+}
+
+export type ReviewOff = {[key: string]: boolean};
+
+export interface Review {
+  /** the chat it came from, e.g. telegram */
+  channel: string;
+  createdAt: string;
+  /** changes when another file replaces the review */
+  id: string;
+  off?: ReviewOff;
+  /** @nullable */
+  outcomes: ImportOutcome[] | null;
+  result: Result;
+}
+
+export interface ImportReviewOut {
+  /** A URL to the JSON Schema for this object. */
+  readonly $schema?: string;
+  review?: Review;
+  waiting: boolean;
+}
+
 export type InviteInRole = typeof InviteInRole[keyof typeof InviteInRole];
 
 
@@ -1579,6 +1645,15 @@ export interface LogoResult {
   auditId?: string;
   logo?: string;
   subscriptionId: string;
+}
+
+export interface MatchStatementInput {
+  /** A URL to the JSON Schema for this object. */
+  readonly $schema?: string;
+  from?: string;
+  to?: string;
+  /** @nullable */
+  transactions: StatementLine[] | null;
 }
 
 export interface MemberDone {
@@ -6622,6 +6697,95 @@ export const useDecideRenewal = <TError = ErrorModel,
       return useMutation(getDecideRenewalMutationOptions(options), queryClient);
     }
 
+export const getMatchStatementUrl = () => {
+
+
+
+
+  return `/api/v1/charges/match`
+}
+
+/**
+ * Compares the payments of a bank or card statement with the charges Exhale expects (merchant, date within a week, amount within 30%). Changes nothing. Returns the charges each payment confirms: for action mark_paid call set_charge_status with status=paid and the amount paid (dryRun first, then show the user); when priceChange is set, ask whether it is the new price. Also lists open charges due in the period that the statement does not show.
+ * @summary Match a statement to expected charges
+ */
+export const matchStatement = async (matchStatementInput: NonReadonly<MatchStatementInput>, options?: Parameters<typeof fetcher>[1]): Promise<StatementMatch> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return fetcher<StatementMatch>(getMatchStatementUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(matchStatementInput)
+  }
+);}
+
+
+
+
+
+export const getMatchStatementMutationKey = () => ['matchStatement'] as const;
+
+export const getMatchStatementMutationOptions = <TError = ErrorModel,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof matchStatement>>, TError,MatchStatementMutationVariables, TContext>, request?: SecondParameter<typeof fetcher>}
+): UseMutationOptions<Awaited<ReturnType<typeof matchStatement>>, TError,MatchStatementMutationVariables, TContext> => {
+
+const mutationKey = getMatchStatementMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof matchStatement>>, MatchStatementMutationVariables> = (props) => {
+          const {data} = props ?? {};
+
+          return  matchStatement(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type MatchStatementMutationResult = NonNullable<Awaited<ReturnType<typeof matchStatement>>>
+    export type MatchStatementMutationBody = NonReadonly<MatchStatementInput>
+    export type MatchStatementMutationError = ErrorModel
+    export type MatchStatementMutationVariables = {data: NonReadonly<MatchStatementInput>}
+
+    /**
+ * @summary Match a statement to expected charges
+ */
+export const useMatchStatement = <TError = ErrorModel,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof matchStatement>>, TError,MatchStatementMutationVariables, TContext>, request?: SecondParameter<typeof fetcher>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof matchStatement>>,
+        TError,
+        MatchStatementMutationVariables,
+        TContext
+      > => {
+      return useMutation(getMatchStatementMutationOptions(options), queryClient);
+    }
+
 export const getChangeChargeDateUrl = () => {
 
 
@@ -7461,6 +7625,181 @@ export const useImportSubscriptions = <TError = ErrorModel,
       > => {
       return useMutation(getImportSubscriptionsMutationOptions(options), queryClient);
     }
+
+export const getImportReviewDropUrl = () => {
+
+
+
+
+  return `/api/v1/import/review`
+}
+
+/**
+ * @summary Forget the import waiting from a chat
+ */
+export const importReviewDrop = async ( options?: Parameters<typeof fetcher>[1]): Promise<ImportReviewOut> => {
+
+  return fetcher<ImportReviewOut>(getImportReviewDropUrl(),
+  {
+    ...options,
+    method: 'DELETE'
+
+
+  }
+);}
+
+
+
+
+
+export const getImportReviewDropMutationKey = () => ['importReviewDrop'] as const;
+
+export const getImportReviewDropMutationOptions = <TError = ErrorModel,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof importReviewDrop>>, TError,void, TContext>, request?: SecondParameter<typeof fetcher>}
+): UseMutationOptions<Awaited<ReturnType<typeof importReviewDrop>>, TError,void, TContext> => {
+
+const mutationKey = getImportReviewDropMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof importReviewDrop>>, void> = () => {
+
+
+          return  importReviewDrop(requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type ImportReviewDropMutationResult = NonNullable<Awaited<ReturnType<typeof importReviewDrop>>>
+
+    export type ImportReviewDropMutationError = ErrorModel
+
+
+    /**
+ * @summary Forget the import waiting from a chat
+ */
+export const useImportReviewDrop = <TError = ErrorModel,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof importReviewDrop>>, TError,void, TContext>, request?: SecondParameter<typeof fetcher>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof importReviewDrop>>,
+        TError,
+        void,
+        TContext
+      > => {
+      return useMutation(getImportReviewDropMutationOptions(options), queryClient);
+    }
+
+export const getImportReviewUrl = () => {
+
+
+
+
+  return `/api/v1/import/review`
+}
+
+/**
+ * @summary The import waiting from a chat
+ */
+export const importReview = async ( options?: Parameters<typeof fetcher>[1]): Promise<ImportReviewOut> => {
+
+  return fetcher<ImportReviewOut>(getImportReviewUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getImportReviewQueryKey = () => {
+    return [
+    `/api/v1/import/review`
+    ] as const;
+    }
+
+
+export const getImportReviewQueryOptions = <TData = Awaited<ReturnType<typeof importReview>>, TError = ErrorModel>( options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof importReview>>, TError, TData>>, request?: SecondParameter<typeof fetcher>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getImportReviewQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof importReview>>> = ({ signal }) => importReview({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof importReview>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type ImportReviewQueryResult = NonNullable<Awaited<ReturnType<typeof importReview>>>
+export type ImportReviewQueryError = ErrorModel
+
+
+export function useImportReview<TData = Awaited<ReturnType<typeof importReview>>, TError = ErrorModel>(
+  options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof importReview>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof importReview>>,
+          TError,
+          Awaited<ReturnType<typeof importReview>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof fetcher>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useImportReview<TData = Awaited<ReturnType<typeof importReview>>, TError = ErrorModel>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof importReview>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof importReview>>,
+          TError,
+          Awaited<ReturnType<typeof importReview>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof fetcher>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useImportReview<TData = Awaited<ReturnType<typeof importReview>>, TError = ErrorModel>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof importReview>>, TError, TData>>, request?: SecondParameter<typeof fetcher>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+/**
+ * @summary The import waiting from a chat
+ */
+
+export function useImportReview<TData = Awaited<ReturnType<typeof importReview>>, TError = ErrorModel>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof importReview>>, TError, TData>>, request?: SecondParameter<typeof fetcher>}
+ , queryClient?: QueryClient
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getImportReviewQueryOptions(options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
 
 export const getMembersRemoveUrl = () => {
 

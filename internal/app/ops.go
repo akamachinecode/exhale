@@ -179,6 +179,11 @@ var (
 		Name: "list_changes", Title: "Recent changes", Tag: "Audit", Method: "GET", Path: "/changes",
 		Description: "Recent changes with who made them (member, agent or system). Each id can be passed to undo.",
 	}, (*Service).ListAudit}
+	// Statement matching (import from statements).
+	OpMatchStatement = Op[MatchStatementInput, StatementMatch]{Meta{
+		Name: "match_statement", Title: "Match a statement to expected charges", Tag: "Charges", Method: "POST", Path: "/charges/match", Idempotent: true,
+		Description: "Compares the payments of a bank or card statement with the charges Exhale expects (merchant, date within a week, amount within 30%). Changes nothing. Returns the charges each payment confirms: for action mark_paid call set_charge_status with status=paid and the amount paid (dryRun first, then show the user); when priceChange is set, ask whether it is the new price. Also lists open charges due in the period that the statement does not show.",
+	}, (*Service).MatchStatement}
 	OpUndo = Op[UndoInput, UndoResult]{Meta{
 		Name: "undo", Title: "Undo a change", Tag: "Audit", Method: "POST", Path: "/changes/undo", Write: true,
 		Description: "Reverts a change by its auditId, restoring the previous state.",
@@ -238,6 +243,7 @@ func Catalog() []Binding {
 		OpBulkUpdate.Binding(), OpRenameTag.Binding(), OpDeleteTag.Binding(),
 		OpSnooze.Binding(), OpDismissDuplicate.Binding(),
 		OpListDocuments.Binding(), OpDeleteDocument.Binding(), OpRemoveLogo.Binding(),
+		OpMatchStatement.Binding(),
 	}
 }
 

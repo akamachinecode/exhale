@@ -9,11 +9,11 @@ import (
 	"strconv"
 	"strings"
 	"time"
-	"unicode"
 	"unicode/utf8"
 
 	"github.com/akamachinecode/exhale/internal/app"
 	"github.com/akamachinecode/exhale/internal/engine"
+	"github.com/akamachinecode/exhale/internal/merchant"
 )
 
 // A bank or card export lists transactions, not subscriptions. The charges
@@ -85,12 +85,23 @@ type txn struct {
 const MaxTransactions = 50_000
 
 // Transactions reads a bank or card export and returns the charges that
-// recur. shaped is false when data is not a list of transactions at all;
-// when it is, the result may still be empty (nothing recurs).
+// recur, and every outgoing payment for matching with the expected charges.
+// shaped is false when data is not a list of transactions at all; when it
+// is, the result may still have no items (nothing recurs).
 func Transactions(data []byte, defaultCurrency string, today engine.Date) (res Result, shaped bool) {
+	all, shaped := csvTransactions(data, defaultCurrency)
+	if !shaped {
+		return Result{}, false
+	}
+	return detect(all, today, "transactions"), true
+}
+
+// csvTransactions reads the rows of a bank export. The amounts it returns
+// are positive for money that left the account.
+func csvTransactions(data []byte, defaultCurrency string) ([]txn, bool) {
 	rows, err := readCSV(data)
 	if err != nil || len(rows) < 3 || len(rows) > MaxTransactions {
-		return Result{}, false
+		return nil, false
 	}
 	cols := map[string]int{}
 	for i, h := range rows[0] {
@@ -108,11 +119,11 @@ func Transactions(data []byte, defaultCurrency string, today engine.Date) (res R
 		return -1
 	}
 	if find(subOnly) >= 0 {
-		return Result{}, false
+		return nil, false
 	}
 	dateCol, amountCol, debitCol, textCol := find(txDate), find(txAmount), find(txDebit), find(txText)
 	if dateCol < 0 || textCol < 0 || (amountCol < 0 && debitCol < 0) {
-		return Result{}, false
+		return nil, false
 	}
 	curCol, stateCol := find(txCurrency), find(txState)
 	headerCurrency := ""
@@ -159,42 +170,58 @@ func Transactions(data []byte, defaultCurrency string, today engine.Date) (res R
 			received++
 		}
 		t.minor, t.currency = -minor, cmp.Or(cur, t.currency)
-		if t.key = merchantKey(t.text); t.key != "" {
+		if t.key = merchant.Key(t.text); t.key != "" {
 			all = append(all, t)
 		}
 	}
-	// A bank account export is mostly negative amounts (spending); a card
-	// statement is mostly positive ones (charges), with refunds negative.
-	// The majority sign is the money that left.
+	flip(all, spent, received)
+	repeated := false
+	seen := map[string]bool{}
+	for _, t := range all {
+		k := t.key + "|" + t.currency
+		repeated = repeated || (t.minor > 0 && seen[k])
+		seen[k] = seen[k] || t.minor > 0
+	}
+	if find(txOnly) < 0 && spent == 0 && !repeated {
+		return nil, false // more likely a list of subscriptions with a date
+	}
+	return all, true
+}
+
+// flip makes the money that left positive. A bank account export is mostly
+// negative amounts (spending); a card statement is mostly positive ones
+// (charges), with refunds negative. The majority sign is the money that
+// left. Amounts arrive negated (spent is positive when it was negative).
+func flip(all []txn, spent, received int) {
 	if received > spent {
 		for i := range all {
 			all[i].minor = -all[i].minor
 		}
 	}
+}
+
+// detect finds the recurring charges among the transactions, and keeps the
+// outgoing payments for matching.
+func detect(all []txn, today engine.Date, source string) Result {
 	groups := map[string][]txn{}
+	res := Result{Source: source, Items: []app.ImportItem{}, Notes: []string{}, Transactions: []app.StatementLine{}}
 	for _, t := range all {
 		if t.minor > 0 {
 			groups[t.key+"|"+t.currency] = append(groups[t.key+"|"+t.currency], t)
+			res.Transactions = append(res.Transactions, app.StatementLine{Date: t.date.Format(time.DateOnly), Description: truncate(t.text, 200), Amount: decimal(t.minor), Currency: t.currency})
 		}
 	}
-	repeated := false
-	for _, g := range groups {
-		repeated = repeated || len(g) > 1
-	}
-	if find(txOnly) < 0 && spent == 0 && !repeated {
-		return Result{}, false // more likely a list of subscriptions with a date
-	}
-	res = Result{Source: "transactions", Items: []app.ImportItem{}, Notes: []string{}}
 	for _, g := range groups {
 		if it, ok := recurring(g, today); ok {
 			res.Items = append(res.Items, it)
 		}
 	}
 	slices.SortFunc(res.Items, func(a, b app.ImportItem) int { return cmp.Compare(strings.ToLower(a.Name), strings.ToLower(b.Name)) })
+	slices.SortStableFunc(res.Transactions, func(a, b app.StatementLine) int { return cmp.Compare(a.Date, b.Date) })
 	if len(res.Items) > 0 {
 		res.Notes = append(res.Notes, fmt.Sprintf("Found by looking for charges that repeat on a regular cycle in %d transactions. Check each line: a bank's description is not always the name of the service.", len(all)))
 	}
-	return res, true
+	return res
 }
 
 var currencyInHeader = regexp.MustCompile(`\(([A-Z]{3})\)`)
@@ -252,46 +279,6 @@ func parseAmount(s string) (minor int64, currency string, ok bool) {
 		}
 	}
 	return n, currency, true
-}
-
-// noise are words of a bank description that say nothing about who was
-// paid.
-var noise = map[string]bool{
-	"card": true, "payment": true, "to": true, "pos": true, "purchase": true, "direct": true, "debit": true, "dd": true, "sepa": true,
-	"compra": true, "pago": true, "en": true, "recibo": true, "tarjeta": true, "com": true, "www": true, "inc": true, "ltd": true, "llc": true,
-	"gmbh": true, "the": true, "bill": true, "subscription": true, "suscripcion": true, "online": true, "internet": true, "paypal": true,
-	"sq": true, "tst": true, "recurring": true, "adeudo": true, "domiciliacion": true, "visa": true, "mastercard": true, "ref": true,
-	"help": true, "http": true, "https": true, "net": true, "org": true, "app": true, "pay": true, "via": true, "from": true,
-}
-
-// merchantKey reduces a bank description to the words that identify the
-// merchant: "NETFLIX.COM 866-579-7172 CA" and "Netflix.com Amsterdam" both
-// start with "netflix".
-func merchantKey(text string) string {
-	words := strings.FieldsFunc(strings.ToLower(text), func(r rune) bool {
-		return !unicode.IsLetter(r) && !unicode.IsDigit(r)
-	})
-	var kept []string
-	for _, w := range words {
-		if len(w) < 3 || noise[w] || strings.IndexFunc(w, unicode.IsDigit) >= 0 {
-			continue
-		}
-		kept = append(kept, w)
-		if len(kept) == 2 {
-			break
-		}
-	}
-	return strings.Join(kept, " ")
-}
-
-// merchantName is the key written as a name.
-func merchantName(key string) string {
-	words := strings.Fields(key)
-	for i, w := range words {
-		r, n := utf8.DecodeRuneInString(w)
-		words[i] = string(unicode.ToUpper(r)) + w[n:]
-	}
-	return strings.Join(words, " ")
 }
 
 // cycles are the billing cycles a group of dates can follow, as a range of
@@ -361,7 +348,7 @@ func recurring(g []txn, today engine.Date) (app.ImportItem, bool) {
 			return app.ImportItem{}, false // two different amounts prove nothing
 		}
 		it := app.ImportItem{
-			Name: merchantName(last.key), Price: decimal(last.minor), Currency: last.currency, Interval: c.interval, Unit: string(c.unit),
+			Name: merchant.Name(last.key), Price: decimal(last.minor), Currency: last.currency, Interval: c.interval, Unit: string(c.unit),
 		}
 		lastDay := engine.DateOf(last.date)
 		if sched, err := engine.NewSchedule(engine.Rule{Interval: c.interval, Unit: c.unit, Anchor: lastDay}); err == nil {
