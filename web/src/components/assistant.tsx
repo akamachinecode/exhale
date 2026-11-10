@@ -5,6 +5,7 @@ import { type FormEvent, useEffect, useRef, useState, useSyncExternalStore } fro
 import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Card } from "@/components/ui/card";
 import { Dialog } from "@/components/ui/dialog";
 import { Field, Input, PasswordInput, Select } from "@/components/ui/field";
 import {
@@ -13,7 +14,9 @@ import {
 	type AssistantTurn,
 	assistantDecide,
 	assistantMessage,
+	type MonthUsage,
 	type Proposal,
+	type UsageEntry,
 	useAuthSession,
 	useSettingsAssistant,
 	useSettingsRemoveAssistant,
@@ -21,7 +24,7 @@ import {
 	useSettingsTestAssistant,
 } from "@/gen/api";
 import { ApiError, problemDetail } from "@/lib/fetcher";
-import { capitalize, say, t } from "@/lib/i18n";
+import { capitalize, locale, say, t, tn } from "@/lib/i18n";
 import { cn } from "@/lib/utils";
 
 // Ask Exhale (ADR 0018, part B): plain language in the web. The model only
@@ -456,6 +459,8 @@ export function AssistantSettings() {
 		model: string;
 		baseUrl: string;
 		on: boolean;
+		priceIn: string;
+		priceOut: string;
 	}>();
 	const [error, setError] = useState<string>();
 	const [result, setResult] = useState<{ ok: boolean; message: string }>();
@@ -476,6 +481,7 @@ export function AssistantSettings() {
 						? t("On, with {0} at {1}.", s.model, providerName(s))
 						: t("Off. An owner can turn it on.")}
 				</p>
+				<MonthTotal month={s.month} />
 				{sent}
 			</div>
 		);
@@ -486,6 +492,8 @@ export function AssistantSettings() {
 		model: s.model ?? "",
 		baseUrl: s.baseUrl ?? "",
 		on: s.configured ? s.on : true,
+		priceIn: s.priceSource === "settings" ? (s.price?.input ?? "") : "",
+		priceOut: s.priceSource === "settings" ? (s.price?.output ?? "") : "",
 	};
 	const locked = (field: string) => (s.locked ?? []).includes(field);
 	const onServer = "Set on the server";
@@ -506,6 +514,7 @@ export function AssistantSettings() {
 					model: f.model,
 					baseUrl: f.baseUrl,
 					enabled: f.on,
+					price: { input: f.priceIn, output: f.priceOut },
 				},
 			});
 			setForm(undefined);
@@ -598,6 +607,33 @@ export function AssistantSettings() {
 					</Field>
 				)}
 			</div>
+			<Field
+				label={t("Price, in US dollars per million tokens")}
+				hint={
+					s.priceSource === "default"
+						? t("From Exhale's price list. Type a price to replace it.")
+						: s.priceSource === "settings"
+							? t("Your price. Empty both to forget it.")
+							: t("Unknown for this model: costs show as tokens only. A local model costs 0.")
+				}
+			>
+				<div className="grid grid-cols-2 gap-3">
+					<Input
+						value={f.priceIn}
+						onChange={(e) => edit({ priceIn: e.target.value })}
+						placeholder={s.priceSource === "default" ? t("Input: {0}", s.price?.input) : t("Input")}
+						inputMode="decimal"
+						aria-label={t("Input price")}
+					/>
+					<Input
+						value={f.priceOut}
+						onChange={(e) => edit({ priceOut: e.target.value })}
+						placeholder={s.priceSource === "default" ? t("Output: {0}", s.price?.output) : t("Output")}
+						inputMode="decimal"
+						aria-label={t("Output price")}
+					/>
+				</div>
+			</Field>
 			<label className="flex items-center gap-2.5 text-sm">
 				<input
 					type="checkbox"
@@ -624,8 +660,78 @@ export function AssistantSettings() {
 					<Badge tone={s.enabled ? "ok" : "neutral"}>{s.enabled ? t("On") : t("Off")}</Badge>
 				)}
 			</div>
+			<MonthTotal month={s.month} />
 			{result && <p className={cn("text-xs", result.ok ? "text-ok" : "text-bad")}>{result.message}</p>}
 			{error && <p className="text-xs text-bad">{error}</p>}
 		</form>
+	);
+}
+
+/** A cost estimated by the server, in US dollars ("0.0123"). */
+export function dollars(usd: string) {
+	const n = Number(usd);
+	const fmt = (v: number) =>
+		new Intl.NumberFormat(locale, { style: "currency", currency: "USD", maximumFractionDigits: 4 }).format(v);
+	return n > 0 && n < 0.0001 ? `< ${fmt(0.0001)}` : fmt(n);
+}
+
+const count = (n: number) => new Intl.NumberFormat(locale).format(n);
+
+/** What the assistant cost this month (ADR 0018, safety rule 6). */
+function MonthTotal({ month: m }: { month?: MonthUsage }) {
+	if (!m || m.questions === 0) return null;
+	return (
+		<p className="text-xs text-muted">
+			{t("This month")}: {tn(m.questions, "{n} question", "{n} questions")} ·{" "}
+			{t("{0} tokens", count(m.inputTokens + m.outputTokens))}
+			{m.costUsd && <> · {t("about {0}", dollars(m.costUsd))}</>}
+			{m.unpriced > 0 && <> · {tn(m.unpriced, "{n} without a price", "{n} without a price")}</>}
+		</p>
+	);
+}
+
+const surfaces: Record<string, string> = {
+	web: t("in the web"),
+	telegram: t("in Telegram"),
+	slack: t("in Slack"),
+	import: t("reading an import"),
+};
+
+/** Activity → Assistant: each question, its model, tokens and cost. */
+export function AssistantActivity({ entries }: { entries: UsageEntry[] }) {
+	return (
+		<Card>
+			{entries.length === 0 ? (
+				<p className="px-5 py-12 text-center text-sm text-muted">{t("No questions yet.")}</p>
+			) : (
+				<ul className="divide-y divide-line">
+					{entries.map((e) => (
+						<li key={e.id} className="flex flex-wrap items-center gap-x-3 gap-y-1 px-5 py-3 text-sm">
+							<span className="grid size-8 place-items-center rounded-full bg-raised text-muted">
+								<Sparkles className="size-4" />
+							</span>
+							<div className="min-w-0 flex-1">
+								<p className="truncate">
+									<span className="font-medium">{e.member || t("Someone")}</span>{" "}
+									<span className="text-muted">
+										{e.kind === "import" ? t("had a file read") : t("asked")}{" "}
+										{surfaces[e.surface] ?? e.surface}
+									</span>
+								</p>
+								<p className="text-xs text-faint">
+									{new Date(e.at).toLocaleString(locale)} · {e.model} ·{" "}
+									{tn(e.rounds, "{n} call", "{n} calls")} ·{" "}
+									{t("{0} in, {1} out", count(e.inputTokens), count(e.outputTokens))}
+								</p>
+							</div>
+							{e.failed && <Badge tone="bad">{t("Failed")}</Badge>}
+							<span className="font-mono text-xs tabular-nums text-muted">
+								{e.costUsd ? dollars(e.costUsd) : t("no price")}
+							</span>
+						</li>
+					))}
+				</ul>
+			)}
+		</Card>
 	);
 }

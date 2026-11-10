@@ -111,6 +111,13 @@ export const AssistantSettingsProvider = {
   openai: 'openai',
 } as const;
 
+export interface Price {
+  /** US dollars per million input tokens, e.g. 4 or 0.10 */
+  input: string;
+  /** US dollars per million output tokens, e.g. 20 or 0.50 */
+  output: string;
+}
+
 export interface AssistantSettings {
   /** A URL to the JSON Schema for this object. */
   readonly $schema?: string;
@@ -122,9 +129,23 @@ export interface AssistantSettings {
   enabled?: boolean;
   /** model id; required for openai, optional for anthropic */
   model?: string;
+  /** the price of the model, to estimate costs; both empty forgets it. Omit to keep it */
+  price?: Price;
   /** anthropic for Claude; openai for any OpenAI-compatible endpoint (OpenAI, OpenRouter, Ollama, LM Studio…) */
   provider: AssistantSettingsProvider;
 }
+
+/**
+ * where the price comes from: Exhale's table, the owner, or nowhere (tokens only)
+ */
+export type AssistantStatusPriceSource = typeof AssistantStatusPriceSource[keyof typeof AssistantStatusPriceSource];
+
+
+export const AssistantStatusPriceSource = {
+  default: 'default',
+  settings: 'settings',
+  unknown: 'unknown',
+} as const;
 
 export type AssistantStatusProvider = typeof AssistantStatusProvider[keyof typeof AssistantStatusProvider];
 
@@ -133,6 +154,19 @@ export const AssistantStatusProvider = {
   anthropic: 'anthropic',
   openai: 'openai',
 } as const;
+
+export interface MonthUsage {
+  /** estimated cost in US dollars of the entries whose price is known */
+  costUsd?: string;
+  inputTokens: number;
+  /** e.g. 2026-11, in the household's time zone */
+  month: string;
+  outputTokens: number;
+  /** questions and imports read by a model */
+  questions: number;
+  /** entries whose model has no price: their tokens count, their cost does not */
+  unpriced: number;
+}
 
 export interface AssistantStatus {
   /** A URL to the JSON Schema for this object. */
@@ -152,8 +186,14 @@ export interface AssistantStatus {
      */
   locked: string[] | null;
   model?: string;
+  /** what the assistant was asked this month */
+  month?: MonthUsage;
   /** the on/off switch, whatever the configuration */
   on: boolean;
+  /** the price used to estimate the cost of the current model; absent when it is not known */
+  price?: Price;
+  /** where the price comes from: Exhale's table, the owner, or nowhere (tokens only) */
+  priceSource: AssistantStatusPriceSource;
   provider?: AssistantStatusProvider;
 }
 
@@ -204,6 +244,40 @@ export interface AssistantTurn {
   proposals: Proposal[] | null;
   /** the answer, plain text */
   text: string;
+}
+
+export type UsageEntryKind = typeof UsageEntryKind[keyof typeof UsageEntryKind];
+
+
+export const UsageEntryKind = {
+  question: 'question',
+  import: 'import',
+} as const;
+
+export interface UsageEntry {
+  at: string;
+  /** estimated cost in US dollars; absent when the model's price is not known */
+  costUsd?: string;
+  failed: boolean;
+  id: string;
+  inputTokens: number;
+  kind: UsageEntryKind;
+  /** who asked */
+  member: string;
+  model: string;
+  outputTokens: number;
+  provider: string;
+  /** calls to the model */
+  rounds: number;
+  /** web, telegram, slack or import */
+  surface: string;
+}
+
+export interface AssistantUsage {
+  /** A URL to the JSON Schema for this object. */
+  readonly $schema?: string;
+  /** @nullable */
+  entries: UsageEntry[] | null;
 }
 
 export interface Money {
@@ -1766,6 +1840,14 @@ export interface UpdateSubscriptionInput {
   using?: boolean;
 }
 
+export type AssistantUsageParams = {
+/**
+ * @minimum 1
+ * @maximum 500
+ */
+limit?: number;
+};
+
 export type MonthBalancesParams = {
 month?: string;
 };
@@ -2002,6 +2084,114 @@ export const useAssistantDecide = <TError = ErrorModel,
       > => {
       return useMutation(getAssistantDecideMutationOptions(options), queryClient);
     }
+
+export const getAssistantUsageUrl = (params?: AssistantUsageParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : String(value))
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/v1/assistant/usage?${stringifiedParams}` : `/api/v1/assistant/usage`
+}
+
+/**
+ * @summary What the assistant was asked: tokens and estimated cost, newest first
+ */
+export const assistantUsage = async (params?: AssistantUsageParams, options?: Parameters<typeof fetcher>[1]): Promise<AssistantUsage> => {
+
+  return fetcher<AssistantUsage>(getAssistantUsageUrl(params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getAssistantUsageQueryKey = (params?: AssistantUsageParams,) => {
+    return [
+    `/api/v1/assistant/usage`, ...(params ? [params] : [])
+    ] as const;
+    }
+
+
+export const getAssistantUsageQueryOptions = <TData = Awaited<ReturnType<typeof assistantUsage>>, TError = ErrorModel>(params?: AssistantUsageParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof assistantUsage>>, TError, TData>>, request?: SecondParameter<typeof fetcher>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getAssistantUsageQueryKey(params);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof assistantUsage>>> = ({ signal }) => assistantUsage(params, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof assistantUsage>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type AssistantUsageQueryResult = NonNullable<Awaited<ReturnType<typeof assistantUsage>>>
+export type AssistantUsageQueryError = ErrorModel
+
+
+export function useAssistantUsage<TData = Awaited<ReturnType<typeof assistantUsage>>, TError = ErrorModel>(
+ params: undefined |  AssistantUsageParams, options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof assistantUsage>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof assistantUsage>>,
+          TError,
+          Awaited<ReturnType<typeof assistantUsage>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof fetcher>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useAssistantUsage<TData = Awaited<ReturnType<typeof assistantUsage>>, TError = ErrorModel>(
+ params?: AssistantUsageParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof assistantUsage>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof assistantUsage>>,
+          TError,
+          Awaited<ReturnType<typeof assistantUsage>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof fetcher>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useAssistantUsage<TData = Awaited<ReturnType<typeof assistantUsage>>, TError = ErrorModel>(
+ params?: AssistantUsageParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof assistantUsage>>, TError, TData>>, request?: SecondParameter<typeof fetcher>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+/**
+ * @summary What the assistant was asked: tokens and estimated cost, newest first
+ */
+
+export function useAssistantUsage<TData = Awaited<ReturnType<typeof assistantUsage>>, TError = ErrorModel>(
+ params?: AssistantUsageParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof assistantUsage>>, TError, TData>>, request?: SecondParameter<typeof fetcher>}
+ , queryClient?: QueryClient
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getAssistantUsageQueryOptions(params,options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
 
 export const getNeedsAttentionUrl = () => {
 

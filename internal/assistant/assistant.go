@@ -327,12 +327,21 @@ func (a *Assistant) AskStream(ctx context.Context, actor app.Actor, conv, text s
 
 	st := &turnState{conv: conv, actor: actor, agent: agent, seen: map[string]bool{}}
 	var usage Usage
-	rounds := 0
+	rounds, model, failed := 0, "", false
+	// What the question cost is recorded however it ends (safety rule 6).
+	defer func() {
+		a.record(ctx, actor, usageRecord{kind: "question", surface: surfaceOf(conv), provider: p.Name(), model: model, rounds: rounds, usage: usage, failed: failed})
+	}()
 	for rounds < MaxRounds {
 		rounds++
 		res, err := call(ctx, p, Request{System: systemPrompt, Messages: msgs, Tools: a.tools, MaxTokens: chatTokens}, progress)
+		usage.Input, usage.Output = usage.Input+res.Usage.Input, usage.Output+res.Usage.Output
+		if res.Model != "" {
+			model = res.Model
+		}
 		if err != nil {
 			a.log.Warn("assistant: the model call failed", "provider", p.Name(), "round", rounds, "err", err)
+			failed = true
 			if len(st.proposals) == 0 {
 				return turn, err
 			}
@@ -340,7 +349,6 @@ func (a *Assistant) AskStream(ctx context.Context, actor app.Actor, conv, text s
 			turn.Note = new(Explain(err))
 			break
 		}
-		usage.Input, usage.Output = usage.Input+res.Usage.Input, usage.Output+res.Usage.Output
 		if res.Text != "" {
 			turn.Text = res.Text
 		}
@@ -366,8 +374,8 @@ func (a *Assistant) AskStream(ctx context.Context, actor app.Actor, conv, text s
 		turn.Note = new(domain.T("I have no answer for that."))
 	}
 	turn.Mentions = a.mentions(ctx, agent, turn, st)
-	// Token counts and round counts only: never the words.
-	a.log.Info("assistant answered", "provider", p.Name(), "rounds", rounds, "proposals", len(turn.Proposals), "input_tokens", usage.Input, "output_tokens", usage.Output)
+	// Counts only, never the words (the usage itself is logged by record).
+	a.log.Info("assistant answered", "provider", p.Name(), "rounds", rounds, "proposals", len(turn.Proposals))
 
 	said := turn.Text
 	for _, pr := range turn.Proposals {

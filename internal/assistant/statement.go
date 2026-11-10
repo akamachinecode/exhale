@@ -165,6 +165,7 @@ func (a *Assistant) extract(ctx context.Context, actor app.Actor, source, cur st
 		Tools:     []Tool{{Name: reportTool, Description: "Report the recurring charges found in the document, for the person to review.", Schema: reportSchema}},
 		MaxTokens: extractToken,
 	})
+	a.record(ctx, actor, usageRecord{kind: "import", surface: "import", provider: p.Name(), model: res.Model, rounds: 1, usage: res.Usage, failed: err != nil})
 	if err != nil {
 		a.log.Warn("assistant: reading a document failed", "provider", p.Name(), "source", source, "err", err)
 		return importer.Result{}, err
@@ -309,6 +310,7 @@ func (a *Assistant) tidyNames(ctx context.Context, actor app.Actor, res *importe
 		Tools:     []Tool{{Name: namesTool, Description: "Report the readable name of each merchant.", Schema: namesSchema}},
 		MaxTokens: 4096,
 	})
+	a.record(ctx, actor, usageRecord{kind: "import", surface: "import", provider: p.Name(), model: out.Model, rounds: 1, usage: out.Usage, failed: err != nil})
 	if err != nil {
 		a.log.Info("assistant: merchant names were not tidied", "err", err)
 		return

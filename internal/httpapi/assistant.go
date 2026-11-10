@@ -29,6 +29,7 @@ type (
 	AssistantStatus   assistant.Status
 	AssistantSettings assistant.Settings
 	AssistantTest     assistant.TestResult
+	AssistantUsage    assistant.UsageList
 )
 
 // assistantError turns a failure of the assistant into an HTTP problem
@@ -122,12 +123,36 @@ func registerAssistant(api huma.API, a *authAPI) {
 			return &resp[AssistantOutcome]{Body: AssistantOutcome(out)}, nil
 		})
 
-	huma.Register(api, settingsOp("settings_assistant", http.MethodGet, "/assistant", "Built-in assistant status"),
-		func(ctx context.Context, _ *struct{}) (*resp[AssistantStatus], error) {
-			if _, err := a.member(ctx); err != nil {
+	huma.Register(api, op("assistant_usage", http.MethodGet, "/usage", "What the assistant was asked: tokens and estimated cost, newest first"),
+		func(ctx context.Context, in *struct {
+			Limit int `query:"limit" minimum:"1" maximum:"500" default:"100"`
+		}) (*resp[AssistantUsage], error) {
+			actor, err := a.member(ctx)
+			if err != nil {
 				return nil, err
 			}
-			return &resp[AssistantStatus]{Body: AssistantStatus(asst.Status(ctx))}, nil
+			// An owner pays the provider and sees every question; a member
+			// sees their own.
+			m, err := a.svc.Store().Q.GetMember(ctx, actor.MemberID)
+			if err != nil {
+				return nil, httpError(err)
+			}
+			list, err := asst.Usage(ctx, actor, m.Role == string(domain.RoleOwner), in.Limit)
+			if err != nil {
+				return nil, httpError(err)
+			}
+			return &resp[AssistantUsage]{Body: AssistantUsage(list)}, nil
+		})
+
+	huma.Register(api, settingsOp("settings_assistant", http.MethodGet, "/assistant", "Built-in assistant status"),
+		func(ctx context.Context, _ *struct{}) (*resp[AssistantStatus], error) {
+			actor, err := a.member(ctx)
+			if err != nil {
+				return nil, err
+			}
+			st := asst.Status(ctx)
+			st.Month = new(asst.ThisMonth(ctx, actor))
+			return &resp[AssistantStatus]{Body: AssistantStatus(st)}, nil
 		})
 	huma.Register(api, settingsOp("settings_set_assistant", http.MethodPost, "/assistant", "Set up the built-in assistant (owners only)"),
 		func(ctx context.Context, in *struct{ Body AssistantSettings }) (*resp[AssistantStatus], error) {

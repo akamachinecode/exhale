@@ -568,4 +568,6 @@ var spanish = map[string]string{
 	"could not read the file":                                                                                                     "no se pudo leer el archivo",
 	"… and %d more":                                                                                                               "… y %d más",
 	"%s?":                                                                                                                         "¿%s?",
+	"the input price must be a number of dollars, like 4 or 0.10":                                                                 "el precio de entrada tiene que ser una cantidad de dólares, como 4 o 0.10",
+	"the output price must be a number of dollars, like 20 or 0.50":                                                               "el precio de salida tiene que ser una cantidad de dólares, como 20 o 0.50",
 }

@@ -52,15 +52,18 @@ func (c Config) Ready() bool {
 // Status describes the assistant for the settings UI. It never carries the
 // API key, only whether one is saved.
 type Status struct {
-	Enabled      bool     `json:"enabled" doc:"the assistant answers: it is configured and switched on"`
-	Configured   bool     `json:"configured" doc:"a provider, and what it needs, is set"`
-	On           bool     `json:"on" doc:"the on/off switch, whatever the configuration"`
-	Provider     string   `json:"provider,omitempty" enum:"anthropic,openai"`
-	Model        string   `json:"model,omitempty"`
-	BaseURL      string   `json:"baseUrl,omitempty"`
-	HasKey       bool     `json:"hasKey" doc:"an API key is saved; it is never returned"`
-	Locked       []string `json:"locked" doc:"fields set by environment variables on the server, not editable here: provider, apiKey, model, baseUrl"`
-	DefaultModel string   `json:"defaultModel" doc:"the model used with Anthropic when none is given"`
+	Enabled      bool        `json:"enabled" doc:"the assistant answers: it is configured and switched on"`
+	Configured   bool        `json:"configured" doc:"a provider, and what it needs, is set"`
+	On           bool        `json:"on" doc:"the on/off switch, whatever the configuration"`
+	Provider     string      `json:"provider,omitempty" enum:"anthropic,openai"`
+	Model        string      `json:"model,omitempty"`
+	BaseURL      string      `json:"baseUrl,omitempty"`
+	HasKey       bool        `json:"hasKey" doc:"an API key is saved; it is never returned"`
+	Locked       []string    `json:"locked" doc:"fields set by environment variables on the server, not editable here: provider, apiKey, model, baseUrl"`
+	DefaultModel string      `json:"defaultModel" doc:"the model used with Anthropic when none is given"`
+	Price        *Price      `json:"price,omitempty" doc:"the price used to estimate the cost of the current model; absent when it is not known"`
+	PriceSource  string      `json:"priceSource" enum:"default,settings,unknown" doc:"where the price comes from: Exhale's table, the owner, or nowhere (tokens only)"`
+	Month        *MonthUsage `json:"month,omitempty" doc:"what the assistant was asked this month"`
 }
 
 // Settings is what the owner saves from the web.
@@ -70,6 +73,7 @@ type Settings struct {
 	Model    string `json:"model,omitempty" doc:"model id; required for openai, optional for anthropic"`
 	BaseURL  string `json:"baseUrl,omitempty" doc:"address of the endpoint, e.g. http://localhost:11434/v1 for Ollama; empty for the provider's own API"`
 	Enabled  *bool  `json:"enabled,omitempty" doc:"on/off switch; on when omitted"`
+	Price    *Price `json:"price,omitempty" doc:"the price of the model, to estimate costs; both empty forgets it. Omit to keep it"`
 }
 
 func (a *Assistant) setting(ctx context.Context, key string) string {
@@ -110,7 +114,12 @@ func (a *Assistant) Status(ctx context.Context) Status {
 	c := a.Config(ctx)
 	st := Status{
 		Configured: c.Ready(), On: c.Enabled, Enabled: a.Enabled(ctx), Provider: c.Provider, Model: c.Model, BaseURL: c.BaseURL,
-		HasKey: c.APIKey != "", Locked: []string{}, DefaultModel: DefaultAnthropicModel,
+		HasKey: c.APIKey != "", Locked: []string{}, DefaultModel: DefaultAnthropicModel, PriceSource: "unknown",
+	}
+	if c.Model != "" {
+		if p, src := a.priceFor(ctx, c.Model); src != "" {
+			st.Price, st.PriceSource = &p, src
+		}
 	}
 	for name, v := range map[string]string{"provider": a.env.Provider, "apiKey": a.env.APIKey, "model": a.env.Model, "baseUrl": a.env.BaseURL} {
 		if v != "" {
@@ -167,6 +176,16 @@ func (a *Assistant) Configure(ctx context.Context, in Settings) (Status, error) 
 		if err := q.PutSetting(ctx, db.PutSettingParams{Key: k, Value: v}); err != nil {
 			return Status{}, err
 		}
+	}
+	model := in.Model
+	if a.env.Model != "" {
+		model = a.env.Model
+	}
+	if model == "" && in.Provider == ProviderAnthropic {
+		model = DefaultAnthropicModel
+	}
+	if err := a.setPrice(ctx, model, in.Price); err != nil {
+		return Status{}, err
 	}
 	// The key and the messages are never logged; the provider and model are.
 	a.log.Info("built-in assistant configured from the web", "provider", in.Provider, "model", in.Model, "enabled", enabled == "1")
