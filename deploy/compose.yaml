@@ -27,5 +27,10 @@ services:
       # Time zone of the log timestamps. Reminders use the household's time
       # zone, which you choose in the web.
       TZ: Europe/Madrid
+      # The built-in assistant is off unless set here or in the web (docs/guides/assistant.md):
+      # EXHALE_ASSISTANT_PROVIDER: anthropic       # or openai (OpenAI, OpenRouter, Ollama, LM Studio)
+      # EXHALE_ASSISTANT_API_KEY: "sk-ant-..."
+      # EXHALE_ASSISTANT_BASE_URL: "http://ollama:11434/v1"
+      # EXHALE_ASSISTANT_MODEL: llama3.1
 volumes:
   exhale-data:

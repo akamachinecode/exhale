@@ -24,6 +24,7 @@ import (
 	"github.com/akamachinecode/exhale/internal/actions"
 	"github.com/akamachinecode/exhale/internal/agents"
 	"github.com/akamachinecode/exhale/internal/app"
+	"github.com/akamachinecode/exhale/internal/assistant"
 	"github.com/akamachinecode/exhale/internal/auth"
 	"github.com/akamachinecode/exhale/internal/backup"
 	"github.com/akamachinecode/exhale/internal/bus"
@@ -112,7 +113,13 @@ type serveCmd struct {
 	BackupDir     string `name:"backup-dir" env:"EXHALE_BACKUP_DIR" type:"path" help:"Directory for the daily automatic backups (default: <data dir>/backups)."`
 	BackupKeep    int    `name:"backup-keep" env:"EXHALE_BACKUP_KEEP" default:"14" help:"Automatic backups to keep; older ones are deleted. 0 keeps all."`
 	NoBackups     bool   `name:"no-backups" env:"EXHALE_NO_BACKUPS" help:"Do not back up the database automatically."`
-	Dev           bool   `help:"Development mode."`
+	// The built-in assistant is off unless a provider is set here or in the
+	// web (Settings → Built-in assistant). Values set here win.
+	AssistantProvider string `name:"assistant-provider" env:"EXHALE_ASSISTANT_PROVIDER" enum:",anthropic,openai" default:"" help:"Model provider of the built-in assistant, anthropic or openai (any OpenAI-compatible endpoint). Optional, usually set from the web."`
+	AssistantAPIKey   string `name:"assistant-api-key" env:"EXHALE_ASSISTANT_API_KEY" help:"API key for the assistant's provider."`
+	AssistantModel    string `name:"assistant-model" env:"EXHALE_ASSISTANT_MODEL" help:"Model id for the assistant."`
+	AssistantBaseURL  string `name:"assistant-base-url" env:"EXHALE_ASSISTANT_BASE_URL" help:"Address of the assistant's endpoint, for example http://localhost:11434/v1 for Ollama."`
+	Dev               bool   `help:"Development mode."`
 	oidcFlags
 
 	// Email, ntfy and webhooks. All optional: owners usually set them in
@@ -168,8 +175,12 @@ func (s *serveCmd) Run(ctx context.Context, g *globals) error {
 		return err
 	}
 	sl := slack.NewManager(s.SlackBotToken, s.SlackAppToken, s.SlackAPI, e.svc, e.log)
+	asst, err := assistant.New(e.svc, e.log, assistant.Env{Provider: s.AssistantProvider, APIKey: s.AssistantAPIKey, Model: s.AssistantModel, BaseURL: s.AssistantBaseURL})
+	if err != nil {
+		return err
+	}
 	handler, _, err := httpapi.New(e.svc, httpapi.Config{
-		Version: version, TrustLocal: s.TrustLocal, SecureCookies: s.SecureCookies, Log: e.log, Telegram: tg, Slack: sl, Channels: others,
+		Version: version, TrustLocal: s.TrustLocal, SecureCookies: s.SecureCookies, Log: e.log, Telegram: tg, Slack: sl, Channels: others, Assistant: asst,
 		PublicURL: s.PublicURL, OIDC: sso, DisablePasswordLogin: s.DisablePasswordLogin,
 	})
 	if err != nil {
@@ -200,6 +211,7 @@ func (s *serveCmd) Run(ctx context.Context, g *globals) error {
 	// EXHALE_SLACK_BOT_TOKEN and EXHALE_SLACK_APP_TOKEN).
 	services = append(services, tg, sl)
 	eng := actions.New(e.svc, e.log, append([]actions.Channel{tg, sl}, others.Channels()...)...)
+	eng.SetAssistant(asst) // free text in chat (ADR 0018, part B)
 	tg.SetEngine(eng)
 	sl.SetEngine(eng)
 	services = append(services,

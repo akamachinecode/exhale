@@ -21,6 +21,7 @@ import (
 
 	"github.com/akamachinecode/exhale/internal/agents"
 	"github.com/akamachinecode/exhale/internal/app"
+	"github.com/akamachinecode/exhale/internal/assistant"
 	"github.com/akamachinecode/exhale/internal/auth"
 	"github.com/akamachinecode/exhale/internal/channels/notifiers"
 	"github.com/akamachinecode/exhale/internal/domain"
@@ -46,7 +47,10 @@ type Config struct {
 	// Slack configures and reports the team's Slack app (nil when not
 	// available, e.g. in tests).
 	Slack SlackControl
-	Log   *slog.Logger
+	// Assistant is the model Exhale itself uses (ADR 0018, part B). When
+	// nil, one is made that is off until an owner sets it up in the web.
+	Assistant *assistant.Assistant
+	Log       *slog.Logger
 	// PublicURL is the address people reach Exhale at, e.g.
 	// https://exhale.example.com. Single sign-on builds its redirect URI
 	// from it; without it only this machine's own address works.
@@ -74,12 +78,20 @@ func New(svc *app.Service, cfg Config) (http.Handler, huma.API, error) {
 	hc.Components.SecuritySchemes = map[string]*huma.SecurityScheme{"bearer": {Type: "http", Scheme: "bearer", Description: "Personal access token (exhale_pat_…)"}}
 	api := humago.New(mux, hc)
 	registerAll(api, svc)
+	if cfg.Assistant == nil {
+		a, err := assistant.New(svc, cfg.Log, assistant.Env{})
+		if err != nil {
+			return nil, nil, err
+		}
+		cfg.Assistant = a
+	}
 	sm := auth.NewSessions(svc.Store(), cfg.SecureCookies)
 	aa := &authAPI{svc: svc, sm: sm, cfg: cfg}
 	registerAuth(api, aa)
 	registerSettings(api, aa)
 	registerSlack(api, aa)
-	registerData(api, mux, svc)
+	registerAssistant(api, aa)
+	registerData(api, mux, svc, cfg.Assistant)
 	registerMembers(api, aa)
 	if err := registerOIDC(mux, aa); err != nil {
 		return nil, nil, err

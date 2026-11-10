@@ -89,6 +89,7 @@ type AuthSession struct {
 	// PasswordLoginDisabled hides the password forms: sign-in, sign-up and
 	// join only go through the provider.
 	PasswordLoginDisabled bool `json:"passwordLoginDisabled" doc:"password sign-in is turned off: only show single sign-on"`
+	Assistant             bool `json:"assistant" doc:"the built-in assistant is on: show Ask Exhale"`
 }
 
 type authAPI struct {
@@ -124,6 +125,8 @@ func (a *authAPI) session(ctx context.Context) (AuthSession, error) {
 			out.User = &SessionUser{ID: m.ID, Name: m.Name, Email: m.Email, Role: domain.Role(m.Role), HasPassword: m.PasswordHash != "", SSOHost: auth.IdentityHost(m)}
 		}
 	}
+	// Only someone signed in learns whether the assistant is on.
+	out.Assistant = out.User != nil && a.cfg.Assistant != nil && a.cfg.Assistant.Enabled(ctx)
 	return out, nil
 }
 

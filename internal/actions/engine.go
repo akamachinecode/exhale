@@ -23,6 +23,8 @@ type Engine struct {
 	svc      *app.Service
 	log      *slog.Logger
 	channels map[string]Channel
+	// assistant answers free text (assistant.go); nil when not wired.
+	assistant Assistant
 }
 
 // New returns an Engine delivering through the given channels.
@@ -92,6 +94,9 @@ func (e *Engine) chargeResult(ctx context.Context, actor app.Actor, chargeID str
 func (e *Engine) Handle(ctx context.Context, actor app.Actor, chat ChatRef, raw string) (Reply, error) {
 	if strings.HasPrefix(raw, appPrefix+"|") {
 		return e.handleApp(ctx, actor, chat, raw)
+	}
+	if strings.HasPrefix(raw, aiPrefix+"|") {
+		return e.handleAssistant(ctx, actor, raw)
 	}
 	rep, err := e.handleCharge(ctx, actor, chat, raw)
 	if err != nil || !e.isApp(ctx, chat) {

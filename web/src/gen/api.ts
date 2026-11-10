@@ -58,6 +58,147 @@ export interface AgentContext {
   markdown: string;
 }
 
+export interface AskIn {
+  /** A URL to the JSON Schema for this object. */
+  readonly $schema?: string;
+  /** forget the conversation first; with an empty text it only forgets */
+  reset?: boolean;
+  /**
+     * what the person typed
+     * @maxLength 4000
+     */
+  text: string;
+}
+
+export type AssistantOutcomeStatus = typeof AssistantOutcomeStatus[keyof typeof AssistantOutcomeStatus];
+
+
+export const AssistantOutcomeStatus = {
+  pending: 'pending',
+  applied: 'applied',
+  discarded: 'discarded',
+  failed: 'failed',
+  undone: 'undone',
+} as const;
+
+export interface AssistantOutcome {
+  /** A URL to the JSON Schema for this object. */
+  readonly $schema?: string;
+  /** an applied change that Undo can revert */
+  canUndo: boolean;
+  id: string;
+  /** @nullable */
+  lines: string[] | null;
+  status: AssistantOutcomeStatus;
+  subscriptionId?: string;
+  title: string;
+}
+
+/**
+ * anthropic for Claude; openai for any OpenAI-compatible endpoint (OpenAI, OpenRouter, Ollama, LM Studio…)
+ */
+export type AssistantSettingsProvider = typeof AssistantSettingsProvider[keyof typeof AssistantSettingsProvider];
+
+
+export const AssistantSettingsProvider = {
+  anthropic: 'anthropic',
+  openai: 'openai',
+} as const;
+
+export interface AssistantSettings {
+  /** A URL to the JSON Schema for this object. */
+  readonly $schema?: string;
+  /** leave empty to keep the saved key */
+  apiKey?: string;
+  /** address of the endpoint, e.g. http://localhost:11434/v1 for Ollama; empty for the provider's own API */
+  baseUrl?: string;
+  /** on/off switch; on when omitted */
+  enabled?: boolean;
+  /** model id; required for openai, optional for anthropic */
+  model?: string;
+  /** anthropic for Claude; openai for any OpenAI-compatible endpoint (OpenAI, OpenRouter, Ollama, LM Studio…) */
+  provider: AssistantSettingsProvider;
+}
+
+export type AssistantStatusProvider = typeof AssistantStatusProvider[keyof typeof AssistantStatusProvider];
+
+
+export const AssistantStatusProvider = {
+  anthropic: 'anthropic',
+  openai: 'openai',
+} as const;
+
+export interface AssistantStatus {
+  /** A URL to the JSON Schema for this object. */
+  readonly $schema?: string;
+  baseUrl?: string;
+  /** a provider, and what it needs, is set */
+  configured: boolean;
+  /** the model used with Anthropic when none is given */
+  defaultModel: string;
+  /** the assistant answers: it is configured and switched on */
+  enabled: boolean;
+  /** an API key is saved; it is never returned */
+  hasKey: boolean;
+  /**
+     * fields set by environment variables on the server, not editable here: provider, apiKey, model, baseUrl
+     * @nullable
+     */
+  locked: string[] | null;
+  model?: string;
+  /** the on/off switch, whatever the configuration */
+  on: boolean;
+  provider?: AssistantStatusProvider;
+}
+
+export interface AssistantTest {
+  /** A URL to the JSON Schema for this object. */
+  readonly $schema?: string;
+  message: string;
+  /** the model that answered */
+  model?: string;
+  ok: boolean;
+}
+
+export interface Mention {
+  id: string;
+  name: string;
+}
+
+export interface Proposal {
+  /** it deletes or cancels */
+  destructive: boolean;
+  id: string;
+  /**
+     * the details of the change
+     * @nullable
+     */
+  lines: string[] | null;
+  /** what would happen, e.g. Add Netflix */
+  title: string;
+  /** the use case that would run, e.g. create_subscription */
+  tool: string;
+}
+
+export interface AssistantTurn {
+  /** A URL to the JSON Schema for this object. */
+  readonly $schema?: string;
+  /**
+     * subscriptions the answer talks about, for links
+     * @nullable
+     */
+  mentions: Mention[] | null;
+  /** why the answer may be incomplete, e.g. the step limit was reached */
+  note?: string;
+  /**
+     * changes prepared for the person to confirm or discard; nothing is applied until they confirm
+     * @nullable
+     */
+  proposals: Proposal[] | null;
+  /** the answer, plain text */
+  text: string;
+}
+
 export interface Money {
   currency: string;
   minor: number;
@@ -217,6 +358,8 @@ export interface SessionUser {
 export interface AuthSession {
   /** A URL to the JSON Schema for this object. */
   readonly $schema?: string;
+  /** the built-in assistant is on: show Ask Exhale */
+  assistant: boolean;
   /** a household exists (made with exhale init); setup only creates the owner's login */
   hasHousehold: boolean;
   /** password sign-in is turned off: only show single sign-on */
@@ -654,6 +797,25 @@ export interface CreateSubscriptionInput {
   trialEndsOn?: string;
   unit?: CreateSubscriptionInputUnit;
   url?: string;
+}
+
+/**
+ * confirm applies the change, discard drops it, undo reverts one already applied
+ */
+export type DecideInAction = typeof DecideInAction[keyof typeof DecideInAction];
+
+
+export const DecideInAction = {
+  confirm: 'confirm',
+  discard: 'discard',
+  undo: 'undo',
+} as const;
+
+export interface DecideIn {
+  /** A URL to the JSON Schema for this object. */
+  readonly $schema?: string;
+  /** confirm applies the change, discard drops it, undo reverts one already applied */
+  action: DecideInAction;
 }
 
 export type DecideRenewalInputDecision = typeof DecideRenewalInputDecision[keyof typeof DecideRenewalInputDecision];
@@ -1656,6 +1818,183 @@ const withQueryKey = <T extends object, K>(query: T, queryKey: K): T & { queryKe
   }
   return result;
 };
+
+export const getAssistantMessageUrl = () => {
+
+
+
+
+  return `/api/v1/assistant/messages`
+}
+
+/**
+ * @summary Ask Exhale in plain language
+ */
+export const assistantMessage = async (askIn: NonReadonly<AskIn>, options?: Parameters<typeof fetcher>[1]): Promise<AssistantTurn> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return fetcher<AssistantTurn>(getAssistantMessageUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(askIn)
+  }
+);}
+
+
+
+
+
+export const getAssistantMessageMutationKey = () => ['assistantMessage'] as const;
+
+export const getAssistantMessageMutationOptions = <TError = ErrorModel,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof assistantMessage>>, TError,AssistantMessageMutationVariables, TContext>, request?: SecondParameter<typeof fetcher>}
+): UseMutationOptions<Awaited<ReturnType<typeof assistantMessage>>, TError,AssistantMessageMutationVariables, TContext> => {
+
+const mutationKey = getAssistantMessageMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof assistantMessage>>, AssistantMessageMutationVariables> = (props) => {
+          const {data} = props ?? {};
+
+          return  assistantMessage(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type AssistantMessageMutationResult = NonNullable<Awaited<ReturnType<typeof assistantMessage>>>
+    export type AssistantMessageMutationBody = NonReadonly<AskIn>
+    export type AssistantMessageMutationError = ErrorModel
+    export type AssistantMessageMutationVariables = {data: NonReadonly<AskIn>}
+
+    /**
+ * @summary Ask Exhale in plain language
+ */
+export const useAssistantMessage = <TError = ErrorModel,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof assistantMessage>>, TError,AssistantMessageMutationVariables, TContext>, request?: SecondParameter<typeof fetcher>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof assistantMessage>>,
+        TError,
+        AssistantMessageMutationVariables,
+        TContext
+      > => {
+      return useMutation(getAssistantMessageMutationOptions(options), queryClient);
+    }
+
+export const getAssistantDecideUrl = (id: string,) => {
+
+
+
+
+  return `/api/v1/assistant/proposals/${id}`
+}
+
+/**
+ * @summary Confirm, discard or undo a change the assistant prepared
+ */
+export const assistantDecide = async (id: string,
+    decideIn: NonReadonly<DecideIn>, options?: Parameters<typeof fetcher>[1]): Promise<AssistantOutcome> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return fetcher<AssistantOutcome>(getAssistantDecideUrl(id),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(decideIn)
+  }
+);}
+
+
+
+
+
+export const getAssistantDecideMutationKey = () => ['assistantDecide'] as const;
+
+export const getAssistantDecideMutationOptions = <TError = ErrorModel,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof assistantDecide>>, TError,AssistantDecideMutationVariables, TContext>, request?: SecondParameter<typeof fetcher>}
+): UseMutationOptions<Awaited<ReturnType<typeof assistantDecide>>, TError,AssistantDecideMutationVariables, TContext> => {
+
+const mutationKey = getAssistantDecideMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof assistantDecide>>, AssistantDecideMutationVariables> = (props) => {
+          const {id,data} = props ?? {};
+
+          return  assistantDecide(id,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type AssistantDecideMutationResult = NonNullable<Awaited<ReturnType<typeof assistantDecide>>>
+    export type AssistantDecideMutationBody = NonReadonly<DecideIn>
+    export type AssistantDecideMutationError = ErrorModel
+    export type AssistantDecideMutationVariables = {id: string;data: NonReadonly<DecideIn>}
+
+    /**
+ * @summary Confirm, discard or undo a change the assistant prepared
+ */
+export const useAssistantDecide = <TError = ErrorModel,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof assistantDecide>>, TError,AssistantDecideMutationVariables, TContext>, request?: SecondParameter<typeof fetcher>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof assistantDecide>>,
+        TError,
+        AssistantDecideMutationVariables,
+        TContext
+      > => {
+      return useMutation(getAssistantDecideMutationOptions(options), queryClient);
+    }
 
 export const getNeedsAttentionUrl = () => {
 
@@ -5975,6 +6314,343 @@ export const usePreviewSchedule = <TError = ErrorModel,
         TContext
       > => {
       return useMutation(getPreviewScheduleMutationOptions(options), queryClient);
+    }
+
+export const getSettingsAssistantUrl = () => {
+
+
+
+
+  return `/api/v1/settings/assistant`
+}
+
+/**
+ * @summary Built-in assistant status
+ */
+export const settingsAssistant = async ( options?: Parameters<typeof fetcher>[1]): Promise<AssistantStatus> => {
+
+  return fetcher<AssistantStatus>(getSettingsAssistantUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getSettingsAssistantQueryKey = () => {
+    return [
+    `/api/v1/settings/assistant`
+    ] as const;
+    }
+
+
+export const getSettingsAssistantQueryOptions = <TData = Awaited<ReturnType<typeof settingsAssistant>>, TError = ErrorModel>( options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof settingsAssistant>>, TError, TData>>, request?: SecondParameter<typeof fetcher>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getSettingsAssistantQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof settingsAssistant>>> = ({ signal }) => settingsAssistant({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof settingsAssistant>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type SettingsAssistantQueryResult = NonNullable<Awaited<ReturnType<typeof settingsAssistant>>>
+export type SettingsAssistantQueryError = ErrorModel
+
+
+export function useSettingsAssistant<TData = Awaited<ReturnType<typeof settingsAssistant>>, TError = ErrorModel>(
+  options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof settingsAssistant>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof settingsAssistant>>,
+          TError,
+          Awaited<ReturnType<typeof settingsAssistant>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof fetcher>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useSettingsAssistant<TData = Awaited<ReturnType<typeof settingsAssistant>>, TError = ErrorModel>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof settingsAssistant>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof settingsAssistant>>,
+          TError,
+          Awaited<ReturnType<typeof settingsAssistant>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof fetcher>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useSettingsAssistant<TData = Awaited<ReturnType<typeof settingsAssistant>>, TError = ErrorModel>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof settingsAssistant>>, TError, TData>>, request?: SecondParameter<typeof fetcher>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+/**
+ * @summary Built-in assistant status
+ */
+
+export function useSettingsAssistant<TData = Awaited<ReturnType<typeof settingsAssistant>>, TError = ErrorModel>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof settingsAssistant>>, TError, TData>>, request?: SecondParameter<typeof fetcher>}
+ , queryClient?: QueryClient
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getSettingsAssistantQueryOptions(options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getSettingsSetAssistantUrl = () => {
+
+
+
+
+  return `/api/v1/settings/assistant`
+}
+
+/**
+ * @summary Set up the built-in assistant (owners only)
+ */
+export const settingsSetAssistant = async (assistantSettings: NonReadonly<AssistantSettings>, options?: Parameters<typeof fetcher>[1]): Promise<AssistantStatus> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return fetcher<AssistantStatus>(getSettingsSetAssistantUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(assistantSettings)
+  }
+);}
+
+
+
+
+
+export const getSettingsSetAssistantMutationKey = () => ['settingsSetAssistant'] as const;
+
+export const getSettingsSetAssistantMutationOptions = <TError = ErrorModel,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof settingsSetAssistant>>, TError,SettingsSetAssistantMutationVariables, TContext>, request?: SecondParameter<typeof fetcher>}
+): UseMutationOptions<Awaited<ReturnType<typeof settingsSetAssistant>>, TError,SettingsSetAssistantMutationVariables, TContext> => {
+
+const mutationKey = getSettingsSetAssistantMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof settingsSetAssistant>>, SettingsSetAssistantMutationVariables> = (props) => {
+          const {data} = props ?? {};
+
+          return  settingsSetAssistant(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type SettingsSetAssistantMutationResult = NonNullable<Awaited<ReturnType<typeof settingsSetAssistant>>>
+    export type SettingsSetAssistantMutationBody = NonReadonly<AssistantSettings>
+    export type SettingsSetAssistantMutationError = ErrorModel
+    export type SettingsSetAssistantMutationVariables = {data: NonReadonly<AssistantSettings>}
+
+    /**
+ * @summary Set up the built-in assistant (owners only)
+ */
+export const useSettingsSetAssistant = <TError = ErrorModel,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof settingsSetAssistant>>, TError,SettingsSetAssistantMutationVariables, TContext>, request?: SecondParameter<typeof fetcher>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof settingsSetAssistant>>,
+        TError,
+        SettingsSetAssistantMutationVariables,
+        TContext
+      > => {
+      return useMutation(getSettingsSetAssistantMutationOptions(options), queryClient);
+    }
+
+export const getSettingsRemoveAssistantUrl = () => {
+
+
+
+
+  return `/api/v1/settings/assistant/remove`
+}
+
+/**
+ * @summary Forget the assistant's settings and key (owners only)
+ */
+export const settingsRemoveAssistant = async ( options?: Parameters<typeof fetcher>[1]): Promise<AssistantStatus> => {
+
+  return fetcher<AssistantStatus>(getSettingsRemoveAssistantUrl(),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+);}
+
+
+
+
+
+export const getSettingsRemoveAssistantMutationKey = () => ['settingsRemoveAssistant'] as const;
+
+export const getSettingsRemoveAssistantMutationOptions = <TError = ErrorModel,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof settingsRemoveAssistant>>, TError,void, TContext>, request?: SecondParameter<typeof fetcher>}
+): UseMutationOptions<Awaited<ReturnType<typeof settingsRemoveAssistant>>, TError,void, TContext> => {
+
+const mutationKey = getSettingsRemoveAssistantMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof settingsRemoveAssistant>>, void> = () => {
+
+
+          return  settingsRemoveAssistant(requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type SettingsRemoveAssistantMutationResult = NonNullable<Awaited<ReturnType<typeof settingsRemoveAssistant>>>
+
+    export type SettingsRemoveAssistantMutationError = ErrorModel
+
+
+    /**
+ * @summary Forget the assistant's settings and key (owners only)
+ */
+export const useSettingsRemoveAssistant = <TError = ErrorModel,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof settingsRemoveAssistant>>, TError,void, TContext>, request?: SecondParameter<typeof fetcher>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof settingsRemoveAssistant>>,
+        TError,
+        void,
+        TContext
+      > => {
+      return useMutation(getSettingsRemoveAssistantMutationOptions(options), queryClient);
+    }
+
+export const getSettingsTestAssistantUrl = () => {
+
+
+
+
+  return `/api/v1/settings/assistant/test`
+}
+
+/**
+ * @summary Make one small call to the configured model (owners only)
+ */
+export const settingsTestAssistant = async ( options?: Parameters<typeof fetcher>[1]): Promise<AssistantTest> => {
+
+  return fetcher<AssistantTest>(getSettingsTestAssistantUrl(),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+);}
+
+
+
+
+
+export const getSettingsTestAssistantMutationKey = () => ['settingsTestAssistant'] as const;
+
+export const getSettingsTestAssistantMutationOptions = <TError = ErrorModel,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof settingsTestAssistant>>, TError,void, TContext>, request?: SecondParameter<typeof fetcher>}
+): UseMutationOptions<Awaited<ReturnType<typeof settingsTestAssistant>>, TError,void, TContext> => {
+
+const mutationKey = getSettingsTestAssistantMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof settingsTestAssistant>>, void> = () => {
+
+
+          return  settingsTestAssistant(requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type SettingsTestAssistantMutationResult = NonNullable<Awaited<ReturnType<typeof settingsTestAssistant>>>
+
+    export type SettingsTestAssistantMutationError = ErrorModel
+
+
+    /**
+ * @summary Make one small call to the configured model (owners only)
+ */
+export const useSettingsTestAssistant = <TError = ErrorModel,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof settingsTestAssistant>>, TError,void, TContext>, request?: SecondParameter<typeof fetcher>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof settingsTestAssistant>>,
+        TError,
+        void,
+        TContext
+      > => {
+      return useMutation(getSettingsTestAssistantMutationOptions(options), queryClient);
     }
 
 export const getSettingsChannelsUrl = () => {

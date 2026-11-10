@@ -1,0 +1,12 @@
+> loop forever
+  model → list_subscriptions({})
+  exhale ← ok
+  model → list_subscriptions({})
+  exhale ← ok
+  model → list_subscriptions({})
+  exhale ← ok
+  model → list_subscriptions({})
+  exhale ← ok
+  model → list_subscriptions({})
+  exhale ← ok
+  (I stopped after 6 steps. Ask for one thing at a time if something is missing.)

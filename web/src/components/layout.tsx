@@ -12,6 +12,7 @@ import {
 	Sun,
 } from "lucide-react";
 import { useEffect, useState } from "react";
+import { AssistantPanel } from "@/components/assistant";
 import { SignOut } from "@/components/sign-out";
 import { useAuthSession } from "@/gen/api";
 import { useLiveEvents } from "@/lib/events";
@@ -79,6 +80,7 @@ export function Layout() {
 	const session = useAuthSession();
 	return (
 		<div className="min-h-dvh md:grid md:grid-cols-[232px_1fr]">
+			<AssistantPanel />
 			<div className="hidden border-r border-line bg-surface/60 md:block">
 				<aside className="sticky top-0 flex h-dvh flex-col px-3 py-4">
 					<div className="px-2 pb-6">

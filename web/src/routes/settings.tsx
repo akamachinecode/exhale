@@ -1,6 +1,7 @@
 import { Link, useNavigate, useSearch } from "@tanstack/react-router";
 import { type FormEvent, type ReactNode, useState } from "react";
 import { toast } from "sonner";
+import { AssistantSettings } from "@/components/assistant";
 import { OtherChannels } from "@/components/channels";
 import { PreferencesForm, ReminderTime, Sharing, TelegramSetup, TokensManager } from "@/components/connect";
 import { CalendarLink, ExportData, ImportData } from "@/components/data";
@@ -150,6 +151,14 @@ export function SettingsPage() {
 						)}
 					>
 						<TokensManager />
+					</Section>
+				)}
+				{tab === "agents" && (
+					<Section
+						title={t("Built-in assistant")}
+						description={t("Ask in plain language, here and in chat. Bring your own model.")}
+					>
+						<AssistantSettings />
 					</Section>
 				)}
 			</div>

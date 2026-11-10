@@ -16,6 +16,7 @@ import (
 	"strconv"
 	"strings"
 	"sync/atomic"
+	"time"
 
 	"github.com/go-telegram/bot"
 	"github.com/go-telegram/bot/models"
@@ -151,9 +152,14 @@ func (a *Adapter) Edit(ctx context.Context, chatID, messageID string, m actions.
 
 func format(m actions.Message) string {
 	var b strings.Builder
-	b.WriteString("<b>" + html.EscapeString(m.Title) + "</b>")
+	if m.Title != "" { // an assistant's answer has no title, only lines
+		b.WriteString("<b>" + html.EscapeString(m.Title) + "</b>")
+	}
 	for _, l := range m.Lines {
-		b.WriteString("\n" + html.EscapeString(l))
+		if b.Len() > 0 {
+			b.WriteString("\n")
+		}
+		b.WriteString(html.EscapeString(l))
 	}
 	for _, s := range m.Sections {
 		b.WriteString("\n")
@@ -256,7 +262,38 @@ func (a *Adapter) handleText(ctx context.Context, m *models.Message) {
 			return
 		}
 	}
+	if !strings.HasPrefix(text, "/") && a.eng.CanAsk(ctx) {
+		// Off the polling loop: a model takes seconds, and buttons must keep
+		// working meanwhile.
+		go a.ask(context.WithoutCancel(ctx), actor, chat, text)
+		return
+	}
 	a.reply(ctx, chatID, actions.HelpText(a.eng.Locale(ctx, actor)))
+}
+
+// ask sends free text to the built-in assistant (ADR 0018) and posts what
+// it answers. "typing…" shows while the model works.
+func (a *Adapter) ask(ctx context.Context, actor app.Actor, chat actions.ChatRef, text string) {
+	ctx, cancel := context.WithTimeout(ctx, 3*time.Minute)
+	defer cancel()
+	typing, stop := context.WithCancel(ctx)
+	go func() {
+		for {
+			_, _ = a.b.SendChatAction(typing, &bot.SendChatActionParams{ChatID: chat.ChatID, Action: models.ChatActionTyping})
+			select {
+			case <-typing.Done():
+				return
+			case <-time.After(4 * time.Second): // Telegram shows it for five
+			}
+		}
+	}()
+	msgs, _ := a.eng.Ask(ctx, actor, chat, text)
+	stop()
+	for _, m := range msgs {
+		if _, err := a.Send(ctx, chat.ChatID, m); err != nil {
+			a.log.Warn("telegram send failed", "err", err)
+		}
+	}
 }
 
 // join accepts a household invite from Telegram: the person becomes a

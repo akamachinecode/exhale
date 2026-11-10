@@ -15,6 +15,7 @@ import (
 	"github.com/danielgtaylor/huma/v2"
 
 	"github.com/akamachinecode/exhale/internal/app"
+	"github.com/akamachinecode/exhale/internal/assistant"
 	"github.com/akamachinecode/exhale/internal/auth"
 	"github.com/akamachinecode/exhale/internal/domain"
 	"github.com/akamachinecode/exhale/internal/importer"
@@ -29,7 +30,7 @@ import (
 
 // --- import: read a file into a review list ---------------------------------------
 
-func parseImport(svc *app.Service) http.HandlerFunc {
+func parseImport(asst *assistant.Assistant) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		actor, ok := actorFrom(r.Context())
 		if !ok {
@@ -54,18 +55,25 @@ func parseImport(svc *app.Service) http.HandlerFunc {
 			writeProblem(w, http.StatusRequestEntityTooLarge, "the file is larger than 20 MB")
 			return
 		}
-		info, err := svc.GetHousehold(r.Context(), actor, struct{}{})
+		// The file lives in memory for this request only. A spreadsheet, an
+		// export or a bank CSV is read here; a PDF, a picture or free text
+		// goes to the model, if an owner turned the assistant on.
+		res, err := asst.ReadImport(r.Context(), actor, data)
 		if err != nil {
-			writeProblem(w, http.StatusInternalServerError, "could not read the household")
-			return
-		}
-		res, err := importer.Parse(r.Context(), data, info.Household.Currency)
-		if err != nil {
-			msg := "could not read the file"
-			if errors.Is(err, importer.ErrUnknownFormat) {
+			status, msg := http.StatusUnprocessableEntity, "could not read the file"
+			var ae *assistant.Error
+			switch {
+			case errors.Is(err, importer.ErrUnknownFormat):
 				msg = strings.ToUpper(err.Error()[:1]) + err.Error()[1:]
+			case errors.Is(err, domain.ErrValidation):
+				msg = humanize(err, domain.ErrValidation)
+			case errors.As(err, &ae):
+				status, msg = http.StatusBadGateway, assistant.Explain(err)
+				if ae.Kind == assistant.KindBusy || ae.Kind == assistant.KindRateLimited {
+					status = http.StatusTooManyRequests
+				}
 			}
-			writeProblem(w, http.StatusUnprocessableEntity, msg)
+			writeProblem(w, status, msg)
 			return
 		}
 		w.Header().Set("Content-Type", "application/json")
@@ -166,8 +174,8 @@ func removeFeed(ctx context.Context, st *store.Store, memberID string) error {
 	return st.Q.DeleteSetting(ctx, feedOwnerPrefix+memberID)
 }
 
-func registerData(api huma.API, mux *http.ServeMux, svc *app.Service) {
-	mux.HandleFunc("POST /api/v1/import/parse", parseImport(svc))
+func registerData(api huma.API, mux *http.ServeMux, svc *app.Service, asst *assistant.Assistant) {
+	mux.HandleFunc("POST /api/v1/import/parse", parseImport(asst))
 	mux.HandleFunc("GET /api/v1/export/subscriptions.csv", exportCSV(svc, "subscriptions"))
 	mux.HandleFunc("GET /api/v1/export/charges.csv", exportCSV(svc, "charges"))
 	mux.HandleFunc("GET /feeds/calendar/{key}", calendarFeed(svc))
