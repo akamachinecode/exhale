@@ -4,6 +4,7 @@ import { ArrowLeft, Copy, ExternalLink, Pause, Pencil, Play, Trash2, XCircle } f
 import { useState } from "react";
 import { toast } from "sonner";
 import { ChargeActions } from "@/components/charge-actions";
+import { Documents, LogoControl } from "@/components/documents";
 import { ServiceTile } from "@/components/service-tile";
 import { ChargeStatus, SubscriptionStatus } from "@/components/status";
 import { reminderLabel, SubscriptionDialog } from "@/components/subscription-form";
@@ -71,7 +72,7 @@ export function SubscriptionDetail() {
 				<ArrowLeft className="size-3.5" /> {t("Subscriptions")}
 			</Link>
 			<div className="mb-6 flex flex-wrap items-center gap-4">
-				<ServiceTile name={s.name} size="lg" />
+				<ServiceTile name={s.name} logo={s.logo} size="lg" />
 				<div className="min-w-0 flex-1">
 					<div className="flex flex-wrap items-center gap-2">
 						<h1 className="truncate text-[22px] font-semibold tracking-tight">{s.name}</h1>
@@ -204,6 +205,7 @@ export function SubscriptionDetail() {
 						<CardHeader title={t("History")} />
 						<Charges charges={history ?? []} empty={t("No past charges yet.")} />
 					</Card>
+					<Documents subscription={s} charges={[...(history ?? []), ...(upcoming ?? [])]} />
 				</div>
 				<div className="grid content-start gap-6">
 					<Card>
@@ -287,6 +289,7 @@ export function SubscriptionDetail() {
 								</div>
 							)}
 							{s.notes && <Detail label={t("Notes")} value={s.notes} />}
+							<LogoControl subscription={s} />
 						</dl>
 					</Card>
 					<Card>

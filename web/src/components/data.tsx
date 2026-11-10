@@ -248,6 +248,9 @@ export function ExportData() {
 				<a className={link} href="/api/v1/export" download="exhale-export.json">
 					<Download /> {t("Everything (JSON)")}
 				</a>
+				<a className={link} href="/api/v1/export/archive.zip" download>
+					<Download /> {t("Full export with documents (ZIP)")}
+				</a>
 			</div>
 		</div>
 	);

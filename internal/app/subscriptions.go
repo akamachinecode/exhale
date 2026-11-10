@@ -439,6 +439,8 @@ type DeleteSubscriptionInput struct {
 type deletedSubscription struct {
 	domain.Subscription
 	Charges []domain.Charge `json:"charges,omitempty"`
+	// Files are the ids of its logo and documents, set aside for undo.
+	Files []string `json:"files,omitempty"`
 }
 
 // DeleteResult confirms a deletion.
@@ -473,6 +475,9 @@ func (s *Service) deleteSubscription(ctx context.Context, q *db.Queries, c *chan
 	}
 	for _, r := range rows {
 		gone.Charges = append(gone.Charges, store.ChargeFromRow(r))
+	}
+	if gone.Files, err = trashFilesOf(ctx, q, sub, c.now); err != nil {
+		return "", err
 	}
 	if err := q.DeleteSubscription(ctx, db.DeleteSubscriptionParams{ID: sub.ID, HouseholdID: actor.HouseholdID}); err != nil {
 		return "", err
@@ -590,7 +595,7 @@ func (s *Service) today(ctx context.Context, q *db.Queries, actor Actor) engine.
 }
 
 func (s *Service) view(ctx context.Context, q *db.Queries, sub domain.Subscription, today engine.Date) SubscriptionView {
-	v := SubscriptionView{Subscription: sub}
+	v := SubscriptionView{Subscription: sub, Logo: logoOf(ctx, q, sub)}
 	rule := sub.Schedule.Current(today)
 	v.Cadence = cadence(rule)
 	v.BillingDay = billingDay(rule)
@@ -668,7 +673,7 @@ func (s *Service) view(ctx context.Context, q *db.Queries, sub domain.Subscripti
 }
 
 func (s *Service) chargeView(ch domain.Charge, sub SubscriptionView, today engine.Date) ChargeView {
-	v := ChargeView{Charge: ch, SubscriptionName: sub.Name, PaymentMethod: sub.PaymentMethod, Delayed: ch.Delayed(), DaysUntil: today.DaysUntil(ch.DueDate), Kind: ChargeRenewal}
+	v := ChargeView{Charge: ch, SubscriptionName: sub.Name, PaymentMethod: sub.PaymentMethod, Delayed: ch.Delayed(), DaysUntil: today.DaysUntil(ch.DueDate), Kind: ChargeRenewal, Logo: sub.Logo}
 	switch {
 	case sub.ManualRenewal():
 		v.Kind = ChargeExpiry

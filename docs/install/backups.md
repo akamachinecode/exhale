@@ -1,6 +1,8 @@
 # Backups
 
-Everything Exhale knows is in one file, the database `exhale.db` in the data directory: subscriptions, charges, accounts, settings and the Telegram bot token. Back up that and you have backed up Exhale.
+Everything Exhale knows is in one file, the database `exhale.db` in the data directory: subscriptions, charges, accounts, settings, the Telegram bot token, and the logos and documents (contracts, invoices) you attach. Back up that and you have backed up Exhale.
+
+Attached files make the database, and so each backup, bigger: up to 10 MB per document and 500 MB per household. A deleted document is kept for 30 days, so it can be restored with Undo, and is then removed for good ([ADR 0027](../adr/0027-logos-and-documents.md)).
 
 A backup file contains all of that too. Keep backups as private as the data itself.
 

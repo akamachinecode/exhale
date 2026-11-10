@@ -27,6 +27,7 @@ type SubscriptionView struct {
 	// Billing rules (weekday of the month, weekend shift).
 	BillingDay    string      `json:"billingDay,omitempty" jsonschema:"when in its cycle it is charged, in words, e.g. on the third Wednesday, moved to the next business day when it falls on a weekend; empty for a plain day of the month"`
 	NextScheduled engine.Date `json:"nextScheduled,omitzero" jsonschema:"the date the next charge is scheduled on before a weekend shift moves it; equals nextCharge when it was not moved"`
+	Logo          string      `json:"logo,omitempty" jsonschema:"path of a logo someone uploaded for it; empty: the bundled brand mark or the initials"`
 }
 
 // ChargeView is a charge with its subscription context.
@@ -40,6 +41,7 @@ type ChargeView struct {
 	Kind         string      `json:"kind" jsonschema:"renewal (a normal charge), trial (the first charge after a free trial) or expiry (manual renewal: it expires on this date unless renewed)" enum:"renewal,trial,expiry"`
 	CancelBy     engine.Date `json:"cancelBy,omitzero" jsonschema:"last day to cancel before this charge, when the subscription has a notice period"`
 	CancelPassed bool        `json:"cancelPassed" jsonschema:"the last day to cancel before this charge has passed: it will renew"`
+	Logo         string      `json:"logo,omitempty" jsonschema:"path of the subscription's uploaded logo, if any"`
 }
 
 // Charge kinds.

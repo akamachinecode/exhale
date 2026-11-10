@@ -125,6 +125,10 @@ func (s *Service) undoOne(ctx context.Context, q *db.Queries, c *change, actor A
 		if err := s.undoSubscription(ctx, q, actor, c, a); err != nil {
 			return UndoResult{}, err
 		}
+	case "document", "logo":
+		if err := s.undoFile(ctx, q, actor, c, a); err != nil {
+			return UndoResult{}, err
+		}
 	default:
 		return UndoResult{}, fmt.Errorf("%w: changes to %s cannot be undone yet", domain.ErrValidation, a.Entity)
 	}
@@ -142,6 +146,9 @@ func (s *Service) undoSubscription(ctx context.Context, q *db.Queries, actor Act
 	today := s.today(ctx, q, actor)
 	switch {
 	case a.Before == "": // undo a creation: delete it
+		if _, err := trashFilesOf(ctx, q, domain.Subscription{ID: a.EntityID, HouseholdID: actor.HouseholdID}, c.now); err != nil {
+			return err
+		}
 		if err := q.DeleteSubscription(ctx, db.DeleteSubscriptionParams{ID: a.EntityID, HouseholdID: actor.HouseholdID}); err != nil {
 			return err
 		}
@@ -165,6 +172,9 @@ func (s *Service) undoSubscription(ctx context.Context, q *db.Queries, actor Act
 			}); err != nil {
 				return err
 			}
+		}
+		if err := restoreFiles(ctx, q, sub.HouseholdID, gone.Files); err != nil {
+			return err
 		}
 		c.emit(bus.Event{Type: bus.SubscriptionCreated, HouseholdID: sub.HouseholdID, SubscriptionID: sub.ID})
 		return s.materialize(ctx, q, sub, today)

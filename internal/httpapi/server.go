@@ -92,6 +92,7 @@ func New(svc *app.Service, cfg Config) (http.Handler, huma.API, error) {
 	registerSlack(api, aa)
 	registerAssistant(api, aa)
 	registerData(api, mux, svc, cfg.Assistant)
+	registerFiles(api, mux, svc, cfg.Assistant)
 	registerMembers(api, aa)
 	if err := registerOIDC(mux, aa); err != nil {
 		return nil, nil, err
@@ -222,6 +223,9 @@ func registerAll(api huma.API, svc *app.Service) {
 	register(api, svc, app.OpDeleteTag)
 	register(api, svc, app.OpSnooze)
 	register(api, svc, app.OpDismissDuplicate)
+	register(api, svc, app.OpListDocuments)
+	register(api, svc, app.OpDeleteDocument)
+	register(api, svc, app.OpRemoveLogo)
 }
 
 func operation(m app.Meta) huma.Operation {

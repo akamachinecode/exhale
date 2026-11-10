@@ -311,7 +311,7 @@ export function Subscriptions() {
 									</td>
 									<td className="py-3 pr-3 pl-2">
 										<Link to="/subscriptions/$id" params={{ id: s.id }} className="flex items-center gap-3">
-											<ServiceTile name={s.name} />
+											<ServiceTile name={s.name} logo={s.logo} />
 											<span className="min-w-0">
 												<span className="flex items-center gap-2">
 													<span className="truncate font-medium text-fg group-hover:underline">{s.name}</span>

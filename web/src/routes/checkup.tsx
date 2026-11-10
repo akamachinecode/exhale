@@ -4,7 +4,7 @@ import { ArrowRight } from "lucide-react";
 import type { ReactNode } from "react";
 import { DuplicateIsFine, MoveSubscriptions } from "@/components/answers";
 import { PageHeader } from "@/components/layout";
-import { ServiceTile } from "@/components/service-tile";
+import { ServiceTile, useLogos } from "@/components/service-tile";
 import { Button } from "@/components/ui/button";
 import { Card, CardHeader } from "@/components/ui/card";
 import { type ChargeView, type SubscriptionRef, useAudit, useDecideRenewal } from "@/gen/api";
@@ -235,7 +235,7 @@ function Section<T>({
 function ChargeLine({ charge, detail, action }: { charge: ChargeView; detail: string; action?: ReactNode }) {
 	return (
 		<li className="flex items-center gap-3 px-5 py-3 text-sm">
-			<ServiceTile name={charge.subscriptionName} size="sm" />
+			<ServiceTile name={charge.subscriptionName} logo={charge.logo} size="sm" />
 			<span className="min-w-0 flex-1">
 				<Link
 					to="/subscriptions/$id"
@@ -260,9 +260,10 @@ function ChargeLine({ charge, detail, action }: { charge: ChargeView; detail: st
 }
 
 function SubLine({ sub, detail, value }: { sub: SubscriptionRef; detail: string; value: string }) {
+	const logos = useLogos();
 	return (
 		<li className="flex items-center gap-3 px-5 py-3 text-sm">
-			<ServiceTile name={sub.name} size="sm" />
+			<ServiceTile name={sub.name} logo={logos.get(sub.id)} size="sm" />
 			<span className="min-w-0 flex-1">
 				<Link
 					to="/subscriptions/$id"

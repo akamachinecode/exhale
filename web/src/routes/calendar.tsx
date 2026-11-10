@@ -1,7 +1,7 @@
 import { Link, useNavigate, useSearch } from "@tanstack/react-router";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { PageHeader } from "@/components/layout";
-import { ServiceTile } from "@/components/service-tile";
+import { ServiceTile, useLogos } from "@/components/service-tile";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { type CalendarEvent, useCalendar, useSpendingSummary } from "@/gen/api";
@@ -32,6 +32,7 @@ export function Calendar() {
 	// Events come from the engine: real charges and, further ahead, the ones
 	// the schedule will produce, plus trial ends and last days to cancel.
 	const q = useCalendar({ from: b.from, to: b.to });
+	const logos = useLogos();
 	const events = q.data?.events ?? [];
 	const byDay = new Map<string, CalendarEvent[]>();
 	for (const e of events) byDay.set(e.date, [...(byDay.get(e.date) ?? []), e]);
@@ -145,7 +146,7 @@ export function Calendar() {
 												c.projected && "opacity-75",
 											)}
 										>
-											<ServiceTile name={c.subscription} size="sm" />
+											<ServiceTile name={c.subscription} logo={logos.get(c.subscriptionId)} size="sm" />
 											<span className="hidden min-w-0 sm:block">
 												<span className="block truncate font-medium">{c.subscription}</span>
 												<span className="tnum block truncate text-muted">
