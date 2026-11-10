@@ -263,6 +263,10 @@
             "description": "a household exists (made with exhale init); setup only creates the owner's login",
             "type": "boolean"
           },
+          "passwordLoginDisabled": {
+            "description": "password sign-in is turned off: only show single sign-on",
+            "type": "boolean"
+          },
           "setupNeedsCode": {
             "description": "the wizard must ask for the setup code (request not from the server's machine)",
             "type": "boolean"
@@ -270,6 +274,10 @@
           "setupRequired": {
             "description": "nobody can sign in yet: show the setup wizard",
             "type": "boolean"
+          },
+          "sso": {
+            "$ref": "#/components/schemas/SSOInfo",
+            "description": "present when single sign-on (OpenID Connect) is enabled; start it by navigating to /api/v1/auth/oidc/start"
           },
           "telegramBot": {
             "description": "username of the Telegram bot, when Telegram is enabled",
@@ -282,7 +290,8 @@
         "required": [
           "setupRequired",
           "setupNeedsCode",
-          "hasHousehold"
+          "hasHousehold",
+          "passwordLoginDisabled"
         ],
         "type": "object"
       },
@@ -2771,6 +2780,19 @@
         ],
         "type": "object"
       },
+      "SSOInfo": {
+        "additionalProperties": false,
+        "properties": {
+          "name": {
+            "description": "what the sign-in button says after \"Continue with\"",
+            "type": "string"
+          }
+        },
+        "required": [
+          "name"
+        ],
+        "type": "object"
+      },
       "SavePaymentMethodInput": {
         "additionalProperties": false,
         "properties": {
@@ -2876,6 +2898,10 @@
           "email": {
             "type": "string"
           },
+          "hasPassword": {
+            "description": "the account has a password (accounts made through single sign-on have none)",
+            "type": "boolean"
+          },
           "id": {
             "type": "string"
           },
@@ -2884,13 +2910,18 @@
           },
           "role": {
             "type": "string"
+          },
+          "ssoHost": {
+            "description": "host of the identity provider this account is linked to, if any",
+            "type": "string"
           }
         },
         "required": [
           "id",
           "name",
           "email",
-          "role"
+          "role",
+          "hasPassword"
         ],
         "type": "object"
       },

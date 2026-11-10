@@ -40,6 +40,15 @@ type Config struct {
 	// available, e.g. in tests).
 	Telegram TelegramControl
 	Log      *slog.Logger
+	// PublicURL is the address people reach Exhale at, e.g.
+	// https://exhale.example.com. Single sign-on builds its redirect URI
+	// from it; without it only this machine's own address works.
+	PublicURL string
+	// OIDC enables sign-in with an OpenID Connect provider (nil: off).
+	OIDC *auth.OIDC
+	// DisablePasswordLogin turns password sign-in off. Only honoured when
+	// OIDC is set.
+	DisablePasswordLogin bool
 }
 
 type ctxKey struct{}
@@ -64,6 +73,9 @@ func New(svc *app.Service, cfg Config) (http.Handler, huma.API, error) {
 	registerSettings(api, aa)
 	registerData(api, mux, svc)
 	registerMembers(api, aa)
+	if err := registerOIDC(mux, aa); err != nil {
+		return nil, nil, err
+	}
 
 	mux.HandleFunc("GET /healthz", func(w http.ResponseWriter, _ *http.Request) { w.Write([]byte("ok")) })
 	mux.HandleFunc("GET /api/v1/events", events(svc))

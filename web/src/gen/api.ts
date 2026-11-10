@@ -191,11 +191,20 @@ export interface AuditReport {
   unconfirmed: ChargeView[] | null;
 }
 
+export interface SSOInfo {
+  /** what the sign-in button says after "Continue with" */
+  name: string;
+}
+
 export interface SessionUser {
   email: string;
+  /** the account has a password (accounts made through single sign-on have none) */
+  hasPassword: boolean;
   id: string;
   name: string;
   role: string;
+  /** host of the identity provider this account is linked to, if any */
+  ssoHost?: string;
 }
 
 export interface AuthSession {
@@ -203,10 +212,14 @@ export interface AuthSession {
   readonly $schema?: string;
   /** a household exists (made with exhale init); setup only creates the owner's login */
   hasHousehold: boolean;
+  /** password sign-in is turned off: only show single sign-on */
+  passwordLoginDisabled: boolean;
   /** the wizard must ask for the setup code (request not from the server's machine) */
   setupNeedsCode: boolean;
   /** nobody can sign in yet: show the setup wizard */
   setupRequired: boolean;
+  /** present when single sign-on (OpenID Connect) is enabled; start it by navigating to /api/v1/auth/oidc/start */
+  sso?: SSOInfo;
   /** username of the Telegram bot, when Telegram is enabled */
   telegramBot?: string;
   user?: SessionUser;

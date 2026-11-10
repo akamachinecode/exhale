@@ -32,7 +32,7 @@ export function SettingsPage() {
 					description={user ? `${user.name} · ${user.email}` : undefined}
 					action={<SignOut />}
 				>
-					<ChangePassword />
+					<AccountLogin />
 				</Section>
 				<Section
 					title="Preferences"
@@ -92,6 +92,26 @@ function Section({
 			<CardHeader title={title} description={description} action={action} />
 			<div className="border-t border-line px-5 py-4">{children}</div>
 		</Card>
+	);
+}
+
+/** How this account signs in: the linked identity provider, the password, or both. */
+function AccountLogin() {
+	const session = useAuthSession();
+	const user = session.data?.user;
+	const password = user?.hasPassword && !session.data?.passwordLoginDisabled;
+	return (
+		<div className="grid gap-4">
+			{user?.ssoHost && (
+				<p className="text-sm text-muted">
+					Single sign-on · <span className="font-mono text-[13px] text-fg">{user.ssoHost}</span>
+				</p>
+			)}
+			{password && <ChangePassword />}
+			{!password && !user?.ssoHost && (
+				<p className="text-sm text-muted">Password sign-in is turned off on this server.</p>
+			)}
+		</div>
 	);
 }
 

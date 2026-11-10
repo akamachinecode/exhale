@@ -77,10 +77,10 @@ func validateName(name string) (string, error) {
 	return name, nil
 }
 
-// SetupRequired reports whether nobody can sign in yet, so the setup wizard
-// must run.
+// SetupRequired reports whether nobody can sign in yet (no member has a
+// password or a provider identity), so the setup wizard must run.
 func SetupRequired(ctx context.Context, st *store.Store) (bool, error) {
-	n, err := st.Q.CountMembersWithPassword(ctx)
+	n, err := st.Q.CountMembersWithLogin(ctx)
 	return n == 0, err
 }
 

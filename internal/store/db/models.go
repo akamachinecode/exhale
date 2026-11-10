@@ -113,6 +113,8 @@ type Member struct {
 	PasswordHash   string
 	CreatedAt      string
 	SessionVersion int64
+	OidcIssuer     string
+	OidcSubject    string
 }
 
 type Message struct {
