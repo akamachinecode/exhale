@@ -10,3 +10,4 @@ Open-source, self-hosted subscription manager where **the notification is the in
 - [Architecture decision records](docs/adr/README.md)
 - [Interactive architecture diagram](docs/architecture-diagram.html) (open it in a browser)
 - [Open questions](docs/open-questions.md)
+- [Single sign-on with OpenID Connect](docs/install/sso.md)
