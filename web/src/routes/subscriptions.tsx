@@ -7,8 +7,8 @@ import { SubscriptionStatus } from "@/components/status";
 import { NewSubscription } from "@/components/subscription-form";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import { Input } from "@/components/ui/field";
-import { type SubscriptionView, useListSubscriptions, useSpendingSummary } from "@/gen/api";
+import { Input, Select } from "@/components/ui/field";
+import { type SubscriptionView, useGetHousehold, useListSubscriptions, useSpendingSummary } from "@/gen/api";
 import { t } from "@/lib/i18n";
 import { cadenceText, cn, date, money, sumMain } from "@/lib/utils";
 
@@ -20,7 +20,7 @@ const tabs = [
 ] as const;
 
 type Sort = "name" | "next" | "monthly";
-type SearchParams = { status?: string; q?: string; sort?: string; desc?: boolean };
+type SearchParams = { status?: string; q?: string; sort?: string; desc?: boolean; cat?: string; pm?: string };
 
 const sorters: Record<Sort, (a: SubscriptionView, b: SubscriptionView) => number> = {
 	name: (a, b) => a.name.localeCompare(b.name),
@@ -48,9 +48,14 @@ export function Subscriptions() {
 	const all = list.data?.subscriptions ?? [];
 	const sort = (search.sort as Sort) in sorters ? (search.sort as Sort) : "next";
 	const q = search.q?.toLowerCase() ?? "";
+	const household = useGetHousehold();
+	// "-" selects the ones without a category or payment method.
+	const matches = (want: string | undefined, id: string | undefined) =>
+		!want || (want === "-" ? !id : id === want);
 	const subs = all
 		.filter((s) => !search.status || s.status === search.status)
 		.filter((s) => !q || s.name.toLowerCase().includes(q))
+		.filter((s) => matches(search.cat, s.categoryId) && matches(search.pm, s.paymentMethodId))
 		.sort((a, b) => (search.desc ? -1 : 1) * sorters[sort](a, b));
 	const count = (status?: string) => all.filter((s) => !status || s.status === status).length;
 	const active = all.filter((s) => s.status === "active");
@@ -109,6 +114,37 @@ export function Subscriptions() {
 							<span className="tnum text-xs text-faint">{count(tab.value)}</span>
 						</button>
 					))}
+				</div>
+				<div className="flex w-full flex-wrap gap-2 sm:w-auto">
+					<Select
+						className="w-auto min-w-36 flex-1"
+						aria-label={t("Filter by category")}
+						value={search.cat ?? ""}
+						onChange={(e) => set({ cat: e.target.value || undefined }, true)}
+					>
+						<option value="">{t("All categories")}</option>
+						{(household.data?.categories ?? []).map((c) => (
+							<option key={c.id} value={c.id}>
+								{c.name}
+							</option>
+						))}
+						<option value="-">{t("No category")}</option>
+					</Select>
+					<Select
+						className="w-auto min-w-36 flex-1"
+						aria-label={t("Filter by payment method")}
+						value={search.pm ?? ""}
+						onChange={(e) => set({ pm: e.target.value || undefined }, true)}
+					>
+						<option value="">{t("All payment methods")}</option>
+						{(household.data?.paymentMethods ?? []).map((p) => (
+							<option key={p.id} value={p.id}>
+								{p.name}
+								{p.last4 ? ` ••${p.last4}` : ""}
+							</option>
+						))}
+						<option value="-">{t("No payment method")}</option>
+					</Select>
 				</div>
 				<div className="relative w-full sm:w-64">
 					<Search className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-faint" />
