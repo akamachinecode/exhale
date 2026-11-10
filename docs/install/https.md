@@ -101,6 +101,6 @@ Then sign in with a browser and look at the cookie `exhale_session`: it must be 
 
 ## Before you go public
 
-- Use long, unique passwords. Exhale requires at least 10 characters and slows down repeated sign-in attempts, but it has no second factor yet. Sign-in through your identity provider (OIDC) and two-factor codes are planned.
+- Use long, unique passwords. Exhale requires at least 10 characters and slows down repeated sign-in attempts. Turn on two-factor sign-in (Settings → You), or sign in through your identity provider ([single sign-on](sso.md)).
 - If only your household or team uses it, prefer Tailscale or a VPN to a public address.
 - Keep Exhale up to date.

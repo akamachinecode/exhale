@@ -76,6 +76,7 @@ Set them as environment variables; the full list is in [Install Exhale](README.m
 ```sh
 docker exec exhale exhale setup-code
 docker exec -it exhale exhale user reset-password --email you@example.com
+docker exec exhale exhale user reset-2fa --email you@example.com
 docker exec exhale exhale backup
 ```
 

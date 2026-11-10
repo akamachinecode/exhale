@@ -11,6 +11,7 @@ import {
 	useAuthGetInvite,
 	useAuthJoin,
 	useAuthLogin,
+	useAuthLoginTwoFactor,
 	useAuthSession,
 	useAuthSetup,
 } from "@/gen/api";
@@ -332,6 +333,7 @@ function SignIn({ session }: { session: AuthSession }) {
 	const [email, setEmail] = useState("");
 	const [password, setPassword] = useState("");
 	const [error, setError] = useState<string>();
+	const [pending, setPending] = useState<string>();
 	const sso = session.sso && (
 		<SsoButton
 			name={session.sso.name}
@@ -353,11 +355,28 @@ function SignIn({ session }: { session: AuthSession }) {
 		e.preventDefault();
 		setError(undefined);
 		try {
-			applySession(qc, await login.mutateAsync({ data: { email, password } }));
+			const s = await login.mutateAsync({ data: { email, password } });
+			if (s.twoFactor) {
+				setPassword("");
+				setPending(s.twoFactor.token);
+				return;
+			}
+			applySession(qc, s);
 		} catch (err) {
 			setError(errorText(err, t("Could not sign in")));
 		}
 	};
+	if (pending) {
+		return (
+			<TwoFactorStep
+				token={pending}
+				onBack={(message) => {
+					setPending(undefined);
+					setError(message);
+				}}
+			/>
+		);
+	}
 	return (
 		<AuthFrame title={t("Sign in")}>
 			<form onSubmit={onSubmit} className="grid gap-4">
@@ -389,6 +408,67 @@ function SignIn({ session }: { session: AuthSession }) {
 				<p className="text-center text-xs text-faint">
 					{t("Forgot it? On the server:")}{" "}
 					<code className="font-mono">exhale user reset-password --email …</code>
+				</p>
+			</form>
+		</AuthFrame>
+	);
+}
+
+/**
+ * The second step of a password sign-in with two-factor on (ADR 0025): a
+ * code from the authenticator app, or a backup code.
+ */
+function TwoFactorStep({ token, onBack }: { token: string; onBack: (message?: string) => void }) {
+	const qc = useQueryClient();
+	const verify = useAuthLoginTwoFactor();
+	const [code, setCode] = useState("");
+	const [error, setError] = useState<string>();
+	const onSubmit = async (e: FormEvent) => {
+		e.preventDefault();
+		setError(undefined);
+		try {
+			applySession(qc, await verify.mutateAsync({ data: { token, code } }));
+		} catch (err) {
+			const status = err instanceof ApiError ? err.status : 0;
+			if (status === 410) {
+				onBack(t("That took too long. Enter your password again."));
+				return;
+			}
+			setCode("");
+			setError(
+				status === 401
+					? t("That code did not work. Codes change every 30 seconds; try the current one.")
+					: status === 429
+						? t("Too many attempts. Wait a minute and try again.")
+						: errorText(err, t("Could not sign in")),
+			);
+		}
+	};
+	return (
+		<AuthFrame title={t("Enter your code")} subtitle={t("From the authenticator app on your phone.")}>
+			<form onSubmit={onSubmit} className="grid gap-4">
+				<Field label={t("Code")} hint={t("No phone at hand? Use one of your backup codes.")}>
+					<Input
+						value={code}
+						onChange={(e) => setCode(e.target.value)}
+						required
+						autoFocus
+						autoComplete="one-time-code"
+						maxLength={32}
+						className="font-mono tracking-widest"
+					/>
+				</Field>
+				<FormError message={error} />
+				<Button type="submit" variant="primary" className="mt-2 h-10" disabled={verify.isPending}>
+					{verify.isPending ? <Loader2 className="animate-spin" /> : null}
+					{t("Sign in")}
+				</Button>
+				<Button variant="ghost" className="h-9" onClick={() => onBack()}>
+					{t("Back")}
+				</Button>
+				<p className="text-center text-xs text-faint">
+					{t("Lost both? An owner can turn it off in Settings → Sharing, or on the server:")}{" "}
+					<code className="font-mono">exhale user reset-2fa --email …</code>
 				</p>
 			</form>
 		</AuthFrame>

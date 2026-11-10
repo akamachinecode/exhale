@@ -9,6 +9,7 @@ import { PageHeader } from "@/components/layout";
 import { Categories, Payday, PaymentMethods } from "@/components/manage";
 import { SignOut } from "@/components/sign-out";
 import { SlackSetup } from "@/components/slack";
+import { TwoFactorSettings } from "@/components/two-factor";
 import { Button } from "@/components/ui/button";
 import { Card, CardHeader } from "@/components/ui/card";
 import { Field, PasswordInput } from "@/components/ui/field";
@@ -67,6 +68,14 @@ export function SettingsPage() {
 						>
 							<AccountLogin />
 						</Section>
+						{user?.hasPassword && !session.data?.passwordLoginDisabled && (
+							<Section
+								title={t("Two-factor sign-in")}
+								description={t("After your password, a code from an authenticator app.")}
+							>
+								<TwoFactorSettings />
+							</Section>
+						)}
 						<p className="flex gap-4 text-[13px] md:hidden">
 							<Link to="/activity" className="font-medium hover:underline">
 								{t("Activity")}

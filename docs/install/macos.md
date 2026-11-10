@@ -71,6 +71,7 @@ Stop nothing; commands work while the agent runs:
 ```sh
 exhale backup
 exhale user reset-password --email you@example.com
+exhale user reset-2fa --email you@example.com
 ```
 
 ## Upgrade

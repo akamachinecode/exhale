@@ -31,7 +31,7 @@ func isLocal(ctx context.Context) bool { v, _ := ctx.Value(localKey{}).(bool); r
 func publicPath(p string) bool {
 	switch p {
 	case "/api/v1/auth/session", "/api/v1/auth/setup", "/api/v1/auth/login", "/api/v1/auth/join", "/api/v1/auth/logout",
-		oidcStart, oidcCallback:
+		oidcStart, oidcCallback, loginTwoFactorPath:
 		return true
 	}
 	return strings.HasPrefix(p, "/api/v1/auth/invites/")
@@ -42,6 +42,10 @@ func publicPath(p string) bool {
 type limiter struct {
 	mu sync.Mutex
 	m  map[string]*rate.Limiter
+	// every and burst override the sign-in rate (10 at once, then one
+	// every 6 s) when set.
+	every time.Duration
+	burst int
 }
 
 func (l *limiter) allow(key string) bool {
@@ -52,7 +56,11 @@ func (l *limiter) allow(key string) bool {
 	}
 	lim, ok := l.m[key]
 	if !ok {
-		lim = rate.NewLimiter(rate.Every(6*time.Second), 10) // 10 at once, then 10 per minute
+		every, burst := 6*time.Second, 10 // 10 at once, then 10 per minute
+		if l.every > 0 {
+			every, burst = l.every, l.burst
+		}
+		lim = rate.NewLimiter(rate.Every(every), burst)
 		l.m[key] = lim
 	}
 	return lim.Allow()
@@ -90,6 +98,9 @@ type AuthSession struct {
 	// join only go through the provider.
 	PasswordLoginDisabled bool `json:"passwordLoginDisabled" doc:"password sign-in is turned off: only show single sign-on"`
 	Assistant             bool `json:"assistant" doc:"the built-in assistant is on: show Ask Exhale"`
+	// TwoFactor is set by a sign-in whose password was right and that now
+	// needs a code (ADR 0025).
+	TwoFactor *TwoFactorStep `json:"twoFactor,omitempty" doc:"the password was right; send a code to /api/v1/auth/login/two-factor to finish signing in"`
 }
 
 type authAPI struct {
@@ -101,6 +112,10 @@ type authAPI struct {
 	// Single sign-on: attempts in progress and their own throttle.
 	flows     flowStore
 	ssoStarts limiter
+	// Two-factor sign-in: logins waiting for a code and their throttles.
+	pending     pendingLogins
+	codeIPs     limiter
+	codeMembers limiter
 }
 
 func (a *authAPI) session(ctx context.Context) (AuthSession, error) {
@@ -206,6 +221,9 @@ func registerAuth(api huma.API, a *authAPI) {
 			}
 			if err != nil {
 				return nil, httpError(err)
+			}
+			if out, err := a.askForCode(ctx, m); out != nil || err != nil {
+				return out, err
 			}
 			return a.signIn(ctx, m.ID)
 		})

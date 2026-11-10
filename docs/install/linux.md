@@ -96,7 +96,7 @@ The service has no privileges, so it cannot listen on ports below 1024. For port
 
 ## Run a command
 
-Commands such as `exhale backup`, `exhale setup-code` or `exhale user reset-password` must run as the service user and on the service's data:
+Commands such as `exhale backup`, `exhale setup-code`, `exhale user reset-password` or `exhale user reset-2fa` (turns off two-factor sign-in for a lost phone) must run as the service user and on the service's data:
 
 ```sh
 sudo -u exhale env EXHALE_DATA_DIR=/var/lib/exhale exhale user reset-password --email you@example.com

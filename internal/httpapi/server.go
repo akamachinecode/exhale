@@ -97,6 +97,7 @@ func New(svc *app.Service, cfg Config) (http.Handler, huma.API, error) {
 		return nil, nil, err
 	}
 	registerChannels(api, aa)
+	registerTwoFactor(api, aa)
 
 	mux.HandleFunc("GET /healthz", func(w http.ResponseWriter, _ *http.Request) { w.Write([]byte("ok")) })
 	mux.HandleFunc("GET /api/v1/events", events(svc))
