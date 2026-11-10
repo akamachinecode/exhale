@@ -58,10 +58,13 @@ WHERE id = sqlc.arg(id) AND (last_used_at IS NULL OR last_used_at < sqlc.arg(sta
 -- name: DeleteOAuthGrant :execrows
 DELETE FROM oauth_grants WHERE id = ?;
 
--- name: ListOAuthGrantsOfClient :many
--- A dynamic client is one installation: approving it again replaces what it
--- had.
-SELECT id FROM oauth_grants WHERE member_id = ? AND client_id = ? AND resource = ?;
+-- name: ListOAuthGrantsOfSameApp :many
+-- Cloud assistants register again each time they connect. A member's
+-- earlier connections of a self-registered application with the same name
+-- and redirect URIs are the same application connecting again.
+SELECT g.id FROM oauth_grants g JOIN oauth_clients c ON c.id = g.client_id
+WHERE g.member_id = sqlc.arg(member_id) AND g.resource = sqlc.arg(resource) AND c.kind = 'dynamic'
+  AND c.name = sqlc.arg(name) AND c.redirect_uris = sqlc.arg(redirect_uris);
 
 -- name: ListOAuthGrants :many
 -- The applications a member has connected: grants that still have a token

@@ -325,9 +325,10 @@ func (s *Service) exchange(ctx context.Context, c Client, in TokenRequest, resou
 			return fail("invalid_grant", "the authorization code was already used")
 		}
 		if c.Kind == KindDynamic {
-			// One registration is one installation: connecting it again
-			// replaces what it had.
-			old, err := q.ListOAuthGrantsOfClient(ctx, db.ListOAuthGrantsOfClientParams{MemberID: m.ID, ClientID: c.ID, Resource: code.Resource})
+			// Connecting the same application again replaces what it had,
+			// instead of leaving a second row in the list.
+			uris, _ := json.Marshal(c.RedirectURIs)
+			old, err := q.ListOAuthGrantsOfSameApp(ctx, db.ListOAuthGrantsOfSameAppParams{MemberID: m.ID, Resource: code.Resource, Name: c.Name, RedirectUris: string(uris)})
 			if err != nil {
 				return err
 			}

@@ -414,20 +414,29 @@ func (q *Queries) ListOAuthGrants(ctx context.Context, arg ListOAuthGrantsParams
 	return items, nil
 }
 
-const listOAuthGrantsOfClient = `-- name: ListOAuthGrantsOfClient :many
-SELECT id FROM oauth_grants WHERE member_id = ? AND client_id = ? AND resource = ?
+const listOAuthGrantsOfSameApp = `-- name: ListOAuthGrantsOfSameApp :many
+SELECT g.id FROM oauth_grants g JOIN oauth_clients c ON c.id = g.client_id
+WHERE g.member_id = ?1 AND g.resource = ?2 AND c.kind = 'dynamic'
+  AND c.name = ?3 AND c.redirect_uris = ?4
 `
 
-type ListOAuthGrantsOfClientParams struct {
-	MemberID string
-	ClientID string
-	Resource string
+type ListOAuthGrantsOfSameAppParams struct {
+	MemberID     string
+	Resource     string
+	Name         string
+	RedirectUris string
 }
 
-// A dynamic client is one installation: approving it again replaces what it
-// had.
-func (q *Queries) ListOAuthGrantsOfClient(ctx context.Context, arg ListOAuthGrantsOfClientParams) ([]string, error) {
-	rows, err := q.db.QueryContext(ctx, listOAuthGrantsOfClient, arg.MemberID, arg.ClientID, arg.Resource)
+// Cloud assistants register again each time they connect. A member's
+// earlier connections of a self-registered application with the same name
+// and redirect URIs are the same application connecting again.
+func (q *Queries) ListOAuthGrantsOfSameApp(ctx context.Context, arg ListOAuthGrantsOfSameAppParams) ([]string, error) {
+	rows, err := q.db.QueryContext(ctx, listOAuthGrantsOfSameApp,
+		arg.MemberID,
+		arg.Resource,
+		arg.Name,
+		arg.RedirectUris,
+	)
 	if err != nil {
 		return nil, err
 	}

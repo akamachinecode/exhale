@@ -677,6 +677,27 @@ func TestOAuthRegistration(t *testing.T) {
 	}
 }
 
+// Cloud assistants register again every time they connect: the same app
+// connecting again replaces its earlier connection.
+func TestOAuthReconnectReplaces(t *testing.T) {
+	e := newOAuthEnv(t, nil)
+	_, first := e.connect("ChatGPT", "read")
+	_, second := e.connect("ChatGPT", "write")
+	if apps := e.apps(); len(apps) != 1 || apps[0].(map[string]any)["scope"] != "write" {
+		t.Fatalf("one row per app: %v", apps)
+	}
+	if code, _ := e.mcpStatus(first["access_token"].(string)); code != 401 {
+		t.Fatalf("the replaced connection must end: %d", code)
+	}
+	if code, _ := e.mcpStatus(second["access_token"].(string)); code != 200 {
+		t.Fatalf("the new connection: %d", code)
+	}
+	e.connect("Claude", "read")
+	if n := len(e.apps()); n != 2 {
+		t.Fatalf("another app is another row: %d", n)
+	}
+}
+
 func TestOAuthTokenEndpointIsThrottled(t *testing.T) {
 	e := newOAuthEnv(t, nil)
 	for range 40 {
