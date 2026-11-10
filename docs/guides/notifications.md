@@ -56,7 +56,7 @@ The default body:
 }
 ```
 
-`event` is `reminder` (before a charge, a trial ending or an expiry), `decision` (the last day to cancel is near), `confirm` (the date passed: was it charged?), `failed` (a charge marked as failed) or `test` (sent from Settings).
+`event` is `reminder` (before a charge, a trial ending or an expiry), `decision` (the last day to cancel is near), `confirm` (the date passed: was it charged?), `failed` (a charge marked as failed), `duplicate` (the same service paid more than once), `card_expiring` (a card that pays subscriptions expires soon; `paymentMethod`, `dueDate` and `daysUntil` say which and when) or `test` (sent from Settings). See [reminders that end in an answer](reminders.md).
 
 ### Body templates
 
@@ -64,7 +64,7 @@ Services expect their own JSON. Give the destination a **body template** and Exh
 
 | Variable | Value |
 |---|---|
-| `{{event}}` | `reminder`, `decision`, `confirm`, `failed` or `test` |
+| `{{event}}` | `reminder`, `decision`, `confirm`, `failed`, `duplicate`, `card_expiring` or `test` |
 | `{{title}}` | The headline without its emoji |
 | `{{emoji}}` | The emoji of the headline |
 | `{{message}}` | The details under the headline |

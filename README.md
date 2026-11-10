@@ -43,6 +43,7 @@ Once releases exist, the [install guide](docs/install/README.md) covers Docker, 
 - [Install](docs/install/README.md): Docker, Linux packages and service, macOS, [HTTPS and remote access](docs/install/https.md), [backups](docs/install/backups.md), [single sign-on](docs/install/sso.md)
 - [Exhale for a team](docs/guides/teams.md)
 - [Reminders by email, ntfy and webhook](docs/guides/notifications.md)
+- [Reminders that end in an answer](docs/guides/reminders.md): snooze, asking again, duplicates, cards about to expire
 - [Vision](docs/vision.md) and [architecture decisions](docs/adr/README.md)
 - [What other tools do and what we took from them](docs/research/2026-11-10-feature-scan.md)
 
