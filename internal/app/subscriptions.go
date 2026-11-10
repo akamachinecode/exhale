@@ -38,6 +38,7 @@ type CreateSubscriptionInput struct {
 	EndDate         string `json:"endDate,omitempty" jsonschema:"last possible charge date, YYYY-MM-DD"`
 	Status          string `json:"status,omitempty" jsonschema:"active (default) or paused; cancelled records a subscription that already ended: pass firstCharge = when it started and endDate = its last day" enum:"active,paused,cancelled"`
 	TermsInput
+	ExtrasInput
 	DryRun bool `json:"dryRun,omitempty" jsonschema:"preview the result without saving"`
 }
 
@@ -100,6 +101,9 @@ func (s *Service) newSubscription(ctx context.Context, q *db.Queries, actor Acto
 	}
 	details, err := in.details()
 	if err != nil {
+		return none, err
+	}
+	if err := in.apply(&details, price.Currency); err != nil {
 		return none, err
 	}
 	if in.FirstCharge == "" && !details.TrialEndsOn.IsZero() {
@@ -209,7 +213,8 @@ type UpdateSubscriptionInput struct {
 	// Shares replace the cost split; an empty list gives the cost back to the payer.
 	Shares []domain.Share `json:"shares,omitempty" jsonschema:"how members split the cost, by relative weight"`
 	Using  *bool          `json:"using,omitempty" jsonschema:"the member's answer to 'still using this?'"`
-	DryRun bool           `json:"dryRun,omitempty"`
+	ExtrasUpdate
+	DryRun bool `json:"dryRun,omitempty"`
 }
 
 // UpdateSubscription edits a subscription.
@@ -249,6 +254,9 @@ func (s *Service) UpdateSubscription(ctx context.Context, actor Actor, in Update
 		}
 		if in.Using != nil {
 			sub.Usage = &domain.Usage{Using: *in.Using, At: s.now()}
+		}
+		if err := in.apply(&sub); err != nil {
+			return err
 		}
 		if in.StartedOn != nil {
 			if sub.StartedOn, err = optionalDate(*in.StartedOn, "started on"); err != nil {
@@ -367,46 +375,57 @@ func (s *Service) SetSubscriptionStatus(ctx context.Context, actor Actor, in Set
 		if err != nil {
 			return err
 		}
-		sub := before
-		today := s.today(ctx, q, actor)
-		dropFrom := today
-		switch in.Action {
-		case "pause":
-			sub.Status = domain.StatusPaused
-		case "resume":
-			sub.Status = domain.StatusActive
-		case "cancel_now":
-			sub.Status = domain.StatusCancelled
-			sub.Schedule.Until = maxDate(today.AddDays(-1), sub.Schedule.First())
-		case "cancel_at_period_end":
-			sub.Status = domain.StatusCancelled
-			next, ok := sub.Schedule.NextOnOrAfter(today.AddDays(1))
-			if ok {
-				sub.Schedule.Until = maxDate(next.AddDays(-1), sub.Schedule.First())
-				dropFrom = next
-			}
-		default:
-			return fmt.Errorf("%w: unknown action %q", domain.ErrValidation, in.Action)
-		}
-		if err := s.saveSubscription(ctx, q, sub); err != nil {
+		sub, _, err := s.setStatus(ctx, q, c, actor, before, in.Action)
+		if err != nil {
 			return err
 		}
-		if err := q.DeleteFuturePendingCharges(ctx, db.DeleteFuturePendingChargesParams{SubscriptionID: sub.ID, OriginalDate: dropFrom.String()}); err != nil {
-			return err
-		}
-		if sub.Status == domain.StatusActive {
-			if err := s.materialize(ctx, q, sub, today); err != nil {
-				return err
-			}
-		}
-		if _, err := c.record(q, "subscription."+in.Action, "subscription", sub.ID, before, sub); err != nil {
-			return err
-		}
-		c.emit(bus.Event{Type: bus.SubscriptionUpdated, HouseholdID: sub.HouseholdID, SubscriptionID: sub.ID})
 		out, err = s.detail(ctx, q, actor, sub.ID)
 		return err
 	})
 	return out, err
+}
+
+// setStatus applies a lifecycle action to sub inside a write and returns the
+// result with the id of the audit entry.
+func (s *Service) setStatus(ctx context.Context, q *db.Queries, c *change, actor Actor, before domain.Subscription, action string) (domain.Subscription, string, error) {
+	sub := before
+	today := s.today(ctx, q, actor)
+	dropFrom := today
+	switch action {
+	case "pause":
+		sub.Status = domain.StatusPaused
+	case "resume":
+		sub.Status = domain.StatusActive
+	case "cancel_now":
+		sub.Status = domain.StatusCancelled
+		sub.Schedule.Until = maxDate(today.AddDays(-1), sub.Schedule.First())
+	case "cancel_at_period_end":
+		sub.Status = domain.StatusCancelled
+		next, ok := sub.Schedule.NextOnOrAfter(today.AddDays(1))
+		if ok {
+			sub.Schedule.Until = maxDate(next.AddDays(-1), sub.Schedule.First())
+			dropFrom = next
+		}
+	default:
+		return sub, "", fmt.Errorf("%w: unknown action %q", domain.ErrValidation, action)
+	}
+	if err := s.saveSubscription(ctx, q, sub); err != nil {
+		return sub, "", err
+	}
+	if err := q.DeleteFuturePendingCharges(ctx, db.DeleteFuturePendingChargesParams{SubscriptionID: sub.ID, OriginalDate: dropFrom.String()}); err != nil {
+		return sub, "", err
+	}
+	if sub.Status == domain.StatusActive {
+		if err := s.materialize(ctx, q, sub, today); err != nil {
+			return sub, "", err
+		}
+	}
+	id, err := c.record(q, "subscription."+action, "subscription", sub.ID, before, sub)
+	if err != nil {
+		return sub, "", err
+	}
+	c.emit(bus.Event{Type: bus.SubscriptionUpdated, HouseholdID: sub.HouseholdID, SubscriptionID: sub.ID})
+	return sub, id, nil
 }
 
 // DeleteSubscriptionInput permanently deletes a subscription and its charges.
@@ -435,27 +454,34 @@ func (s *Service) DeleteSubscription(ctx context.Context, actor Actor, in Delete
 		if err != nil {
 			return err
 		}
-		// The snapshot keeps every charge, so undo brings the history back.
-		gone := deletedSubscription{Subscription: sub}
-		rows, err := q.ListChargesForSubscription(ctx, db.ListChargesForSubscriptionParams{SubscriptionID: sub.ID, Limit: 5000})
-		if err != nil {
-			return err
-		}
-		for _, r := range rows {
-			gone.Charges = append(gone.Charges, store.ChargeFromRow(r))
-		}
-		if err := q.DeleteSubscription(ctx, db.DeleteSubscriptionParams{ID: sub.ID, HouseholdID: actor.HouseholdID}); err != nil {
-			return err
-		}
-		id, err := c.record(q, "subscription.delete", "subscription", sub.ID, gone, nil)
-		if err != nil {
-			return err
-		}
-		c.emit(bus.Event{Type: bus.SubscriptionDeleted, HouseholdID: sub.HouseholdID, SubscriptionID: sub.ID})
+		id, err := s.deleteSubscription(ctx, q, c, actor, sub)
 		out = DeleteResult{Deleted: sub.ID, AuditID: id}
-		return nil
+		return err
 	})
 	return out, err
+}
+
+// deleteSubscription removes sub inside a write and returns the id of the
+// audit entry that can restore it.
+func (s *Service) deleteSubscription(ctx context.Context, q *db.Queries, c *change, actor Actor, sub domain.Subscription) (string, error) {
+	// The snapshot keeps every charge, so undo brings the history back.
+	gone := deletedSubscription{Subscription: sub}
+	rows, err := q.ListChargesForSubscription(ctx, db.ListChargesForSubscriptionParams{SubscriptionID: sub.ID, Limit: 5000})
+	if err != nil {
+		return "", err
+	}
+	for _, r := range rows {
+		gone.Charges = append(gone.Charges, store.ChargeFromRow(r))
+	}
+	if err := q.DeleteSubscription(ctx, db.DeleteSubscriptionParams{ID: sub.ID, HouseholdID: actor.HouseholdID}); err != nil {
+		return "", err
+	}
+	id, err := c.record(q, "subscription.delete", "subscription", sub.ID, gone, nil)
+	if err != nil {
+		return "", err
+	}
+	c.emit(bus.Event{Type: bus.SubscriptionDeleted, HouseholdID: sub.HouseholdID, SubscriptionID: sub.ID})
+	return id, nil
 }
 
 // --- helpers -----------------------------------------------------------------
@@ -590,6 +616,7 @@ func (s *Service) view(ctx context.Context, q *db.Queries, sub domain.Subscripti
 	}
 	v.MonthlyCost, _ = sub.Price.Scale(monthlyFactor(rule))
 	v.YearlyCost, _ = v.MonthlyCost.Scale("12")
+	v.PlanSwitch = planSwitch(sub, today)
 	if sub.Status == domain.StatusActive {
 		v.InTrial = sub.InTrial(today)
 		v.Expires = sub.ManualRenewal()

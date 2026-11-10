@@ -58,6 +58,24 @@ export interface AgentContext {
   markdown: string;
 }
 
+export type AltPriceUnit = typeof AltPriceUnit[keyof typeof AltPriceUnit];
+
+
+export const AltPriceUnit = {
+  month: 'month',
+  year: 'year',
+} as const;
+
+export interface Money {
+  currency: string;
+  minor: number;
+}
+
+export interface AltPrice {
+  price: Money;
+  unit: AltPriceUnit;
+}
+
 export interface AskIn {
   /** A URL to the JSON Schema for this object. */
   readonly $schema?: string;
@@ -199,11 +217,6 @@ export interface AssistantTurn {
   text: string;
 }
 
-export interface Money {
-  currency: string;
-  minor: number;
-}
-
 export type ChargeViewKind = typeof ChargeViewKind[keyof typeof ChargeViewKind];
 
 
@@ -294,6 +307,13 @@ export interface CardImpact {
   subscriptions: SubscriptionRef[] | null;
 }
 
+export interface CheaperPlan {
+  currentYearly: Money;
+  other: AltPrice;
+  subscription: SubscriptionRef;
+  yearlySaving: Money;
+}
+
 export interface DuplicateGroup {
   service: string;
   /** @nullable */
@@ -324,6 +344,8 @@ export interface AuditReport {
   cancelDeadlines: ChargeView[] | null;
   /** @nullable */
   cardsExpiring: CardImpact[] | null;
+  /** @nullable */
+  cheaperPlans: CheaperPlan[] | null;
   /** @nullable */
   duplicates: DuplicateGroup[] | null;
   /** @nullable */
@@ -440,6 +462,72 @@ export interface BotTokenIn {
   readonly $schema?: string;
   /** the token BotFather gives you, like 123456789:AAH… */
   token: string;
+}
+
+export type FieldChangeField = typeof FieldChangeField[keyof typeof FieldChangeField];
+
+
+export const FieldChangeField = {
+  category: 'category',
+  paymentMethod: 'paymentMethod',
+  tags: 'tags',
+  status: 'status',
+  deleted: 'deleted',
+} as const;
+
+export interface FieldChange {
+  field: FieldChangeField;
+  from: string;
+  to: string;
+}
+
+export interface BulkItem {
+  /** @nullable */
+  changes: FieldChange[] | null;
+  id: string;
+  name: string;
+}
+
+export interface BulkResult {
+  /** A URL to the JSON Schema for this object. */
+  readonly $schema?: string;
+  /** @nullable */
+  auditIds: string[] | null;
+  changed: number;
+  dryRun?: boolean;
+  /** @nullable */
+  items: BulkItem[] | null;
+}
+
+export type BulkUpdateInputAction = typeof BulkUpdateInputAction[keyof typeof BulkUpdateInputAction];
+
+
+export const BulkUpdateInputAction = {
+  update: 'update',
+  pause: 'pause',
+  resume: 'resume',
+  cancel_at_period_end: 'cancel_at_period_end',
+  cancel_now: 'cancel_now',
+  delete: 'delete',
+} as const;
+
+export interface BulkUpdateInput {
+  /** A URL to the JSON Schema for this object. */
+  readonly $schema?: string;
+  action?: BulkUpdateInputAction;
+  /** @nullable */
+  addTags?: string[] | null;
+  categoryId?: string;
+  dryRun?: boolean;
+  /**
+     * @minItems 1
+     * @maxItems 500
+     * @nullable
+     */
+  ids: string[] | null;
+  paymentMethodId?: string;
+  /** @nullable */
+  removeTags?: string[] | null;
 }
 
 export type CalendarEventKind = typeof CalendarEventKind[keyof typeof CalendarEventKind];
@@ -635,6 +723,12 @@ export interface PriceChange {
   price: Money;
 }
 
+export interface PlanSwitch {
+  currentYearly: Money;
+  otherYearly: Money;
+  yearlySaving: Money;
+}
+
 export interface ReminderPolicy {
   confirmAfterDays: number;
   /** @nullable */
@@ -673,6 +767,7 @@ export interface Usage {
 
 export interface SubscriptionView {
   account?: string;
+  altPrice?: AltPrice;
   askUsage: boolean;
   autoConfirm: boolean;
   cadence: string;
@@ -696,6 +791,7 @@ export interface SubscriptionView {
   payerName?: string;
   paymentMethod?: string;
   paymentMethodId?: string;
+  planSwitch?: PlanSwitch;
   price: Money;
   reminders: ReminderPolicy;
   renewal?: string;
@@ -705,6 +801,8 @@ export interface SubscriptionView {
   shares?: Share[] | null;
   startedOn?: string;
   status: string;
+  /** @nullable */
+  tags?: string[] | null;
   trialEndsOn?: string;
   updatedAt: string;
   url?: string;
@@ -731,6 +829,14 @@ export interface CreateCategoryInput {
   dryRun?: boolean;
   name: string;
 }
+
+export type CreateSubscriptionInputAltUnit = typeof CreateSubscriptionInputAltUnit[keyof typeof CreateSubscriptionInputAltUnit];
+
+
+export const CreateSubscriptionInputAltUnit = {
+  month: 'month',
+  year: 'year',
+} as const;
 
 export type CreateSubscriptionInputRenewal = typeof CreateSubscriptionInputRenewal[keyof typeof CreateSubscriptionInputRenewal];
 
@@ -763,6 +869,8 @@ export interface CreateSubscriptionInput {
   /** A URL to the JSON Schema for this object. */
   readonly $schema?: string;
   account?: string;
+  altPrice?: string;
+  altUnit?: CreateSubscriptionInputAltUnit;
   autoConfirm?: boolean;
   cancelUrl?: string;
   categoryId?: string;
@@ -794,6 +902,8 @@ export interface CreateSubscriptionInput {
   shares?: Share[] | null;
   startedOn?: string;
   status?: CreateSubscriptionInputStatus;
+  /** @nullable */
+  tags?: string[] | null;
   trialEndsOn?: string;
   unit?: CreateSubscriptionInputUnit;
   url?: string;
@@ -861,6 +971,13 @@ export interface DeleteSubscriptionInput {
   readonly $schema?: string;
   dryRun?: boolean;
   id: string;
+}
+
+export interface DeleteTagInput {
+  /** A URL to the JSON Schema for this object. */
+  readonly $schema?: string;
+  dryRun?: boolean;
+  tag: string;
 }
 
 export type DestinationInChannel = typeof DestinationInChannel[keyof typeof DestinationInChannel];
@@ -937,6 +1054,7 @@ export interface Member {
 
 export interface ExportedSubscription {
   account?: string;
+  altPrice?: AltPrice;
   askUsage: boolean;
   autoConfirm: boolean;
   cadence: string;
@@ -962,6 +1080,7 @@ export interface ExportedSubscription {
   payerName?: string;
   paymentMethod?: string;
   paymentMethodId?: string;
+  planSwitch?: PlanSwitch;
   price: Money;
   reminders: ReminderPolicy;
   renewal?: string;
@@ -971,6 +1090,8 @@ export interface ExportedSubscription {
   shares?: Share[] | null;
   startedOn?: string;
   status: string;
+  /** @nullable */
+  tags?: string[] | null;
   trialEndsOn?: string;
   updatedAt: string;
   url?: string;
@@ -1005,6 +1126,11 @@ export interface FeedStatus {
   path?: string;
 }
 
+export interface TagCount {
+  name: string;
+  subscriptions: number;
+}
+
 export interface HouseholdInfo {
   /** A URL to the JSON Schema for this object. */
   readonly $schema?: string;
@@ -1015,6 +1141,8 @@ export interface HouseholdInfo {
   members: Member[] | null;
   /** @nullable */
   paymentMethods: PaymentMethod[] | null;
+  /** @nullable */
+  tags: TagCount[] | null;
   today: string;
 }
 
@@ -1023,6 +1151,14 @@ export interface IdIn {
   readonly $schema?: string;
   id: string;
 }
+
+export type ImportItemAltUnit = typeof ImportItemAltUnit[keyof typeof ImportItemAltUnit];
+
+
+export const ImportItemAltUnit = {
+  month: 'month',
+  year: 'year',
+} as const;
 
 export type ImportItemRenewal = typeof ImportItemRenewal[keyof typeof ImportItemRenewal];
 
@@ -1053,6 +1189,8 @@ export const ImportItemUnit = {
 
 export interface ImportItem {
   account?: string;
+  altPrice?: string;
+  altUnit?: ImportItemAltUnit;
   autoConfirm?: boolean;
   cancelUrl?: string;
   category?: string;
@@ -1072,6 +1210,8 @@ export interface ImportItem {
   renewal?: ImportItemRenewal;
   startedOn?: string;
   status?: ImportItemStatus;
+  /** @nullable */
+  tags?: string[] | null;
   trialEndsOn?: string;
   unit?: ImportItemUnit;
   url?: string;
@@ -1368,6 +1508,14 @@ export interface ReminderLog {
   readonly $schema?: string;
   /** @nullable */
   entries: ReminderEntry[] | null;
+}
+
+export interface RenameTagInput {
+  /** A URL to the JSON Schema for this object. */
+  readonly $schema?: string;
+  dryRun?: boolean;
+  tag: string;
+  to: string;
 }
 
 /**
@@ -1670,7 +1818,9 @@ export interface TokensOut {
 export interface UndoInput {
   /** A URL to the JSON Schema for this object. */
   readonly $schema?: string;
-  auditId: string;
+  auditId?: string;
+  /** @nullable */
+  auditIds?: string[] | null;
   dryRun?: boolean;
 }
 
@@ -1679,6 +1829,7 @@ export interface UndoResult {
   readonly $schema?: string;
   auditId: string;
   restored: string;
+  undone: number;
 }
 
 export interface UpdateCategoryInput {
@@ -1707,6 +1858,14 @@ export interface UpdateHouseholdInput {
   timezone?: string;
 }
 
+export type UpdateSubscriptionInputAltUnit = typeof UpdateSubscriptionInputAltUnit[keyof typeof UpdateSubscriptionInputAltUnit];
+
+
+export const UpdateSubscriptionInputAltUnit = {
+  month: 'month',
+  year: 'year',
+} as const;
+
 export type UpdateSubscriptionInputRenewal = typeof UpdateSubscriptionInputRenewal[keyof typeof UpdateSubscriptionInputRenewal];
 
 
@@ -1729,6 +1888,8 @@ export interface UpdateSubscriptionInput {
   /** A URL to the JSON Schema for this object. */
   readonly $schema?: string;
   account?: string;
+  altPrice?: string;
+  altUnit?: UpdateSubscriptionInputAltUnit;
   autoConfirm?: boolean;
   cancelUrl?: string;
   categoryId?: string;
@@ -1753,6 +1914,8 @@ export interface UpdateSubscriptionInput {
   /** @nullable */
   shares?: Share[] | null;
   startedOn?: string;
+  /** @nullable */
+  tags?: string[] | null;
   trialEndsOn?: string;
   unit?: UpdateSubscriptionInputUnit;
   url?: string;
@@ -1798,6 +1961,7 @@ months?: number;
 export type ListSubscriptionsParams = {
 status?: string;
 query?: string;
+tag?: string;
 };
 
 type SecondParameter<T extends (...args: never) => unknown> = Parameters<T>[1];
@@ -8073,6 +8237,95 @@ export const useCreateSubscription = <TError = ErrorModel,
       return useMutation(getCreateSubscriptionMutationOptions(options), queryClient);
     }
 
+export const getBulkUpdateSubscriptionsUrl = () => {
+
+
+
+
+  return `/api/v1/subscriptions/bulk`
+}
+
+/**
+ * Changes several subscriptions in one step, all or none: set the category or payment method, add or remove tags (action update), or pause, resume, cancel or delete them. Call it first with dryRun to show what changes for each. The auditIds it returns can all be passed to undo to revert the whole change.
+ * @summary Change several subscriptions
+ */
+export const bulkUpdateSubscriptions = async (bulkUpdateInput: NonReadonly<BulkUpdateInput>, options?: Parameters<typeof fetcher>[1]): Promise<BulkResult> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return fetcher<BulkResult>(getBulkUpdateSubscriptionsUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(bulkUpdateInput)
+  }
+);}
+
+
+
+
+
+export const getBulkUpdateSubscriptionsMutationKey = () => ['bulkUpdateSubscriptions'] as const;
+
+export const getBulkUpdateSubscriptionsMutationOptions = <TError = ErrorModel,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof bulkUpdateSubscriptions>>, TError,BulkUpdateSubscriptionsMutationVariables, TContext>, request?: SecondParameter<typeof fetcher>}
+): UseMutationOptions<Awaited<ReturnType<typeof bulkUpdateSubscriptions>>, TError,BulkUpdateSubscriptionsMutationVariables, TContext> => {
+
+const mutationKey = getBulkUpdateSubscriptionsMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof bulkUpdateSubscriptions>>, BulkUpdateSubscriptionsMutationVariables> = (props) => {
+          const {data} = props ?? {};
+
+          return  bulkUpdateSubscriptions(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type BulkUpdateSubscriptionsMutationResult = NonNullable<Awaited<ReturnType<typeof bulkUpdateSubscriptions>>>
+    export type BulkUpdateSubscriptionsMutationBody = NonReadonly<BulkUpdateInput>
+    export type BulkUpdateSubscriptionsMutationError = ErrorModel
+    export type BulkUpdateSubscriptionsMutationVariables = {data: NonReadonly<BulkUpdateInput>}
+
+    /**
+ * @summary Change several subscriptions
+ */
+export const useBulkUpdateSubscriptions = <TError = ErrorModel,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof bulkUpdateSubscriptions>>, TError,BulkUpdateSubscriptionsMutationVariables, TContext>, request?: SecondParameter<typeof fetcher>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof bulkUpdateSubscriptions>>,
+        TError,
+        BulkUpdateSubscriptionsMutationVariables,
+        TContext
+      > => {
+      return useMutation(getBulkUpdateSubscriptionsMutationOptions(options), queryClient);
+    }
+
 export const getDeleteSubscriptionUrl = () => {
 
 
@@ -8537,3 +8790,187 @@ export function useSpendingSummary<TData = Awaited<ReturnType<typeof spendingSum
 
   return withQueryKey(query, queryOptions.queryKey);
 }
+
+
+
+
+
+
+
+export const getDeleteTagUrl = () => {
+
+
+
+
+  return `/api/v1/tags/delete`
+}
+
+/**
+ * Removes a tag from every subscription. The subscriptions stay. Can be reverted with undo (auditIds).
+ * @summary Delete a tag
+ */
+export const deleteTag = async (deleteTagInput: NonReadonly<DeleteTagInput>, options?: Parameters<typeof fetcher>[1]): Promise<BulkResult> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return fetcher<BulkResult>(getDeleteTagUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(deleteTagInput)
+  }
+);}
+
+
+
+
+
+export const getDeleteTagMutationKey = () => ['deleteTag'] as const;
+
+export const getDeleteTagMutationOptions = <TError = ErrorModel,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof deleteTag>>, TError,DeleteTagMutationVariables, TContext>, request?: SecondParameter<typeof fetcher>}
+): UseMutationOptions<Awaited<ReturnType<typeof deleteTag>>, TError,DeleteTagMutationVariables, TContext> => {
+
+const mutationKey = getDeleteTagMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof deleteTag>>, DeleteTagMutationVariables> = (props) => {
+          const {data} = props ?? {};
+
+          return  deleteTag(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type DeleteTagMutationResult = NonNullable<Awaited<ReturnType<typeof deleteTag>>>
+    export type DeleteTagMutationBody = NonReadonly<DeleteTagInput>
+    export type DeleteTagMutationError = ErrorModel
+    export type DeleteTagMutationVariables = {data: NonReadonly<DeleteTagInput>}
+
+    /**
+ * @summary Delete a tag
+ */
+export const useDeleteTag = <TError = ErrorModel,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof deleteTag>>, TError,DeleteTagMutationVariables, TContext>, request?: SecondParameter<typeof fetcher>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof deleteTag>>,
+        TError,
+        DeleteTagMutationVariables,
+        TContext
+      > => {
+      return useMutation(getDeleteTagMutationOptions(options), queryClient);
+    }
+
+export const getRenameTagUrl = () => {
+
+
+
+
+  return `/api/v1/tags/rename`
+}
+
+/**
+ * Renames a tag on every subscription that has it; if one already has the new name, they merge. The tags in use are in get_household.
+ * @summary Rename a tag
+ */
+export const renameTag = async (renameTagInput: NonReadonly<RenameTagInput>, options?: Parameters<typeof fetcher>[1]): Promise<BulkResult> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return fetcher<BulkResult>(getRenameTagUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(renameTagInput)
+  }
+);}
+
+
+
+
+
+export const getRenameTagMutationKey = () => ['renameTag'] as const;
+
+export const getRenameTagMutationOptions = <TError = ErrorModel,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof renameTag>>, TError,RenameTagMutationVariables, TContext>, request?: SecondParameter<typeof fetcher>}
+): UseMutationOptions<Awaited<ReturnType<typeof renameTag>>, TError,RenameTagMutationVariables, TContext> => {
+
+const mutationKey = getRenameTagMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof renameTag>>, RenameTagMutationVariables> = (props) => {
+          const {data} = props ?? {};
+
+          return  renameTag(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type RenameTagMutationResult = NonNullable<Awaited<ReturnType<typeof renameTag>>>
+    export type RenameTagMutationBody = NonReadonly<RenameTagInput>
+    export type RenameTagMutationError = ErrorModel
+    export type RenameTagMutationVariables = {data: NonReadonly<RenameTagInput>}
+
+    /**
+ * @summary Rename a tag
+ */
+export const useRenameTag = <TError = ErrorModel,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof renameTag>>, TError,RenameTagMutationVariables, TContext>, request?: SecondParameter<typeof fetcher>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof renameTag>>,
+        TError,
+        RenameTagMutationVariables,
+        TContext
+      > => {
+      return useMutation(getRenameTagMutationOptions(options), queryClient);
+    }

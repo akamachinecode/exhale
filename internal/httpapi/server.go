@@ -216,6 +216,9 @@ func registerAll(api huma.API, svc *app.Service) {
 	register(api, svc, app.OpCreateCategory)
 	register(api, svc, app.OpListAudit)
 	register(api, svc, app.OpUndo)
+	register(api, svc, app.OpBulkUpdate)
+	register(api, svc, app.OpRenameTag)
+	register(api, svc, app.OpDeleteTag)
 }
 
 func operation(m app.Meta) huma.Operation {

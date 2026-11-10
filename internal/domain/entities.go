@@ -223,6 +223,10 @@ type Details struct {
 	// NextPrice is a scheduled price change.
 	NextPrice *PriceChange `json:"nextPrice,omitempty"`
 	Usage     *Usage       `json:"usage,omitempty"`
+	// Tags are free labels (tags.go).
+	Tags []string `json:"tags,omitempty"`
+	// AltPrice is another price the provider offers, e.g. yearly (tags.go).
+	AltPrice *AltPrice `json:"altPrice,omitempty"`
 }
 
 // Subscription is a recurring payment.
@@ -286,7 +290,7 @@ func (d Details) Validate() error {
 		}
 		seen[sh.MemberID] = true
 	}
-	return nil
+	return d.validateExtras()
 }
 
 // Validate checks the subscription's own fields.
@@ -313,6 +317,9 @@ func (s Subscription) Validate() error {
 	}
 	if s.NextPrice != nil && s.NextPrice.Price.Currency != s.Price.Currency {
 		return invalid("a scheduled price must be in %s", s.Price.Currency)
+	}
+	if s.AltPrice != nil && s.AltPrice.Price.Currency != s.Price.Currency {
+		return invalid("the other price must be in %s", s.Price.Currency)
 	}
 	return s.Reminders.Validate()
 }

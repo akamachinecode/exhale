@@ -22,6 +22,8 @@ type SubscriptionView struct {
 	CancelBy       engine.Date `json:"cancelBy,omitzero" jsonschema:"last day to cancel before the next charge (next charge minus the notice period); empty when there is no notice period"`
 	Expires        bool        `json:"expires" jsonschema:"manual renewal: the next charge date is when it expires unless renewed"`
 	AskUsage       bool        `json:"askUsage" jsonschema:"it is time to ask the member whether they still use it (never asked, or asked over six months ago)"`
+	// PlanSwitch is set only when the member recorded another price (altPrice).
+	PlanSwitch *PlanSwitch `json:"planSwitch,omitempty" jsonschema:"set only when the member recorded another price for the same service: what switching to it saves per year"`
 }
 
 // ChargeView is a charge with its subscription context.

@@ -119,13 +119,18 @@ func exportCSV(svc *app.Service, kind string) http.HandlerFunc {
 			return
 		}
 		_ = cw.Write([]string{"name", "price", "currency", "cycle", "interval", "unit", "next charge", "status", "category", "payment method", "paid by",
-			"monthly cost", "yearly cost", "started on", "trial ends", "notice days", "renewal", "end date", "cancel url", "account", "url", "notes"})
+			"monthly cost", "yearly cost", "started on", "trial ends", "notice days", "renewal", "end date", "cancel url", "account", "url", "notes",
+			"tags", "other price", "other price per"})
 		methods := map[string]string{}
 		for _, pm := range data.PaymentMethods {
 			methods[pm.ID] = pm.Name
 		}
 		for _, s := range data.Subscriptions {
 			rule := s.Schedule.Versions[len(s.Schedule.Versions)-1].Rule
+			altPrice, altUnit := "", ""
+			if s.AltPrice != nil {
+				altPrice, altUnit = s.AltPrice.Price.Decimal(), string(s.AltPrice.Unit)
+			}
 			renewal := string(s.Renewal)
 			if renewal == "" {
 				renewal = string(domain.RenewalAuto)
@@ -133,7 +138,8 @@ func exportCSV(svc *app.Service, kind string) http.HandlerFunc {
 			_ = cw.Write([]string{s.Name, s.Price.Decimal(), s.Price.Currency, s.Cadence, strconv.Itoa(rule.Interval), string(rule.Unit),
 				date(s.NextCharge, s.NextCharge.IsZero()), string(s.Status), s.CategoryName, methods[s.PaymentMethodID], s.PayerName,
 				s.MonthlyCost.Decimal(), s.YearlyCost.Decimal(), date(s.StartedOn, s.StartedOn.IsZero()), date(s.TrialEndsOn, s.TrialEndsOn.IsZero()),
-				strconv.Itoa(s.NoticeDays), renewal, date(s.Schedule.Until, s.Schedule.Until.IsZero()), s.CancelURL, s.Account, s.URL, s.Notes})
+				strconv.Itoa(s.NoticeDays), renewal, date(s.Schedule.Until, s.Schedule.Until.IsZero()), s.CancelURL, s.Account, s.URL, s.Notes,
+				strings.Join(s.Tags, ", "), altPrice, altUnit})
 		}
 	}
 }

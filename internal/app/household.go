@@ -98,6 +98,7 @@ type HouseholdInfo struct {
 	Categories     []domain.Category      `json:"categories"`
 	PaymentMethods []domain.PaymentMethod `json:"paymentMethods"`
 	Today          engine.Date            `json:"today" jsonschema:"today's date in the household time zone"`
+	Tags           []TagCount             `json:"tags" jsonschema:"every tag in use, with how many subscriptions carry it"`
 }
 
 // GetHousehold returns the household reference data.
@@ -129,6 +130,7 @@ func (s *Service) GetHousehold(ctx context.Context, actor Actor, _ struct{}) (Ho
 	for _, p := range ps {
 		out.PaymentMethods = append(out.PaymentMethods, store.PaymentMethodFromRow(p))
 	}
+	out.Tags = s.tagCounts(ctx, q, actor)
 	return out, nil
 }
 

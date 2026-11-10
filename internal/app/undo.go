@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"slices"
 
 	"github.com/akamachinecode/exhale/internal/bus"
 	"github.com/akamachinecode/exhale/internal/domain"
@@ -51,61 +52,90 @@ func (s *Service) ListAudit(ctx context.Context, _ Actor, in AuditLogInput) (Aud
 
 // UndoInput identifies the change to revert.
 type UndoInput struct {
-	AuditID string `json:"auditId" jsonschema:"id returned by a write (aud_…)"`
-	DryRun  bool   `json:"dryRun,omitempty"`
+	AuditID string `json:"auditId,omitempty" jsonschema:"id returned by a write (aud_…)"`
+	// AuditIDs revert several changes together, e.g. every change of a bulk
+	// edit: all of them or none.
+	AuditIDs []string `json:"auditIds,omitempty" jsonschema:"several changes to revert together, all or none, e.g. the auditIds of bulk_update_subscriptions"`
+	DryRun   bool     `json:"dryRun,omitempty"`
 }
 
 // UndoResult reports what was restored.
 type UndoResult struct {
 	Restored string `json:"restored" jsonschema:"entity id that was restored"`
 	AuditID  string `json:"auditId"`
+	// Undone counts the changes reverted (more than one with auditIds).
+	Undone int `json:"undone"`
 }
 
 // Undo reverts a recorded change by restoring the entity's previous state
 // (ADR 0018: every agent change is reversible).
 func (s *Service) Undo(ctx context.Context, actor Actor, in UndoInput) (UndoResult, error) {
+	ids := []string{}
+	for _, id := range append([]string{in.AuditID}, in.AuditIDs...) {
+		if id != "" && !slices.Contains(ids, id) {
+			ids = append(ids, id)
+		}
+	}
+	if len(ids) == 0 || len(ids) > MaxBulk {
+		return UndoResult{}, fmt.Errorf("%w: pass auditId, or between 1 and %d auditIds", domain.ErrValidation, MaxBulk)
+	}
 	var out UndoResult
 	err := s.write(ctx, actor, in.DryRun, func(q *db.Queries, c *change) error {
-		a, err := q.GetAudit(ctx, in.AuditID)
-		if err != nil {
-			return store.NotFound(err, "change "+in.AuditID)
-		}
-		if a.UndoneBy != "" {
-			return fmt.Errorf("%w: change %s was already undone", domain.ErrValidation, a.ID)
-		}
-		switch a.Entity {
-		case "charge":
-			var before domain.Charge
-			if err := json.Unmarshal([]byte(a.Before), &before); err != nil {
-				return err
-			}
-			cur, sub, err := s.charge(ctx, q, actor, a.EntityID)
+		// Newest first, so changes to the same thing unwind in order.
+		for i := len(ids) - 1; i >= 0; i-- {
+			r, err := s.undoOne(ctx, q, c, actor, ids[i])
 			if err != nil {
 				return err
 			}
-			before.Version = cur.Version
-			if err := s.saveCharge(ctx, q, before); err != nil {
-				return err
+			if out.AuditID == "" {
+				out = r
 			}
-			c.emit(bus.Event{Type: bus.ChargeUpdated, HouseholdID: sub.HouseholdID, SubscriptionID: sub.ID, ChargeID: before.ID})
-		case "subscription":
-			if err := s.undoSubscription(ctx, q, actor, c, a); err != nil {
-				return err
-			}
-		default:
-			return fmt.Errorf("%w: changes to %s cannot be undone yet", domain.ErrValidation, a.Entity)
+			out.Undone++
 		}
-		id, err := c.record(q, "undo", a.Entity, a.EntityID, nil, map[string]string{"undid": a.ID})
-		if err != nil {
-			return err
-		}
-		if err := q.MarkAuditUndone(ctx, db.MarkAuditUndoneParams{UndoneBy: id, ID: a.ID}); err != nil {
-			return err
-		}
-		out = UndoResult{Restored: a.EntityID, AuditID: id}
 		return nil
 	})
 	return out, err
+}
+
+// undoOne reverts one recorded change inside a write.
+func (s *Service) undoOne(ctx context.Context, q *db.Queries, c *change, actor Actor, auditID string) (UndoResult, error) {
+	a, err := q.GetAudit(ctx, auditID)
+	if err != nil {
+		return UndoResult{}, store.NotFound(err, "change "+auditID)
+	}
+	if a.UndoneBy != "" {
+		return UndoResult{}, fmt.Errorf("%w: change %s was already undone", domain.ErrValidation, a.ID)
+	}
+	switch a.Entity {
+	case "charge":
+		var before domain.Charge
+		if err := json.Unmarshal([]byte(a.Before), &before); err != nil {
+			return UndoResult{}, err
+		}
+		cur, sub, err := s.charge(ctx, q, actor, a.EntityID)
+		if err != nil {
+			return UndoResult{}, err
+		}
+		before.Version = cur.Version
+		if err := s.saveCharge(ctx, q, before); err != nil {
+			return UndoResult{}, err
+		}
+		c.emit(bus.Event{Type: bus.ChargeUpdated, HouseholdID: sub.HouseholdID, SubscriptionID: sub.ID, ChargeID: before.ID})
+	case "subscription":
+		if err := s.undoSubscription(ctx, q, actor, c, a); err != nil {
+			return UndoResult{}, err
+		}
+	default:
+		return UndoResult{}, fmt.Errorf("%w: changes to %s cannot be undone yet", domain.ErrValidation, a.Entity)
+	}
+	id, err := c.record(q, "undo", a.Entity, a.EntityID, nil, map[string]string{"undid": a.ID})
+	if err != nil {
+		return UndoResult{}, err
+	}
+	if err := q.MarkAuditUndone(ctx, db.MarkAuditUndoneParams{UndoneBy: id, ID: a.ID}); err != nil {
+		return UndoResult{}, err
+	}
+	return UndoResult{Restored: a.EntityID, AuditID: id}, nil
 }
 
 func (s *Service) undoSubscription(ctx context.Context, q *db.Queries, actor Actor, c *change, a db.AuditLog) error {

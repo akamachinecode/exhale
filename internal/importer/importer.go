@@ -22,6 +22,7 @@ import (
 	_ "modernc.org/sqlite" // the Wallos database is a SQLite file
 
 	"github.com/akamachinecode/exhale/internal/app"
+	"github.com/akamachinecode/exhale/internal/domain"
 )
 
 // ErrUnknownFormat is returned when a file is none of the supported kinds.
@@ -326,7 +327,10 @@ func exhaleExport(data []byte) (Result, error) {
 			Name: s.Name, Price: s.Price.Decimal(), Currency: s.Price.Currency, Interval: rule.Interval, Unit: string(rule.Unit),
 			Status: string(s.Status), Category: s.CategoryName, Payer: s.PayerName, URL: s.URL, Notes: s.Notes,
 			CancelURL: s.CancelURL, Account: s.Account, Renewal: string(s.Renewal), NoticeDays: s.NoticeDays,
-			ReminderDays: s.Reminders.DaysBefore, AutoConfirm: s.AutoConfirm,
+			ReminderDays: s.Reminders.DaysBefore, AutoConfirm: s.AutoConfirm, Tags: s.Tags,
+		}
+		if s.AltPrice != nil {
+			it.AltPrice, it.AltUnit = s.AltPrice.Price.Decimal(), string(s.AltPrice.Unit)
 		}
 		for _, pm := range ex.PaymentMethods {
 			if pm.ID == s.PaymentMethodID {
@@ -376,6 +380,8 @@ var headers = map[string]string{
 	"account": "account", "email": "account", "cuenta": "account",
 	"notice days": "notice", "notice": "notice",
 	"trial ends": "trial", "trial end": "trial",
+	"tags": "tags", "tag": "tags", "labels": "tags", "etiquetas": "tags",
+	"other price": "altprice", "other price per": "altunit",
 }
 
 // readCSV reads comma, semicolon or tab separated text, whichever the first
@@ -441,6 +447,13 @@ func fromCSV(data []byte, defaultCurrency string) (Result, error) {
 			it.Unit = u
 		}
 		it.NoticeDays, _ = strconv.Atoi(get("notice"))
+		it.Tags = splitTags(get("tags"))
+		if p := get("altprice"); p != "" {
+			it.AltPrice, _ = SplitPrice(p, it.Currency)
+			if n, u, ok := cadence(get("altunit")); ok && n == 1 && (u == "month" || u == "year") {
+				it.AltUnit = u
+			}
+		}
 		switch strings.ToLower(get("status")) {
 		case "cancelled", "canceled", "inactive", "disabled", "ended", "cancelada", "cancelado", "inactiva":
 			it.Status = "cancelled"
@@ -475,4 +488,9 @@ func AnyDate(s string) string {
 		}
 	}
 	return ""
+}
+
+// splitTags reads "work, family" (or with semicolons) into tags.
+func splitTags(s string) []string {
+	return domain.NormalizeTags(strings.FieldsFunc(s, func(r rune) bool { return r == ',' || r == ';' }))
 }
