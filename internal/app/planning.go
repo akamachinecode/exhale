@@ -67,7 +67,7 @@ func (s *Service) Plan(ctx context.Context) error {
 		}
 		for _, cr := range charges {
 			ch := store.ChargeFromRow(cr)
-			if !ch.Open() || today.DaysUntil(ch.DueDate) > 60 {
+			if !ch.Open() || today.DaysUntil(ch.DueDate) > 60+sub.NoticeDays {
 				continue
 			}
 			if sub.AutoConfirm && !sub.ManualRenewal() && ch.Status == domain.ChargePending && !ch.DueDate.After(today) {

@@ -34,6 +34,15 @@
             "readOnly": true,
             "type": "string"
           },
+          "deadlines": {
+            "items": {
+              "$ref": "#/components/schemas/ChargeView"
+            },
+            "type": [
+              "array",
+              "null"
+            ]
+          },
           "expiringPaymentMethods": {
             "items": {
               "$ref": "#/components/schemas/PaymentMethod"
@@ -55,7 +64,8 @@
         },
         "required": [
           "unconfirmed",
-          "expiringPaymentMethods"
+          "expiringPaymentMethods",
+          "deadlines"
         ],
         "type": "object"
       },
@@ -125,6 +135,118 @@
         ],
         "type": "object"
       },
+      "AuditReport": {
+        "additionalProperties": false,
+        "properties": {
+          "$schema": {
+            "description": "A URL to the JSON Schema for this object.",
+            "examples": [
+              "https://example.com/api/schemas/AuditReport.json"
+            ],
+            "format": "uri",
+            "readOnly": true,
+            "type": "string"
+          },
+          "bigCharges": {
+            "items": {
+              "$ref": "#/components/schemas/ChargeView"
+            },
+            "type": [
+              "array",
+              "null"
+            ]
+          },
+          "cancelDeadlines": {
+            "items": {
+              "$ref": "#/components/schemas/ChargeView"
+            },
+            "type": [
+              "array",
+              "null"
+            ]
+          },
+          "cardsExpiring": {
+            "items": {
+              "$ref": "#/components/schemas/CardImpact"
+            },
+            "type": [
+              "array",
+              "null"
+            ]
+          },
+          "duplicates": {
+            "items": {
+              "$ref": "#/components/schemas/DuplicateGroup"
+            },
+            "type": [
+              "array",
+              "null"
+            ]
+          },
+          "expiring": {
+            "items": {
+              "$ref": "#/components/schemas/ChargeView"
+            },
+            "type": [
+              "array",
+              "null"
+            ]
+          },
+          "findings": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "notUsed": {
+            "items": {
+              "$ref": "#/components/schemas/UnusedSubscription"
+            },
+            "type": [
+              "array",
+              "null"
+            ]
+          },
+          "priceIncreases": {
+            "items": {
+              "$ref": "#/components/schemas/PriceIncrease"
+            },
+            "type": [
+              "array",
+              "null"
+            ]
+          },
+          "trialsEnding": {
+            "items": {
+              "$ref": "#/components/schemas/ChargeView"
+            },
+            "type": [
+              "array",
+              "null"
+            ]
+          },
+          "unconfirmed": {
+            "items": {
+              "$ref": "#/components/schemas/ChargeView"
+            },
+            "type": [
+              "array",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "duplicates",
+          "priceIncreases",
+          "trialsEnding",
+          "cancelDeadlines",
+          "expiring",
+          "bigCharges",
+          "cardsExpiring",
+          "unconfirmed",
+          "notUsed",
+          "findings"
+        ],
+        "type": "object"
+      },
       "AuthSession": {
         "additionalProperties": false,
         "properties": {
@@ -161,6 +283,61 @@
           "setupRequired",
           "setupNeedsCode",
           "hasHousehold"
+        ],
+        "type": "object"
+      },
+      "Balances": {
+        "additionalProperties": false,
+        "properties": {
+          "$schema": {
+            "description": "A URL to the JSON Schema for this object.",
+            "examples": [
+              "https://example.com/api/schemas/Balances.json"
+            ],
+            "format": "uri",
+            "readOnly": true,
+            "type": "string"
+          },
+          "charges": {
+            "items": {
+              "$ref": "#/components/schemas/SharedCharge"
+            },
+            "type": [
+              "array",
+              "null"
+            ]
+          },
+          "mainCurrency": {
+            "type": "string"
+          },
+          "members": {
+            "items": {
+              "$ref": "#/components/schemas/MemberBalance"
+            },
+            "type": [
+              "array",
+              "null"
+            ]
+          },
+          "month": {
+            "type": "string"
+          },
+          "transfers": {
+            "items": {
+              "$ref": "#/components/schemas/Transfer"
+            },
+            "type": [
+              "array",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "month",
+          "mainCurrency",
+          "members",
+          "transfers",
+          "charges"
         ],
         "type": "object"
       },
@@ -224,6 +401,111 @@
         },
         "required": [
           "token"
+        ],
+        "type": "object"
+      },
+      "CalendarEvent": {
+        "additionalProperties": false,
+        "properties": {
+          "amount": {
+            "$ref": "#/components/schemas/Money"
+          },
+          "chargeId": {
+            "type": "string"
+          },
+          "date": {
+            "type": "string"
+          },
+          "kind": {
+            "enum": [
+              "charge",
+              "trial",
+              "expiry",
+              "cancelBy"
+            ],
+            "type": "string"
+          },
+          "projected": {
+            "type": "boolean"
+          },
+          "status": {
+            "type": "string"
+          },
+          "subscription": {
+            "type": "string"
+          },
+          "subscriptionId": {
+            "type": "string"
+          },
+          "title": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "date",
+          "kind",
+          "title",
+          "subscriptionId",
+          "subscription",
+          "amount",
+          "projected"
+        ],
+        "type": "object"
+      },
+      "CalendarView": {
+        "additionalProperties": false,
+        "properties": {
+          "$schema": {
+            "description": "A URL to the JSON Schema for this object.",
+            "examples": [
+              "https://example.com/api/schemas/CalendarView.json"
+            ],
+            "format": "uri",
+            "readOnly": true,
+            "type": "string"
+          },
+          "events": {
+            "items": {
+              "$ref": "#/components/schemas/CalendarEvent"
+            },
+            "type": [
+              "array",
+              "null"
+            ]
+          },
+          "from": {
+            "type": "string"
+          },
+          "to": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "from",
+          "to",
+          "events"
+        ],
+        "type": "object"
+      },
+      "CardImpact": {
+        "additionalProperties": false,
+        "properties": {
+          "paymentMethod": {
+            "$ref": "#/components/schemas/PaymentMethod"
+          },
+          "subscriptions": {
+            "items": {
+              "$ref": "#/components/schemas/SubscriptionRef"
+            },
+            "type": [
+              "array",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "paymentMethod",
+          "subscriptions"
         ],
         "type": "object"
       },
@@ -362,6 +644,61 @@
         ],
         "type": "object"
       },
+      "Charge": {
+        "additionalProperties": false,
+        "properties": {
+          "amount": {
+            "$ref": "#/components/schemas/Money"
+          },
+          "chargedAmount": {
+            "$ref": "#/components/schemas/Money"
+          },
+          "decision": {
+            "type": "string"
+          },
+          "dueDate": {
+            "type": "string"
+          },
+          "id": {
+            "type": "string"
+          },
+          "note": {
+            "type": "string"
+          },
+          "originalDate": {
+            "type": "string"
+          },
+          "resolvedAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "status": {
+            "type": "string"
+          },
+          "subscriptionId": {
+            "type": "string"
+          },
+          "updatedAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "version": {
+            "format": "int64",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "id",
+          "subscriptionId",
+          "originalDate",
+          "dueDate",
+          "amount",
+          "status",
+          "updatedAt",
+          "version"
+        ],
+        "type": "object"
+      },
       "ChargeList": {
         "additionalProperties": false,
         "properties": {
@@ -417,6 +754,9 @@
           },
           "dryRun": {
             "type": "boolean"
+          },
+          "priceChange": {
+            "$ref": "#/components/schemas/PriceChangeHint"
           },
           "subscription": {
             "$ref": "#/components/schemas/SubscriptionView"
@@ -661,9 +1001,7 @@
         "required": [
           "name",
           "price",
-          "currency",
-          "interval",
-          "unit"
+          "currency"
         ],
         "type": "object"
       },
@@ -696,6 +1034,57 @@
         "required": [
           "chargeId",
           "decision"
+        ],
+        "type": "object"
+      },
+      "DeleteCategoryInput": {
+        "additionalProperties": false,
+        "properties": {
+          "$schema": {
+            "description": "A URL to the JSON Schema for this object.",
+            "examples": [
+              "https://example.com/api/schemas/DeleteCategoryInput.json"
+            ],
+            "format": "uri",
+            "readOnly": true,
+            "type": "string"
+          },
+          "dryRun": {
+            "type": "boolean"
+          },
+          "id": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id"
+        ],
+        "type": "object"
+      },
+      "DeletePaymentMethodInput": {
+        "additionalProperties": false,
+        "properties": {
+          "$schema": {
+            "description": "A URL to the JSON Schema for this object.",
+            "examples": [
+              "https://example.com/api/schemas/DeletePaymentMethodInput.json"
+            ],
+            "format": "uri",
+            "readOnly": true,
+            "type": "string"
+          },
+          "dryRun": {
+            "type": "boolean"
+          },
+          "id": {
+            "type": "string"
+          },
+          "moveTo": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id"
         ],
         "type": "object"
       },
@@ -745,6 +1134,28 @@
         },
         "required": [
           "id"
+        ],
+        "type": "object"
+      },
+      "DuplicateGroup": {
+        "additionalProperties": false,
+        "properties": {
+          "service": {
+            "type": "string"
+          },
+          "subscriptions": {
+            "items": {
+              "$ref": "#/components/schemas/SubscriptionRef"
+            },
+            "type": [
+              "array",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "service",
+          "subscriptions"
         ],
         "type": "object"
       },
@@ -844,6 +1255,267 @@
         },
         "type": "object"
       },
+      "ExportData": {
+        "additionalProperties": false,
+        "properties": {
+          "$schema": {
+            "description": "A URL to the JSON Schema for this object.",
+            "examples": [
+              "https://example.com/api/schemas/ExportData.json"
+            ],
+            "format": "uri",
+            "readOnly": true,
+            "type": "string"
+          },
+          "categories": {
+            "items": {
+              "$ref": "#/components/schemas/Category"
+            },
+            "type": [
+              "array",
+              "null"
+            ]
+          },
+          "exportedAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "format": {
+            "type": "string"
+          },
+          "household": {
+            "$ref": "#/components/schemas/Household"
+          },
+          "members": {
+            "items": {
+              "$ref": "#/components/schemas/Member"
+            },
+            "type": [
+              "array",
+              "null"
+            ]
+          },
+          "paymentMethods": {
+            "items": {
+              "$ref": "#/components/schemas/PaymentMethod"
+            },
+            "type": [
+              "array",
+              "null"
+            ]
+          },
+          "subscriptions": {
+            "items": {
+              "$ref": "#/components/schemas/ExportedSubscription"
+            },
+            "type": [
+              "array",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "format",
+          "exportedAt",
+          "household",
+          "members",
+          "categories",
+          "paymentMethods",
+          "subscriptions"
+        ],
+        "type": "object"
+      },
+      "ExportedSubscription": {
+        "additionalProperties": false,
+        "properties": {
+          "account": {
+            "type": "string"
+          },
+          "askUsage": {
+            "type": "boolean"
+          },
+          "autoConfirm": {
+            "type": "boolean"
+          },
+          "cadence": {
+            "type": "string"
+          },
+          "cancelBy": {
+            "type": "string"
+          },
+          "cancelUrl": {
+            "type": "string"
+          },
+          "categoryId": {
+            "type": "string"
+          },
+          "categoryName": {
+            "type": "string"
+          },
+          "charges": {
+            "items": {
+              "$ref": "#/components/schemas/Charge"
+            },
+            "type": [
+              "array",
+              "null"
+            ]
+          },
+          "createdAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "createdBy": {
+            "type": "string"
+          },
+          "expires": {
+            "type": "boolean"
+          },
+          "householdId": {
+            "type": "string"
+          },
+          "id": {
+            "type": "string"
+          },
+          "inTrial": {
+            "type": "boolean"
+          },
+          "monthlyCost": {
+            "$ref": "#/components/schemas/Money"
+          },
+          "name": {
+            "type": "string"
+          },
+          "nextCharge": {
+            "type": "string"
+          },
+          "nextPrice": {
+            "$ref": "#/components/schemas/PriceChange"
+          },
+          "notes": {
+            "type": "string"
+          },
+          "noticeDays": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "payerId": {
+            "type": "string"
+          },
+          "payerName": {
+            "type": "string"
+          },
+          "paymentMethod": {
+            "type": "string"
+          },
+          "paymentMethodId": {
+            "type": "string"
+          },
+          "price": {
+            "$ref": "#/components/schemas/Money"
+          },
+          "reminders": {
+            "$ref": "#/components/schemas/ReminderPolicy"
+          },
+          "renewal": {
+            "type": "string"
+          },
+          "schedule": {
+            "$ref": "#/components/schemas/Schedule"
+          },
+          "serviceUntil": {
+            "type": "string"
+          },
+          "shares": {
+            "items": {
+              "$ref": "#/components/schemas/Share"
+            },
+            "type": [
+              "array",
+              "null"
+            ]
+          },
+          "startedOn": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string"
+          },
+          "trialEndsOn": {
+            "type": "string"
+          },
+          "updatedAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "url": {
+            "type": "string"
+          },
+          "usage": {
+            "$ref": "#/components/schemas/Usage"
+          },
+          "version": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "visibility": {
+            "type": "string"
+          },
+          "yearlyCost": {
+            "$ref": "#/components/schemas/Money"
+          }
+        },
+        "required": [
+          "charges",
+          "cadence",
+          "monthlyCost",
+          "yearlyCost",
+          "inTrial",
+          "expires",
+          "askUsage",
+          "id",
+          "householdId",
+          "name",
+          "price",
+          "schedule",
+          "visibility",
+          "status",
+          "autoConfirm",
+          "reminders",
+          "createdAt",
+          "updatedAt",
+          "version"
+        ],
+        "type": "object"
+      },
+      "FeedStatus": {
+        "additionalProperties": false,
+        "properties": {
+          "$schema": {
+            "description": "A URL to the JSON Schema for this object.",
+            "examples": [
+              "https://example.com/api/schemas/FeedStatus.json"
+            ],
+            "format": "uri",
+            "readOnly": true,
+            "type": "string"
+          },
+          "createdAt": {
+            "type": "string"
+          },
+          "enabled": {
+            "type": "boolean"
+          },
+          "path": {
+            "description": "Path of the feed, shown once. Prefix it with the address of this Exhale.",
+            "type": "string"
+          }
+        },
+        "required": [
+          "enabled"
+        ],
+        "type": "object"
+      },
       "Household": {
         "additionalProperties": false,
         "properties": {
@@ -858,6 +1530,10 @@
           },
           "name": {
             "type": "string"
+          },
+          "payday": {
+            "format": "int64",
+            "type": "integer"
           },
           "reminderHour": {
             "format": "int64",
@@ -955,6 +1631,231 @@
         },
         "required": [
           "id"
+        ],
+        "type": "object"
+      },
+      "ImportInput": {
+        "additionalProperties": false,
+        "properties": {
+          "$schema": {
+            "description": "A URL to the JSON Schema for this object.",
+            "examples": [
+              "https://example.com/api/schemas/ImportInput.json"
+            ],
+            "format": "uri",
+            "readOnly": true,
+            "type": "string"
+          },
+          "allowDuplicates": {
+            "type": "boolean"
+          },
+          "dryRun": {
+            "type": "boolean"
+          },
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/ImportItem"
+            },
+            "type": [
+              "array",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "items"
+        ],
+        "type": "object"
+      },
+      "ImportItem": {
+        "additionalProperties": false,
+        "properties": {
+          "account": {
+            "type": "string"
+          },
+          "autoConfirm": {
+            "type": "boolean"
+          },
+          "cancelUrl": {
+            "type": "string"
+          },
+          "category": {
+            "type": "string"
+          },
+          "currency": {
+            "type": "string"
+          },
+          "endDate": {
+            "type": "string"
+          },
+          "interval": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "name": {
+            "type": "string"
+          },
+          "nextCharge": {
+            "type": "string"
+          },
+          "notes": {
+            "type": "string"
+          },
+          "noticeDays": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "payer": {
+            "type": "string"
+          },
+          "paymentMethod": {
+            "type": "string"
+          },
+          "price": {
+            "type": "string"
+          },
+          "remark": {
+            "type": "string"
+          },
+          "reminderDays": {
+            "items": {
+              "format": "int64",
+              "type": "integer"
+            },
+            "type": [
+              "array",
+              "null"
+            ]
+          },
+          "renewal": {
+            "enum": [
+              "auto",
+              "manual"
+            ],
+            "type": "string"
+          },
+          "startedOn": {
+            "type": "string"
+          },
+          "status": {
+            "enum": [
+              "active",
+              "paused",
+              "cancelled"
+            ],
+            "type": "string"
+          },
+          "trialEndsOn": {
+            "type": "string"
+          },
+          "unit": {
+            "enum": [
+              "day",
+              "week",
+              "month",
+              "year"
+            ],
+            "type": "string"
+          },
+          "url": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "name",
+          "price"
+        ],
+        "type": "object"
+      },
+      "ImportOutcome": {
+        "additionalProperties": false,
+        "properties": {
+          "action": {
+            "enum": [
+              "create",
+              "duplicate",
+              "error"
+            ],
+            "type": "string"
+          },
+          "id": {
+            "type": "string"
+          },
+          "message": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "name",
+          "action"
+        ],
+        "type": "object"
+      },
+      "ImportResult": {
+        "additionalProperties": false,
+        "properties": {
+          "$schema": {
+            "description": "A URL to the JSON Schema for this object.",
+            "examples": [
+              "https://example.com/api/schemas/ImportResult.json"
+            ],
+            "format": "uri",
+            "readOnly": true,
+            "type": "string"
+          },
+          "created": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "dryRun": {
+            "type": "boolean"
+          },
+          "duplicates": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "errors": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/ImportOutcome"
+            },
+            "type": [
+              "array",
+              "null"
+            ]
+          },
+          "newCategories": {
+            "items": {
+              "type": "string"
+            },
+            "type": [
+              "array",
+              "null"
+            ]
+          },
+          "newPaymentMethods": {
+            "items": {
+              "type": "string"
+            },
+            "type": [
+              "array",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "created",
+          "duplicates",
+          "errors",
+          "items",
+          "newCategories",
+          "newPaymentMethods"
         ],
         "type": "object"
       },
@@ -1214,6 +2115,34 @@
         ],
         "type": "object"
       },
+      "MemberBalance": {
+        "additionalProperties": false,
+        "properties": {
+          "memberId": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "net": {
+            "$ref": "#/components/schemas/Money"
+          },
+          "paid": {
+            "$ref": "#/components/schemas/Money"
+          },
+          "share": {
+            "$ref": "#/components/schemas/Money"
+          }
+        },
+        "required": [
+          "memberId",
+          "name",
+          "paid",
+          "share",
+          "net"
+        ],
+        "type": "object"
+      },
       "MethodSpend": {
         "additionalProperties": false,
         "properties": {
@@ -1252,6 +2181,51 @@
         ],
         "type": "object"
       },
+      "MonthSpend": {
+        "additionalProperties": false,
+        "properties": {
+          "count": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "expected": {
+            "$ref": "#/components/schemas/Money"
+          },
+          "month": {
+            "type": "string"
+          },
+          "paid": {
+            "$ref": "#/components/schemas/Money"
+          }
+        },
+        "required": [
+          "month",
+          "paid",
+          "expected",
+          "count"
+        ],
+        "type": "object"
+      },
+      "PaidTotals": {
+        "additionalProperties": false,
+        "properties": {
+          "count": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "since": {
+            "type": "string"
+          },
+          "total": {
+            "$ref": "#/components/schemas/Money"
+          }
+        },
+        "required": [
+          "count",
+          "total"
+        ],
+        "type": "object"
+      },
       "PasswordIn": {
         "additionalProperties": false,
         "properties": {
@@ -1274,6 +2248,32 @@
         "required": [
           "current",
           "new"
+        ],
+        "type": "object"
+      },
+      "PaydayOutlook": {
+        "additionalProperties": false,
+        "properties": {
+          "charges": {
+            "items": {
+              "$ref": "#/components/schemas/ChargeView"
+            },
+            "type": [
+              "array",
+              "null"
+            ]
+          },
+          "due": {
+            "$ref": "#/components/schemas/Money"
+          },
+          "payday": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "payday",
+          "due",
+          "charges"
         ],
         "type": "object"
       },
@@ -1386,6 +2386,136 @@
         "required": [
           "from",
           "price"
+        ],
+        "type": "object"
+      },
+      "PriceChangeHint": {
+        "additionalProperties": false,
+        "properties": {
+          "changePercent": {
+            "type": "string"
+          },
+          "charged": {
+            "$ref": "#/components/schemas/Money"
+          },
+          "expected": {
+            "$ref": "#/components/schemas/Money"
+          },
+          "yearlyDelta": {
+            "$ref": "#/components/schemas/Money"
+          }
+        },
+        "required": [
+          "expected",
+          "charged",
+          "changePercent",
+          "yearlyDelta"
+        ],
+        "type": "object"
+      },
+      "PriceIncrease": {
+        "additionalProperties": false,
+        "properties": {
+          "changePercent": {
+            "type": "string"
+          },
+          "from": {
+            "$ref": "#/components/schemas/Money"
+          },
+          "since": {
+            "type": "string"
+          },
+          "subscription": {
+            "$ref": "#/components/schemas/SubscriptionRef"
+          },
+          "to": {
+            "$ref": "#/components/schemas/Money"
+          },
+          "yearlyDelta": {
+            "$ref": "#/components/schemas/Money"
+          }
+        },
+        "required": [
+          "subscription",
+          "from",
+          "to",
+          "since",
+          "changePercent",
+          "yearlyDelta"
+        ],
+        "type": "object"
+      },
+      "PricePoint": {
+        "additionalProperties": false,
+        "properties": {
+          "changePercent": {
+            "type": "string"
+          },
+          "from": {
+            "type": "string"
+          },
+          "price": {
+            "$ref": "#/components/schemas/Money"
+          },
+          "scheduled": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "from",
+          "price"
+        ],
+        "type": "object"
+      },
+      "ReassignPaymentMethodInput": {
+        "additionalProperties": false,
+        "properties": {
+          "$schema": {
+            "description": "A URL to the JSON Schema for this object.",
+            "examples": [
+              "https://example.com/api/schemas/ReassignPaymentMethodInput.json"
+            ],
+            "format": "uri",
+            "readOnly": true,
+            "type": "string"
+          },
+          "dryRun": {
+            "type": "boolean"
+          },
+          "fromId": {
+            "type": "string"
+          },
+          "toId": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "fromId"
+        ],
+        "type": "object"
+      },
+      "ReassignResult": {
+        "additionalProperties": false,
+        "properties": {
+          "$schema": {
+            "description": "A URL to the JSON Schema for this object.",
+            "examples": [
+              "https://example.com/api/schemas/ReassignResult.json"
+            ],
+            "format": "uri",
+            "readOnly": true,
+            "type": "string"
+          },
+          "deleted": {
+            "type": "string"
+          },
+          "moved": {
+            "format": "int64",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "moved"
         ],
         "type": "object"
       },
@@ -1706,6 +2836,92 @@
         ],
         "type": "object"
       },
+      "SharedCharge": {
+        "additionalProperties": false,
+        "properties": {
+          "amount": {
+            "$ref": "#/components/schemas/Money"
+          },
+          "date": {
+            "type": "string"
+          },
+          "paidBy": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string"
+          },
+          "subscription": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "subscription",
+          "date",
+          "amount",
+          "paidBy",
+          "status"
+        ],
+        "type": "object"
+      },
+      "SpendingHistory": {
+        "additionalProperties": false,
+        "properties": {
+          "$schema": {
+            "description": "A URL to the JSON Schema for this object.",
+            "examples": [
+              "https://example.com/api/schemas/SpendingHistory.json"
+            ],
+            "format": "uri",
+            "readOnly": true,
+            "type": "string"
+          },
+          "bySubscription": {
+            "items": {
+              "$ref": "#/components/schemas/SubscriptionSpend"
+            },
+            "type": [
+              "array",
+              "null"
+            ]
+          },
+          "heaviestMonth": {
+            "type": "string"
+          },
+          "mainCurrency": {
+            "type": "string"
+          },
+          "months": {
+            "items": {
+              "$ref": "#/components/schemas/MonthSpend"
+            },
+            "type": [
+              "array",
+              "null"
+            ]
+          },
+          "totalPaid": {
+            "$ref": "#/components/schemas/Money"
+          },
+          "unconverted": {
+            "items": {
+              "type": "string"
+            },
+            "type": [
+              "array",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "mainCurrency",
+          "months",
+          "bySubscription",
+          "totalPaid",
+          "unconverted"
+        ],
+        "type": "object"
+      },
       "SpendingSummary": {
         "additionalProperties": false,
         "properties": {
@@ -1721,6 +2937,9 @@
           "activeSubscriptions": {
             "format": "int64",
             "type": "integer"
+          },
+          "beforePayday": {
+            "$ref": "#/components/schemas/PaydayOutlook"
           },
           "byCategory": {
             "items": {
@@ -1776,6 +2995,9 @@
           "ratesDate": {
             "type": "string"
           },
+          "setAsideMonthly": {
+            "$ref": "#/components/schemas/Money"
+          },
           "unconverted": {
             "items": {
               "type": "string"
@@ -1810,7 +3032,8 @@
           "byCategory",
           "byPaymentMethod",
           "activeSubscriptions",
-          "next7Days"
+          "next7Days",
+          "setAsideMonthly"
         ],
         "type": "object"
       },
@@ -1835,6 +3058,18 @@
               "null"
             ]
           },
+          "paid": {
+            "$ref": "#/components/schemas/PaidTotals"
+          },
+          "priceHistory": {
+            "items": {
+              "$ref": "#/components/schemas/PricePoint"
+            },
+            "type": [
+              "array",
+              "null"
+            ]
+          },
           "subscription": {
             "$ref": "#/components/schemas/SubscriptionView"
           },
@@ -1851,7 +3086,9 @@
         "required": [
           "subscription",
           "upcoming",
-          "history"
+          "history",
+          "priceHistory",
+          "paid"
         ],
         "type": "object"
       },
@@ -1882,11 +3119,65 @@
         ],
         "type": "object"
       },
+      "SubscriptionRef": {
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "monthly": {
+            "$ref": "#/components/schemas/Money"
+          },
+          "name": {
+            "type": "string"
+          },
+          "payer": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "monthly"
+        ],
+        "type": "object"
+      },
+      "SubscriptionSpend": {
+        "additionalProperties": false,
+        "properties": {
+          "count": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "id": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "paid": {
+            "$ref": "#/components/schemas/Money"
+          },
+          "since": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "paid",
+          "count"
+        ],
+        "type": "object"
+      },
       "SubscriptionView": {
         "additionalProperties": false,
         "properties": {
           "account": {
             "type": "string"
+          },
+          "askUsage": {
+            "type": "boolean"
           },
           "autoConfirm": {
             "type": "boolean"
@@ -2016,6 +3307,7 @@
           "yearlyCost",
           "inTrial",
           "expires",
+          "askUsage",
           "id",
           "householdId",
           "name",
@@ -2140,6 +3432,30 @@
         ],
         "type": "object"
       },
+      "Transfer": {
+        "additionalProperties": false,
+        "properties": {
+          "amount": {
+            "$ref": "#/components/schemas/Money"
+          },
+          "from": {
+            "type": "string"
+          },
+          "text": {
+            "type": "string"
+          },
+          "to": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "from",
+          "to",
+          "amount",
+          "text"
+        ],
+        "type": "object"
+      },
       "UndoInput": {
         "additionalProperties": false,
         "properties": {
@@ -2189,6 +3505,56 @@
         ],
         "type": "object"
       },
+      "UnusedSubscription": {
+        "additionalProperties": false,
+        "properties": {
+          "answeredOn": {
+            "type": "string"
+          },
+          "subscription": {
+            "$ref": "#/components/schemas/SubscriptionRef"
+          },
+          "yearly": {
+            "$ref": "#/components/schemas/Money"
+          }
+        },
+        "required": [
+          "subscription",
+          "yearly",
+          "answeredOn"
+        ],
+        "type": "object"
+      },
+      "UpdateCategoryInput": {
+        "additionalProperties": false,
+        "properties": {
+          "$schema": {
+            "description": "A URL to the JSON Schema for this object.",
+            "examples": [
+              "https://example.com/api/schemas/UpdateCategoryInput.json"
+            ],
+            "format": "uri",
+            "readOnly": true,
+            "type": "string"
+          },
+          "color": {
+            "type": "string"
+          },
+          "dryRun": {
+            "type": "boolean"
+          },
+          "id": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id"
+        ],
+        "type": "object"
+      },
       "UpdateHouseholdInput": {
         "additionalProperties": false,
         "properties": {
@@ -2213,6 +3579,12 @@
           "name": {
             "maxLength": 60,
             "type": "string"
+          },
+          "payday": {
+            "format": "int64",
+            "maximum": 31,
+            "minimum": 0,
+            "type": "integer"
           },
           "reminderTime": {
             "type": "string"
@@ -2377,7 +3749,7 @@
   "paths": {
     "/api/v1/attention": {
       "get": {
-        "description": "Charges whose date passed without confirmation, and payment methods about to expire.",
+        "description": "Charges whose date passed without confirmation, payment methods about to expire, last days to cancel and free trials about to charge.",
         "operationId": "needs_attention",
         "responses": {
           "200": {
@@ -2409,6 +3781,43 @@
         "summary": "What needs attention",
         "tags": [
           "Charges"
+        ]
+      }
+    },
+    "/api/v1/audit": {
+      "get": {
+        "description": "Facts worth acting on, computed not guessed: duplicates, price increases in the last year, free trials about to charge, last days to cancel, things about to expire, big charges coming, cards about to expire with the subscriptions that depend on them, unconfirmed charges and subscriptions marked as not used.",
+        "operationId": "audit",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AuditReport"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorModel"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Audit the subscriptions",
+        "tags": [
+          "Insights"
         ]
       }
     },
@@ -2934,6 +4343,197 @@
         ]
       }
     },
+    "/api/v1/balances": {
+      "get": {
+        "description": "For subscriptions with cost shares: what each member paid and should carry in a month, and the fewest payments that settle it.",
+        "operationId": "month_balances",
+        "parameters": [
+          {
+            "explode": false,
+            "in": "query",
+            "name": "month",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Balances"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorModel"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Who owes whom",
+        "tags": [
+          "Insights"
+        ]
+      }
+    },
+    "/api/v1/calendar": {
+      "get": {
+        "description": "Every dated event in a period (default: the next year): charges, including the ones the schedule will produce further ahead, free trials ending, things expiring and last days to cancel.",
+        "operationId": "calendar",
+        "parameters": [
+          {
+            "explode": false,
+            "in": "query",
+            "name": "from",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "explode": false,
+            "in": "query",
+            "name": "to",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CalendarView"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorModel"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Calendar of dates",
+        "tags": [
+          "Charges"
+        ]
+      }
+    },
+    "/api/v1/calendar/feed": {
+      "delete": {
+        "operationId": "calendar_feed_remove",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FeedStatus"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorModel"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "summary": "Remove the calendar link",
+        "tags": [
+          "Data"
+        ]
+      },
+      "get": {
+        "operationId": "calendar_feed",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FeedStatus"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorModel"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "summary": "Calendar link status",
+        "tags": [
+          "Data"
+        ]
+      },
+      "post": {
+        "operationId": "calendar_feed_create",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FeedStatus"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorModel"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "summary": "Create or replace the calendar link",
+        "tags": [
+          "Data"
+        ]
+      }
+    },
     "/api/v1/categories": {
       "post": {
         "description": "Adds a category for grouping subscriptions.",
@@ -2976,6 +4576,100 @@
           }
         ],
         "summary": "Create a category",
+        "tags": [
+          "Household"
+        ]
+      }
+    },
+    "/api/v1/categories/delete": {
+      "post": {
+        "description": "Deletes a category; its subscriptions become uncategorized.",
+        "operationId": "delete_category",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DeleteCategoryInput"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DeleteResult"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorModel"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Delete a category",
+        "tags": [
+          "Household"
+        ]
+      }
+    },
+    "/api/v1/categories/update": {
+      "post": {
+        "description": "Renames or recolours a category.",
+        "operationId": "update_category",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateCategoryInput"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CategoryOut"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorModel"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Rename a category",
         "tags": [
           "Household"
         ]
@@ -3357,6 +5051,43 @@
         ]
       }
     },
+    "/api/v1/export": {
+      "get": {
+        "description": "Everything the household keeps in Exhale in one JSON document: settings, members, categories, payment methods and every subscription with all its charges.",
+        "operationId": "export_data",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ExportData"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorModel"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Export everything",
+        "tags": [
+          "Data"
+        ]
+      }
+    },
     "/api/v1/household": {
       "get": {
         "description": "Household settings, members, categories and payment methods with their ids.",
@@ -3439,6 +5170,53 @@
         ]
       }
     },
+    "/api/v1/import": {
+      "post": {
+        "description": "Creates many subscriptions in one step, e.g. from a bank statement, a spreadsheet or another app. Categories, payment methods and payers are given by name (missing categories and payment methods are created). Items that duplicate an existing subscription or fail validation are skipped and reported. Always call it first with dryRun and show the user the list.",
+        "operationId": "import_subscriptions",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ImportInput"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ImportResult"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorModel"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Import subscriptions",
+        "tags": [
+          "Data"
+        ]
+      }
+    },
     "/api/v1/payment-methods": {
       "post": {
         "description": "Creates a payment method (no id) or updates one (with id): name, kind, last four digits, expiry date and owner.",
@@ -3481,6 +5259,100 @@
           }
         ],
         "summary": "Create or update a payment method",
+        "tags": [
+          "Household"
+        ]
+      }
+    },
+    "/api/v1/payment-methods/delete": {
+      "post": {
+        "description": "Deletes a payment method. Pass moveTo so its subscriptions move to another method instead of being left without one.",
+        "operationId": "delete_payment_method",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DeletePaymentMethodInput"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReassignResult"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorModel"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Delete a payment method",
+        "tags": [
+          "Household"
+        ]
+      }
+    },
+    "/api/v1/payment-methods/reassign": {
+      "post": {
+        "description": "Moves every subscription paid with one method to another in one step, e.g. when a card is about to expire.",
+        "operationId": "reassign_payment_method",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ReassignPaymentMethodInput"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReassignResult"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorModel"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Move subscriptions to another payment method",
         "tags": [
           "Household"
         ]
@@ -3631,6 +5503,56 @@
         "summary": "Remove the Telegram bot (owners only)",
         "tags": [
           "Settings"
+        ]
+      }
+    },
+    "/api/v1/spending/history": {
+      "get": {
+        "description": "What was really paid each month (from the charge ledger, not from current prices), what is expected in the coming months, and lifetime paid per subscription.",
+        "operationId": "spending_history",
+        "parameters": [
+          {
+            "explode": false,
+            "in": "query",
+            "name": "months",
+            "schema": {
+              "format": "int64",
+              "maximum": 60,
+              "minimum": 1,
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SpendingHistory"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorModel"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Real spend per month",
+        "tags": [
+          "Insights"
         ]
       }
     },
@@ -3924,7 +5846,7 @@
     },
     "/api/v1/summary": {
       "get": {
-        "description": "Monthly and yearly recurring spend per currency, spend per category, and the charges of the next 7 days.",
+        "description": "Monthly and yearly recurring spend per currency, spend per category and payment method, how much to set aside each month for yearly bills, what is due before the next payday, and the charges of the next 7 days.",
         "operationId": "spending_summary",
         "responses": {
           "200": {

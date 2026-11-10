@@ -24,8 +24,8 @@ type CreateSubscriptionInput struct {
 	Name            string `json:"name" jsonschema:"service name, e.g. Netflix Premium" minLength:"1" maxLength:"120"`
 	Price           string `json:"price" jsonschema:"price per charge as a decimal string, e.g. 12.99"`
 	Currency        string `json:"currency" jsonschema:"ISO 4217 code, e.g. EUR"`
-	Interval        int    `json:"interval" jsonschema:"number of units between charges, usually 1" minimum:"1"`
-	Unit            string `json:"unit" jsonschema:"day, week, month or year" enum:"day,week,month,year"`
+	Interval        int    `json:"interval,omitempty" jsonschema:"number of units between charges, default 1" minimum:"1"`
+	Unit            string `json:"unit,omitempty" jsonschema:"day, week, month (default) or year" enum:"day,week,month,year"`
 	FirstCharge     string `json:"firstCharge,omitempty" jsonschema:"date of the first (or next) charge, YYYY-MM-DD. Required unless trialEndsOn is given"`
 	CategoryID      string `json:"categoryId,omitempty"`
 	PaymentMethodID string `json:"paymentMethodId,omitempty"`
@@ -76,34 +76,55 @@ func optionalDate(s, what string) (engine.Date, error) {
 
 // CreateSubscription creates a subscription and its upcoming charges.
 func (s *Service) CreateSubscription(ctx context.Context, actor Actor, in CreateSubscriptionInput) (SubscriptionDetail, error) {
+	sub, err := s.newSubscription(ctx, s.st.Q, actor, in)
+	if err != nil {
+		return SubscriptionDetail{}, err
+	}
+	var out SubscriptionDetail
+	err = s.write(ctx, actor, in.DryRun, func(q *db.Queries, c *change) error {
+		if err := s.persistNew(ctx, q, c, actor, &sub); err != nil {
+			return err
+		}
+		out, err = s.detail(ctx, q, actor, sub.ID)
+		return err
+	})
+	return out, err
+}
+
+// newSubscription validates the input and builds the subscription.
+func (s *Service) newSubscription(ctx context.Context, q *db.Queries, actor Actor, in CreateSubscriptionInput) (domain.Subscription, error) {
+	none := domain.Subscription{}
 	price, err := money.Parse(in.Price, in.Currency)
 	if err != nil {
-		return SubscriptionDetail{}, fmt.Errorf("%w: %v", domain.ErrValidation, err)
+		return none, fmt.Errorf("%w: %v", domain.ErrValidation, err)
 	}
 	details, err := in.details()
 	if err != nil {
-		return SubscriptionDetail{}, err
+		return none, err
 	}
 	if in.FirstCharge == "" && !details.TrialEndsOn.IsZero() {
 		in.FirstCharge = details.TrialEndsOn.String() // a trial's first charge is the day it ends
 	}
 	first, err := engine.ParseDate(in.FirstCharge)
 	if err != nil {
-		return SubscriptionDetail{}, fmt.Errorf("%w: first charge: %v", domain.ErrValidation, err)
+		return none, fmt.Errorf("%w: first charge: %v", domain.ErrValidation, err)
 	}
 	if !details.TrialEndsOn.IsZero() && first.Before(details.TrialEndsOn) {
-		return SubscriptionDetail{}, fmt.Errorf("%w: the first charge (%s) cannot be before the trial ends (%s)", domain.ErrValidation, first, details.TrialEndsOn)
+		return none, fmt.Errorf("%w: the first charge (%s) cannot be before the trial ends (%s)", domain.ErrValidation, first, details.TrialEndsOn)
 	}
 	if in.Interval == 0 {
 		in.Interval = 1
 	}
+	if in.Unit == "" {
+		in.Unit = string(engine.Month)
+	}
 	sched, err := engine.NewSchedule(engine.Rule{Interval: in.Interval, Unit: engine.Unit(in.Unit), Anchor: first})
 	if err != nil {
-		return SubscriptionDetail{}, fmt.Errorf("%w: %v", domain.ErrValidation, err)
+		return none, fmt.Errorf("%w: %v", domain.ErrValidation, err)
 	}
 	if in.EndDate != "" {
 		if sched.Until, err = engine.ParseDate(in.EndDate); err != nil {
-			return SubscriptionDetail{}, fmt.Errorf("%w: end date: %v", domain.ErrValidation, err)
+			return none, fmt.Errorf("%w: end date: %v", domain.ErrValidation, err)
 		}
 	}
 	now := s.now()
@@ -118,7 +139,7 @@ func (s *Service) CreateSubscription(ctx context.Context, actor Actor, in Create
 	if in.Status != "" {
 		sub.Status = domain.SubscriptionStatus(in.Status)
 	}
-	if h, err := s.household(ctx, s.st.Q, actor.HouseholdID); err == nil {
+	if h, err := s.household(ctx, q, actor.HouseholdID); err == nil {
 		sub.Reminders.Hour, sub.Reminders.Minute = h.ReminderHour, h.ReminderMinute
 	}
 	if sub.PayerID == "" {
@@ -130,32 +151,30 @@ func (s *Service) CreateSubscription(ctx context.Context, actor Actor, in Create
 	if in.ReminderDays != nil {
 		sub.Reminders.DaysBefore = in.ReminderDays
 	}
-	if err := sub.Validate(); err != nil {
-		return SubscriptionDetail{}, err
+	return sub, sub.Validate()
+}
+
+// persistNew saves a new subscription with its upcoming charges inside a
+// write transaction.
+func (s *Service) persistNew(ctx context.Context, q *db.Queries, c *change, actor Actor, sub *domain.Subscription) error {
+	today := s.today(ctx, q, actor)
+	if sub.Status == domain.StatusCancelled && sub.Schedule.Until.IsZero() {
+		sub.Schedule.Until = maxDate(today.AddDays(-1), sub.Schedule.First())
 	}
-	var out SubscriptionDetail
-	err = s.write(ctx, actor, in.DryRun, func(q *db.Queries, c *change) error {
-		today := s.today(ctx, q, actor)
-		if sub.Status == domain.StatusCancelled && sub.Schedule.Until.IsZero() {
-			sub.Schedule.Until = maxDate(today.AddDays(-1), sub.Schedule.First())
-		}
-		if err := s.checkRefs(ctx, q, sub); err != nil {
-			return err
-		}
-		if err := s.insertSubscription(ctx, q, sub); err != nil {
-			return err
-		}
-		if err := s.materialize(ctx, q, sub, today); err != nil {
-			return err
-		}
-		if _, err := c.record(q, "subscription.create", "subscription", sub.ID, nil, sub); err != nil {
-			return err
-		}
-		c.emit(bus.Event{Type: bus.SubscriptionCreated, HouseholdID: sub.HouseholdID, SubscriptionID: sub.ID})
-		out, err = s.detail(ctx, q, actor, sub.ID)
+	if err := s.checkRefs(ctx, q, *sub); err != nil {
 		return err
-	})
-	return out, err
+	}
+	if err := s.insertSubscription(ctx, q, *sub); err != nil {
+		return err
+	}
+	if err := s.materialize(ctx, q, *sub, today); err != nil {
+		return err
+	}
+	if _, err := c.record(q, "subscription.create", "subscription", sub.ID, nil, *sub); err != nil {
+		return err
+	}
+	c.emit(bus.Event{Type: bus.SubscriptionCreated, HouseholdID: sub.HouseholdID, SubscriptionID: sub.ID})
+	return nil
 }
 
 // --- update ------------------------------------------------------------------
@@ -463,7 +482,8 @@ func (s *Service) materialize(ctx context.Context, q *db.Queries, sub domain.Sub
 	if sub.Status != domain.StatusActive {
 		return nil
 	}
-	to := from.AddDays(HorizonDays)
+	// A notice period moves the date that matters earlier, so look further.
+	to := from.AddDays(HorizonDays + sub.NoticeDays)
 	for _, d := range sub.Schedule.Between(from, to) {
 		if err := q.InsertChargeIfMissing(ctx, db.InsertChargeIfMissingParams{
 			ID: domain.NewID(domain.PrefixCharge), SubscriptionID: sub.ID, OriginalDate: d.String(),
@@ -511,6 +531,7 @@ func (s *Service) view(ctx context.Context, q *db.Queries, sub domain.Subscripti
 	if sub.Status == domain.StatusActive {
 		v.InTrial = sub.InTrial(today)
 		v.Expires = sub.ManualRenewal()
+		v.AskUsage = usageStale(sub, s.now())
 		if sub.NoticeDays > 0 && !v.NextCharge.IsZero() {
 			v.CancelBy = sub.CancelDeadline(v.NextCharge)
 		}
@@ -557,12 +578,16 @@ func (s *Service) detail(ctx context.Context, q *db.Queries, actor Actor, id str
 	today := s.today(ctx, q, actor)
 	v := s.view(ctx, q, sub, today)
 	out := SubscriptionDetail{Subscription: v, Upcoming: []ChargeView{}, History: []ChargeView{}}
-	rows, err := q.ListChargesForSubscription(ctx, db.ListChargesForSubscriptionParams{SubscriptionID: id, Limit: 400})
+	rows, err := q.ListChargesForSubscription(ctx, db.ListChargesForSubscriptionParams{SubscriptionID: id, Limit: 2000})
 	if err != nil {
 		return out, err
 	}
-	for _, r := range slices.Backward(rows) { // oldest first
-		ch := store.ChargeFromRow(r)
+	all := make([]domain.Charge, 0, len(rows))
+	for _, r := range slices.Backward(rows) {
+		all = append(all, store.ChargeFromRow(r))
+	}
+	out.PriceHistory, out.Paid = priceHistory(sub, all, today), paidTotals(sub, all)
+	for _, ch := range all { // oldest first
 		cv := s.chargeView(ch, v, today)
 		if ch.Open() && !ch.DueDate.Before(today) {
 			if len(out.Upcoming) < 12 {

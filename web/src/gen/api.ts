@@ -58,16 +58,6 @@ export interface AgentContext {
   markdown: string;
 }
 
-export interface PaymentMethod {
-  expiresOn?: string;
-  householdId: string;
-  id: string;
-  kind: string;
-  last4?: string;
-  name: string;
-  ownerId?: string;
-}
-
 export interface Money {
   currency: string;
   minor: number;
@@ -103,9 +93,21 @@ export interface ChargeView {
   version: number;
 }
 
+export interface PaymentMethod {
+  expiresOn?: string;
+  householdId: string;
+  id: string;
+  kind: string;
+  last4?: string;
+  name: string;
+  ownerId?: string;
+}
+
 export interface AttentionList {
   /** A URL to the JSON Schema for this object. */
   readonly $schema?: string;
+  /** @nullable */
+  deadlines: ChargeView[] | null;
   /** @nullable */
   expiringPaymentMethods: PaymentMethod[] | null;
   /** @nullable */
@@ -130,6 +132,64 @@ export interface AuditLog {
   entries: AuditEntry[] | null;
 }
 
+export interface SubscriptionRef {
+  id: string;
+  monthly: Money;
+  name: string;
+  payer?: string;
+}
+
+export interface CardImpact {
+  paymentMethod: PaymentMethod;
+  /** @nullable */
+  subscriptions: SubscriptionRef[] | null;
+}
+
+export interface DuplicateGroup {
+  service: string;
+  /** @nullable */
+  subscriptions: SubscriptionRef[] | null;
+}
+
+export interface UnusedSubscription {
+  answeredOn: string;
+  subscription: SubscriptionRef;
+  yearly: Money;
+}
+
+export interface PriceIncrease {
+  changePercent: string;
+  from: Money;
+  since: string;
+  subscription: SubscriptionRef;
+  to: Money;
+  yearlyDelta: Money;
+}
+
+export interface AuditReport {
+  /** A URL to the JSON Schema for this object. */
+  readonly $schema?: string;
+  /** @nullable */
+  bigCharges: ChargeView[] | null;
+  /** @nullable */
+  cancelDeadlines: ChargeView[] | null;
+  /** @nullable */
+  cardsExpiring: CardImpact[] | null;
+  /** @nullable */
+  duplicates: DuplicateGroup[] | null;
+  /** @nullable */
+  expiring: ChargeView[] | null;
+  findings: number;
+  /** @nullable */
+  notUsed: UnusedSubscription[] | null;
+  /** @nullable */
+  priceIncreases: PriceIncrease[] | null;
+  /** @nullable */
+  trialsEnding: ChargeView[] | null;
+  /** @nullable */
+  unconfirmed: ChargeView[] | null;
+}
+
 export interface SessionUser {
   email: string;
   id: string;
@@ -149,6 +209,42 @@ export interface AuthSession {
   /** username of the Telegram bot, when Telegram is enabled */
   telegramBot?: string;
   user?: SessionUser;
+}
+
+export interface SharedCharge {
+  amount: Money;
+  date: string;
+  paidBy: string;
+  status: string;
+  subscription: string;
+}
+
+export interface MemberBalance {
+  memberId: string;
+  name: string;
+  net: Money;
+  paid: Money;
+  share: Money;
+}
+
+export interface Transfer {
+  amount: Money;
+  from: string;
+  text: string;
+  to: string;
+}
+
+export interface Balances {
+  /** A URL to the JSON Schema for this object. */
+  readonly $schema?: string;
+  /** @nullable */
+  charges: SharedCharge[] | null;
+  mainCurrency: string;
+  /** @nullable */
+  members: MemberBalance[] | null;
+  month: string;
+  /** @nullable */
+  transfers: Transfer[] | null;
 }
 
 /**
@@ -180,6 +276,37 @@ export interface BotTokenIn {
   readonly $schema?: string;
   /** the token BotFather gives you, like 123456789:AAH… */
   token: string;
+}
+
+export type CalendarEventKind = typeof CalendarEventKind[keyof typeof CalendarEventKind];
+
+
+export const CalendarEventKind = {
+  charge: 'charge',
+  trial: 'trial',
+  expiry: 'expiry',
+  cancelBy: 'cancelBy',
+} as const;
+
+export interface CalendarEvent {
+  amount: Money;
+  chargeId?: string;
+  date: string;
+  kind: CalendarEventKind;
+  projected: boolean;
+  status?: string;
+  subscription: string;
+  subscriptionId: string;
+  title: string;
+}
+
+export interface CalendarView {
+  /** A URL to the JSON Schema for this object. */
+  readonly $schema?: string;
+  /** @nullable */
+  events: CalendarEvent[] | null;
+  from: string;
+  to: string;
 }
 
 export interface Category {
@@ -235,6 +362,21 @@ export interface ChangeChargeDateInput {
   scope?: ChangeChargeDateInputScope;
 }
 
+export interface Charge {
+  amount: Money;
+  chargedAmount?: Money;
+  decision?: string;
+  dueDate: string;
+  id: string;
+  note?: string;
+  originalDate: string;
+  resolvedAt?: string;
+  status: string;
+  subscriptionId: string;
+  updatedAt: string;
+  version: number;
+}
+
 export interface ChargeList {
   /** A URL to the JSON Schema for this object. */
   readonly $schema?: string;
@@ -242,6 +384,13 @@ export interface ChargeList {
   charges: ChargeView[] | null;
   from: string;
   to: string;
+}
+
+export interface PriceChangeHint {
+  changePercent: string;
+  charged: Money;
+  expected: Money;
+  yearlyDelta: Money;
 }
 
 export interface PriceChange {
@@ -287,6 +436,7 @@ export interface Usage {
 
 export interface SubscriptionView {
   account?: string;
+  askUsage: boolean;
   autoConfirm: boolean;
   cadence: string;
   cancelBy?: string;
@@ -333,6 +483,7 @@ export interface ChargeResult {
   auditId?: string;
   charge: ChargeView;
   dryRun?: boolean;
+  priceChange?: PriceChangeHint;
   subscription: SubscriptionView;
 }
 
@@ -383,7 +534,7 @@ export interface CreateSubscriptionInput {
   endDate?: string;
   firstCharge?: string;
   /** @minimum 1 */
-  interval: number;
+  interval?: number;
   /**
      * @minLength 1
      * @maxLength 120
@@ -407,7 +558,7 @@ export interface CreateSubscriptionInput {
   startedOn?: string;
   status?: CreateSubscriptionInputStatus;
   trialEndsOn?: string;
-  unit: CreateSubscriptionInputUnit;
+  unit?: CreateSubscriptionInputUnit;
   url?: string;
 }
 
@@ -425,6 +576,21 @@ export interface DecideRenewalInput {
   chargeId: string;
   decision: DecideRenewalInputDecision;
   dryRun?: boolean;
+}
+
+export interface DeleteCategoryInput {
+  /** A URL to the JSON Schema for this object. */
+  readonly $schema?: string;
+  dryRun?: boolean;
+  id: string;
+}
+
+export interface DeletePaymentMethodInput {
+  /** A URL to the JSON Schema for this object. */
+  readonly $schema?: string;
+  dryRun?: boolean;
+  id: string;
+  moveTo?: string;
 }
 
 export interface DeleteResult {
@@ -480,6 +646,7 @@ export interface Household {
   id: string;
   locale: string;
   name: string;
+  payday?: number;
   reminderHour: number;
   reminderMinute: number;
   timezone: string;
@@ -491,6 +658,76 @@ export interface Member {
   id: string;
   name: string;
   role: string;
+}
+
+export interface ExportedSubscription {
+  account?: string;
+  askUsage: boolean;
+  autoConfirm: boolean;
+  cadence: string;
+  cancelBy?: string;
+  cancelUrl?: string;
+  categoryId?: string;
+  categoryName?: string;
+  /** @nullable */
+  charges: Charge[] | null;
+  createdAt: string;
+  createdBy?: string;
+  expires: boolean;
+  householdId: string;
+  id: string;
+  inTrial: boolean;
+  monthlyCost: Money;
+  name: string;
+  nextCharge?: string;
+  nextPrice?: PriceChange;
+  notes?: string;
+  noticeDays?: number;
+  payerId?: string;
+  payerName?: string;
+  paymentMethod?: string;
+  paymentMethodId?: string;
+  price: Money;
+  reminders: ReminderPolicy;
+  renewal?: string;
+  schedule: Schedule;
+  serviceUntil?: string;
+  /** @nullable */
+  shares?: Share[] | null;
+  startedOn?: string;
+  status: string;
+  trialEndsOn?: string;
+  updatedAt: string;
+  url?: string;
+  usage?: Usage;
+  version: number;
+  visibility: string;
+  yearlyCost: Money;
+}
+
+export interface ExportData {
+  /** A URL to the JSON Schema for this object. */
+  readonly $schema?: string;
+  /** @nullable */
+  categories: Category[] | null;
+  exportedAt: string;
+  format: string;
+  household: Household;
+  /** @nullable */
+  members: Member[] | null;
+  /** @nullable */
+  paymentMethods: PaymentMethod[] | null;
+  /** @nullable */
+  subscriptions: ExportedSubscription[] | null;
+}
+
+export interface FeedStatus {
+  /** A URL to the JSON Schema for this object. */
+  readonly $schema?: string;
+  createdAt?: string;
+  enabled: boolean;
+  /** Path of the feed, shown once. Prefix it with the address of this Exhale. */
+  path?: string;
 }
 
 export interface HouseholdInfo {
@@ -510,6 +747,99 @@ export interface IdIn {
   /** A URL to the JSON Schema for this object. */
   readonly $schema?: string;
   id: string;
+}
+
+export type ImportItemRenewal = typeof ImportItemRenewal[keyof typeof ImportItemRenewal];
+
+
+export const ImportItemRenewal = {
+  auto: 'auto',
+  manual: 'manual',
+} as const;
+
+export type ImportItemStatus = typeof ImportItemStatus[keyof typeof ImportItemStatus];
+
+
+export const ImportItemStatus = {
+  active: 'active',
+  paused: 'paused',
+  cancelled: 'cancelled',
+} as const;
+
+export type ImportItemUnit = typeof ImportItemUnit[keyof typeof ImportItemUnit];
+
+
+export const ImportItemUnit = {
+  day: 'day',
+  week: 'week',
+  month: 'month',
+  year: 'year',
+} as const;
+
+export interface ImportItem {
+  account?: string;
+  autoConfirm?: boolean;
+  cancelUrl?: string;
+  category?: string;
+  currency?: string;
+  endDate?: string;
+  interval?: number;
+  name: string;
+  nextCharge?: string;
+  notes?: string;
+  noticeDays?: number;
+  payer?: string;
+  paymentMethod?: string;
+  price: string;
+  remark?: string;
+  /** @nullable */
+  reminderDays?: number[] | null;
+  renewal?: ImportItemRenewal;
+  startedOn?: string;
+  status?: ImportItemStatus;
+  trialEndsOn?: string;
+  unit?: ImportItemUnit;
+  url?: string;
+}
+
+export interface ImportInput {
+  /** A URL to the JSON Schema for this object. */
+  readonly $schema?: string;
+  allowDuplicates?: boolean;
+  dryRun?: boolean;
+  /** @nullable */
+  items: ImportItem[] | null;
+}
+
+export type ImportOutcomeAction = typeof ImportOutcomeAction[keyof typeof ImportOutcomeAction];
+
+
+export const ImportOutcomeAction = {
+  create: 'create',
+  duplicate: 'duplicate',
+  error: 'error',
+} as const;
+
+export interface ImportOutcome {
+  action: ImportOutcomeAction;
+  id?: string;
+  message?: string;
+  name: string;
+}
+
+export interface ImportResult {
+  /** A URL to the JSON Schema for this object. */
+  readonly $schema?: string;
+  created: number;
+  dryRun?: boolean;
+  duplicates: number;
+  errors: number;
+  /** @nullable */
+  items: ImportOutcome[] | null;
+  /** @nullable */
+  newCategories: string[] | null;
+  /** @nullable */
+  newPaymentMethods: string[] | null;
 }
 
 export type InviteInRole = typeof InviteInRole[keyof typeof InviteInRole];
@@ -591,11 +921,31 @@ export interface MethodSpend {
   paymentMethod: string;
 }
 
+export interface MonthSpend {
+  count: number;
+  expected: Money;
+  month: string;
+  paid: Money;
+}
+
+export interface PaidTotals {
+  count: number;
+  since?: string;
+  total: Money;
+}
+
 export interface PasswordIn {
   /** A URL to the JSON Schema for this object. */
   readonly $schema?: string;
   current: string;
   new: string;
+}
+
+export interface PaydayOutlook {
+  /** @nullable */
+  charges: ChargeView[] | null;
+  due: Money;
+  payday: string;
 }
 
 export interface PaymentMethodOut {
@@ -623,6 +973,28 @@ export interface PreviewScheduleInput {
   /** @minimum 1 */
   interval: number;
   unit: PreviewScheduleInputUnit;
+}
+
+export interface PricePoint {
+  changePercent?: string;
+  from: string;
+  price: Money;
+  scheduled?: boolean;
+}
+
+export interface ReassignPaymentMethodInput {
+  /** A URL to the JSON Schema for this object. */
+  readonly $schema?: string;
+  dryRun?: boolean;
+  fromId: string;
+  toId?: string;
+}
+
+export interface ReassignResult {
+  /** A URL to the JSON Schema for this object. */
+  readonly $schema?: string;
+  deleted?: string;
+  moved: number;
 }
 
 export type SavePaymentMethodInputKind = typeof SavePaymentMethodInputKind[keyof typeof SavePaymentMethodInputKind];
@@ -708,12 +1080,35 @@ export interface SetupInput {
   timezone?: string;
 }
 
+export interface SubscriptionSpend {
+  count: number;
+  id: string;
+  name: string;
+  paid: Money;
+  since?: string;
+}
+
+export interface SpendingHistory {
+  /** A URL to the JSON Schema for this object. */
+  readonly $schema?: string;
+  /** @nullable */
+  bySubscription: SubscriptionSpend[] | null;
+  heaviestMonth?: string;
+  mainCurrency: string;
+  /** @nullable */
+  months: MonthSpend[] | null;
+  totalPaid: Money;
+  /** @nullable */
+  unconverted: string[] | null;
+}
+
 export type SpendingSummaryRates = {[key: string]: string};
 
 export interface SpendingSummary {
   /** A URL to the JSON Schema for this object. */
   readonly $schema?: string;
   activeSubscriptions: number;
+  beforePayday?: PaydayOutlook;
   /** @nullable */
   byCategory: CategorySpend[] | null;
   /** @nullable */
@@ -727,6 +1122,7 @@ export interface SpendingSummary {
   next7Days: ChargeView[] | null;
   rates: SpendingSummaryRates;
   ratesDate?: string;
+  setAsideMonthly: Money;
   /** @nullable */
   unconverted: string[] | null;
   /** @nullable */
@@ -739,6 +1135,9 @@ export interface SubscriptionDetail {
   readonly $schema?: string;
   /** @nullable */
   history: ChargeView[] | null;
+  paid: PaidTotals;
+  /** @nullable */
+  priceHistory: PricePoint[] | null;
   subscription: SubscriptionView;
   /** @nullable */
   upcoming: ChargeView[] | null;
@@ -811,6 +1210,15 @@ export interface UndoResult {
   restored: string;
 }
 
+export interface UpdateCategoryInput {
+  /** A URL to the JSON Schema for this object. */
+  readonly $schema?: string;
+  color?: string;
+  dryRun?: boolean;
+  id: string;
+  name?: string;
+}
+
 export interface UpdateHouseholdInput {
   /** A URL to the JSON Schema for this object. */
   readonly $schema?: string;
@@ -819,6 +1227,11 @@ export interface UpdateHouseholdInput {
   locale?: string;
   /** @maxLength 60 */
   name?: string;
+  /**
+     * @minimum 0
+     * @maximum 31
+     */
+  payday?: number;
   reminderTime?: string;
   timezone?: string;
 }
@@ -860,6 +1273,15 @@ export interface UpdateSubscriptionInput {
   using?: boolean;
 }
 
+export type MonthBalancesParams = {
+month?: string;
+};
+
+export type CalendarParams = {
+from?: string;
+to?: string;
+};
+
 export type ListChangesParams = {
 /**
  * @maximum 500
@@ -870,6 +1292,14 @@ limit?: number;
 export type ListChargesParams = {
 from?: string;
 to?: string;
+};
+
+export type SpendingHistoryParams = {
+/**
+ * @minimum 1
+ * @maximum 60
+ */
+months?: number;
 };
 
 export type ListSubscriptionsParams = {
@@ -905,7 +1335,7 @@ export const getNeedsAttentionUrl = () => {
 }
 
 /**
- * Charges whose date passed without confirmation, and payment methods about to expire.
+ * Charges whose date passed without confirmation, payment methods about to expire, last days to cancel and free trials about to charge.
  * @summary What needs attention
  */
 export const needsAttention = async ( options?: Parameters<typeof fetcher>[1]): Promise<AttentionList> => {
@@ -986,6 +1416,108 @@ export function useNeedsAttention<TData = Awaited<ReturnType<typeof needsAttenti
  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
 
   const queryOptions = getNeedsAttentionQueryOptions(options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getAuditUrl = () => {
+
+
+
+
+  return `/api/v1/audit`
+}
+
+/**
+ * Facts worth acting on, computed not guessed: duplicates, price increases in the last year, free trials about to charge, last days to cancel, things about to expire, big charges coming, cards about to expire with the subscriptions that depend on them, unconfirmed charges and subscriptions marked as not used.
+ * @summary Audit the subscriptions
+ */
+export const audit = async ( options?: Parameters<typeof fetcher>[1]): Promise<AuditReport> => {
+
+  return fetcher<AuditReport>(getAuditUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getAuditQueryKey = () => {
+    return [
+    `/api/v1/audit`
+    ] as const;
+    }
+
+
+export const getAuditQueryOptions = <TData = Awaited<ReturnType<typeof audit>>, TError = ErrorModel>( options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof audit>>, TError, TData>>, request?: SecondParameter<typeof fetcher>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getAuditQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof audit>>> = ({ signal }) => audit({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof audit>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type AuditQueryResult = NonNullable<Awaited<ReturnType<typeof audit>>>
+export type AuditQueryError = ErrorModel
+
+
+export function useAudit<TData = Awaited<ReturnType<typeof audit>>, TError = ErrorModel>(
+  options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof audit>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof audit>>,
+          TError,
+          Awaited<ReturnType<typeof audit>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof fetcher>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useAudit<TData = Awaited<ReturnType<typeof audit>>, TError = ErrorModel>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof audit>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof audit>>,
+          TError,
+          Awaited<ReturnType<typeof audit>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof fetcher>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useAudit<TData = Awaited<ReturnType<typeof audit>>, TError = ErrorModel>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof audit>>, TError, TData>>, request?: SecondParameter<typeof fetcher>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+/**
+ * @summary Audit the subscriptions
+ */
+
+export function useAudit<TData = Awaited<ReturnType<typeof audit>>, TError = ErrorModel>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof audit>>, TError, TData>>, request?: SecondParameter<typeof fetcher>}
+ , queryClient?: QueryClient
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getAuditQueryOptions(options)
 
   const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 
@@ -2254,6 +2786,473 @@ export const useAuthRevokeToken = <TError = ErrorModel,
       return useMutation(getAuthRevokeTokenMutationOptions(options), queryClient);
     }
 
+export const getMonthBalancesUrl = (params?: MonthBalancesParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : String(value))
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/v1/balances?${stringifiedParams}` : `/api/v1/balances`
+}
+
+/**
+ * For subscriptions with cost shares: what each member paid and should carry in a month, and the fewest payments that settle it.
+ * @summary Who owes whom
+ */
+export const monthBalances = async (params?: MonthBalancesParams, options?: Parameters<typeof fetcher>[1]): Promise<Balances> => {
+
+  return fetcher<Balances>(getMonthBalancesUrl(params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getMonthBalancesQueryKey = (params?: MonthBalancesParams,) => {
+    return [
+    `/api/v1/balances`, ...(params ? [params] : [])
+    ] as const;
+    }
+
+
+export const getMonthBalancesQueryOptions = <TData = Awaited<ReturnType<typeof monthBalances>>, TError = ErrorModel>(params?: MonthBalancesParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof monthBalances>>, TError, TData>>, request?: SecondParameter<typeof fetcher>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getMonthBalancesQueryKey(params);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof monthBalances>>> = ({ signal }) => monthBalances(params, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof monthBalances>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type MonthBalancesQueryResult = NonNullable<Awaited<ReturnType<typeof monthBalances>>>
+export type MonthBalancesQueryError = ErrorModel
+
+
+export function useMonthBalances<TData = Awaited<ReturnType<typeof monthBalances>>, TError = ErrorModel>(
+ params: undefined |  MonthBalancesParams, options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof monthBalances>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof monthBalances>>,
+          TError,
+          Awaited<ReturnType<typeof monthBalances>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof fetcher>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useMonthBalances<TData = Awaited<ReturnType<typeof monthBalances>>, TError = ErrorModel>(
+ params?: MonthBalancesParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof monthBalances>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof monthBalances>>,
+          TError,
+          Awaited<ReturnType<typeof monthBalances>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof fetcher>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useMonthBalances<TData = Awaited<ReturnType<typeof monthBalances>>, TError = ErrorModel>(
+ params?: MonthBalancesParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof monthBalances>>, TError, TData>>, request?: SecondParameter<typeof fetcher>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+/**
+ * @summary Who owes whom
+ */
+
+export function useMonthBalances<TData = Awaited<ReturnType<typeof monthBalances>>, TError = ErrorModel>(
+ params?: MonthBalancesParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof monthBalances>>, TError, TData>>, request?: SecondParameter<typeof fetcher>}
+ , queryClient?: QueryClient
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getMonthBalancesQueryOptions(params,options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getCalendarUrl = (params?: CalendarParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : String(value))
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/v1/calendar?${stringifiedParams}` : `/api/v1/calendar`
+}
+
+/**
+ * Every dated event in a period (default: the next year): charges, including the ones the schedule will produce further ahead, free trials ending, things expiring and last days to cancel.
+ * @summary Calendar of dates
+ */
+export const calendar = async (params?: CalendarParams, options?: Parameters<typeof fetcher>[1]): Promise<CalendarView> => {
+
+  return fetcher<CalendarView>(getCalendarUrl(params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getCalendarQueryKey = (params?: CalendarParams,) => {
+    return [
+    `/api/v1/calendar`, ...(params ? [params] : [])
+    ] as const;
+    }
+
+
+export const getCalendarQueryOptions = <TData = Awaited<ReturnType<typeof calendar>>, TError = ErrorModel>(params?: CalendarParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof calendar>>, TError, TData>>, request?: SecondParameter<typeof fetcher>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getCalendarQueryKey(params);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof calendar>>> = ({ signal }) => calendar(params, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof calendar>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type CalendarQueryResult = NonNullable<Awaited<ReturnType<typeof calendar>>>
+export type CalendarQueryError = ErrorModel
+
+
+export function useCalendar<TData = Awaited<ReturnType<typeof calendar>>, TError = ErrorModel>(
+ params: undefined |  CalendarParams, options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof calendar>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof calendar>>,
+          TError,
+          Awaited<ReturnType<typeof calendar>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof fetcher>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useCalendar<TData = Awaited<ReturnType<typeof calendar>>, TError = ErrorModel>(
+ params?: CalendarParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof calendar>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof calendar>>,
+          TError,
+          Awaited<ReturnType<typeof calendar>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof fetcher>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useCalendar<TData = Awaited<ReturnType<typeof calendar>>, TError = ErrorModel>(
+ params?: CalendarParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof calendar>>, TError, TData>>, request?: SecondParameter<typeof fetcher>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+/**
+ * @summary Calendar of dates
+ */
+
+export function useCalendar<TData = Awaited<ReturnType<typeof calendar>>, TError = ErrorModel>(
+ params?: CalendarParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof calendar>>, TError, TData>>, request?: SecondParameter<typeof fetcher>}
+ , queryClient?: QueryClient
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getCalendarQueryOptions(params,options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getCalendarFeedRemoveUrl = () => {
+
+
+
+
+  return `/api/v1/calendar/feed`
+}
+
+/**
+ * @summary Remove the calendar link
+ */
+export const calendarFeedRemove = async ( options?: Parameters<typeof fetcher>[1]): Promise<FeedStatus> => {
+
+  return fetcher<FeedStatus>(getCalendarFeedRemoveUrl(),
+  {
+    ...options,
+    method: 'DELETE'
+
+
+  }
+);}
+
+
+
+
+
+export const getCalendarFeedRemoveMutationKey = () => ['calendarFeedRemove'] as const;
+
+export const getCalendarFeedRemoveMutationOptions = <TError = ErrorModel,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof calendarFeedRemove>>, TError,void, TContext>, request?: SecondParameter<typeof fetcher>}
+): UseMutationOptions<Awaited<ReturnType<typeof calendarFeedRemove>>, TError,void, TContext> => {
+
+const mutationKey = getCalendarFeedRemoveMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof calendarFeedRemove>>, void> = () => {
+
+
+          return  calendarFeedRemove(requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type CalendarFeedRemoveMutationResult = NonNullable<Awaited<ReturnType<typeof calendarFeedRemove>>>
+
+    export type CalendarFeedRemoveMutationError = ErrorModel
+
+
+    /**
+ * @summary Remove the calendar link
+ */
+export const useCalendarFeedRemove = <TError = ErrorModel,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof calendarFeedRemove>>, TError,void, TContext>, request?: SecondParameter<typeof fetcher>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof calendarFeedRemove>>,
+        TError,
+        void,
+        TContext
+      > => {
+      return useMutation(getCalendarFeedRemoveMutationOptions(options), queryClient);
+    }
+
+export const getCalendarFeedUrl = () => {
+
+
+
+
+  return `/api/v1/calendar/feed`
+}
+
+/**
+ * @summary Calendar link status
+ */
+export const calendarFeed = async ( options?: Parameters<typeof fetcher>[1]): Promise<FeedStatus> => {
+
+  return fetcher<FeedStatus>(getCalendarFeedUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getCalendarFeedQueryKey = () => {
+    return [
+    `/api/v1/calendar/feed`
+    ] as const;
+    }
+
+
+export const getCalendarFeedQueryOptions = <TData = Awaited<ReturnType<typeof calendarFeed>>, TError = ErrorModel>( options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof calendarFeed>>, TError, TData>>, request?: SecondParameter<typeof fetcher>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getCalendarFeedQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof calendarFeed>>> = ({ signal }) => calendarFeed({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof calendarFeed>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type CalendarFeedQueryResult = NonNullable<Awaited<ReturnType<typeof calendarFeed>>>
+export type CalendarFeedQueryError = ErrorModel
+
+
+export function useCalendarFeed<TData = Awaited<ReturnType<typeof calendarFeed>>, TError = ErrorModel>(
+  options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof calendarFeed>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof calendarFeed>>,
+          TError,
+          Awaited<ReturnType<typeof calendarFeed>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof fetcher>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useCalendarFeed<TData = Awaited<ReturnType<typeof calendarFeed>>, TError = ErrorModel>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof calendarFeed>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof calendarFeed>>,
+          TError,
+          Awaited<ReturnType<typeof calendarFeed>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof fetcher>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useCalendarFeed<TData = Awaited<ReturnType<typeof calendarFeed>>, TError = ErrorModel>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof calendarFeed>>, TError, TData>>, request?: SecondParameter<typeof fetcher>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+/**
+ * @summary Calendar link status
+ */
+
+export function useCalendarFeed<TData = Awaited<ReturnType<typeof calendarFeed>>, TError = ErrorModel>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof calendarFeed>>, TError, TData>>, request?: SecondParameter<typeof fetcher>}
+ , queryClient?: QueryClient
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getCalendarFeedQueryOptions(options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getCalendarFeedCreateUrl = () => {
+
+
+
+
+  return `/api/v1/calendar/feed`
+}
+
+/**
+ * @summary Create or replace the calendar link
+ */
+export const calendarFeedCreate = async ( options?: Parameters<typeof fetcher>[1]): Promise<FeedStatus> => {
+
+  return fetcher<FeedStatus>(getCalendarFeedCreateUrl(),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+);}
+
+
+
+
+
+export const getCalendarFeedCreateMutationKey = () => ['calendarFeedCreate'] as const;
+
+export const getCalendarFeedCreateMutationOptions = <TError = ErrorModel,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof calendarFeedCreate>>, TError,void, TContext>, request?: SecondParameter<typeof fetcher>}
+): UseMutationOptions<Awaited<ReturnType<typeof calendarFeedCreate>>, TError,void, TContext> => {
+
+const mutationKey = getCalendarFeedCreateMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof calendarFeedCreate>>, void> = () => {
+
+
+          return  calendarFeedCreate(requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type CalendarFeedCreateMutationResult = NonNullable<Awaited<ReturnType<typeof calendarFeedCreate>>>
+
+    export type CalendarFeedCreateMutationError = ErrorModel
+
+
+    /**
+ * @summary Create or replace the calendar link
+ */
+export const useCalendarFeedCreate = <TError = ErrorModel,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof calendarFeedCreate>>, TError,void, TContext>, request?: SecondParameter<typeof fetcher>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof calendarFeedCreate>>,
+        TError,
+        void,
+        TContext
+      > => {
+      return useMutation(getCalendarFeedCreateMutationOptions(options), queryClient);
+    }
+
 export const getCreateCategoryUrl = () => {
 
 
@@ -2341,6 +3340,184 @@ export const useCreateCategory = <TError = ErrorModel,
         TContext
       > => {
       return useMutation(getCreateCategoryMutationOptions(options), queryClient);
+    }
+
+export const getDeleteCategoryUrl = () => {
+
+
+
+
+  return `/api/v1/categories/delete`
+}
+
+/**
+ * Deletes a category; its subscriptions become uncategorized.
+ * @summary Delete a category
+ */
+export const deleteCategory = async (deleteCategoryInput: NonReadonly<DeleteCategoryInput>, options?: Parameters<typeof fetcher>[1]): Promise<DeleteResult> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return fetcher<DeleteResult>(getDeleteCategoryUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(deleteCategoryInput)
+  }
+);}
+
+
+
+
+
+export const getDeleteCategoryMutationKey = () => ['deleteCategory'] as const;
+
+export const getDeleteCategoryMutationOptions = <TError = ErrorModel,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof deleteCategory>>, TError,DeleteCategoryMutationVariables, TContext>, request?: SecondParameter<typeof fetcher>}
+): UseMutationOptions<Awaited<ReturnType<typeof deleteCategory>>, TError,DeleteCategoryMutationVariables, TContext> => {
+
+const mutationKey = getDeleteCategoryMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof deleteCategory>>, DeleteCategoryMutationVariables> = (props) => {
+          const {data} = props ?? {};
+
+          return  deleteCategory(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type DeleteCategoryMutationResult = NonNullable<Awaited<ReturnType<typeof deleteCategory>>>
+    export type DeleteCategoryMutationBody = NonReadonly<DeleteCategoryInput>
+    export type DeleteCategoryMutationError = ErrorModel
+    export type DeleteCategoryMutationVariables = {data: NonReadonly<DeleteCategoryInput>}
+
+    /**
+ * @summary Delete a category
+ */
+export const useDeleteCategory = <TError = ErrorModel,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof deleteCategory>>, TError,DeleteCategoryMutationVariables, TContext>, request?: SecondParameter<typeof fetcher>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof deleteCategory>>,
+        TError,
+        DeleteCategoryMutationVariables,
+        TContext
+      > => {
+      return useMutation(getDeleteCategoryMutationOptions(options), queryClient);
+    }
+
+export const getUpdateCategoryUrl = () => {
+
+
+
+
+  return `/api/v1/categories/update`
+}
+
+/**
+ * Renames or recolours a category.
+ * @summary Rename a category
+ */
+export const updateCategory = async (updateCategoryInput: NonReadonly<UpdateCategoryInput>, options?: Parameters<typeof fetcher>[1]): Promise<CategoryOut> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return fetcher<CategoryOut>(getUpdateCategoryUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(updateCategoryInput)
+  }
+);}
+
+
+
+
+
+export const getUpdateCategoryMutationKey = () => ['updateCategory'] as const;
+
+export const getUpdateCategoryMutationOptions = <TError = ErrorModel,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateCategory>>, TError,UpdateCategoryMutationVariables, TContext>, request?: SecondParameter<typeof fetcher>}
+): UseMutationOptions<Awaited<ReturnType<typeof updateCategory>>, TError,UpdateCategoryMutationVariables, TContext> => {
+
+const mutationKey = getUpdateCategoryMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof updateCategory>>, UpdateCategoryMutationVariables> = (props) => {
+          const {data} = props ?? {};
+
+          return  updateCategory(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type UpdateCategoryMutationResult = NonNullable<Awaited<ReturnType<typeof updateCategory>>>
+    export type UpdateCategoryMutationBody = NonReadonly<UpdateCategoryInput>
+    export type UpdateCategoryMutationError = ErrorModel
+    export type UpdateCategoryMutationVariables = {data: NonReadonly<UpdateCategoryInput>}
+
+    /**
+ * @summary Rename a category
+ */
+export const useUpdateCategory = <TError = ErrorModel,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateCategory>>, TError,UpdateCategoryMutationVariables, TContext>, request?: SecondParameter<typeof fetcher>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof updateCategory>>,
+        TError,
+        UpdateCategoryMutationVariables,
+        TContext
+      > => {
+      return useMutation(getUpdateCategoryMutationOptions(options), queryClient);
     }
 
 export const getListChangesUrl = (params?: ListChangesParams,) => {
@@ -3108,6 +4285,108 @@ export function useGetContext<TData = Awaited<ReturnType<typeof getContext>>, TE
 
 
 
+export const getExportDataUrl = () => {
+
+
+
+
+  return `/api/v1/export`
+}
+
+/**
+ * Everything the household keeps in Exhale in one JSON document: settings, members, categories, payment methods and every subscription with all its charges.
+ * @summary Export everything
+ */
+export const exportData = async ( options?: Parameters<typeof fetcher>[1]): Promise<ExportData> => {
+
+  return fetcher<ExportData>(getExportDataUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getExportDataQueryKey = () => {
+    return [
+    `/api/v1/export`
+    ] as const;
+    }
+
+
+export const getExportDataQueryOptions = <TData = Awaited<ReturnType<typeof exportData>>, TError = ErrorModel>( options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof exportData>>, TError, TData>>, request?: SecondParameter<typeof fetcher>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getExportDataQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof exportData>>> = ({ signal }) => exportData({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof exportData>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type ExportDataQueryResult = NonNullable<Awaited<ReturnType<typeof exportData>>>
+export type ExportDataQueryError = ErrorModel
+
+
+export function useExportData<TData = Awaited<ReturnType<typeof exportData>>, TError = ErrorModel>(
+  options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof exportData>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof exportData>>,
+          TError,
+          Awaited<ReturnType<typeof exportData>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof fetcher>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useExportData<TData = Awaited<ReturnType<typeof exportData>>, TError = ErrorModel>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof exportData>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof exportData>>,
+          TError,
+          Awaited<ReturnType<typeof exportData>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof fetcher>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useExportData<TData = Awaited<ReturnType<typeof exportData>>, TError = ErrorModel>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof exportData>>, TError, TData>>, request?: SecondParameter<typeof fetcher>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+/**
+ * @summary Export everything
+ */
+
+export function useExportData<TData = Awaited<ReturnType<typeof exportData>>, TError = ErrorModel>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof exportData>>, TError, TData>>, request?: SecondParameter<typeof fetcher>}
+ , queryClient?: QueryClient
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getExportDataQueryOptions(options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
 export const getGetHouseholdUrl = () => {
 
 
@@ -3299,6 +4578,95 @@ export const useUpdateHousehold = <TError = ErrorModel,
       return useMutation(getUpdateHouseholdMutationOptions(options), queryClient);
     }
 
+export const getImportSubscriptionsUrl = () => {
+
+
+
+
+  return `/api/v1/import`
+}
+
+/**
+ * Creates many subscriptions in one step, e.g. from a bank statement, a spreadsheet or another app. Categories, payment methods and payers are given by name (missing categories and payment methods are created). Items that duplicate an existing subscription or fail validation are skipped and reported. Always call it first with dryRun and show the user the list.
+ * @summary Import subscriptions
+ */
+export const importSubscriptions = async (importInput: NonReadonly<ImportInput>, options?: Parameters<typeof fetcher>[1]): Promise<ImportResult> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return fetcher<ImportResult>(getImportSubscriptionsUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(importInput)
+  }
+);}
+
+
+
+
+
+export const getImportSubscriptionsMutationKey = () => ['importSubscriptions'] as const;
+
+export const getImportSubscriptionsMutationOptions = <TError = ErrorModel,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof importSubscriptions>>, TError,ImportSubscriptionsMutationVariables, TContext>, request?: SecondParameter<typeof fetcher>}
+): UseMutationOptions<Awaited<ReturnType<typeof importSubscriptions>>, TError,ImportSubscriptionsMutationVariables, TContext> => {
+
+const mutationKey = getImportSubscriptionsMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof importSubscriptions>>, ImportSubscriptionsMutationVariables> = (props) => {
+          const {data} = props ?? {};
+
+          return  importSubscriptions(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type ImportSubscriptionsMutationResult = NonNullable<Awaited<ReturnType<typeof importSubscriptions>>>
+    export type ImportSubscriptionsMutationBody = NonReadonly<ImportInput>
+    export type ImportSubscriptionsMutationError = ErrorModel
+    export type ImportSubscriptionsMutationVariables = {data: NonReadonly<ImportInput>}
+
+    /**
+ * @summary Import subscriptions
+ */
+export const useImportSubscriptions = <TError = ErrorModel,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof importSubscriptions>>, TError,ImportSubscriptionsMutationVariables, TContext>, request?: SecondParameter<typeof fetcher>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof importSubscriptions>>,
+        TError,
+        ImportSubscriptionsMutationVariables,
+        TContext
+      > => {
+      return useMutation(getImportSubscriptionsMutationOptions(options), queryClient);
+    }
+
 export const getSavePaymentMethodUrl = () => {
 
 
@@ -3386,6 +4754,184 @@ export const useSavePaymentMethod = <TError = ErrorModel,
         TContext
       > => {
       return useMutation(getSavePaymentMethodMutationOptions(options), queryClient);
+    }
+
+export const getDeletePaymentMethodUrl = () => {
+
+
+
+
+  return `/api/v1/payment-methods/delete`
+}
+
+/**
+ * Deletes a payment method. Pass moveTo so its subscriptions move to another method instead of being left without one.
+ * @summary Delete a payment method
+ */
+export const deletePaymentMethod = async (deletePaymentMethodInput: NonReadonly<DeletePaymentMethodInput>, options?: Parameters<typeof fetcher>[1]): Promise<ReassignResult> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return fetcher<ReassignResult>(getDeletePaymentMethodUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(deletePaymentMethodInput)
+  }
+);}
+
+
+
+
+
+export const getDeletePaymentMethodMutationKey = () => ['deletePaymentMethod'] as const;
+
+export const getDeletePaymentMethodMutationOptions = <TError = ErrorModel,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof deletePaymentMethod>>, TError,DeletePaymentMethodMutationVariables, TContext>, request?: SecondParameter<typeof fetcher>}
+): UseMutationOptions<Awaited<ReturnType<typeof deletePaymentMethod>>, TError,DeletePaymentMethodMutationVariables, TContext> => {
+
+const mutationKey = getDeletePaymentMethodMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof deletePaymentMethod>>, DeletePaymentMethodMutationVariables> = (props) => {
+          const {data} = props ?? {};
+
+          return  deletePaymentMethod(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type DeletePaymentMethodMutationResult = NonNullable<Awaited<ReturnType<typeof deletePaymentMethod>>>
+    export type DeletePaymentMethodMutationBody = NonReadonly<DeletePaymentMethodInput>
+    export type DeletePaymentMethodMutationError = ErrorModel
+    export type DeletePaymentMethodMutationVariables = {data: NonReadonly<DeletePaymentMethodInput>}
+
+    /**
+ * @summary Delete a payment method
+ */
+export const useDeletePaymentMethod = <TError = ErrorModel,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof deletePaymentMethod>>, TError,DeletePaymentMethodMutationVariables, TContext>, request?: SecondParameter<typeof fetcher>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof deletePaymentMethod>>,
+        TError,
+        DeletePaymentMethodMutationVariables,
+        TContext
+      > => {
+      return useMutation(getDeletePaymentMethodMutationOptions(options), queryClient);
+    }
+
+export const getReassignPaymentMethodUrl = () => {
+
+
+
+
+  return `/api/v1/payment-methods/reassign`
+}
+
+/**
+ * Moves every subscription paid with one method to another in one step, e.g. when a card is about to expire.
+ * @summary Move subscriptions to another payment method
+ */
+export const reassignPaymentMethod = async (reassignPaymentMethodInput: NonReadonly<ReassignPaymentMethodInput>, options?: Parameters<typeof fetcher>[1]): Promise<ReassignResult> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return fetcher<ReassignResult>(getReassignPaymentMethodUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(reassignPaymentMethodInput)
+  }
+);}
+
+
+
+
+
+export const getReassignPaymentMethodMutationKey = () => ['reassignPaymentMethod'] as const;
+
+export const getReassignPaymentMethodMutationOptions = <TError = ErrorModel,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof reassignPaymentMethod>>, TError,ReassignPaymentMethodMutationVariables, TContext>, request?: SecondParameter<typeof fetcher>}
+): UseMutationOptions<Awaited<ReturnType<typeof reassignPaymentMethod>>, TError,ReassignPaymentMethodMutationVariables, TContext> => {
+
+const mutationKey = getReassignPaymentMethodMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof reassignPaymentMethod>>, ReassignPaymentMethodMutationVariables> = (props) => {
+          const {data} = props ?? {};
+
+          return  reassignPaymentMethod(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type ReassignPaymentMethodMutationResult = NonNullable<Awaited<ReturnType<typeof reassignPaymentMethod>>>
+    export type ReassignPaymentMethodMutationBody = NonReadonly<ReassignPaymentMethodInput>
+    export type ReassignPaymentMethodMutationError = ErrorModel
+    export type ReassignPaymentMethodMutationVariables = {data: NonReadonly<ReassignPaymentMethodInput>}
+
+    /**
+ * @summary Move subscriptions to another payment method
+ */
+export const useReassignPaymentMethod = <TError = ErrorModel,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof reassignPaymentMethod>>, TError,ReassignPaymentMethodMutationVariables, TContext>, request?: SecondParameter<typeof fetcher>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof reassignPaymentMethod>>,
+        TError,
+        ReassignPaymentMethodMutationVariables,
+        TContext
+      > => {
+      return useMutation(getReassignPaymentMethodMutationOptions(options), queryClient);
     }
 
 export const getPreviewScheduleUrl = () => {
@@ -3739,6 +5285,115 @@ export const useSettingsRemoveTelegram = <TError = ErrorModel,
       > => {
       return useMutation(getSettingsRemoveTelegramMutationOptions(options), queryClient);
     }
+
+export const getSpendingHistoryUrl = (params?: SpendingHistoryParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : String(value))
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/v1/spending/history?${stringifiedParams}` : `/api/v1/spending/history`
+}
+
+/**
+ * What was really paid each month (from the charge ledger, not from current prices), what is expected in the coming months, and lifetime paid per subscription.
+ * @summary Real spend per month
+ */
+export const spendingHistory = async (params?: SpendingHistoryParams, options?: Parameters<typeof fetcher>[1]): Promise<SpendingHistory> => {
+
+  return fetcher<SpendingHistory>(getSpendingHistoryUrl(params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getSpendingHistoryQueryKey = (params?: SpendingHistoryParams,) => {
+    return [
+    `/api/v1/spending/history`, ...(params ? [params] : [])
+    ] as const;
+    }
+
+
+export const getSpendingHistoryQueryOptions = <TData = Awaited<ReturnType<typeof spendingHistory>>, TError = ErrorModel>(params?: SpendingHistoryParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof spendingHistory>>, TError, TData>>, request?: SecondParameter<typeof fetcher>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getSpendingHistoryQueryKey(params);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof spendingHistory>>> = ({ signal }) => spendingHistory(params, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof spendingHistory>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type SpendingHistoryQueryResult = NonNullable<Awaited<ReturnType<typeof spendingHistory>>>
+export type SpendingHistoryQueryError = ErrorModel
+
+
+export function useSpendingHistory<TData = Awaited<ReturnType<typeof spendingHistory>>, TError = ErrorModel>(
+ params: undefined |  SpendingHistoryParams, options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof spendingHistory>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof spendingHistory>>,
+          TError,
+          Awaited<ReturnType<typeof spendingHistory>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof fetcher>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useSpendingHistory<TData = Awaited<ReturnType<typeof spendingHistory>>, TError = ErrorModel>(
+ params?: SpendingHistoryParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof spendingHistory>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof spendingHistory>>,
+          TError,
+          Awaited<ReturnType<typeof spendingHistory>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof fetcher>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useSpendingHistory<TData = Awaited<ReturnType<typeof spendingHistory>>, TError = ErrorModel>(
+ params?: SpendingHistoryParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof spendingHistory>>, TError, TData>>, request?: SecondParameter<typeof fetcher>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+/**
+ * @summary Real spend per month
+ */
+
+export function useSpendingHistory<TData = Awaited<ReturnType<typeof spendingHistory>>, TError = ErrorModel>(
+ params?: SpendingHistoryParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof spendingHistory>>, TError, TData>>, request?: SecondParameter<typeof fetcher>}
+ , queryClient?: QueryClient
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getSpendingHistoryQueryOptions(params,options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
 
 export const getListSubscriptionsUrl = (params?: ListSubscriptionsParams,) => {
   const normalizedParams = new URLSearchParams();
@@ -4316,7 +5971,7 @@ export const getSpendingSummaryUrl = () => {
 }
 
 /**
- * Monthly and yearly recurring spend per currency, spend per category, and the charges of the next 7 days.
+ * Monthly and yearly recurring spend per currency, spend per category and payment method, how much to set aside each month for yearly bills, what is due before the next payday, and the charges of the next 7 days.
  * @summary Spending summary
  */
 export const spendingSummary = async ( options?: Parameters<typeof fetcher>[1]): Promise<SpendingSummary> => {

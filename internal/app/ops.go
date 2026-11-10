@@ -95,9 +95,13 @@ var (
 		Name: "list_charges", Title: "List charges by date", Tag: "Charges", Method: "GET", Path: "/charges",
 		Description: "Charges due between two dates (default: the next 30 days), with ids, amounts, status and whether they were moved.",
 	}, (*Service).ListCharges}
+	OpCalendar = Op[CalendarInput, CalendarView]{Meta{
+		Name: "calendar", Title: "Calendar of dates", Tag: "Charges", Method: "GET", Path: "/calendar",
+		Description: "Every dated event in a period (default: the next year): charges, including the ones the schedule will produce further ahead, free trials ending, things expiring and last days to cancel.",
+	}, (*Service).Calendar}
 	OpNeedsAttention = Op[struct{}, AttentionList]{Meta{
 		Name: "needs_attention", Title: "What needs attention", Tag: "Charges", Method: "GET", Path: "/attention",
-		Description: "Charges whose date passed without confirmation, and payment methods about to expire.",
+		Description: "Charges whose date passed without confirmation, payment methods about to expire, last days to cancel and free trials about to charge.",
 	}, (*Service).NeedsAttention}
 	OpChangeChargeDate = Op[ChangeChargeDateInput, ChargeResult]{Meta{
 		Name: "change_charge_date", Title: "Move a charge", Tag: "Charges", Method: "POST", Path: "/charges/move", Write: true, Idempotent: true,
@@ -121,16 +125,52 @@ var (
 	}, (*Service).PreviewSchedule}
 	OpSummary = Op[struct{}, SpendingSummary]{Meta{
 		Name: "spending_summary", Title: "Spending summary", Tag: "Insights", Method: "GET", Path: "/summary",
-		Description: "Monthly and yearly recurring spend per currency, spend per category, and the charges of the next 7 days.",
+		Description: "Monthly and yearly recurring spend per currency, spend per category and payment method, how much to set aside each month for yearly bills, what is due before the next payday, and the charges of the next 7 days.",
 	}, (*Service).Summary}
+	OpSpendHistory = Op[SpendingHistoryInput, SpendingHistory]{Meta{
+		Name: "spending_history", Title: "Real spend per month", Tag: "Insights", Method: "GET", Path: "/spending/history",
+		Description: "What was really paid each month (from the charge ledger, not from current prices), what is expected in the coming months, and lifetime paid per subscription.",
+	}, (*Service).SpendHistory}
+	OpBalances = Op[BalancesInput, Balances]{Meta{
+		Name: "month_balances", Title: "Who owes whom", Tag: "Insights", Method: "GET", Path: "/balances",
+		Description: "For subscriptions with cost shares: what each member paid and should carry in a month, and the fewest payments that settle it.",
+	}, (*Service).MonthBalances}
+	OpAudit = Op[struct{}, AuditReport]{Meta{
+		Name: "audit", Title: "Audit the subscriptions", Tag: "Insights", Method: "GET", Path: "/audit",
+		Description: "Facts worth acting on, computed not guessed: duplicates, price increases in the last year, free trials about to charge, last days to cancel, things about to expire, big charges coming, cards about to expire with the subscriptions that depend on them, unconfirmed charges and subscriptions marked as not used.",
+	}, (*Service).Audit}
 	OpSavePaymentMethod = Op[SavePaymentMethodInput, PaymentMethodOut]{Meta{
 		Name: "save_payment_method", Title: "Create or update a payment method", Tag: "Household", Method: "POST", Path: "/payment-methods", Write: true,
 		Description: "Creates a payment method (no id) or updates one (with id): name, kind, last four digits, expiry date and owner.",
 	}, savePaymentMethod}
+	OpReassignPaymentMethod = Op[ReassignPaymentMethodInput, ReassignResult]{Meta{
+		Name: "reassign_payment_method", Title: "Move subscriptions to another payment method", Tag: "Household", Method: "POST", Path: "/payment-methods/reassign", Write: true, Idempotent: true,
+		Description: "Moves every subscription paid with one method to another in one step, e.g. when a card is about to expire.",
+	}, (*Service).ReassignPaymentMethod}
+	OpDeletePaymentMethod = Op[DeletePaymentMethodInput, ReassignResult]{Meta{
+		Name: "delete_payment_method", Title: "Delete a payment method", Tag: "Household", Method: "POST", Path: "/payment-methods/delete", Write: true, Destructive: true,
+		Description: "Deletes a payment method. Pass moveTo so its subscriptions move to another method instead of being left without one.",
+	}, (*Service).DeletePaymentMethod}
+	OpUpdateCategory = Op[UpdateCategoryInput, CategoryOut]{Meta{
+		Name: "update_category", Title: "Rename a category", Tag: "Household", Method: "POST", Path: "/categories/update", Write: true, Idempotent: true,
+		Description: "Renames or recolours a category.",
+	}, updateCategory}
+	OpDeleteCategory = Op[DeleteCategoryInput, DeleteResult]{Meta{
+		Name: "delete_category", Title: "Delete a category", Tag: "Household", Method: "POST", Path: "/categories/delete", Write: true, Destructive: true,
+		Description: "Deletes a category; its subscriptions become uncategorized.",
+	}, (*Service).DeleteCategory}
 	OpCreateCategory = Op[CreateCategoryInput, CategoryOut]{Meta{
 		Name: "create_category", Title: "Create a category", Tag: "Household", Method: "POST", Path: "/categories", Write: true,
 		Description: "Adds a category for grouping subscriptions.",
 	}, createCategory}
+	OpExport = Op[struct{}, ExportData]{Meta{
+		Name: "export_data", Title: "Export everything", Tag: "Data", Method: "GET", Path: "/export",
+		Description: "Everything the household keeps in Exhale in one JSON document: settings, members, categories, payment methods and every subscription with all its charges.",
+	}, (*Service).Export}
+	OpImport = Op[ImportInput, ImportResult]{Meta{
+		Name: "import_subscriptions", Title: "Import subscriptions", Tag: "Data", Method: "POST", Path: "/import", Write: true,
+		Description: "Creates many subscriptions in one step, e.g. from a bank statement, a spreadsheet or another app. Categories, payment methods and payers are given by name (missing categories and payment methods are created). Items that duplicate an existing subscription or fail validation are skipped and reported. Always call it first with dryRun and show the user the list.",
+	}, (*Service).Import}
 	OpListAudit = Op[AuditLogInput, AuditLog]{Meta{
 		Name: "list_changes", Title: "Recent changes", Tag: "Audit", Method: "GET", Path: "/changes",
 		Description: "Recent changes with who made them (member, agent or system). Each id can be passed to undo.",
@@ -146,9 +186,11 @@ func Catalog() []Binding {
 	return []Binding{
 		OpGetContext.Binding(), OpGetHousehold.Binding(), OpUpdateHousehold.Binding(), OpListSubscriptions.Binding(), OpGetSubscription.Binding(),
 		OpCreateSubscription.Binding(), OpUpdateSubscription.Binding(), OpSetSubscriptionStatus.Binding(),
-		OpDeleteSubscription.Binding(), OpListCharges.Binding(), OpNeedsAttention.Binding(), OpChangeChargeDate.Binding(),
+		OpDeleteSubscription.Binding(), OpListCharges.Binding(), OpCalendar.Binding(), OpNeedsAttention.Binding(), OpChangeChargeDate.Binding(),
 		OpChangeChargeAmount.Binding(), OpSetChargeStatus.Binding(), OpDecideRenewal.Binding(), OpPreviewSchedule.Binding(), OpSummary.Binding(),
-		OpSavePaymentMethod.Binding(), OpCreateCategory.Binding(), OpListAudit.Binding(), OpUndo.Binding(),
+		OpSpendHistory.Binding(), OpBalances.Binding(), OpAudit.Binding(),
+		OpSavePaymentMethod.Binding(), OpReassignPaymentMethod.Binding(), OpDeletePaymentMethod.Binding(),
+		OpCreateCategory.Binding(), OpUpdateCategory.Binding(), OpDeleteCategory.Binding(), OpExport.Binding(), OpImport.Binding(), OpListAudit.Binding(), OpUndo.Binding(),
 	}
 }
 
@@ -165,6 +207,11 @@ type CategoryOut struct {
 func savePaymentMethod(s *Service, ctx context.Context, a Actor, in SavePaymentMethodInput) (PaymentMethodOut, error) {
 	pm, err := s.SavePaymentMethod(ctx, a, in)
 	return PaymentMethodOut{PaymentMethod: pm}, err
+}
+
+func updateCategory(s *Service, ctx context.Context, a Actor, in UpdateCategoryInput) (CategoryOut, error) {
+	c, err := s.UpdateCategory(ctx, a, in)
+	return CategoryOut{Category: c}, err
 }
 
 func createCategory(s *Service, ctx context.Context, a Actor, in CreateCategoryInput) (CategoryOut, error) {

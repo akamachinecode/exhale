@@ -140,8 +140,17 @@ func (q *Queries) DeletePaymentMethod(ctx context.Context, arg DeletePaymentMeth
 	return err
 }
 
+const deleteSetting = `-- name: DeleteSetting :exec
+DELETE FROM settings WHERE key = ?
+`
+
+func (q *Queries) DeleteSetting(ctx context.Context, key string) error {
+	_, err := q.db.ExecContext(ctx, deleteSetting, key)
+	return err
+}
+
 const firstHousehold = `-- name: FirstHousehold :one
-SELECT id, name, currency, timezone, locale, created_at, reminder_hour, reminder_minute FROM households ORDER BY created_at LIMIT 1
+SELECT id, name, currency, timezone, locale, created_at, reminder_hour, reminder_minute, payday FROM households ORDER BY created_at LIMIT 1
 `
 
 func (q *Queries) FirstHousehold(ctx context.Context) (Household, error) {
@@ -156,12 +165,13 @@ func (q *Queries) FirstHousehold(ctx context.Context) (Household, error) {
 		&i.CreatedAt,
 		&i.ReminderHour,
 		&i.ReminderMinute,
+		&i.Payday,
 	)
 	return i, err
 }
 
 const getHousehold = `-- name: GetHousehold :one
-SELECT id, name, currency, timezone, locale, created_at, reminder_hour, reminder_minute FROM households WHERE id = ?
+SELECT id, name, currency, timezone, locale, created_at, reminder_hour, reminder_minute, payday FROM households WHERE id = ?
 `
 
 func (q *Queries) GetHousehold(ctx context.Context, id string) (Household, error) {
@@ -176,6 +186,7 @@ func (q *Queries) GetHousehold(ctx context.Context, id string) (Household, error
 		&i.CreatedAt,
 		&i.ReminderHour,
 		&i.ReminderMinute,
+		&i.Payday,
 	)
 	return i, err
 }
@@ -400,7 +411,7 @@ func (q *Queries) UpdateCategory(ctx context.Context, arg UpdateCategoryParams) 
 }
 
 const updateHousehold = `-- name: UpdateHousehold :exec
-UPDATE households SET name = ?, currency = ?, timezone = ?, locale = ?, reminder_hour = ?, reminder_minute = ?
+UPDATE households SET name = ?, currency = ?, timezone = ?, locale = ?, reminder_hour = ?, reminder_minute = ?, payday = ?
 WHERE id = ?
 `
 
@@ -411,6 +422,7 @@ type UpdateHouseholdParams struct {
 	Locale         string
 	ReminderHour   int64
 	ReminderMinute int64
+	Payday         int64
 	ID             string
 }
 
@@ -422,6 +434,7 @@ func (q *Queries) UpdateHousehold(ctx context.Context, arg UpdateHouseholdParams
 		arg.Locale,
 		arg.ReminderHour,
 		arg.ReminderMinute,
+		arg.Payday,
 		arg.ID,
 	)
 	return err

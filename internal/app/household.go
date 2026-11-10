@@ -140,6 +140,7 @@ type UpdateHouseholdInput struct {
 	Timezone     *string `json:"timezone,omitempty" jsonschema:"IANA time zone, e.g. Europe/Madrid"`
 	Locale       *string `json:"locale,omitempty" jsonschema:"language of reminders: en or es"`
 	ReminderTime *string `json:"reminderTime,omitempty" jsonschema:"default time of day for reminders, HH:MM; subscriptions still on the previous default move with it"`
+	Payday       *int    `json:"payday,omitempty" jsonschema:"day of the month the household gets paid, 1-31 (31 = last day); 0 clears it. Used to show what is due before the next payday" minimum:"0" maximum:"31"`
 	DryRun       bool    `json:"dryRun,omitempty"`
 }
 
@@ -190,9 +191,15 @@ func (s *Service) UpdateHousehold(ctx context.Context, actor Actor, in UpdateHou
 			}
 			h.ReminderHour, h.ReminderMinute = t.Hour(), t.Minute()
 		}
+		if in.Payday != nil {
+			if *in.Payday < 0 || *in.Payday > 31 {
+				return fmt.Errorf("%w: payday must be a day of the month (1-31), or 0 for none", domain.ErrValidation)
+			}
+			h.Payday = *in.Payday
+		}
 		if err := q.UpdateHousehold(ctx, db.UpdateHouseholdParams{
 			Name: h.Name, Currency: h.Currency, Timezone: h.Timezone, Locale: h.Locale,
-			ReminderHour: int64(h.ReminderHour), ReminderMinute: int64(h.ReminderMinute), ID: h.ID,
+			ReminderHour: int64(h.ReminderHour), ReminderMinute: int64(h.ReminderMinute), Payday: int64(h.Payday), ID: h.ID,
 		}); err != nil {
 			return err
 		}
@@ -312,4 +319,144 @@ func (s *Service) CreateCategory(ctx context.Context, actor Actor, in CreateCate
 		return nil
 	})
 	return cat, err
+}
+
+// ReassignPaymentMethodInput moves every subscription from one payment
+// method to another.
+type ReassignPaymentMethodInput struct {
+	FromID string `json:"fromId" jsonschema:"payment method the subscriptions use now (pm_…)"`
+	ToID   string `json:"toId,omitempty" jsonschema:"payment method to move them to; empty leaves them without one"`
+	DryRun bool   `json:"dryRun,omitempty"`
+}
+
+// ReassignResult says how many subscriptions moved.
+type ReassignResult struct {
+	Moved   int    `json:"moved" jsonschema:"subscriptions that changed payment method"`
+	Deleted string `json:"deleted,omitempty" jsonschema:"payment method that was deleted, if any"`
+}
+
+// ReassignPaymentMethod moves all subscriptions paid with one method to
+// another: the one-step answer to "this card expires next month".
+func (s *Service) ReassignPaymentMethod(ctx context.Context, actor Actor, in ReassignPaymentMethodInput) (ReassignResult, error) {
+	var out ReassignResult
+	err := s.write(ctx, actor, in.DryRun, func(q *db.Queries, c *change) error {
+		n, err := s.reassign(ctx, q, c, actor, in.FromID, in.ToID)
+		out.Moved = n
+		return err
+	})
+	return out, err
+}
+
+func (s *Service) reassign(ctx context.Context, q *db.Queries, c *change, actor Actor, from, to string) (int, error) {
+	if from == to {
+		return 0, fmt.Errorf("%w: choose a different payment method to move to", domain.ErrValidation)
+	}
+	for _, id := range []string{from, to} {
+		if id == "" {
+			continue
+		}
+		if _, err := q.GetPaymentMethod(ctx, db.GetPaymentMethodParams{ID: id, HouseholdID: actor.HouseholdID}); err != nil {
+			return 0, store.NotFound(err, "payment method "+id)
+		}
+	}
+	n, err := q.ReassignPaymentMethod(ctx, db.ReassignPaymentMethodParams{ToID: store.Ptr(to), UpdatedAt: store.FormatTime(s.now()), HouseholdID: actor.HouseholdID, FromID: store.Ptr(from)})
+	if err != nil {
+		return 0, err
+	}
+	if _, err := c.record(q, "payment_method.reassign", "payment_method", from, map[string]string{"from": from}, map[string]any{"to": to, "moved": n}); err != nil {
+		return 0, err
+	}
+	c.emit(bus.Event{Type: bus.PaymentMethodSaved, HouseholdID: actor.HouseholdID, EntityID: from})
+	return int(n), nil
+}
+
+// DeletePaymentMethodInput removes a payment method.
+type DeletePaymentMethodInput struct {
+	ID     string `json:"id" jsonschema:"payment method to delete (pm_…)"`
+	MoveTo string `json:"moveTo,omitempty" jsonschema:"payment method that takes over its subscriptions; empty leaves them without one"`
+	DryRun bool   `json:"dryRun,omitempty"`
+}
+
+// DeletePaymentMethod deletes a payment method, moving its subscriptions to
+// another one first when asked.
+func (s *Service) DeletePaymentMethod(ctx context.Context, actor Actor, in DeletePaymentMethodInput) (ReassignResult, error) {
+	var out ReassignResult
+	err := s.write(ctx, actor, in.DryRun, func(q *db.Queries, c *change) error {
+		n, err := s.reassign(ctx, q, c, actor, in.ID, in.MoveTo)
+		if err != nil {
+			return err
+		}
+		if err := q.DeletePaymentMethod(ctx, db.DeletePaymentMethodParams{ID: in.ID, HouseholdID: actor.HouseholdID}); err != nil {
+			return err
+		}
+		if _, err := c.record(q, "payment_method.delete", "payment_method", in.ID, map[string]string{"id": in.ID}, nil); err != nil {
+			return err
+		}
+		out = ReassignResult{Moved: n, Deleted: in.ID}
+		return nil
+	})
+	return out, err
+}
+
+// UpdateCategoryInput renames or recolours a category.
+type UpdateCategoryInput struct {
+	ID     string  `json:"id" jsonschema:"category id (cat_…)"`
+	Name   *string `json:"name,omitempty"`
+	Color  *string `json:"color,omitempty" jsonschema:"hex color, e.g. #7c6cff"`
+	DryRun bool    `json:"dryRun,omitempty"`
+}
+
+// UpdateCategory renames or recolours a category.
+func (s *Service) UpdateCategory(ctx context.Context, actor Actor, in UpdateCategoryInput) (domain.Category, error) {
+	var cat domain.Category
+	err := s.write(ctx, actor, in.DryRun, func(q *db.Queries, c *change) error {
+		found := false
+		for _, r := range mustList(q.ListCategories(ctx, actor.HouseholdID)) {
+			if r.ID == in.ID {
+				cat, found = store.CategoryFromRow(r), true
+			}
+		}
+		if !found {
+			return fmt.Errorf("category %s: %w", in.ID, domain.ErrNotFound)
+		}
+		before := cat
+		set(&cat.Name, in.Name)
+		set(&cat.Color, in.Color)
+		if cat.Name = strings.TrimSpace(cat.Name); cat.Name == "" {
+			return fmt.Errorf("%w: name is required", domain.ErrValidation)
+		}
+		if err := q.UpdateCategory(ctx, db.UpdateCategoryParams{Name: cat.Name, Color: cat.Color, ID: cat.ID, HouseholdID: actor.HouseholdID}); err != nil {
+			return fmt.Errorf("%w: a category named %q already exists", domain.ErrValidation, cat.Name)
+		}
+		if _, err := c.record(q, "category.update", "category", cat.ID, before, cat); err != nil {
+			return err
+		}
+		c.emit(bus.Event{Type: bus.CategorySaved, HouseholdID: cat.HouseholdID, EntityID: cat.ID})
+		return nil
+	})
+	return cat, err
+}
+
+// DeleteCategoryInput removes a category.
+type DeleteCategoryInput struct {
+	ID     string `json:"id" jsonschema:"category id (cat_…)"`
+	DryRun bool   `json:"dryRun,omitempty"`
+}
+
+// DeleteCategory removes a category; its subscriptions become uncategorized.
+func (s *Service) DeleteCategory(ctx context.Context, actor Actor, in DeleteCategoryInput) (DeleteResult, error) {
+	var out DeleteResult
+	err := s.write(ctx, actor, in.DryRun, func(q *db.Queries, c *change) error {
+		if err := q.DeleteCategory(ctx, db.DeleteCategoryParams{ID: in.ID, HouseholdID: actor.HouseholdID}); err != nil {
+			return err
+		}
+		id, err := c.record(q, "category.delete", "category", in.ID, map[string]string{"id": in.ID}, nil)
+		if err != nil {
+			return err
+		}
+		c.emit(bus.Event{Type: bus.CategorySaved, HouseholdID: actor.HouseholdID, EntityID: in.ID})
+		out = DeleteResult{Deleted: in.ID, AuditID: id}
+		return nil
+	})
+	return out, err
 }

@@ -102,6 +102,7 @@ func (s *Service) ListCharges(ctx context.Context, actor Actor, in ListChargesIn
 type AttentionList struct {
 	Unconfirmed            []ChargeView           `json:"unconfirmed" jsonschema:"charges whose due date passed and that are not marked paid, failed or skipped"`
 	ExpiringPaymentMethods []domain.PaymentMethod `json:"expiringPaymentMethods" jsonschema:"payment methods expiring within 45 days"`
+	Deadlines              []ChargeView           `json:"deadlines" jsonschema:"last days to cancel within 14 days that have no decision yet, and free trials ending within 7 days"`
 }
 
 // NeedsAttention lists unconfirmed past charges and expiring payment methods.
@@ -112,7 +113,21 @@ func (s *Service) NeedsAttention(ctx context.Context, actor Actor, _ struct{}) (
 	if err != nil {
 		return AttentionList{}, err
 	}
-	out := AttentionList{Unconfirmed: s.chargeViews(ctx, q, actor, rows, today), ExpiringPaymentMethods: []domain.PaymentMethod{}}
+	out := AttentionList{Unconfirmed: s.chargeViews(ctx, q, actor, rows, today), ExpiringPaymentMethods: []domain.PaymentMethod{}, Deadlines: []ChargeView{}}
+	soon, err := q.ListChargesBetween(ctx, db.ListChargesBetweenParams{HouseholdID: actor.HouseholdID, FromDate: today.String(), ToDate: today.AddDays(14 + 366).String()})
+	if err != nil {
+		return out, err
+	}
+	for _, c := range s.chargeViews(ctx, q, actor, soon, today) {
+		if c.Status != domain.ChargePending {
+			continue
+		}
+		trial := c.Kind == ChargeTrial && c.DaysUntil <= 7
+		deadline := !c.CancelBy.IsZero() && c.Decision == "" && !c.CancelBy.Before(today) && today.DaysUntil(c.CancelBy) <= 14
+		if trial || deadline {
+			out.Deadlines = append(out.Deadlines, c)
+		}
+	}
 	pms, err := q.ListPaymentMethods(ctx, actor.HouseholdID)
 	if err != nil {
 		return out, err
@@ -201,6 +216,18 @@ type SpendingSummary struct {
 	ByMethod     []MethodSpend     `json:"byPaymentMethod" jsonschema:"monthly spend per payment method, in the main currency"`
 	Active       int               `json:"activeSubscriptions"`
 	NextCharges  []ChargeView      `json:"next7Days"`
+	// SetAside is the monthly equivalent of everything that is not billed
+	// monthly: what to put away each month so yearly bills do not surprise.
+	SetAside money.Money `json:"setAsideMonthly" jsonschema:"monthly equivalent of the subscriptions billed less often than monthly (yearly, quarterly…), in the display currency: what to put away each month"`
+	// BeforePayday is set when the household has a payday.
+	BeforePayday *PaydayOutlook `json:"beforePayday,omitempty" jsonschema:"what is due before the next payday, when the household has one"`
+}
+
+// PaydayOutlook is what must be paid before the next payday.
+type PaydayOutlook struct {
+	Payday  engine.Date  `json:"payday" jsonschema:"next payday"`
+	Due     money.Money  `json:"due" jsonschema:"total of the charges due before it, in the display currency"`
+	Charges []ChargeView `json:"charges"`
 }
 
 // CategorySpend is the monthly spend of one category.
@@ -233,7 +260,7 @@ func (s *Service) Summary(ctx context.Context, actor Actor, _ struct{}) (Spendin
 	conv := s.converter(h.Currency, today.String())
 	zero := money.Money{Currency: h.Currency}
 	out := SpendingSummary{MainCurrency: h.Currency, Active: len(list.Subscriptions), Monthly: []money.Money{}, Yearly: []money.Money{},
-		ByCategory: []CategorySpend{}, ByMethod: []MethodSpend{}, Unconverted: []string{}, MonthlyTotal: zero}
+		ByCategory: []CategorySpend{}, ByMethod: []MethodSpend{}, Unconverted: []string{}, MonthlyTotal: zero, SetAside: zero}
 	monthly := map[string]money.Money{}
 	cats := map[string]*CategorySpend{}
 	methods := map[string]*MethodSpend{}
@@ -250,6 +277,9 @@ func (s *Service) Summary(ctx context.Context, actor Actor, _ struct{}) (Spendin
 			out.Converted = true
 		}
 		out.MonthlyTotal, _ = out.MonthlyTotal.Add(mainCost)
+		if r := v.Schedule.Current(today); r.Unit == engine.Year || (r.Unit == engine.Month && r.Interval > 1) {
+			out.SetAside, _ = out.SetAside.Add(mainCost)
+		}
 		cat := v.CategoryName
 		if cat == "" {
 			cat = "Uncategorized"
@@ -290,6 +320,23 @@ func (s *Service) Summary(ctx context.Context, actor Actor, _ struct{}) (Spendin
 		return out, err
 	}
 	out.NextCharges = next.Charges
+	if payday, ok := h.NextPayday(today); ok {
+		due, err := s.ListCharges(ctx, actor, ListChargesInput{From: today.String(), To: payday.AddDays(-1).String()})
+		if err != nil {
+			return out, err
+		}
+		o := &PaydayOutlook{Payday: payday, Due: zero, Charges: []ChargeView{}}
+		for _, c := range due.Charges {
+			if !c.Open() {
+				continue
+			}
+			if m, ok := conv.toMain(ctx, c.Amount); ok {
+				o.Due, _ = o.Due.Add(m)
+			}
+			o.Charges = append(o.Charges, c)
+		}
+		out.BeforePayday = o
+	}
 	return out, nil
 }
 

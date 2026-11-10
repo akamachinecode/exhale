@@ -9,7 +9,7 @@ SELECT * FROM households WHERE id = ?;
 SELECT * FROM households ORDER BY created_at LIMIT 1;
 
 -- name: UpdateHousehold :exec
-UPDATE households SET name = ?, currency = ?, timezone = ?, locale = ?, reminder_hour = ?, reminder_minute = ?
+UPDATE households SET name = ?, currency = ?, timezone = ?, locale = ?, reminder_hour = ?, reminder_minute = ?, payday = ?
 WHERE id = ?;
 
 -- name: CreateMember :exec
@@ -61,3 +61,6 @@ SELECT value FROM settings WHERE key = ?;
 -- name: PutSetting :exec
 INSERT INTO settings (key, value) VALUES (?, ?)
 ON CONFLICT (key) DO UPDATE SET value = excluded.value;
+
+-- name: DeleteSetting :exec
+DELETE FROM settings WHERE key = ?;

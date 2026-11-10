@@ -18,6 +18,17 @@ type ChargeResult struct {
 	Subscription SubscriptionView `json:"subscription"`
 	AuditID      string           `json:"auditId,omitempty" jsonschema:"pass to undo to revert this change"`
 	DryRun       bool             `json:"dryRun,omitempty"`
+	// PriceChange is set when a charge was paid at a different amount than
+	// expected, in the same currency: probably a new price.
+	PriceChange *PriceChangeHint `json:"priceChange,omitempty" jsonschema:"the bank took a different amount than expected. Ask the user whether this is the new price; if so call update_subscription with price"`
+}
+
+// PriceChangeHint says a charge was paid at another amount.
+type PriceChangeHint struct {
+	Expected    money.Money `json:"expected"`
+	Charged     money.Money `json:"charged"`
+	Change      string      `json:"changePercent"`
+	YearlyDelta money.Money `json:"yearlyDelta" jsonschema:"difference per year if this is the new price, in the subscription currency"`
 }
 
 // ChangeChargeDateInput moves a charge.
@@ -209,6 +220,7 @@ func (s *Service) SetChargeStatus(ctx context.Context, actor Actor, in SetCharge
 		if out.AuditID, err = c.record(q, "charge."+in.Status, "charge", ch.ID, before, ch); err != nil {
 			return err
 		}
+		out.PriceChange = priceChangeHint(ch, sub)
 		c.emit(bus.Event{Type: bus.ChargeUpdated, HouseholdID: sub.HouseholdID, SubscriptionID: sub.ID, ChargeID: ch.ID})
 		return s.fillResult(ctx, q, actor, ch.ID, &out)
 	})
@@ -258,6 +270,18 @@ func (s *Service) DecideRenewal(ctx context.Context, actor Actor, in DecideRenew
 	})
 	out.DryRun = in.DryRun
 	return out, err
+}
+
+// priceChangeHint compares what was charged with what was expected.
+func priceChangeHint(ch domain.Charge, sub domain.Subscription) *PriceChangeHint {
+	got := ch.ChargedAmount
+	if ch.Status != domain.ChargePaid || got.IsZero() || got.Currency != ch.Amount.Currency || got == ch.Amount || ch.Amount.Minor == 0 || got == sub.Price {
+		return nil
+	}
+	delta := money.Money{Minor: got.Minor - ch.Amount.Minor, Currency: got.Currency}
+	perMonth, _ := delta.Scale(monthlyFactor(sub.Schedule.Current(ch.OriginalDate)))
+	yearly, _ := perMonth.Scale("12")
+	return &PriceChangeHint{Expected: ch.Amount, Charged: got, Change: fmt.Sprintf("%+.1f", float64(delta.Minor)*100/float64(ch.Amount.Minor)), YearlyDelta: yearly}
 }
 
 func (s *Service) saveCharge(ctx context.Context, q *db.Queries, ch domain.Charge) error {

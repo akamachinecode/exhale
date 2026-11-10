@@ -85,6 +85,7 @@ type Household struct {
 	CreatedAt      string
 	ReminderHour   int64
 	ReminderMinute int64
+	Payday         int64
 }
 
 type Invite struct {

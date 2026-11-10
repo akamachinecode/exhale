@@ -33,6 +33,27 @@ type Household struct {
 	// Default time of day for reminders, in Timezone (09:00 by default).
 	ReminderHour   int `json:"reminderHour"`
 	ReminderMinute int `json:"reminderMinute"`
+	// Payday is the day of the month the household gets paid (0: not set;
+	// 31 means the last day of shorter months).
+	Payday int `json:"payday,omitempty"`
+}
+
+// NextPayday returns the next payday strictly after day d, if one is set.
+func (h Household) NextPayday(d engine.Date) (engine.Date, bool) {
+	if h.Payday < 1 || h.Payday > 31 {
+		return engine.Date{}, false
+	}
+	y, m := d.Year(), d.Month()
+	for range 3 {
+		day := min(h.Payday, engine.DaysIn(y, m))
+		if p := engine.MustDate(y, m, day); p.After(d) {
+			return p, true
+		}
+		if m++; m > 12 {
+			y, m = y+1, 1
+		}
+	}
+	return engine.Date{}, false
 }
 
 // Location returns the household time zone (UTC if unknown).

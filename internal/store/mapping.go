@@ -58,7 +58,7 @@ func mustDate(s string) engine.Date {
 
 func HouseholdFromRow(r db.Household) domain.Household {
 	return domain.Household{ID: r.ID, Name: r.Name, Currency: r.Currency, Timezone: r.Timezone, Locale: r.Locale,
-		ReminderHour: int(r.ReminderHour), ReminderMinute: int(r.ReminderMinute)}
+		ReminderHour: int(r.ReminderHour), ReminderMinute: int(r.ReminderMinute), Payday: int(r.Payday)}
 }
 
 func MemberFromRow(r db.Member) domain.Member {
