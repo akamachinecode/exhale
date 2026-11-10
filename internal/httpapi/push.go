@@ -62,15 +62,15 @@ func registerPush(api huma.API, a *authAPI) {
 			return &resp[auth.LinkInfo]{Body: a.describe(ctx, link)}, nil
 		})
 
-	type endpointIn struct {
+	type pushEndpointIn struct {
 		Endpoint string `json:"endpoint" doc:"PushSubscription.endpoint of this browser"`
 	}
-	type deviceOut struct {
+	type pushDeviceOut struct {
 		ID string `json:"id,omitempty" doc:"link id of this browser; empty when push is not on for you here"`
 	}
 	// POST, not GET: an endpoint is a capability and stays out of URLs.
 	huma.Register(api, pushOp("push_find_device", http.MethodPost, "/devices/find", "Is push on for you in this browser?"),
-		func(ctx context.Context, in *struct{ Body endpointIn }) (*resp[deviceOut], error) {
+		func(ctx context.Context, in *struct{ Body pushEndpointIn }) (*resp[pushDeviceOut], error) {
 			actor, err := a.member(ctx)
 			if err != nil {
 				return nil, err
@@ -81,14 +81,14 @@ func registerPush(api huma.API, a *authAPI) {
 			}
 			for _, l := range links {
 				if l.Channel == "webpush" && l.ExternalID == in.Body.Endpoint {
-					return &resp[deviceOut]{Body: deviceOut{ID: l.ID}}, nil
+					return &resp[pushDeviceOut]{Body: pushDeviceOut{ID: l.ID}}, nil
 				}
 			}
-			return &resp[deviceOut]{}, nil
+			return &resp[pushDeviceOut]{}, nil
 		})
 
 	huma.Register(api, pushOp("push_remove_device", http.MethodPost, "/devices/remove", "Turn off push notifications in this browser"),
-		func(ctx context.Context, in *struct{ Body endpointIn }) (*resp[empty], error) {
+		func(ctx context.Context, in *struct{ Body pushEndpointIn }) (*resp[empty], error) {
 			actor, err := a.member(ctx)
 			if err != nil {
 				return nil, err
@@ -103,11 +103,11 @@ func registerPush(api huma.API, a *authAPI) {
 			return &resp[empty]{}, nil
 		})
 
-	type actionIn struct {
+	type pushActionIn struct {
 		Token string `json:"token" maxLength:"1024" doc:"the token of the button, from the notification"`
 	}
 	huma.Register(api, pushOp("push_action", http.MethodPost, "/action", "Run a notification's button (no session: the token is the credential)"),
-		func(ctx context.Context, in *struct{ Body actionIn }) (*resp[actions.PushResult], error) {
+		func(ctx context.Context, in *struct{ Body pushActionIn }) (*resp[actions.PushResult], error) {
 			ch, err := a.channels()
 			if err != nil {
 				return nil, err
