@@ -62,6 +62,27 @@ test("edit it: the price changes from the next charge", async () => {
 	await page.getByText(/42[.,]50/).first().waitFor();
 });
 
+test("attach a contract and an own logo, then delete the contract", async () => {
+	await page.getByRole("button", { name: "Attach", exact: true }).click();
+	const dialog = page.getByRole("dialog");
+	await dialog.getByLabel("File").setInputFiles({
+		name: "contrato.pdf",
+		mimeType: "application/pdf",
+		buffer: Buffer.from("%PDF-1.7\n%%EOF\n"),
+	});
+	await dialog.getByRole("button", { name: "Attach", exact: true }).click();
+	await page.getByText("Document attached").waitFor();
+	await page.getByRole("link", { name: "contrato.pdf" }).waitFor();
+	const png = "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==";
+	await page
+		.locator('input[type=file][accept="image/png,image/jpeg,image/webp"]')
+		.setInputFiles({ name: "logo.png", mimeType: "image/png", buffer: Buffer.from(png, "base64") });
+	await page.getByText("Logo updated").waitFor();
+	await page.locator('img[src*="/logo?v="]').first().waitFor();
+	await page.getByRole("button", { name: "Delete contrato.pdf" }).click();
+	await page.getByText("No documents yet.").waitFor();
+});
+
 test("the check-up shows the deadline, and keeping it clears it", async () => {
 	await page.goto(`${base}/checkup`);
 	await page.getByText("Last days to cancel").waitFor();
@@ -102,10 +123,17 @@ test("insights, calendar and activity render", async () => {
 });
 
 test("exports download", async () => {
-	for (const path of ["/api/v1/export/subscriptions.csv", "/api/v1/export/charges.csv", "/api/v1/export"]) {
+	for (const path of [
+		"/api/v1/export/subscriptions.csv",
+		"/api/v1/export/charges.csv",
+		"/api/v1/export",
+		"/api/v1/export/archive.zip",
+	]) {
 		const res = await page.request.get(`${base}${path}`);
 		assert.equal(res.status(), 200, path);
-		assert.match(await res.text(), /Netflix/, path);
+		// The archive is compressed: it names its files in clear.
+		const want = path.endsWith(".zip") ? /exhale-export\.json[\s\S]*-logo\.png|-logo\.png[\s\S]*exhale-export\.json/ : /Netflix/;
+		assert.match((await res.body()).toString("latin1"), want, path);
 	}
 });
 
