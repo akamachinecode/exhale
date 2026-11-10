@@ -14,7 +14,8 @@ Exhale is a self-hosted subscription manager written in Go (backend, single bina
 | ⑩ money | `internal/money` |
 | ⑧ domain | `internal/domain` |
 | ⑦ use cases + catalog | `internal/app` (`ops.go` is the catalog) |
-| ⑥ action layer (buttons, flows, app screens — ADR 0019) | `internal/actions` (`app.go` is the in-chat app) |
+| ⑥ action layer (buttons, flows, app screens — ADR 0019) | `internal/actions` (`app.go` is the in-chat app, `manage.go` the add wizard and settings, `i18n_es.go` the Spanish texts) |
+| file parsers for import (Wallos, CSV) | `internal/importer` |
 | ⑪ scheduler | `internal/scheduler` |
 | ⑫ event bus | `internal/bus` |
 | ⑬⑭ SQLite store, migrations, sqlc | `internal/store` |
@@ -35,4 +36,6 @@ Exhale is a self-hosted subscription manager written in Go (backend, single bina
 - Writes must go through `Service.write` (audit log, dry run, events). Every write accepts `dryRun`.
 - Dates of charges are `engine.Date`, never `time.Time`. Money is `money.Money`, never floats.
 - The web never computes charge dates; it calls `preview_schedule`.
+- Every text shown in chat goes through `tr(locale, "English text")` and has a Spanish entry in `internal/actions/i18n_es.go`; a test fails otherwise (ADR 0023).
+- New migrations get a number above every existing one; never renumber or reuse one that shipped.
 - Commits: Conventional Commits, signed off (`git commit -s`).
