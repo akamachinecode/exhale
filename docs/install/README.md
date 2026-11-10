@@ -1,0 +1,47 @@
+# Install Exhale
+
+Exhale is one program with one data folder. It needs a machine that stays on: a home server, a NAS, a Raspberry Pi, a small VPS or a Mac that does not sleep. Reminders go out from that machine and the buttons in Telegram are answered by it.
+
+It does not need a public address. Telegram is reached with outgoing connections only, so Exhale works behind any home router with no open ports.
+
+## Pick a method
+
+| You have | Use | Guide |
+|---|---|---|
+| Docker (NAS, homelab, VPS) | The container image | [Docker](docker.md) |
+| Debian, Ubuntu, Raspberry Pi OS, Fedora, RHEL | The `.deb` or `.rpm` package: installs a system service | [Linux](linux.md#packages-deb-and-rpm) |
+| Another Linux with systemd | The install script: same service, no package manager | [Linux](linux.md#install-script) |
+| A Mac that stays on | The binary and a launchd agent | [macOS](macos.md) |
+| Windows | The binary from the release `.zip`, started by hand (`exhale.exe serve`). There is no Windows service installer yet | |
+
+All of them run the same binary with the same settings. The same instance serves a home or a small team: see [Exhale for a team](../guides/teams.md).
+
+> **Releases.** Packages, images and tarballs are published on the [releases page](https://github.com/akamachinecode/exhale/releases) with each version. Until the first release (0.1.0) is out, build from source: `mise install && mise run build` produces `bin/exhale`.
+
+## After installing
+
+1. **Open the web** at `http://<server>:8484` and create your account. Opened from another machine, the wizard asks for a one-time setup code: it is printed in Exhale's log at start.
+2. **Add your Telegram bot** from the web (Settings → Telegram). The page guides you through @BotFather.
+3. **Decide how you reach it.** At home, plain `http://` on your network is fine. From outside, use Tailscale or HTTPS: [HTTPS and remote access](https.md). Never forward the plain HTTP port to the internet.
+4. **Check your backups.** Exhale copies its database once a day and keeps 14 copies. Put them on another disk: [Backups](backups.md).
+
+## Settings
+
+Every setting is a flag of `exhale serve` and an environment variable. Flags win over the environment.
+
+| Variable | Flag | Default | What it does |
+|---|---|---|---|
+| `EXHALE_DATA_DIR` | `--data-dir` | per system, see each guide | Where the database and backups live |
+| `EXHALE_LISTEN` | `--listen` | `127.0.0.1:8484` | Address to listen on. `0.0.0.0:8484` answers on every network interface |
+| `EXHALE_SECURE_COOKIES` | `--secure-cookies` | off | Set to `true` when people use `https://`. With plain `http://` leave it off, or nobody can sign in |
+| `EXHALE_BACKUP_DIR` | `--backup-dir` | `<data dir>/backups` | Where the daily backups go |
+| `EXHALE_BACKUP_KEEP` | `--backup-keep` | `14` | Automatic backups to keep. `0` keeps all |
+| `EXHALE_NO_BACKUPS` | `--no-backups` | off | Turns the daily backups off |
+| `EXHALE_TELEGRAM_TOKEN` | `--telegram-token` | none | Bot token. Usually set from the web instead; set here, the web cannot change it |
+| `EXHALE_LOG_LEVEL` | `--log-level` | `info` | `debug`, `info`, `warn` or `error` |
+| `EXHALE_LOG_FORMAT` | `--log-format` | `text` | `text` or `json` |
+| `EXHALE_TRUST_LOCAL` | `--trust-local` | off | Development only: requests from the same machine act as the owner without signing in. Never set it on a server behind a reverse proxy |
+
+## Health
+
+`GET /healthz` answers `ok` with status 200 while the server is up. Point your monitor (Uptime Kuma, a cron job with `curl -f`) at it.
