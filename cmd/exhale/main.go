@@ -99,7 +99,9 @@ type serveCmd struct {
 	TelegramAPI   string `name:"telegram-api" env:"EXHALE_TELEGRAM_API" hidden:"" help:"Bot API base URL (tests)."`
 	TrustLocal    bool   `name:"trust-local" env:"EXHALE_TRUST_LOCAL" help:"Let requests from this machine act as the owner without signing in (development, scripts)."`
 	SecureCookies bool   `name:"secure-cookies" env:"EXHALE_SECURE_COOKIES" help:"Mark the session cookie Secure. Set it when Exhale is served over HTTPS."`
+	PublicURL     string `name:"public-url" env:"EXHALE_PUBLIC_URL" help:"Address people reach Exhale at, e.g. https://exhale.example.com. Needed for single sign-on from another machine."`
 	Dev           bool   `help:"Development mode."`
+	oidcFlags
 }
 
 func (s *serveCmd) Run(ctx context.Context, g *globals) error {
@@ -121,9 +123,14 @@ func (s *serveCmd) Run(ctx context.Context, g *globals) error {
 				"note", "only asked when the wizard is opened from another machine; `exhale setup-code` prints a new one")
 		}
 	}
+	sso, err := s.provider(ctx, e.log, s.PublicURL)
+	if err != nil {
+		return err
+	}
 	tg := telegram.NewManager(s.TelegramToken, s.TelegramAPI, e.svc, e.log)
 	handler, _, err := httpapi.New(e.svc, httpapi.Config{
 		Version: version, TrustLocal: s.TrustLocal, SecureCookies: s.SecureCookies, Log: e.log, Telegram: tg,
+		PublicURL: s.PublicURL, OIDC: sso, DisablePasswordLogin: s.DisablePasswordLogin,
 	})
 	if err != nil {
 		return err

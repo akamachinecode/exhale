@@ -18,6 +18,7 @@ export function signedOut(qc: QueryClient) {
 		setupRequired: false,
 		setupNeedsCode: false,
 		hasHousehold: true,
+		passwordLoginDisabled: false,
 		...prev,
 		user: undefined,
 	});

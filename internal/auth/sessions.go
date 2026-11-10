@@ -103,7 +103,9 @@ func SessionActor(ctx context.Context, sm *scs.SessionManager, st *store.Store) 
 		return app.Actor{}, false
 	}
 	m, err := st.Q.GetMember(ctx, id)
-	if err != nil || m.PasswordHash == "" || sm.GetInt64(ctx, keyVersion) != m.SessionVersion {
+	// A member needs a way to sign in (a password or a provider identity) to
+	// hold a session; bumping session_version ends every session either way.
+	if err != nil || (m.PasswordHash == "" && m.OidcSubject == "") || sm.GetInt64(ctx, keyVersion) != m.SessionVersion {
 		return app.Actor{}, false
 	}
 	return app.MemberActor(store.MemberFromRow(m), app.ScopeTrusted), true

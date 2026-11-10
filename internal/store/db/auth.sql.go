@@ -9,12 +9,12 @@ import (
 	"context"
 )
 
-const countMembersWithPassword = `-- name: CountMembersWithPassword :one
-SELECT count(*) FROM members WHERE password_hash <> ''
+const countMembersWithLogin = `-- name: CountMembersWithLogin :one
+SELECT count(*) FROM members WHERE password_hash <> '' OR oidc_subject <> ''
 `
 
-func (q *Queries) CountMembersWithPassword(ctx context.Context) (int64, error) {
-	row := q.db.QueryRowContext(ctx, countMembersWithPassword)
+func (q *Queries) CountMembersWithLogin(ctx context.Context) (int64, error) {
+	row := q.db.QueryRowContext(ctx, countMembersWithLogin)
 	var count int64
 	err := row.Scan(&count)
 	return count, err
@@ -117,6 +117,28 @@ func (q *Queries) GetInvite(ctx context.Context, arg GetInviteParams) (Invite, e
 	return i, err
 }
 
+const linkMemberIdentity = `-- name: LinkMemberIdentity :execrows
+UPDATE members SET oidc_issuer = ?1, oidc_subject = ?2
+WHERE id = ?3 AND (oidc_subject = '' OR oidc_issuer <> ?1)
+`
+
+type LinkMemberIdentityParams struct {
+	Issuer  string
+	Subject string
+	ID      string
+}
+
+// Links a member that has no identity, or one of another provider (a dead
+// link after the instance moved providers). Never replaces a link to the
+// same provider.
+func (q *Queries) LinkMemberIdentity(ctx context.Context, arg LinkMemberIdentityParams) (int64, error) {
+	result, err := q.db.ExecContext(ctx, linkMemberIdentity, arg.Issuer, arg.Subject, arg.ID)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected()
+}
+
 const listAPITokens = `-- name: ListAPITokens :many
 SELECT id, member_id, name, token_hash, scope, created_at, last_used_at, revoked_at FROM api_tokens WHERE member_id = ? AND revoked_at IS NULL ORDER BY created_at DESC
 `
@@ -154,7 +176,7 @@ func (q *Queries) ListAPITokens(ctx context.Context, memberID string) ([]ApiToke
 }
 
 const memberByEmail = `-- name: MemberByEmail :one
-SELECT id, household_id, name, email, role, password_hash, created_at, session_version FROM members WHERE email = ? AND email <> ''
+SELECT id, household_id, name, email, role, password_hash, created_at, session_version, oidc_issuer, oidc_subject FROM members WHERE email = ? AND email <> ''
 `
 
 func (q *Queries) MemberByEmail(ctx context.Context, email string) (Member, error) {
@@ -169,6 +191,35 @@ func (q *Queries) MemberByEmail(ctx context.Context, email string) (Member, erro
 		&i.PasswordHash,
 		&i.CreatedAt,
 		&i.SessionVersion,
+		&i.OidcIssuer,
+		&i.OidcSubject,
+	)
+	return i, err
+}
+
+const memberByIdentity = `-- name: MemberByIdentity :one
+SELECT id, household_id, name, email, role, password_hash, created_at, session_version, oidc_issuer, oidc_subject FROM members WHERE oidc_issuer = ? AND oidc_subject = ? AND oidc_subject <> ''
+`
+
+type MemberByIdentityParams struct {
+	OidcIssuer  string
+	OidcSubject string
+}
+
+func (q *Queries) MemberByIdentity(ctx context.Context, arg MemberByIdentityParams) (Member, error) {
+	row := q.db.QueryRowContext(ctx, memberByIdentity, arg.OidcIssuer, arg.OidcSubject)
+	var i Member
+	err := row.Scan(
+		&i.ID,
+		&i.HouseholdID,
+		&i.Name,
+		&i.Email,
+		&i.Role,
+		&i.PasswordHash,
+		&i.CreatedAt,
+		&i.SessionVersion,
+		&i.OidcIssuer,
+		&i.OidcSubject,
 	)
 	return i, err
 }
@@ -239,6 +290,21 @@ type SetMemberPasswordParams struct {
 
 func (q *Queries) SetMemberPassword(ctx context.Context, arg SetMemberPasswordParams) error {
 	_, err := q.db.ExecContext(ctx, setMemberPassword, arg.PasswordHash, arg.ID)
+	return err
+}
+
+const setMemberProfile = `-- name: SetMemberProfile :exec
+UPDATE members SET name = ?, email = ? WHERE id = ?
+`
+
+type SetMemberProfileParams struct {
+	Name  string
+	Email string
+	ID    string
+}
+
+func (q *Queries) SetMemberProfile(ctx context.Context, arg SetMemberProfileParams) error {
+	_, err := q.db.ExecContext(ctx, setMemberProfile, arg.Name, arg.Email, arg.ID)
 	return err
 }
 

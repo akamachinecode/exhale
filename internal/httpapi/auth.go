@@ -30,7 +30,8 @@ func isLocal(ctx context.Context) bool { v, _ := ctx.Value(localKey{}).(bool); r
 // publicAuthPaths answer without credentials.
 func publicPath(p string) bool {
 	switch p {
-	case "/api/v1/auth/session", "/api/v1/auth/setup", "/api/v1/auth/login", "/api/v1/auth/join", "/api/v1/auth/logout":
+	case "/api/v1/auth/session", "/api/v1/auth/setup", "/api/v1/auth/login", "/api/v1/auth/join", "/api/v1/auth/logout",
+		oidcStart, oidcCallback:
 		return true
 	}
 	return strings.HasPrefix(p, "/api/v1/auth/invites/")
@@ -63,10 +64,17 @@ func clientIP(ctx context.Context) string { v, _ := ctx.Value(ipKey{}).(string);
 
 // SessionUser is the signed-in person.
 type SessionUser struct {
-	ID    string      `json:"id"`
-	Name  string      `json:"name"`
-	Email string      `json:"email"`
-	Role  domain.Role `json:"role"`
+	ID          string      `json:"id"`
+	Name        string      `json:"name"`
+	Email       string      `json:"email"`
+	Role        domain.Role `json:"role"`
+	HasPassword bool        `json:"hasPassword" doc:"the account has a password (accounts made through single sign-on have none)"`
+	SSOHost     string      `json:"ssoHost,omitempty" doc:"host of the identity provider this account is linked to, if any"`
+}
+
+// SSOInfo describes the configured OpenID Connect provider.
+type SSOInfo struct {
+	Name string `json:"name" doc:"what the sign-in button says after \"Continue with\""`
 }
 
 // AuthSession tells the web what to show: the setup wizard, the sign-in
@@ -77,6 +85,10 @@ type AuthSession struct {
 	HasHousehold   bool         `json:"hasHousehold" doc:"a household exists (made with exhale init); setup only creates the owner's login"`
 	User           *SessionUser `json:"user,omitempty"`
 	TelegramBot    string       `json:"telegramBot,omitempty" doc:"username of the Telegram bot, when Telegram is enabled"`
+	SSO            *SSOInfo     `json:"sso,omitempty" doc:"present when single sign-on (OpenID Connect) is enabled; start it by navigating to /api/v1/auth/oidc/start"`
+	// PasswordLoginDisabled hides the password forms: sign-in, sign-up and
+	// join only go through the provider.
+	PasswordLoginDisabled bool `json:"passwordLoginDisabled" doc:"password sign-in is turned off: only show single sign-on"`
 }
 
 type authAPI struct {
@@ -85,6 +97,9 @@ type authAPI struct {
 	cfg    Config
 	ips    limiter
 	emails limiter
+	// Single sign-on: attempts in progress and their own throttle.
+	flows     flowStore
+	ssoStarts limiter
 }
 
 func (a *authAPI) session(ctx context.Context) (AuthSession, error) {
@@ -93,7 +108,10 @@ func (a *authAPI) session(ctx context.Context) (AuthSession, error) {
 	if err != nil {
 		return AuthSession{}, err
 	}
-	out := AuthSession{SetupRequired: req, SetupNeedsCode: req && !isLocal(ctx)}
+	out := AuthSession{SetupRequired: req, SetupNeedsCode: req && !isLocal(ctx), PasswordLoginDisabled: a.passwordOff()}
+	if a.cfg.OIDC != nil {
+		out.SSO = &SSOInfo{Name: a.cfg.OIDC.Name()}
+	}
 	if a.cfg.Telegram != nil {
 		out.TelegramBot = a.cfg.Telegram.Username()
 	}
@@ -103,7 +121,7 @@ func (a *authAPI) session(ctx context.Context) (AuthSession, error) {
 	if actor, ok := auth.SessionActor(ctx, a.sm, st); ok {
 		m, err := st.Q.GetMember(ctx, actor.MemberID)
 		if err == nil {
-			out.User = &SessionUser{ID: m.ID, Name: m.Name, Email: m.Email, Role: domain.Role(m.Role)}
+			out.User = &SessionUser{ID: m.ID, Name: m.Name, Email: m.Email, Role: domain.Role(m.Role), HasPassword: m.PasswordHash != "", SSOHost: auth.IdentityHost(m)}
 		}
 	}
 	return out, nil
@@ -154,6 +172,9 @@ func registerAuth(api huma.API, a *authAPI) {
 
 	huma.Register(api, authOp("auth_setup", http.MethodPost, "/setup", "Create the first account"),
 		func(ctx context.Context, in *struct{ Body auth.SetupInput }) (*resp[AuthSession], error) {
+			if err := a.passwordRefused(); err != nil {
+				return nil, err
+			}
 			if err := a.throttle(ctx, ""); err != nil {
 				return nil, err
 			}
@@ -170,6 +191,9 @@ func registerAuth(api huma.API, a *authAPI) {
 	}
 	huma.Register(api, authOp("auth_login", http.MethodPost, "/login", "Sign in"),
 		func(ctx context.Context, in *struct{ Body loginIn }) (*resp[AuthSession], error) {
+			if err := a.passwordRefused(); err != nil {
+				return nil, err
+			}
 			if err := a.throttle(ctx, in.Body.Email); err != nil {
 				return nil, err
 			}
@@ -257,6 +281,9 @@ func registerAuth(api huma.API, a *authAPI) {
 
 	huma.Register(api, authOp("auth_join", http.MethodPost, "/join", "Accept an invite and create your account"),
 		func(ctx context.Context, in *struct{ Body auth.JoinInput }) (*resp[AuthSession], error) {
+			if err := a.passwordRefused(); err != nil {
+				return nil, err
+			}
 			if err := a.throttle(ctx, ""); err != nil {
 				return nil, err
 			}
