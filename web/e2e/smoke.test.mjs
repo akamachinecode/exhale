@@ -47,7 +47,7 @@ test("add a subscription with a notice period", async () => {
 	await page.getByPlaceholder("Netflix, Spotify Family…").fill("Gym");
 	await page.getByPlaceholder("12.99").fill("39");
 	await page.getByLabel("Next charge").fill(iso(40));
-	await page.getByLabel("Payment method", { exact: true }).selectOption({ label: "Visa" });
+	await page.getByRole("dialog").getByLabel("Payment method").selectOption({ label: "Visa" });
 	await page.getByRole("button", { name: "Needs notice to cancel" }).click();
 	await page.getByRole("button", { name: "Add subscription" }).click();
 	await page.getByRole("heading", { name: "Gym" }).waitFor();
