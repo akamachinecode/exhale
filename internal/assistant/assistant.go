@@ -109,6 +109,8 @@ func New(svc *app.Service, log *slog.Logger, env Env) (*Assistant, error) {
 		a.tools = append(a.tools, Tool{Name: b.Name, Description: desc, Schema: raw})
 		a.bindings[b.Name] = t
 	}
+	// Not a use case: it only chooses what Exhale shows (screens.go).
+	a.tools = append(a.tools, Tool{Name: showTool, Description: showDescription, Schema: showSchema})
 	return a, nil
 }
 
@@ -148,6 +150,7 @@ type Turn struct {
 	Text      string       `json:"text" doc:"the answer, plain text"`
 	Proposals []Proposal   `json:"proposals" doc:"changes prepared for the person to confirm or discard; nothing is applied until they confirm"`
 	Mentions  []Mention    `json:"mentions" doc:"subscriptions the answer talks about, for links"`
+	Screens   []Screen     `json:"screens" doc:"screens the model chose to show; every name and number in them comes from the database"`
 	Note      *domain.Text `json:"note,omitempty" doc:"why the answer may be incomplete, e.g. the step limit was reached; a translatable text"`
 }
 
@@ -281,7 +284,7 @@ func (a *Assistant) Ask(ctx context.Context, actor app.Actor, conv, text string)
 // AskStream is Ask, telling progress the answer as it is written when the
 // provider can stream.
 func (a *Assistant) AskStream(ctx context.Context, actor app.Actor, conv, text string, progress Progress) (Turn, error) {
-	turn := Turn{Proposals: []Proposal{}, Mentions: []Mention{}}
+	turn := Turn{Proposals: []Proposal{}, Mentions: []Mention{}, Screens: []Screen{}}
 	text = strings.TrimSpace(text)
 	if text == "" {
 		return turn, nil
@@ -370,7 +373,8 @@ func (a *Assistant) AskStream(ctx context.Context, actor app.Actor, conv, text s
 		msgs = append(msgs, Message{Role: RoleTool, ToolResults: results})
 	}
 	turn.Proposals = append(turn.Proposals, st.proposals...)
-	if turn.Text == "" && len(turn.Proposals) == 0 && turn.Note == nil {
+	turn.Screens = append(turn.Screens, st.screens...)
+	if turn.Text == "" && len(turn.Proposals) == 0 && len(turn.Screens) == 0 && turn.Note == nil {
 		turn.Note = new(domain.T("I have no answer for that."))
 	}
 	turn.Mentions = a.mentions(ctx, agent, turn, st)
@@ -380,6 +384,9 @@ func (a *Assistant) AskStream(ctx context.Context, actor app.Actor, conv, text s
 	said := turn.Text
 	for _, pr := range turn.Proposals {
 		said += "\n[prepared for confirmation: " + pr.Title.String() + "]"
+	}
+	for _, sc := range turn.Screens {
+		said += "\n[showed a screen: " + sc.Kind + "]"
 	}
 	if strings.TrimSpace(said) == "" {
 		said = "(no answer)"
@@ -396,7 +403,8 @@ type turnState struct {
 	agent     app.Actor
 	proposals []Proposal
 	seen      map[string]bool // write calls already prepared in this turn
-	touched   []string        // subscription ids the proposals are about
+	screens   []Screen
+	touched   []string // subscription ids the proposals are about
 }
 
 // runTool runs one tool call. Reads run as the member. Writes never apply
@@ -404,6 +412,17 @@ type turnState struct {
 func (a *Assistant) runTool(ctx context.Context, st *turnState, c ToolCall) ToolResult {
 	fail := func(msg string) ToolResult {
 		return ToolResult{CallID: c.ID, Name: c.Name, Content: "error: " + msg, IsError: true}
+	}
+	if c.Name == showTool {
+		screen, problems := a.show(ctx, st, c.Arguments)
+		if len(problems) > 0 {
+			return fail("nothing was shown. Fix these and call " + showTool + " again:\n- " + strings.Join(problems, "\n- "))
+		}
+		st.screens = append(st.screens, screen)
+		for _, s := range screen.Subscriptions {
+			st.touched = append(st.touched, s.ID)
+		}
+		return ToolResult{CallID: c.ID, Name: c.Name, Content: shown(screen)}
 	}
 	t, ok := a.bindings[c.Name]
 	if !ok {

@@ -3,6 +3,7 @@ import { Link } from "@tanstack/react-router";
 import { ArrowUp, Check, Loader2, RotateCcw, Sparkles, Undo2, X } from "lucide-react";
 import { type FormEvent, useEffect, useRef, useState, useSyncExternalStore } from "react";
 import { toast } from "sonner";
+import { AssistantScreen } from "@/components/assistant-screens";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -331,6 +332,10 @@ function Answer({ turn }: { turn: AssistantTurn }) {
 		<div className="grid gap-2">
 			{turn.text && <p className="text-sm leading-relaxed whitespace-pre-wrap">{turn.text}</p>}
 			{turn.note && <p className="text-xs text-muted">{say(turn.note)}</p>}
+			{(turn.screens ?? []).map((sc, i) => (
+				// biome-ignore lint/suspicious/noArrayIndexKey: screens of an answer never move
+				<AssistantScreen key={i} screen={sc} onOpen={() => set({ open: false })} />
+			))}
 			{(turn.proposals ?? []).map((p) => (
 				<ProposalCard key={p.id} proposal={p} />
 			))}

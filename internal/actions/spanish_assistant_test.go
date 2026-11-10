@@ -74,3 +74,52 @@ func TestSpanishAssistant(t *testing.T) {
 		t.Errorf("error text: %q", got)
 	}
 }
+
+// TestAssistantScreens: a screen the model chose arrives as a chat message
+// drawn by Exhale, with a button that opens each record in the app.
+func TestAssistantScreens(t *testing.T) {
+	ctx := context.Background()
+	st, err := store.OpenMemory(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer st.Close()
+	now := time.Date(2026, 11, 5, 9, 0, 0, 0, time.UTC)
+	svc := app.New(st, bus.New(), nil, func() time.Time { return now })
+	owner, err := svc.Bootstrap(ctx, app.BootstrapInput{HouseholdName: "Casa", OwnerName: "Alex", Currency: "EUR", Timezone: "Europe/Madrid", Locale: "es"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	owner.Scope = app.ScopeWrite
+	netflix, _ := svc.CreateSubscription(ctx, owner, app.CreateSubscriptionInput{Name: "Netflix", Price: "13.99", Currency: "EUR", FirstCharge: "2026-11-12"})
+	eng := actions.New(svc, slog.New(slog.DiscardHandler), fake.New())
+	asst, _ := assistant.New(svc, nil, assistant.Env{})
+	eng.SetAssistant(asst)
+	model := &assistant.Fake{}
+	asst.SetProvider(model)
+	model.Then(
+		assistant.Call("show_screen", map[string]any{"kind": "subscriptions", "subscriptionIds": []string{netflix.Subscription.ID}}),
+		assistant.Call("show_screen", map[string]any{"kind": "total", "by": "payment_method"}),
+		assistant.Say("Aquí está."),
+	)
+	chat := actions.ChatRef{Channel: "fake", ChatID: "c1"}
+	msgs, _ := eng.Ask(ctx, owner, chat, "¿qué pago?")
+	if len(msgs) != 3 {
+		t.Fatalf("messages: %d", len(msgs))
+	}
+	list, total := fake.Render(msgs[1]), fake.Render(msgs[2])
+	for _, want := range []string{"Suscripciones (1)", "Netflix · 13,99", "a|sub|" + netflix.Subscription.ID} {
+		if !strings.Contains(list, want) {
+			t.Errorf("missing %q in:\n%s", want, list)
+		}
+	}
+	for _, want := range []string{"al mes", "Por método de pago", "Sin método de pago"} {
+		if !strings.Contains(total, want) {
+			t.Errorf("missing %q in:\n%s", want, total)
+		}
+	}
+	rep, err := eng.Handle(ctx, owner, chat, fake.Button(msgs[1], "Netflix"))
+	if err != nil || rep.Edit == nil || rep.Edit.Title != "Netflix" {
+		t.Fatalf("the button opens the subscription: %+v %v", rep, err)
+	}
+}

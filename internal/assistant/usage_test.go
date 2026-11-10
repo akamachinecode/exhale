@@ -32,8 +32,8 @@ func TestUsageIsRecorded(t *testing.T) {
 	}
 	w.fake.Then(
 		answer("claude-haiku-5-5", 10_000, 2_000), // 10k × $0.10/M + 2k × $0.50/M = $0.002
-		answer("llama3.1", 5_000, 500),             // no price
-		answer("llama3.1", 1_000, 1_000),           // after the owner sets one
+		answer("llama3.1", 5_000, 500),            // no price
+		answer("llama3.1", 1_000, 1_000),          // after the owner sets one
 	)
 	if _, err := w.a.Ask(w.ctx, w.owner, "telegram_42", "hi"); err != nil {
 		t.Fatal(err)

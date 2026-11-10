@@ -221,6 +221,7 @@
 	"to",
 	"trial end",
 	"unknown action {0}",
+	"unknown breakdown {0}; use category, payment_method or subscription",
 	"unknown currency {0}",
 	"unknown kind {0}",
 	"unknown scope {0}",

@@ -1076,4 +1076,13 @@ export const es: Record<string, string> = {
 	"Every question to the built-in assistant: the model, the tokens and what it cost. Never the words.":
 		"Cada pregunta al asistente integrado: el modelo, los tokens y lo que costó. Nunca las palabras.",
 	Assistant: "Asistente",
+	"unknown breakdown {0}; use category, payment_method or subscription":
+		"desglose desconocido {0}; usa category, payment_method o subscription",
+	"Charges from {0} to {1}": "Cobros del {0} al {1}",
+	"No charges in this period.": "No hay cobros en este periodo.",
+	"By subscription": "Por suscripción",
+	"Per year": "Al año",
+	"Other currencies converted at ECB rates.": "Otras monedas convertidas al tipo del BCE.",
+	"Left out, no exchange rate: {0}": "Fuera, sin tipo de cambio: {0}",
+	"{n} more did not fit.": "{n} más no cabían.",
 };

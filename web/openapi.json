@@ -299,6 +299,16 @@
               "null"
             ]
           },
+          "screens": {
+            "description": "screens the model chose to show; every name and number in them comes from the database",
+            "items": {
+              "$ref": "#/components/schemas/Screen"
+            },
+            "type": [
+              "array",
+              "null"
+            ]
+          },
           "text": {
             "description": "the answer, plain text",
             "type": "string"
@@ -307,7 +317,8 @@
         "required": [
           "text",
           "proposals",
-          "mentions"
+          "mentions",
+          "screens"
         ],
         "type": "object"
       },
@@ -734,6 +745,88 @@
         },
         "required": [
           "token"
+        ],
+        "type": "object"
+      },
+      "Breakdown": {
+        "additionalProperties": false,
+        "properties": {
+          "by": {
+            "enum": [
+              "category",
+              "payment_method",
+              "subscription"
+            ],
+            "type": "string"
+          },
+          "converted": {
+            "description": "other currencies were converted at the latest ECB reference rate",
+            "type": "boolean"
+          },
+          "period": {
+            "enum": [
+              "month",
+              "year"
+            ],
+            "type": "string"
+          },
+          "rows": {
+            "description": "largest first",
+            "items": {
+              "$ref": "#/components/schemas/BreakdownRow"
+            },
+            "type": [
+              "array",
+              "null"
+            ]
+          },
+          "total": {
+            "$ref": "#/components/schemas/Money",
+            "description": "in the main currency"
+          },
+          "unconverted": {
+            "description": "currencies without a known rate, left out",
+            "items": {
+              "type": "string"
+            },
+            "type": [
+              "array",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "period",
+          "by",
+          "total",
+          "rows",
+          "converted",
+          "unconverted"
+        ],
+        "type": "object"
+      },
+      "BreakdownRow": {
+        "additionalProperties": false,
+        "properties": {
+          "amount": {
+            "$ref": "#/components/schemas/Money"
+          },
+          "count": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "label": {
+            "type": "string"
+          },
+          "subscriptionId": {
+            "description": "when the breakdown is by subscription",
+            "type": "string"
+          }
+        },
+        "required": [
+          "label",
+          "amount",
+          "count"
         ],
         "type": "object"
       },
@@ -3634,6 +3727,46 @@
         },
         "required": [
           "dates"
+        ],
+        "type": "object"
+      },
+      "Screen": {
+        "additionalProperties": false,
+        "properties": {
+          "charges": {
+            "$ref": "#/components/schemas/ChargeList",
+            "description": "kind charges: the period and its charges"
+          },
+          "kind": {
+            "enum": [
+              "subscriptions",
+              "charges",
+              "total"
+            ],
+            "type": "string"
+          },
+          "more": {
+            "description": "records left out because the screen is full",
+            "format": "int64",
+            "type": "integer"
+          },
+          "subscriptions": {
+            "description": "kind subscriptions: in the order the model chose",
+            "items": {
+              "$ref": "#/components/schemas/SubscriptionView"
+            },
+            "type": [
+              "array",
+              "null"
+            ]
+          },
+          "total": {
+            "$ref": "#/components/schemas/Breakdown",
+            "description": "kind total"
+          }
+        },
+        "required": [
+          "kind"
         ],
         "type": "object"
       },

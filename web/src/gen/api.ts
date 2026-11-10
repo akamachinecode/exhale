@@ -227,6 +227,203 @@ export interface Proposal {
   tool: string;
 }
 
+export interface Money {
+  currency: string;
+  minor: number;
+}
+
+export type ChargeViewKind = typeof ChargeViewKind[keyof typeof ChargeViewKind];
+
+
+export const ChargeViewKind = {
+  renewal: 'renewal',
+  trial: 'trial',
+  expiry: 'expiry',
+} as const;
+
+export interface ChargeView {
+  amount: Money;
+  cancelBy?: string;
+  cancelPassed: boolean;
+  chargedAmount?: Money;
+  daysUntil: number;
+  decision?: string;
+  delayed: boolean;
+  dueDate: string;
+  id: string;
+  kind: ChargeViewKind;
+  note?: string;
+  originalDate: string;
+  paymentMethod?: string;
+  resolvedAt?: string;
+  status: string;
+  subscriptionId: string;
+  subscriptionName: string;
+  updatedAt: string;
+  version: number;
+}
+
+export interface ChargeList {
+  /** A URL to the JSON Schema for this object. */
+  readonly $schema?: string;
+  /** @nullable */
+  charges: ChargeView[] | null;
+  from: string;
+  to: string;
+}
+
+export type ScreenKind = typeof ScreenKind[keyof typeof ScreenKind];
+
+
+export const ScreenKind = {
+  subscriptions: 'subscriptions',
+  charges: 'charges',
+  total: 'total',
+} as const;
+
+export interface PriceChange {
+  from: string;
+  price: Money;
+}
+
+export interface ReminderPolicy {
+  confirmAfterDays: number;
+  /** @nullable */
+  daysBefore: number[] | null;
+  hour: number;
+  minute: number;
+}
+
+export interface Rule {
+  anchor: string;
+  interval: number;
+  unit: string;
+}
+
+export interface Version {
+  from: string;
+  rule: Rule;
+}
+
+export interface Schedule {
+  maxCharges?: number;
+  until?: string;
+  /** @nullable */
+  versions: Version[] | null;
+}
+
+export interface Share {
+  memberId: string;
+  weight: number;
+}
+
+export interface Usage {
+  at: string;
+  using: boolean;
+}
+
+export interface SubscriptionView {
+  account?: string;
+  askUsage: boolean;
+  autoConfirm: boolean;
+  cadence: string;
+  cancelBy?: string;
+  cancelUrl?: string;
+  categoryId?: string;
+  categoryName?: string;
+  createdAt: string;
+  createdBy?: string;
+  expires: boolean;
+  householdId: string;
+  id: string;
+  inTrial: boolean;
+  monthlyCost: Money;
+  name: string;
+  nextCharge?: string;
+  nextPrice?: PriceChange;
+  notes?: string;
+  noticeDays?: number;
+  payerId?: string;
+  payerName?: string;
+  paymentMethod?: string;
+  paymentMethodId?: string;
+  price: Money;
+  reminders: ReminderPolicy;
+  renewal?: string;
+  schedule: Schedule;
+  serviceUntil?: string;
+  /** @nullable */
+  shares?: Share[] | null;
+  startedOn?: string;
+  status: string;
+  trialEndsOn?: string;
+  updatedAt: string;
+  url?: string;
+  usage?: Usage;
+  version: number;
+  visibility: string;
+  yearlyCost: Money;
+}
+
+export type BreakdownBy = typeof BreakdownBy[keyof typeof BreakdownBy];
+
+
+export const BreakdownBy = {
+  category: 'category',
+  payment_method: 'payment_method',
+  subscription: 'subscription',
+} as const;
+
+export type BreakdownPeriod = typeof BreakdownPeriod[keyof typeof BreakdownPeriod];
+
+
+export const BreakdownPeriod = {
+  month: 'month',
+  year: 'year',
+} as const;
+
+export interface BreakdownRow {
+  amount: Money;
+  count: number;
+  label: string;
+  /** when the breakdown is by subscription */
+  subscriptionId?: string;
+}
+
+export interface Breakdown {
+  by: BreakdownBy;
+  /** other currencies were converted at the latest ECB reference rate */
+  converted: boolean;
+  period: BreakdownPeriod;
+  /**
+     * largest first
+     * @nullable
+     */
+  rows: BreakdownRow[] | null;
+  /** in the main currency */
+  total: Money;
+  /**
+     * currencies without a known rate, left out
+     * @nullable
+     */
+  unconverted: string[] | null;
+}
+
+export interface Screen {
+  /** kind charges: the period and its charges */
+  charges?: ChargeList;
+  kind: ScreenKind;
+  /** records left out because the screen is full */
+  more?: number;
+  /**
+     * kind subscriptions: in the order the model chose
+     * @nullable
+     */
+  subscriptions?: SubscriptionView[] | null;
+  /** kind total */
+  total?: Breakdown;
+}
+
 export interface AssistantTurn {
   /** A URL to the JSON Schema for this object. */
   readonly $schema?: string;
@@ -242,6 +439,11 @@ export interface AssistantTurn {
      * @nullable
      */
   proposals: Proposal[] | null;
+  /**
+     * screens the model chose to show; every name and number in them comes from the database
+     * @nullable
+     */
+  screens: Screen[] | null;
   /** the answer, plain text */
   text: string;
 }
@@ -278,42 +480,6 @@ export interface AssistantUsage {
   readonly $schema?: string;
   /** @nullable */
   entries: UsageEntry[] | null;
-}
-
-export interface Money {
-  currency: string;
-  minor: number;
-}
-
-export type ChargeViewKind = typeof ChargeViewKind[keyof typeof ChargeViewKind];
-
-
-export const ChargeViewKind = {
-  renewal: 'renewal',
-  trial: 'trial',
-  expiry: 'expiry',
-} as const;
-
-export interface ChargeView {
-  amount: Money;
-  cancelBy?: string;
-  cancelPassed: boolean;
-  chargedAmount?: Money;
-  daysUntil: number;
-  decision?: string;
-  delayed: boolean;
-  dueDate: string;
-  id: string;
-  kind: ChargeViewKind;
-  note?: string;
-  originalDate: string;
-  paymentMethod?: string;
-  resolvedAt?: string;
-  status: string;
-  subscriptionId: string;
-  subscriptionName: string;
-  updatedAt: string;
-  version: number;
 }
 
 export interface DeliveryProblem {
@@ -695,104 +861,11 @@ export interface Charge {
   version: number;
 }
 
-export interface ChargeList {
-  /** A URL to the JSON Schema for this object. */
-  readonly $schema?: string;
-  /** @nullable */
-  charges: ChargeView[] | null;
-  from: string;
-  to: string;
-}
-
 export interface PriceChangeHint {
   changePercent: string;
   charged: Money;
   expected: Money;
   yearlyDelta: Money;
-}
-
-export interface PriceChange {
-  from: string;
-  price: Money;
-}
-
-export interface ReminderPolicy {
-  confirmAfterDays: number;
-  /** @nullable */
-  daysBefore: number[] | null;
-  hour: number;
-  minute: number;
-}
-
-export interface Rule {
-  anchor: string;
-  interval: number;
-  unit: string;
-}
-
-export interface Version {
-  from: string;
-  rule: Rule;
-}
-
-export interface Schedule {
-  maxCharges?: number;
-  until?: string;
-  /** @nullable */
-  versions: Version[] | null;
-}
-
-export interface Share {
-  memberId: string;
-  weight: number;
-}
-
-export interface Usage {
-  at: string;
-  using: boolean;
-}
-
-export interface SubscriptionView {
-  account?: string;
-  askUsage: boolean;
-  autoConfirm: boolean;
-  cadence: string;
-  cancelBy?: string;
-  cancelUrl?: string;
-  categoryId?: string;
-  categoryName?: string;
-  createdAt: string;
-  createdBy?: string;
-  expires: boolean;
-  householdId: string;
-  id: string;
-  inTrial: boolean;
-  monthlyCost: Money;
-  name: string;
-  nextCharge?: string;
-  nextPrice?: PriceChange;
-  notes?: string;
-  noticeDays?: number;
-  payerId?: string;
-  payerName?: string;
-  paymentMethod?: string;
-  paymentMethodId?: string;
-  price: Money;
-  reminders: ReminderPolicy;
-  renewal?: string;
-  schedule: Schedule;
-  serviceUntil?: string;
-  /** @nullable */
-  shares?: Share[] | null;
-  startedOn?: string;
-  status: string;
-  trialEndsOn?: string;
-  updatedAt: string;
-  url?: string;
-  usage?: Usage;
-  version: number;
-  visibility: string;
-  yearlyCost: Money;
 }
 
 export interface ChargeResult {

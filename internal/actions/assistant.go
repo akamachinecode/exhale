@@ -76,6 +76,12 @@ func (e *Engine) AskStream(ctx context.Context, actor app.Actor, chat ChatRef, t
 		}
 		msgs = append(msgs, m)
 	}
+	if len(turn.Screens) > 0 {
+		today, _ := e.context(ctx, actor)
+		for _, sc := range turn.Screens {
+			msgs = append(msgs, screenMessage(sc, today, locale))
+		}
+	}
 	for _, p := range turn.Proposals {
 		msgs = append(msgs, proposalMessage(p, locale))
 	}
