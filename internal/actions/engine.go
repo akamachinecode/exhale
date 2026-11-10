@@ -48,6 +48,16 @@ func (e *Engine) Locale(ctx context.Context, actor app.Actor) string {
 	return locale
 }
 
+// DefaultLocale returns the language of this instance's household, for
+// people Exhale does not know yet (an unlinked chat).
+func (e *Engine) DefaultLocale(ctx context.Context) string {
+	owner, err := e.svc.Owner(ctx)
+	if err != nil {
+		return "en"
+	}
+	return e.Locale(ctx, owner)
+}
+
 // Render returns the message for a charge.
 func (e *Engine) Render(ctx context.Context, actor app.Actor, kind, chargeID string) (Message, error) {
 	r, err := e.chargeResult(ctx, actor, chargeID)
@@ -553,7 +563,7 @@ func (e *Engine) refresh(ctx context.Context, ev bus.Event) {
 		}
 		if ev.ActorLabel != "" {
 			_, locale := e.context(ctx, actor)
-			m.Footer = tr(locale, "Changed by %s", ev.ActorLabel)
+			m.Footer = ChangedByText(locale, ev.ActorLabel)
 			if ev.AuditID != "" {
 				m.Rows = append(m.Rows, []Button{{Label: tr(locale, "↩︎ Undo"), Data: data(vUndo, ev.ChargeID, ev.AuditID)}})
 			}

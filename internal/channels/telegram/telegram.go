@@ -286,7 +286,7 @@ func (a *Adapter) openApp(ctx context.Context, actor app.Actor, chat actions.Cha
 	m, err := a.eng.OpenApp(ctx, actor, route)
 	if err != nil {
 		a.log.Error("telegram app", "route", route, "err", err)
-		a.reply(ctx, chat.ChatID, "Something went wrong opening Exhale.")
+		a.reply(ctx, chat.ChatID, actions.OpenFailedText(a.eng.Locale(ctx, actor)))
 		return
 	}
 	id, err := a.Send(ctx, chat.ChatID, m)

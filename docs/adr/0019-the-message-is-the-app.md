@@ -84,3 +84,30 @@ Slack is where "an app inside the chat" goes furthest, and it all works over Soc
 - Telegram adds input fields to messages, or Mini Apps stop needing a public URL.
 - json-render ships a Go implementation or a language-neutral spec we could validate against directly.
 - Users ask for Teams.
+
+## Implementation notes: Slack (2026-11-10)
+
+What section 5 promised, as built in `internal/channels/slack` (see also the notes in ADR 0007). Nothing has run against a real workspace yet.
+
+| Screen element | Slack, as shipped |
+|---|---|
+| Title | `header` block |
+| Lines | one `section` (mrkdwn), split when over 3000 characters |
+| Section heading + lines | `section` with the heading in bold |
+| Section table | monospace code block inside the section. Slack's `table` block exists for messages and the Home tab, but its availability and its limits per message are still moving, so aligned text stays the default |
+| Button rows | one `actions` block per row; a link button for `Button.URL` |
+| Footer | `context` block |
+| Typed answers | a direct message to the app (`message.im`); modals are not built yet |
+
+- **Direct message.** Reminders arrive there. `/exhale [screen]`, or a plain word typed in the direct message (`home`, `subs`, `add`, `upcoming`, …), posts the app message, pins it and retires the one before, exactly as in Telegram. Slack keeps the slash for its own commands, so screens that say "send /home" read "send /exhale home" on Slack: the adapter rewrites command names, nothing else.
+- **Home tab.** It is the home screen, published with `views.publish` when the tab is opened and again on every button press. It is recorded as an **app surface**: an app message with the reserved id `@home` that `AppSent` never retires. That is the one extension to the action layer (`actions.SurfacePrefix`, `Engine.AppSurface`, about 15 lines in `app.go`): with it the Home tab shares flows with the direct message and is kept live by the same `refreshApps` pass as every app message, through `Channel.Edit`.
+- **Toast.** Slack has none. A toast is whispered (an ephemeral message through the action's `response_url`) only when it is the only feedback, for example an error. When the message itself changed, the change is the feedback; whispering on every tap would fill the conversation with "only visible to you" lines. In the Home tab a toast becomes the footer of the view.
+- **Shared channel.** With a team channel set, a reminder of a shared subscription is also posted there once (not once per member) by a wrapper around the scheduler's delivery step. Those messages are recorded without a member, so the action layer leaves them alone and the Slack manager re-edits them itself when their charge changes. A button pressed in the channel runs as the linked member who pressed it; an unlinked person gets a whisper. Private subscriptions are filtered out by their visibility before anything is rendered.
+- **Linking and invites.** `/exhale link CODE` or the code alone in the direct message (link codes with channel `slack`); `/exhale join CODE` accepts a household invite and names the member after their Slack profile.
+
+**Left for later**
+
+- **Modals** for typed input (date picker, number field, dropdown), which would replace the typed replies and the button calendar on Slack, and keep a shared channel message from turning into a calendar for everyone while one person picks a date.
+- Shared channel details: one channel per household (not per category or payer); the "already posted" memory is in process, so a restart between two members' deliveries of the same reminder can post it twice; no Undo button on a channel message redrawn by a change made elsewhere; a subscription that turns private later keeps its earlier channel messages.
+- User text is sent as mrkdwn with `&`, `<` and `>` escaped; a name containing `*` or `_` can still pick up formatting.
+- Charts and generated screens (sections 1 and 4), on every channel.

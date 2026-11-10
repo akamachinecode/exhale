@@ -311,6 +311,49 @@ export const es: Record<string, string> = {
 	"It pays {n} subscription. Move it to": "Paga {n} suscripción. Pasarla a",
 	"It pays {n} subscriptions. Move them to": "Paga {n} suscripciones. Pasarlas a",
 	"Sign out": "Cerrar sesión",
+	"The owner hasn't connected Slack yet.": "El propietario aún no ha conectado Slack.",
+	"Slack is not connected:": "Slack no está conectado:",
+	"Connecting to Slack…": "Conectando con Slack…",
+	"Connected to": "Conectado a",
+	as: "como",
+	"Two tokens are needed: the bot token starts with xoxb- and the app-level token with xapp-.":
+		"Hacen falta dos tokens: el del bot empieza por xoxb- y el de la app por xapp-.",
+	"Connected to {0}": "Conectado a {0}",
+	"Slack connected": "Slack conectado",
+	"Could not connect to Slack": "No se ha podido conectar con Slack",
+	"Each team creates its own Slack app. We prepared everything.":
+		"Cada equipo crea su propia app de Slack. Lo hemos dejado todo preparado.",
+	"Create the Slack app": "Crear la app de Slack",
+	"pick your workspace and confirm.": "elige tu espacio de trabajo y confirma.",
+	"Hide the manifest": "Ocultar el manifiesto",
+	"Or paste the manifest": "O pega el manifiesto",
+	Press: "Pulsa",
+	", then copy the": " y copia el",
+	In: "En",
+	", generate an": ", genera un",
+	"with the scope": "con el permiso",
+	"Bot token": "Token del bot",
+	"App-level token": "Token de la app",
+	"Use another app": "Usar otra app",
+	"Disconnect Slack?": "¿Desconectar Slack?",
+	"Link your Slack account: type this in Slack, anywhere":
+		"Vincula tu cuenta de Slack: escribe esto en Slack, en cualquier sitio",
+	"Waiting for Slack…": "Esperando a Slack…",
+	"Open Exhale in Slack": "Abrir Exhale en Slack",
+	"Your Slack account is linked": "Tu cuenta de Slack está vinculada",
+	"Renewals also go to {0}": "Las renovaciones también van a {0}",
+	"Renewals stay in direct messages": "Las renovaciones se quedan en los mensajes directos",
+	"Could not set the channel": "No se ha podido definir el canal",
+	"Team channel": "Canal del equipo",
+	"Renewals of shared subscriptions are also posted there. Invite the app first if it is private.":
+		"Las renovaciones de las suscripciones compartidas se publican también ahí. Si es privado, invita antes a la app.",
+	"Stop posting": "Dejar de publicar",
+	"Invite a teammate": "Invitar a alguien del equipo",
+	"They join from Slack. Private subscriptions stay private.":
+		"Se une desde Slack. Las suscripciones privadas siguen siendo privadas.",
+	"Send them this: they type it in Slack and they're in":
+		"Envíale esto: lo escribe en Slack y ya está dentro",
+	"Works once, for 7 days.": "Sirve una vez, durante 7 días.",
 	Paid: "Pagado",
 	Skipped: "Saltado",
 	Unconfirmed: "Sin confirmar",
@@ -620,6 +663,8 @@ export const es: Record<string, string> = {
 	Categories: "Categorías",
 	"Reminders you act on, and the whole app inside one message.":
 		"Avisos sobre los que puedes actuar, y toda la app dentro de un mensaje.",
+	"For a team: renewals in a channel, and the same app in Slack.":
+		"Para un equipo: las renovaciones en un canal y la misma app en Slack.",
 	"Other channels": "Otros canales",
 	"Reminders by email, ntfy or webhook, with a link back here.":
 		"Avisos por correo, ntfy o webhook, con un enlace de vuelta aquí.",

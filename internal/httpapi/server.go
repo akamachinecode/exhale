@@ -43,7 +43,10 @@ type Config struct {
 	// Channels runs the notify-only channels: email, ntfy and webhooks
 	// (nil when not available, e.g. when exporting the OpenAPI document).
 	Channels *notifiers.Manager
-	Log      *slog.Logger
+	// Slack configures and reports the team's Slack app (nil when not
+	// available, e.g. in tests).
+	Slack SlackControl
+	Log   *slog.Logger
 	// PublicURL is the address people reach Exhale at, e.g.
 	// https://exhale.example.com. Single sign-on builds its redirect URI
 	// from it; without it only this machine's own address works.
@@ -75,6 +78,7 @@ func New(svc *app.Service, cfg Config) (http.Handler, huma.API, error) {
 	aa := &authAPI{svc: svc, sm: sm, cfg: cfg}
 	registerAuth(api, aa)
 	registerSettings(api, aa)
+	registerSlack(api, aa)
 	registerData(api, mux, svc)
 	registerMembers(api, aa)
 	if err := registerOIDC(mux, aa); err != nil {
