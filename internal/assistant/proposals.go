@@ -1,6 +1,7 @@
 package assistant
 
 import (
+	"cmp"
 	"context"
 	"encoding/json"
 	"fmt"
@@ -449,6 +450,32 @@ func (a *Assistant) describe(ctx context.Context, agent app.Actor, t tool, args 
 			lines = append(lines, "New payment methods: "+strings.Join(out.NewPaymentMethods, ", "))
 		}
 		return fmt.Sprintf("Import %d subscription%s", out.Created, plural(out.Created)), lines, ""
+	case app.BulkResult:
+		// The dry run says what changes for each subscription (bulk changes and
+		// tag renames).
+		lines = []string{}
+		for i, it := range out.Items {
+			if i == 8 {
+				lines = append(lines, fmt.Sprintf("… and %d more", len(out.Items)-8))
+				break
+			}
+			parts := []string{}
+			for _, c := range it.Changes {
+				if c.Field == "deleted" {
+					parts = append(parts, "deleted with its charges")
+					continue
+				}
+				parts = append(parts, fmt.Sprintf("%s %s → %s", c.Field, cmp.Or(c.From, "(none)"), cmp.Or(c.To, "(none)")))
+			}
+			if len(parts) == 0 {
+				parts = []string{"no change"}
+			}
+			lines = append(lines, "• "+it.Name+": "+strings.Join(parts, ", "))
+		}
+		if a := str(args, "action"); a == "delete" || strings.HasPrefix(a, "cancel") {
+			lines = append(lines, "Exhale only stops tracking them: cancel them with the provider too.")
+		}
+		return fmt.Sprintf("%s (%d subscription%s)", t.Title, out.Changed, plural(out.Changed)), lines, ""
 	}
 	// Everything else: the use case's own title and its arguments.
 	title = t.Title

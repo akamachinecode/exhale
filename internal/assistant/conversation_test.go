@@ -443,3 +443,33 @@ func TestCatalogAsTools(t *testing.T) {
 		}
 	}
 }
+
+// TestBulkChangeShowsEachAndUndoesAsOne: a change to several subscriptions
+// is one card listing what changes for each, and one undo reverts it all.
+func TestBulkChangeShowsEachAndUndoesAsOne(t *testing.T) {
+	w := newWorld(t)
+	a := w.sub(w.owner, app.CreateSubscriptionInput{Name: "Figma", Price: "15", FirstCharge: "2026-11-08"})
+	b := w.sub(w.owner, app.CreateSubscriptionInput{Name: "Notion", Price: "10", FirstCharge: "2026-11-09"})
+	w.fake.Then(
+		Call("bulk_update_subscriptions", map[string]any{"ids": []string{a.ID, b.ID}, "action": "pause"}),
+		Say("I prepared pausing Figma and Notion."),
+	)
+	turn := w.say(w.owner, "pause Figma and Notion")
+	if len(turn.Proposals) != 1 || !turn.Proposals[0].Destructive {
+		t.Fatalf("expected one destructive proposal, got %+v", turn.Proposals)
+	}
+	p := turn.Proposals[0]
+	if p.Title != "Change several subscriptions (2 subscriptions)" || len(p.Lines) != 2 || p.Lines[0] != "• Figma: status active → paused" {
+		t.Fatalf("card: %q %q", p.Title, p.Lines)
+	}
+	w.confirm(w.owner, p)
+	if got := w.names(w.owner); got != "Figma:paused,Notion:paused" {
+		t.Fatalf("after confirming: %q", got)
+	}
+	if o := w.undo(w.owner, p); o.Status != StatusUndone {
+		t.Fatalf("undo: %+v", o)
+	}
+	if got := w.names(w.owner); got != "Figma:active,Notion:active" {
+		t.Fatalf("after undo: %q", got)
+	}
+}
