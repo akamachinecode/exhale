@@ -109,6 +109,30 @@ test("exports download", async () => {
 	}
 });
 
+test("a bank statement confirms an expected charge and asks about the new price", async () => {
+	// Netflix's charge after the one already paid is due about a month from
+	// the first one; the bank took more.
+	const due = (await (await page.request.get(`${base}/api/v1/subscriptions?query=Netflix`)).json()).subscriptions[0].nextCharge;
+	const csv = [
+		"Date,Description,Amount,Currency,Balance",
+		`${iso(-60)},SPOTIFY P1A2B3,-10.99,EUR,500`,
+		`${iso(-30)},SPOTIFY P1A2B3,-10.99,EUR,489`,
+		`${iso(-1)},SPOTIFY P1A2B3,-10.99,EUR,478`,
+		`${iso(-5)},MERCADONA,-41.16,EUR,437`,
+		`${due},NETFLIX.COM 866-579,-15.99,EUR,421`,
+	].join("\n");
+	await page.goto(`${base}/settings?tab=data`);
+	await page.getByLabel("File to import").setInputFiles({ name: "bank.csv", mimeType: "text/csv", buffer: Buffer.from(csv) });
+	await page.getByText("Paid, according to the statement").waitFor();
+	await page.getByText("New price?").waitFor();
+	await page.getByText("Spotify", { exact: true }).waitFor();
+	await page.getByRole("button", { name: "Apply 2 changes" }).click();
+	await page.getByText("1 charge marked paid").waitFor();
+	await page.getByText("1 subscription imported").waitFor();
+	await page.getByRole("button", { name: "Yes, from now on" }).click();
+	await page.getByText("New price saved for the next charges").waitFor();
+});
+
 test("no JavaScript errors along the way", () => {
 	assert.deepEqual(errors, []);
 });

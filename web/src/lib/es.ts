@@ -246,12 +246,12 @@ export const es: Record<string, string> = {
 	"Could not import": "No se ha podido importar",
 	"File to import": "Archivo para importar",
 	"A Wallos database (": "Una base de datos de Wallos (",
-	") or export, a spreadsheet saved as CSV, an Exhale export, or your bank's export of transactions (CSV): Exhale finds the charges that repeat.":
-		") o su exportación, una hoja de cálculo guardada como CSV, una exportación de Exhale o los movimientos de tu banco (CSV): Exhale encuentra los cobros que se repiten.",
-	"A statement in PDF, a screenshot or pasted text is read by the assistant's model.":
-		"Un extracto en PDF, una captura o un texto pegado los lee el modelo del asistente.",
-	"With the built-in assistant on, it also reads a statement in PDF or a screenshot.":
-		"Con el asistente activado, también lee un extracto en PDF o una captura.",
+	") or export, a spreadsheet saved as CSV, an Exhale export, or your bank's statement (CSV or PDF): Exhale finds the charges that repeat and marks the ones it expected as paid.":
+		") o su exportación, una hoja de cálculo guardada como CSV, una exportación de Exhale o el extracto de tu banco (CSV o PDF): Exhale encuentra los cobros que se repiten y marca como pagados los que esperaba.",
+	"A scanned statement, a screenshot or pasted text is read by the assistant's model.":
+		"Un extracto escaneado, una captura o un texto pegado los lee el modelo del asistente.",
+	"With the built-in assistant on, it also reads a scanned statement or a screenshot.":
+		"Con el asistente activado, también lee un extracto escaneado o una captura.",
 	"You review the list before anything is saved.": "Revisas la lista antes de que se guarde nada.",
 	"Reading…": "Leyendo…",
 	"Choose a file": "Elegir un archivo",
@@ -801,4 +801,24 @@ export const es: Record<string, string> = {
 	Price: "Precio",
 	"Per month": "Al mes",
 	shown: "mostradas",
+	// Import: statements matched with expected charges, reviews from chat (ADR 0022).
+	"A file you sent in {0} is waiting for review": "Un archivo que enviaste por {0} espera revisión",
+	"Review it": "Revisarlo",
+	"…or paste lines from a statement: a date, a description and an amount on each":
+		"…o pega líneas de un extracto: en cada una, una fecha, una descripción y un importe",
+	"Paid, according to the statement": "Pagados, según el extracto",
+	"Mark {0} paid": "Marcar {0} como pagado",
+	"New price?": "¿Nuevo precio?",
+	"{0} on {1} · due {2}": "{0} el {1} · previsto el {2}",
+	"expected {0}": "se esperaba {0}",
+	"No payment in this statement matches a charge Exhale expected.":
+		"Ningún pago de este extracto coincide con un cobro que Exhale esperaba.",
+	"Expected but not in this statement": "Previstos, pero no están en este extracto",
+	"New subscriptions": "Suscripciones nuevas",
+	"{n} charge marked paid": "{n} cobro marcado como pagado",
+	"{n} charges marked paid": "{n} cobros marcados como pagados",
+	"{n} charge in it was already marked paid.": "{n} cobro del extracto ya estaba marcado como pagado.",
+	"{n} charges in it were already marked paid.": "{n} cobros del extracto ya estaban marcados como pagados.",
+	"Apply {n} change": "Aplicar {n} cambio",
+	"Apply {n} changes": "Aplicar {n} cambios",
 };
