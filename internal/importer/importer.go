@@ -34,6 +34,12 @@ type Result struct {
 	Notes  []string         `json:"notes" jsonschema:"things the reviewer should know about the file as a whole"`
 	// Model is the model that proposed or tidied the items, when one did.
 	Model string `json:"model,omitempty" jsonschema:"the model that read the file or tidied the names; empty when Exhale read it by itself"`
+	// Transactions are the outgoing payments of a statement, for matching
+	// with the expected charges. They stay on the server.
+	Transactions []app.StatementLine `json:"-"`
+	// Match says which expected charges the statement confirms, when it
+	// listed transactions.
+	Match *app.StatementMatch `json:"match,omitempty"`
 }
 
 // MaxFileSize bounds an uploaded file.
