@@ -49,6 +49,8 @@ nfpms:
     formats: [deb, rpm]
     section: utils
     bindir: /usr/bin
+    # docs/install/linux.md names the files: exhale_<version>_linux_<arch>.deb
+    file_name_template: "{{ .PackageName }}_{{ .Version }}_{{ .Os }}_{{ .Arch }}{{ if .Arm }}v{{ .Arm }}{{ end }}"
     # A working service: unit, settings file and a dedicated user. Data lives
     # in /var/lib/exhale and is never removed by the package (docs/install/linux.md).
     contents:
