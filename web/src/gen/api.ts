@@ -52,16 +52,6 @@ type NonReadonly<T> = [T] extends [UnionToIntersection<T>] ? {
     : T[P];
 } : DistributeReadOnlyOverUnions<T>;
 
-export interface ActionIn {
-  /** A URL to the JSON Schema for this object. */
-  readonly $schema?: string;
-  /**
-     * the token of the button, from the notification
-     * @maxLength 1024
-     */
-  token: string;
-}
-
 export interface AgentContext {
   /** A URL to the JSON Schema for this object. */
   readonly $schema?: string;
@@ -892,23 +882,9 @@ export interface DestinationIn {
   template?: string;
 }
 
-export interface DeviceOut {
-  /** A URL to the JSON Schema for this object. */
-  readonly $schema?: string;
-  /** link id of this browser; empty when push is not on for you here */
-  id?: string;
-}
-
 export interface Empty {
   /** A URL to the JSON Schema for this object. */
   readonly $schema?: string;
-}
-
-export interface EndpointIn {
-  /** A URL to the JSON Schema for this object. */
-  readonly $schema?: string;
-  /** PushSubscription.endpoint of this browser */
-  endpoint: string;
 }
 
 export interface ErrorDetail {
@@ -1347,6 +1323,16 @@ export interface PrivateDestinationsIn {
   allowPrivate: boolean;
 }
 
+export interface PushActionIn {
+  /** A URL to the JSON Schema for this object. */
+  readonly $schema?: string;
+  /**
+     * the token of the button, from the notification
+     * @maxLength 1024
+     */
+  token: string;
+}
+
 export interface PushDevice {
   /** A URL to the JSON Schema for this object. */
   readonly $schema?: string;
@@ -1358,6 +1344,20 @@ export interface PushDevice {
   endpoint: string;
   /** keys.p256dh, base64url */
   p256dh: string;
+}
+
+export interface PushDeviceOut {
+  /** A URL to the JSON Schema for this object. */
+  readonly $schema?: string;
+  /** link id of this browser; empty when push is not on for you here */
+  id?: string;
+}
+
+export interface PushEndpointIn {
+  /** A URL to the JSON Schema for this object. */
+  readonly $schema?: string;
+  /** PushSubscription.endpoint of this browser */
+  endpoint: string;
 }
 
 export interface PushResult {
@@ -6283,7 +6283,7 @@ export const getPushActionUrl = () => {
 /**
  * @summary Run a notification's button (no session: the token is the credential)
  */
-export const pushAction = async (actionIn: NonReadonly<ActionIn>, options?: Parameters<typeof fetcher>[1]): Promise<PushResult> => {
+export const pushAction = async (pushActionIn: NonReadonly<PushActionIn>, options?: Parameters<typeof fetcher>[1]): Promise<PushResult> => {
 
     const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
     if (!h) return {};
@@ -6304,7 +6304,7 @@ return fetcher<PushResult>(getPushActionUrl(),
     ...options,
     method: 'POST',
     headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
-    body: JSON.stringify(actionIn)
+    body: JSON.stringify(pushActionIn)
   }
 );}
 
@@ -6342,9 +6342,9 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
   return  { mutationFn, ...mutationOptions }}
 
     export type PushActionMutationResult = NonNullable<Awaited<ReturnType<typeof pushAction>>>
-    export type PushActionMutationBody = NonReadonly<ActionIn>
+    export type PushActionMutationBody = NonReadonly<PushActionIn>
     export type PushActionMutationError = ErrorModel
-    export type PushActionMutationVariables = {data: NonReadonly<ActionIn>}
+    export type PushActionMutationVariables = {data: NonReadonly<PushActionIn>}
 
     /**
  * @summary Run a notification's button (no session: the token is the credential)
@@ -6459,7 +6459,7 @@ export const getPushFindDeviceUrl = () => {
 /**
  * @summary Is push on for you in this browser?
  */
-export const pushFindDevice = async (endpointIn: NonReadonly<EndpointIn>, options?: Parameters<typeof fetcher>[1]): Promise<DeviceOut> => {
+export const pushFindDevice = async (pushEndpointIn: NonReadonly<PushEndpointIn>, options?: Parameters<typeof fetcher>[1]): Promise<PushDeviceOut> => {
 
     const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
     if (!h) return {};
@@ -6475,12 +6475,12 @@ export const pushFindDevice = async (endpointIn: NonReadonly<EndpointIn>, option
     }
     return headers;
   };
-return fetcher<DeviceOut>(getPushFindDeviceUrl(),
+return fetcher<PushDeviceOut>(getPushFindDeviceUrl(),
   {
     ...options,
     method: 'POST',
     headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
-    body: JSON.stringify(endpointIn)
+    body: JSON.stringify(pushEndpointIn)
   }
 );}
 
@@ -6518,9 +6518,9 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
   return  { mutationFn, ...mutationOptions }}
 
     export type PushFindDeviceMutationResult = NonNullable<Awaited<ReturnType<typeof pushFindDevice>>>
-    export type PushFindDeviceMutationBody = NonReadonly<EndpointIn>
+    export type PushFindDeviceMutationBody = NonReadonly<PushEndpointIn>
     export type PushFindDeviceMutationError = ErrorModel
-    export type PushFindDeviceMutationVariables = {data: NonReadonly<EndpointIn>}
+    export type PushFindDeviceMutationVariables = {data: NonReadonly<PushEndpointIn>}
 
     /**
  * @summary Is push on for you in this browser?
@@ -6547,7 +6547,7 @@ export const getPushRemoveDeviceUrl = () => {
 /**
  * @summary Turn off push notifications in this browser
  */
-export const pushRemoveDevice = async (endpointIn: NonReadonly<EndpointIn>, options?: Parameters<typeof fetcher>[1]): Promise<Empty> => {
+export const pushRemoveDevice = async (pushEndpointIn: NonReadonly<PushEndpointIn>, options?: Parameters<typeof fetcher>[1]): Promise<Empty> => {
 
     const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
     if (!h) return {};
@@ -6568,7 +6568,7 @@ return fetcher<Empty>(getPushRemoveDeviceUrl(),
     ...options,
     method: 'POST',
     headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
-    body: JSON.stringify(endpointIn)
+    body: JSON.stringify(pushEndpointIn)
   }
 );}
 
@@ -6606,9 +6606,9 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
   return  { mutationFn, ...mutationOptions }}
 
     export type PushRemoveDeviceMutationResult = NonNullable<Awaited<ReturnType<typeof pushRemoveDevice>>>
-    export type PushRemoveDeviceMutationBody = NonReadonly<EndpointIn>
+    export type PushRemoveDeviceMutationBody = NonReadonly<PushEndpointIn>
     export type PushRemoveDeviceMutationError = ErrorModel
-    export type PushRemoveDeviceMutationVariables = {data: NonReadonly<EndpointIn>}
+    export type PushRemoveDeviceMutationVariables = {data: NonReadonly<PushEndpointIn>}
 
     /**
  * @summary Turn off push notifications in this browser

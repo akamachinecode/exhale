@@ -1,29 +1,6 @@
 {
   "components": {
     "schemas": {
-      "ActionIn": {
-        "additionalProperties": false,
-        "properties": {
-          "$schema": {
-            "description": "A URL to the JSON Schema for this object.",
-            "examples": [
-              "https://example.com/api/schemas/ActionIn.json"
-            ],
-            "format": "uri",
-            "readOnly": true,
-            "type": "string"
-          },
-          "token": {
-            "description": "the token of the button, from the notification",
-            "maxLength": 1024,
-            "type": "string"
-          }
-        },
-        "required": [
-          "token"
-        ],
-        "type": "object"
-      },
       "AgentContext": {
         "additionalProperties": false,
         "properties": {
@@ -1571,25 +1548,6 @@
         ],
         "type": "object"
       },
-      "DeviceOut": {
-        "additionalProperties": false,
-        "properties": {
-          "$schema": {
-            "description": "A URL to the JSON Schema for this object.",
-            "examples": [
-              "https://example.com/api/schemas/DeviceOut.json"
-            ],
-            "format": "uri",
-            "readOnly": true,
-            "type": "string"
-          },
-          "id": {
-            "description": "link id of this browser; empty when push is not on for you here",
-            "type": "string"
-          }
-        },
-        "type": "object"
-      },
       "DuplicateGroup": {
         "additionalProperties": false,
         "properties": {
@@ -1625,28 +1583,6 @@
             "type": "string"
           }
         },
-        "type": "object"
-      },
-      "EndpointIn": {
-        "additionalProperties": false,
-        "properties": {
-          "$schema": {
-            "description": "A URL to the JSON Schema for this object.",
-            "examples": [
-              "https://example.com/api/schemas/EndpointIn.json"
-            ],
-            "format": "uri",
-            "readOnly": true,
-            "type": "string"
-          },
-          "endpoint": {
-            "description": "PushSubscription.endpoint of this browser",
-            "type": "string"
-          }
-        },
-        "required": [
-          "endpoint"
-        ],
         "type": "object"
       },
       "ErrorDetail": {
@@ -3192,6 +3128,29 @@
         ],
         "type": "object"
       },
+      "PushActionIn": {
+        "additionalProperties": false,
+        "properties": {
+          "$schema": {
+            "description": "A URL to the JSON Schema for this object.",
+            "examples": [
+              "https://example.com/api/schemas/PushActionIn.json"
+            ],
+            "format": "uri",
+            "readOnly": true,
+            "type": "string"
+          },
+          "token": {
+            "description": "the token of the button, from the notification",
+            "maxLength": 1024,
+            "type": "string"
+          }
+        },
+        "required": [
+          "token"
+        ],
+        "type": "object"
+      },
       "PushDevice": {
         "additionalProperties": false,
         "properties": {
@@ -3225,6 +3184,47 @@
           "endpoint",
           "p256dh",
           "auth"
+        ],
+        "type": "object"
+      },
+      "PushDeviceOut": {
+        "additionalProperties": false,
+        "properties": {
+          "$schema": {
+            "description": "A URL to the JSON Schema for this object.",
+            "examples": [
+              "https://example.com/api/schemas/PushDeviceOut.json"
+            ],
+            "format": "uri",
+            "readOnly": true,
+            "type": "string"
+          },
+          "id": {
+            "description": "link id of this browser; empty when push is not on for you here",
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "PushEndpointIn": {
+        "additionalProperties": false,
+        "properties": {
+          "$schema": {
+            "description": "A URL to the JSON Schema for this object.",
+            "examples": [
+              "https://example.com/api/schemas/PushEndpointIn.json"
+            ],
+            "format": "uri",
+            "readOnly": true,
+            "type": "string"
+          },
+          "endpoint": {
+            "description": "PushSubscription.endpoint of this browser",
+            "type": "string"
+          }
+        },
+        "required": [
+          "endpoint"
         ],
         "type": "object"
       },
@@ -6927,7 +6927,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/ActionIn"
+                "$ref": "#/components/schemas/PushActionIn"
               }
             }
           },
@@ -7009,7 +7009,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/EndpointIn"
+                "$ref": "#/components/schemas/PushEndpointIn"
               }
             }
           },
@@ -7020,7 +7020,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/DeviceOut"
+                  "$ref": "#/components/schemas/PushDeviceOut"
                 }
               }
             },
@@ -7050,7 +7050,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/EndpointIn"
+                "$ref": "#/components/schemas/PushEndpointIn"
               }
             }
           },

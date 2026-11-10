@@ -109,6 +109,20 @@ test("exports download", async () => {
 	}
 });
 
+test("push notifications: the section shows and the service worker caches nothing", async () => {
+	await page.goto(`${base}/settings?tab=channels`);
+	await page.getByRole("heading", { name: "Push notifications" }).waitFor();
+	await page.getByText("This device").first().waitFor();
+	const sw = await page.evaluate(async () => {
+		const reg = await navigator.serviceWorker.ready;
+		return { url: reg.active?.scriptURL, caches: await caches.keys() };
+	});
+	assert.equal(sw.url, `${base}/sw.js`);
+	assert.deepEqual(sw.caches, []);
+	const key = await (await page.request.get(`${base}/api/v1/push`)).json();
+	assert.equal(key.publicKey.length, 87);
+});
+
 test("no JavaScript errors along the way", () => {
 	assert.deepEqual(errors, []);
 });
