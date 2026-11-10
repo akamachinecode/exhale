@@ -34,7 +34,7 @@ test("sign up on a fresh instance", async () => {
 });
 
 test("add a payment method in Settings", async () => {
-	await page.goto(`${base}/settings`);
+	await page.goto(`${base}/settings?tab=general`);
 	await page.getByRole("button", { name: "Add a payment method" }).click();
 	await page.getByPlaceholder("Revolut, Visa…").fill("Visa");
 	await page.getByRole("button", { name: "Add", exact: true }).first().click();
@@ -71,6 +71,7 @@ test("the check-up shows the deadline, and keeping it clears it", async () => {
 
 test("import a spreadsheet through the review list", async () => {
 	await page.goto(`${base}/settings`);
+	await page.getByRole("tab", { name: "Data" }).click();
 	const csv = `Service,Price,Cycle,Next payment,Category\nNetflix,13.99 EUR,Monthly,${iso(5)},Streaming\nGym,42.50,Monthly,${iso(40)},\nBroken,abc,Monthly,${iso(5)},\n`;
 	await page.getByLabel("File to import").setInputFiles({ name: "subs.csv", mimeType: "text/csv", buffer: Buffer.from(csv) });
 	await page.getByText("Spreadsheet (CSV)").waitFor();

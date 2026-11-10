@@ -102,7 +102,11 @@ export function Checkup() {
 								{(c.subscriptions ?? []).length
 									? t("Pays {0}.", (c.subscriptions ?? []).map((s) => s.name).join(", "))
 									: t("No subscription uses it.")}{" "}
-								<Link to="/settings" className="font-medium text-fg hover:underline">
+								<Link
+									to="/settings"
+									search={{ tab: "general" }}
+									className="font-medium text-fg hover:underline"
+								>
 									{t("Manage payment methods")}
 								</Link>
 							</p>

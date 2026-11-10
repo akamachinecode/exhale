@@ -45,7 +45,12 @@ const routeTree = root.addChildren([
 	createRoute({ getParentRoute: () => root, path: "/checkup", component: Checkup }),
 	createRoute({ getParentRoute: () => root, path: "/activity", component: ActivityPage }),
 	createRoute({ getParentRoute: () => root, path: "/agents", component: AgentsPage }),
-	createRoute({ getParentRoute: () => root, path: "/settings", component: SettingsPage }),
+	createRoute({
+		getParentRoute: () => root,
+		path: "/settings",
+		component: SettingsPage,
+		validateSearch: (s: Record<string, unknown>): { tab?: string } => ({ tab: str(s.tab) }),
+	}),
 	createRoute({
 		getParentRoute: () => root,
 		path: "/welcome",

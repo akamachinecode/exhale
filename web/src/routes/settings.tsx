@@ -1,4 +1,4 @@
-import { Link } from "@tanstack/react-router";
+import { Link, useNavigate, useSearch } from "@tanstack/react-router";
 import { type FormEvent, type ReactNode, useState } from "react";
 import { toast } from "sonner";
 import { OtherChannels } from "@/components/channels";
@@ -14,84 +14,144 @@ import { Field, PasswordInput } from "@/components/ui/field";
 import { useAuthChangePassword, useAuthSession } from "@/gen/api";
 import { ApiError } from "@/lib/fetcher";
 import { t } from "@/lib/i18n";
+import { cn } from "@/lib/utils";
+
+const tabs = [
+	{ id: "you", label: t("You") },
+	{ id: "general", label: t("General") },
+	{ id: "channels", label: t("Channels") },
+	{ id: "sharing", label: t("Sharing") },
+	{ id: "data", label: t("Data") },
+	{ id: "agents", label: t("Agents") },
+] as const;
+export type SettingsTab = (typeof tabs)[number]["id"];
 
 export function SettingsPage() {
 	const session = useAuthSession();
 	const user = session.data?.user;
+	const search = useSearch({ from: "/settings" });
+	const navigate = useNavigate({ from: "/settings" });
+	const tab: SettingsTab = tabs.some((x) => x.id === search.tab) ? (search.tab as SettingsTab) : "you";
 	return (
 		<div className="mx-auto max-w-[760px]">
 			<PageHeader title={t("Settings")} />
-			<p className="mb-5 flex gap-4 text-[13px] md:hidden">
-				<Link to="/activity" className="font-medium hover:underline">
-					{t("Activity")}
-				</Link>
-				<Link to="/agents" className="font-medium hover:underline">
-					{t("AI agents")}
-				</Link>
-			</p>
+			<div
+				className="mb-5 flex gap-1 overflow-x-auto rounded-lg bg-raised p-1"
+				role="tablist"
+				aria-label={t("Settings")}
+			>
+				{tabs.map((x) => (
+					<button
+						key={x.id}
+						type="button"
+						role="tab"
+						aria-selected={tab === x.id}
+						onClick={() => navigate({ search: { tab: x.id }, replace: true })}
+						className={cn(
+							"flex-1 rounded-md px-3 py-1.5 text-[13px] font-medium whitespace-nowrap text-muted transition-colors",
+							tab === x.id && "bg-surface text-fg shadow-sm",
+						)}
+					>
+						{x.label}
+					</button>
+				))}
+			</div>
 			<div className="grid gap-5">
-				<Section
-					title={t("Account")}
-					description={user ? `${user.name} · ${user.email}` : undefined}
-					action={<SignOut />}
-				>
-					<AccountLogin />
-				</Section>
-				<Section
-					title={t("Preferences")}
-					description={t("Owners can change them; they apply to everyone you share with.")}
-				>
-					<div className="grid gap-5">
-						<PreferencesForm />
-						<ReminderTime withTimezone={false} />
-						<Payday />
-					</div>
-				</Section>
-				<Section
-					title={t("Payment methods")}
-					description={t("The cards and accounts that pay your subscriptions.")}
-				>
-					<PaymentMethods />
-				</Section>
-				<Section title={t("Categories")}>
-					<Categories />
-				</Section>
-				<Section
-					title="Telegram"
-					description={t("Reminders you act on, and the whole app inside one message.")}
-				>
-					<TelegramSetup />
-				</Section>
-				<Section
-					title="Slack"
-					description={t("For a team: renewals in a channel, and the same app in Slack.")}
-				>
-					<SlackSetup />
-				</Section>
-				<Section
-					title={t("Other channels")}
-					description={t("Reminders by email, ntfy or webhook, with a link back here.")}
-				>
-					<OtherChannels />
-				</Section>
-				<Section title={t("Sharing")}>
-					<Sharing />
-				</Section>
-				<Section title={t("Calendar")}>
-					<CalendarLink />
-				</Section>
-				<Section title={t("Import")}>
-					<ImportData />
-				</Section>
-				<Section title={t("Export")}>
-					<ExportData />
-				</Section>
-				<Section
-					title={t("API tokens")}
-					description={t("For Claude and other AI agents over MCP, and for scripts. Each token acts as you.")}
-				>
-					<TokensManager />
-				</Section>
+				{tab === "you" && (
+					<>
+						<Section
+							title={t("Account")}
+							description={user ? `${user.name} · ${user.email}` : undefined}
+							action={<SignOut />}
+						>
+							<AccountLogin />
+						</Section>
+						<p className="flex gap-4 text-[13px] md:hidden">
+							<Link to="/activity" className="font-medium hover:underline">
+								{t("Activity")}
+							</Link>
+							<Link to="/agents" className="font-medium hover:underline">
+								{t("AI agents")}
+							</Link>
+						</p>
+					</>
+				)}
+				{tab === "general" && (
+					<>
+						<Section
+							title={t("Preferences")}
+							description={t("Owners can change them; they apply to everyone you share with.")}
+						>
+							<div className="grid gap-5">
+								<PreferencesForm />
+								<ReminderTime withTimezone={false} />
+								<Payday />
+							</div>
+						</Section>
+						<Section
+							title={t("Payment methods")}
+							description={t("The cards and accounts that pay your subscriptions.")}
+						>
+							<PaymentMethods />
+						</Section>
+						<Section title={t("Categories")}>
+							<Categories />
+						</Section>
+					</>
+				)}
+				{tab === "channels" && (
+					<>
+						<Section
+							title="Telegram"
+							description={t("Reminders you act on, and the whole app inside one message.")}
+						>
+							<TelegramSetup />
+						</Section>
+						<Section
+							title="Slack"
+							description={t("For a team: renewals in a channel, and the same app in Slack.")}
+						>
+							<SlackSetup />
+						</Section>
+						<Section
+							title={t("Other channels")}
+							description={t("Reminders by email, ntfy or webhook, with a link back here.")}
+						>
+							<OtherChannels />
+						</Section>
+					</>
+				)}
+				{tab === "sharing" && (
+					<Section
+						title={t("Sharing")}
+						description={t("Everyone gets their own login and their own reminders.")}
+					>
+						<Sharing />
+					</Section>
+				)}
+				{tab === "data" && (
+					<>
+						<Section title={t("Calendar")}>
+							<CalendarLink />
+						</Section>
+						<Section title={t("Import")}>
+							<ImportData />
+						</Section>
+						<Section title={t("Export")}>
+							<ExportData />
+						</Section>
+					</>
+				)}
+				{tab === "agents" && (
+					<Section
+						title={t("API tokens")}
+						description={t(
+							"For Claude and other AI agents over MCP, and for scripts. Each token acts as you.",
+						)}
+					>
+						<TokensManager />
+					</Section>
+				)}
 			</div>
 		</div>
 	);

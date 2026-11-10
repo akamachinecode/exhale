@@ -654,6 +654,11 @@ export const es: Record<string, string> = {
 	" · moved from {0}": " · movido desde el {0}",
 	"{n} reminder did not arrive": "{n} aviso no llegó",
 	"{n} reminders did not arrive": "{n} avisos no llegaron",
+	You: "Tú",
+	General: "General",
+	Channels: "Canales",
+	Sharing: "Compartir",
+	Data: "Datos",
 	Preferences: "Preferencias",
 	"Owners can change them; they apply to everyone you share with.":
 		"Las cambian los propietarios; se aplican a todas las personas con las que compartes.",
@@ -668,7 +673,8 @@ export const es: Record<string, string> = {
 	"Other channels": "Otros canales",
 	"Reminders by email, ntfy or webhook, with a link back here.":
 		"Avisos por correo, ntfy o webhook, con un enlace de vuelta aquí.",
-	Sharing: "Compartir",
+	"Everyone gets their own login and their own reminders.":
+		"Cada persona tiene su propio acceso y sus propios avisos.",
 	Import: "Importar",
 	Export: "Exportar",
 	"API tokens": "Tokens de API",
