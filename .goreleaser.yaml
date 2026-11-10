@@ -70,10 +70,19 @@ nfpms:
       preremove: deploy/packaging/preremove.sh
       postremove: deploy/packaging/postremove.sh
 dockers_v2:
-  - images: ["ghcr.io/akamachinecode/exhale", "docker.io/akamachinecode/exhale"]
+  - images: ["ghcr.io/akamachinecode/exhale"]
     dockerfile: deploy/Dockerfile
     platforms: [linux/amd64, linux/arm64, linux/arm/v7]
     # vX.Y.Z, vX.Y, vX and latest (ADR 0016).
     tags: ["v{{ .Version }}", "v{{ .Major }}.{{ .Minor }}", "v{{ .Major }}", latest]
+    # The source label links the package to the repository on GitHub.
+    labels:
+      org.opencontainers.image.source: https://github.com/akamachinecode/exhale
+      org.opencontainers.image.title: Exhale
+      org.opencontainers.image.description: Self-hosted subscription manager where the reminder is the interface.
+      org.opencontainers.image.licenses: AGPL-3.0-or-later
+      org.opencontainers.image.version: "{{ .Version }}"
+      org.opencontainers.image.revision: "{{ .FullCommit }}"
+      org.opencontainers.image.created: "{{ .Date }}"
 changelog:
   disable: true # release-please writes CHANGELOG.md
