@@ -223,6 +223,79 @@ export interface ChangeChargeDateInput {
   scope?: ChangeChargeDateInputScope;
 }
 
+export type ChannelsStatusAllowPrivateSource = typeof ChannelsStatusAllowPrivateSource[keyof typeof ChannelsStatusAllowPrivateSource];
+
+
+export const ChannelsStatusAllowPrivateSource = {
+  env: 'env',
+  settings: 'settings',
+} as const;
+
+/**
+ * empty: the default public server
+ */
+export type NtfyStatusSource = typeof NtfyStatusSource[keyof typeof NtfyStatusSource];
+
+
+export const NtfyStatusSource = {
+  env: 'env',
+  settings: 'settings',
+} as const;
+
+export interface NtfyStatus {
+  /** an access token is saved; it is never returned */
+  hasToken: boolean;
+  /** where members subscribe to their topic */
+  server: string;
+  /** empty: the default public server */
+  source?: NtfyStatusSource;
+}
+
+/**
+ * env: set by EXHALE_SMTP_* on the server and not editable in the web
+ */
+export type SMTPStatusSource = typeof SMTPStatusSource[keyof typeof SMTPStatusSource];
+
+
+export const SMTPStatusSource = {
+  env: 'env',
+  settings: 'settings',
+} as const;
+
+export type SMTPStatusTls = typeof SMTPStatusTls[keyof typeof SMTPStatusTls];
+
+
+export const SMTPStatusTls = {
+  starttls: 'starttls',
+  tls: 'tls',
+  none: 'none',
+} as const;
+
+export interface SMTPStatus {
+  configured: boolean;
+  from?: string;
+  /** a password is saved; it is never returned */
+  hasPassword: boolean;
+  host?: string;
+  port?: number;
+  /** env: set by EXHALE_SMTP_* on the server and not editable in the web */
+  source?: SMTPStatusSource;
+  tls?: SMTPStatusTls;
+  username?: string;
+}
+
+export interface ChannelsStatus {
+  /** A URL to the JSON Schema for this object. */
+  readonly $schema?: string;
+  /** webhooks and ntfy may reach private-network addresses */
+  allowPrivate: boolean;
+  allowPrivateSource?: ChannelsStatusAllowPrivateSource;
+  ntfy: NtfyStatus;
+  /** address used for links in messages; empty when the server was started without --public-url */
+  publicUrl?: string;
+  smtp: SMTPStatus;
+}
+
 export interface ChargeList {
   /** A URL to the JSON Schema for this object. */
   readonly $schema?: string;
@@ -354,6 +427,25 @@ export interface DeleteSubscriptionInput {
   id: string;
 }
 
+export type DestinationInChannel = typeof DestinationInChannel[keyof typeof DestinationInChannel];
+
+
+export const DestinationInChannel = {
+  email: 'email',
+  ntfy: 'ntfy',
+  webhook: 'webhook',
+} as const;
+
+export interface DestinationIn {
+  /** A URL to the JSON Schema for this object. */
+  readonly $schema?: string;
+  channel: DestinationInChannel;
+  /** email: the address; ntfy: your topic; webhook: the URL to POST to */
+  destination: string;
+  /** webhook only: JSON body with {{variables}}; empty sends the default body */
+  template?: string;
+}
+
 export interface Empty {
   /** A URL to the JSON Schema for this object. */
   readonly $schema?: string;
@@ -479,8 +571,14 @@ export interface LinkCodeOut {
 }
 
 export interface LinkInfo {
+  /** A URL to the JSON Schema for this object. */
+  readonly $schema?: string;
   channel: string;
   createdAt: string;
+  /** email address, ntfy topic or webhook host; empty for chat accounts */
+  destination?: string;
+  /** the webhook has its own body template */
+  hasTemplate?: boolean;
   id: string;
 }
 
@@ -502,6 +600,17 @@ export interface MethodSpend {
   count: number;
   monthly: Money;
   paymentMethod: string;
+}
+
+export interface NtfyInput {
+  /** A URL to the JSON Schema for this object. */
+  readonly $schema?: string;
+  /** forget the saved access token */
+  removeToken?: boolean;
+  /** base address of the ntfy server; default https://ntfy.sh */
+  server?: string;
+  /** access token (tk_…), for servers that need one to publish; leave empty to keep the saved one */
+  token?: string;
 }
 
 export interface PasswordIn {
@@ -536,6 +645,41 @@ export interface PreviewScheduleInput {
   /** @minimum 1 */
   interval: number;
   unit: PreviewScheduleInputUnit;
+}
+
+export interface PrivateDestinationsIn {
+  /** A URL to the JSON Schema for this object. */
+  readonly $schema?: string;
+  /** let webhooks and ntfy reach private-network addresses (a server on your LAN); loopback and cloud metadata addresses stay blocked */
+  allowPrivate: boolean;
+}
+
+/**
+ * starttls (default), tls (implicit, port 465) or none (local relays)
+ */
+export type SMTPInputTls = typeof SMTPInputTls[keyof typeof SMTPInputTls];
+
+
+export const SMTPInputTls = {
+  starttls: 'starttls',
+  tls: 'tls',
+  none: 'none',
+} as const;
+
+export interface SMTPInput {
+  /** A URL to the JSON Schema for this object. */
+  readonly $schema?: string;
+  /** sender address, e.g. reminders@example.com */
+  from: string;
+  /** SMTP server, e.g. smtp.example.com */
+  host: string;
+  /** leave empty to keep the saved password */
+  password?: string;
+  /** default: 587 with starttls, 465 with tls, 25 with none */
+  port?: number;
+  /** starttls (default), tls (implicit, port 465) or none (local relays) */
+  tls?: SMTPInputTls;
+  username?: string;
 }
 
 export type SavePaymentMethodInputKind = typeof SavePaymentMethodInputKind[keyof typeof SavePaymentMethodInputKind];
@@ -662,6 +806,19 @@ export interface SubscriptionList {
   readonly $schema?: string;
   /** @nullable */
   subscriptions: SubscriptionView[] | null;
+}
+
+export interface TestEmailOut {
+  /** A URL to the JSON Schema for this object. */
+  readonly $schema?: string;
+  sentTo: string;
+}
+
+export interface TestLinkIn {
+  /** A URL to the JSON Schema for this object. */
+  readonly $schema?: string;
+  /** id of one of your links */
+  id: string;
 }
 
 /**
@@ -1179,7 +1336,7 @@ export const getAuthListLinksUrl = () => {
 }
 
 /**
- * @summary Your linked chat accounts
+ * @summary Your linked chat accounts and notification destinations
  */
 export const authListLinks = async ( options?: Parameters<typeof fetcher>[1]): Promise<LinksOut> => {
 
@@ -1250,7 +1407,7 @@ export function useAuthListLinks<TData = Awaited<ReturnType<typeof authListLinks
  , queryClient?: QueryClient
   ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
 /**
- * @summary Your linked chat accounts
+ * @summary Your linked chat accounts and notification destinations
  */
 
 export function useAuthListLinks<TData = Awaited<ReturnType<typeof authListLinks>>, TError = ErrorModel>(
@@ -1270,6 +1427,94 @@ export function useAuthListLinks<TData = Awaited<ReturnType<typeof authListLinks
 
 
 
+
+export const getAuthAddDestinationUrl = () => {
+
+
+
+
+  return `/api/v1/auth/links/destination`
+}
+
+/**
+ * @summary Add an email address, ntfy topic or webhook for your reminders
+ */
+export const authAddDestination = async (destinationIn: NonReadonly<DestinationIn>, options?: Parameters<typeof fetcher>[1]): Promise<LinkInfo> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return fetcher<LinkInfo>(getAuthAddDestinationUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(destinationIn)
+  }
+);}
+
+
+
+
+
+export const getAuthAddDestinationMutationKey = () => ['authAddDestination'] as const;
+
+export const getAuthAddDestinationMutationOptions = <TError = ErrorModel,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof authAddDestination>>, TError,AuthAddDestinationMutationVariables, TContext>, request?: SecondParameter<typeof fetcher>}
+): UseMutationOptions<Awaited<ReturnType<typeof authAddDestination>>, TError,AuthAddDestinationMutationVariables, TContext> => {
+
+const mutationKey = getAuthAddDestinationMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof authAddDestination>>, AuthAddDestinationMutationVariables> = (props) => {
+          const {data} = props ?? {};
+
+          return  authAddDestination(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type AuthAddDestinationMutationResult = NonNullable<Awaited<ReturnType<typeof authAddDestination>>>
+    export type AuthAddDestinationMutationBody = NonReadonly<DestinationIn>
+    export type AuthAddDestinationMutationError = ErrorModel
+    export type AuthAddDestinationMutationVariables = {data: NonReadonly<DestinationIn>}
+
+    /**
+ * @summary Add an email address, ntfy topic or webhook for your reminders
+ */
+export const useAuthAddDestination = <TError = ErrorModel,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof authAddDestination>>, TError,AuthAddDestinationMutationVariables, TContext>, request?: SecondParameter<typeof fetcher>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof authAddDestination>>,
+        TError,
+        AuthAddDestinationMutationVariables,
+        TContext
+      > => {
+      return useMutation(getAuthAddDestinationMutationOptions(options), queryClient);
+    }
 
 export const getAuthLinkTelegramUrl = () => {
 
@@ -1345,6 +1590,94 @@ export const useAuthLinkTelegram = <TError = ErrorModel,
       return useMutation(getAuthLinkTelegramMutationOptions(options), queryClient);
     }
 
+export const getAuthTestLinkUrl = () => {
+
+
+
+
+  return `/api/v1/auth/links/test`
+}
+
+/**
+ * @summary Send a test reminder to one of your destinations
+ */
+export const authTestLink = async (testLinkIn: NonReadonly<TestLinkIn>, options?: Parameters<typeof fetcher>[1]): Promise<Empty> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return fetcher<Empty>(getAuthTestLinkUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(testLinkIn)
+  }
+);}
+
+
+
+
+
+export const getAuthTestLinkMutationKey = () => ['authTestLink'] as const;
+
+export const getAuthTestLinkMutationOptions = <TError = ErrorModel,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof authTestLink>>, TError,AuthTestLinkMutationVariables, TContext>, request?: SecondParameter<typeof fetcher>}
+): UseMutationOptions<Awaited<ReturnType<typeof authTestLink>>, TError,AuthTestLinkMutationVariables, TContext> => {
+
+const mutationKey = getAuthTestLinkMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof authTestLink>>, AuthTestLinkMutationVariables> = (props) => {
+          const {data} = props ?? {};
+
+          return  authTestLink(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type AuthTestLinkMutationResult = NonNullable<Awaited<ReturnType<typeof authTestLink>>>
+    export type AuthTestLinkMutationBody = NonReadonly<TestLinkIn>
+    export type AuthTestLinkMutationError = ErrorModel
+    export type AuthTestLinkMutationVariables = {data: NonReadonly<TestLinkIn>}
+
+    /**
+ * @summary Send a test reminder to one of your destinations
+ */
+export const useAuthTestLink = <TError = ErrorModel,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof authTestLink>>, TError,AuthTestLinkMutationVariables, TContext>, request?: SecondParameter<typeof fetcher>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof authTestLink>>,
+        TError,
+        AuthTestLinkMutationVariables,
+        TContext
+      > => {
+      return useMutation(getAuthTestLinkMutationOptions(options), queryClient);
+    }
+
 export const getAuthUnlinkUrl = () => {
 
 
@@ -1354,7 +1687,7 @@ export const getAuthUnlinkUrl = () => {
 }
 
 /**
- * @summary Unlink a chat account
+ * @summary Unlink a chat account or remove a destination
  */
 export const authUnlink = async (idIn: NonReadonly<IdIn>, options?: Parameters<typeof fetcher>[1]): Promise<Empty> => {
 
@@ -1420,7 +1753,7 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
     export type AuthUnlinkMutationVariables = {data: NonReadonly<IdIn>}
 
     /**
- * @summary Unlink a chat account
+ * @summary Unlink a chat account or remove a destination
  */
 export const useAuthUnlink = <TError = ErrorModel,
     TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof authUnlink>>, TError,AuthUnlinkMutationVariables, TContext>, request?: SecondParameter<typeof fetcher>}
@@ -3281,6 +3614,593 @@ export const usePreviewSchedule = <TError = ErrorModel,
         TContext
       > => {
       return useMutation(getPreviewScheduleMutationOptions(options), queryClient);
+    }
+
+export const getSettingsChannelsUrl = () => {
+
+
+
+
+  return `/api/v1/settings/channels`
+}
+
+/**
+ * @summary Email, ntfy and webhook setup
+ */
+export const settingsChannels = async ( options?: Parameters<typeof fetcher>[1]): Promise<ChannelsStatus> => {
+
+  return fetcher<ChannelsStatus>(getSettingsChannelsUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getSettingsChannelsQueryKey = () => {
+    return [
+    `/api/v1/settings/channels`
+    ] as const;
+    }
+
+
+export const getSettingsChannelsQueryOptions = <TData = Awaited<ReturnType<typeof settingsChannels>>, TError = ErrorModel>( options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof settingsChannels>>, TError, TData>>, request?: SecondParameter<typeof fetcher>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getSettingsChannelsQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof settingsChannels>>> = ({ signal }) => settingsChannels({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof settingsChannels>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type SettingsChannelsQueryResult = NonNullable<Awaited<ReturnType<typeof settingsChannels>>>
+export type SettingsChannelsQueryError = ErrorModel
+
+
+export function useSettingsChannels<TData = Awaited<ReturnType<typeof settingsChannels>>, TError = ErrorModel>(
+  options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof settingsChannels>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof settingsChannels>>,
+          TError,
+          Awaited<ReturnType<typeof settingsChannels>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof fetcher>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useSettingsChannels<TData = Awaited<ReturnType<typeof settingsChannels>>, TError = ErrorModel>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof settingsChannels>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof settingsChannels>>,
+          TError,
+          Awaited<ReturnType<typeof settingsChannels>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof fetcher>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useSettingsChannels<TData = Awaited<ReturnType<typeof settingsChannels>>, TError = ErrorModel>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof settingsChannels>>, TError, TData>>, request?: SecondParameter<typeof fetcher>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+/**
+ * @summary Email, ntfy and webhook setup
+ */
+
+export function useSettingsChannels<TData = Awaited<ReturnType<typeof settingsChannels>>, TError = ErrorModel>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof settingsChannels>>, TError, TData>>, request?: SecondParameter<typeof fetcher>}
+ , queryClient?: QueryClient
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getSettingsChannelsQueryOptions(options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getSettingsSetChannelsUrl = () => {
+
+
+
+
+  return `/api/v1/settings/channels`
+}
+
+/**
+ * @summary Allow or block private-network destinations (owners only)
+ */
+export const settingsSetChannels = async (privateDestinationsIn: NonReadonly<PrivateDestinationsIn>, options?: Parameters<typeof fetcher>[1]): Promise<ChannelsStatus> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return fetcher<ChannelsStatus>(getSettingsSetChannelsUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(privateDestinationsIn)
+  }
+);}
+
+
+
+
+
+export const getSettingsSetChannelsMutationKey = () => ['settingsSetChannels'] as const;
+
+export const getSettingsSetChannelsMutationOptions = <TError = ErrorModel,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof settingsSetChannels>>, TError,SettingsSetChannelsMutationVariables, TContext>, request?: SecondParameter<typeof fetcher>}
+): UseMutationOptions<Awaited<ReturnType<typeof settingsSetChannels>>, TError,SettingsSetChannelsMutationVariables, TContext> => {
+
+const mutationKey = getSettingsSetChannelsMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof settingsSetChannels>>, SettingsSetChannelsMutationVariables> = (props) => {
+          const {data} = props ?? {};
+
+          return  settingsSetChannels(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type SettingsSetChannelsMutationResult = NonNullable<Awaited<ReturnType<typeof settingsSetChannels>>>
+    export type SettingsSetChannelsMutationBody = NonReadonly<PrivateDestinationsIn>
+    export type SettingsSetChannelsMutationError = ErrorModel
+    export type SettingsSetChannelsMutationVariables = {data: NonReadonly<PrivateDestinationsIn>}
+
+    /**
+ * @summary Allow or block private-network destinations (owners only)
+ */
+export const useSettingsSetChannels = <TError = ErrorModel,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof settingsSetChannels>>, TError,SettingsSetChannelsMutationVariables, TContext>, request?: SecondParameter<typeof fetcher>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof settingsSetChannels>>,
+        TError,
+        SettingsSetChannelsMutationVariables,
+        TContext
+      > => {
+      return useMutation(getSettingsSetChannelsMutationOptions(options), queryClient);
+    }
+
+export const getSettingsSetNtfyUrl = () => {
+
+
+
+
+  return `/api/v1/settings/ntfy`
+}
+
+/**
+ * @summary Set the ntfy server (owners only)
+ */
+export const settingsSetNtfy = async (ntfyInput: NonReadonly<NtfyInput>, options?: Parameters<typeof fetcher>[1]): Promise<ChannelsStatus> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return fetcher<ChannelsStatus>(getSettingsSetNtfyUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(ntfyInput)
+  }
+);}
+
+
+
+
+
+export const getSettingsSetNtfyMutationKey = () => ['settingsSetNtfy'] as const;
+
+export const getSettingsSetNtfyMutationOptions = <TError = ErrorModel,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof settingsSetNtfy>>, TError,SettingsSetNtfyMutationVariables, TContext>, request?: SecondParameter<typeof fetcher>}
+): UseMutationOptions<Awaited<ReturnType<typeof settingsSetNtfy>>, TError,SettingsSetNtfyMutationVariables, TContext> => {
+
+const mutationKey = getSettingsSetNtfyMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof settingsSetNtfy>>, SettingsSetNtfyMutationVariables> = (props) => {
+          const {data} = props ?? {};
+
+          return  settingsSetNtfy(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type SettingsSetNtfyMutationResult = NonNullable<Awaited<ReturnType<typeof settingsSetNtfy>>>
+    export type SettingsSetNtfyMutationBody = NonReadonly<NtfyInput>
+    export type SettingsSetNtfyMutationError = ErrorModel
+    export type SettingsSetNtfyMutationVariables = {data: NonReadonly<NtfyInput>}
+
+    /**
+ * @summary Set the ntfy server (owners only)
+ */
+export const useSettingsSetNtfy = <TError = ErrorModel,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof settingsSetNtfy>>, TError,SettingsSetNtfyMutationVariables, TContext>, request?: SecondParameter<typeof fetcher>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof settingsSetNtfy>>,
+        TError,
+        SettingsSetNtfyMutationVariables,
+        TContext
+      > => {
+      return useMutation(getSettingsSetNtfyMutationOptions(options), queryClient);
+    }
+
+export const getSettingsRemoveNtfyUrl = () => {
+
+
+
+
+  return `/api/v1/settings/ntfy/remove`
+}
+
+/**
+ * @summary Go back to the public ntfy server (owners only)
+ */
+export const settingsRemoveNtfy = async ( options?: Parameters<typeof fetcher>[1]): Promise<ChannelsStatus> => {
+
+  return fetcher<ChannelsStatus>(getSettingsRemoveNtfyUrl(),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+);}
+
+
+
+
+
+export const getSettingsRemoveNtfyMutationKey = () => ['settingsRemoveNtfy'] as const;
+
+export const getSettingsRemoveNtfyMutationOptions = <TError = ErrorModel,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof settingsRemoveNtfy>>, TError,void, TContext>, request?: SecondParameter<typeof fetcher>}
+): UseMutationOptions<Awaited<ReturnType<typeof settingsRemoveNtfy>>, TError,void, TContext> => {
+
+const mutationKey = getSettingsRemoveNtfyMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof settingsRemoveNtfy>>, void> = () => {
+
+
+          return  settingsRemoveNtfy(requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type SettingsRemoveNtfyMutationResult = NonNullable<Awaited<ReturnType<typeof settingsRemoveNtfy>>>
+
+    export type SettingsRemoveNtfyMutationError = ErrorModel
+
+
+    /**
+ * @summary Go back to the public ntfy server (owners only)
+ */
+export const useSettingsRemoveNtfy = <TError = ErrorModel,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof settingsRemoveNtfy>>, TError,void, TContext>, request?: SecondParameter<typeof fetcher>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof settingsRemoveNtfy>>,
+        TError,
+        void,
+        TContext
+      > => {
+      return useMutation(getSettingsRemoveNtfyMutationOptions(options), queryClient);
+    }
+
+export const getSettingsSetSmtpUrl = () => {
+
+
+
+
+  return `/api/v1/settings/smtp`
+}
+
+/**
+ * @summary Set the mail server for email reminders (owners only)
+ */
+export const settingsSetSmtp = async (sMTPInput: NonReadonly<SMTPInput>, options?: Parameters<typeof fetcher>[1]): Promise<ChannelsStatus> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return fetcher<ChannelsStatus>(getSettingsSetSmtpUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(sMTPInput)
+  }
+);}
+
+
+
+
+
+export const getSettingsSetSmtpMutationKey = () => ['settingsSetSmtp'] as const;
+
+export const getSettingsSetSmtpMutationOptions = <TError = ErrorModel,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof settingsSetSmtp>>, TError,SettingsSetSmtpMutationVariables, TContext>, request?: SecondParameter<typeof fetcher>}
+): UseMutationOptions<Awaited<ReturnType<typeof settingsSetSmtp>>, TError,SettingsSetSmtpMutationVariables, TContext> => {
+
+const mutationKey = getSettingsSetSmtpMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof settingsSetSmtp>>, SettingsSetSmtpMutationVariables> = (props) => {
+          const {data} = props ?? {};
+
+          return  settingsSetSmtp(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type SettingsSetSmtpMutationResult = NonNullable<Awaited<ReturnType<typeof settingsSetSmtp>>>
+    export type SettingsSetSmtpMutationBody = NonReadonly<SMTPInput>
+    export type SettingsSetSmtpMutationError = ErrorModel
+    export type SettingsSetSmtpMutationVariables = {data: NonReadonly<SMTPInput>}
+
+    /**
+ * @summary Set the mail server for email reminders (owners only)
+ */
+export const useSettingsSetSmtp = <TError = ErrorModel,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof settingsSetSmtp>>, TError,SettingsSetSmtpMutationVariables, TContext>, request?: SecondParameter<typeof fetcher>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof settingsSetSmtp>>,
+        TError,
+        SettingsSetSmtpMutationVariables,
+        TContext
+      > => {
+      return useMutation(getSettingsSetSmtpMutationOptions(options), queryClient);
+    }
+
+export const getSettingsRemoveSmtpUrl = () => {
+
+
+
+
+  return `/api/v1/settings/smtp/remove`
+}
+
+/**
+ * @summary Remove the mail server (owners only)
+ */
+export const settingsRemoveSmtp = async ( options?: Parameters<typeof fetcher>[1]): Promise<ChannelsStatus> => {
+
+  return fetcher<ChannelsStatus>(getSettingsRemoveSmtpUrl(),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+);}
+
+
+
+
+
+export const getSettingsRemoveSmtpMutationKey = () => ['settingsRemoveSmtp'] as const;
+
+export const getSettingsRemoveSmtpMutationOptions = <TError = ErrorModel,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof settingsRemoveSmtp>>, TError,void, TContext>, request?: SecondParameter<typeof fetcher>}
+): UseMutationOptions<Awaited<ReturnType<typeof settingsRemoveSmtp>>, TError,void, TContext> => {
+
+const mutationKey = getSettingsRemoveSmtpMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof settingsRemoveSmtp>>, void> = () => {
+
+
+          return  settingsRemoveSmtp(requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type SettingsRemoveSmtpMutationResult = NonNullable<Awaited<ReturnType<typeof settingsRemoveSmtp>>>
+
+    export type SettingsRemoveSmtpMutationError = ErrorModel
+
+
+    /**
+ * @summary Remove the mail server (owners only)
+ */
+export const useSettingsRemoveSmtp = <TError = ErrorModel,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof settingsRemoveSmtp>>, TError,void, TContext>, request?: SecondParameter<typeof fetcher>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof settingsRemoveSmtp>>,
+        TError,
+        void,
+        TContext
+      > => {
+      return useMutation(getSettingsRemoveSmtpMutationOptions(options), queryClient);
+    }
+
+export const getSettingsTestSmtpUrl = () => {
+
+
+
+
+  return `/api/v1/settings/smtp/test`
+}
+
+/**
+ * @summary Send a test email to your own address (owners only)
+ */
+export const settingsTestSmtp = async ( options?: Parameters<typeof fetcher>[1]): Promise<TestEmailOut> => {
+
+  return fetcher<TestEmailOut>(getSettingsTestSmtpUrl(),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+);}
+
+
+
+
+
+export const getSettingsTestSmtpMutationKey = () => ['settingsTestSmtp'] as const;
+
+export const getSettingsTestSmtpMutationOptions = <TError = ErrorModel,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof settingsTestSmtp>>, TError,void, TContext>, request?: SecondParameter<typeof fetcher>}
+): UseMutationOptions<Awaited<ReturnType<typeof settingsTestSmtp>>, TError,void, TContext> => {
+
+const mutationKey = getSettingsTestSmtpMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof settingsTestSmtp>>, void> = () => {
+
+
+          return  settingsTestSmtp(requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type SettingsTestSmtpMutationResult = NonNullable<Awaited<ReturnType<typeof settingsTestSmtp>>>
+
+    export type SettingsTestSmtpMutationError = ErrorModel
+
+
+    /**
+ * @summary Send a test email to your own address (owners only)
+ */
+export const useSettingsTestSmtp = <TError = ErrorModel,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof settingsTestSmtp>>, TError,void, TContext>, request?: SecondParameter<typeof fetcher>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof settingsTestSmtp>>,
+        TError,
+        void,
+        TContext
+      > => {
+      return useMutation(getSettingsTestSmtpMutationOptions(options), queryClient);
     }
 
 export const getSettingsTelegramUrl = () => {

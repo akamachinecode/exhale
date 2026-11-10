@@ -22,6 +22,7 @@ import (
 	"github.com/akamachinecode/exhale/internal/agents"
 	"github.com/akamachinecode/exhale/internal/app"
 	"github.com/akamachinecode/exhale/internal/auth"
+	"github.com/akamachinecode/exhale/internal/channels/notifiers"
 	"github.com/akamachinecode/exhale/internal/domain"
 	"github.com/akamachinecode/exhale/web"
 )
@@ -39,6 +40,9 @@ type Config struct {
 	// Telegram configures and reports the household's bot (nil when not
 	// available, e.g. in tests).
 	Telegram TelegramControl
+	// Channels runs the notify-only channels: email, ntfy and webhooks
+	// (nil when not available, e.g. when exporting the OpenAPI document).
+	Channels *notifiers.Manager
 	Log      *slog.Logger
 }
 
@@ -62,6 +66,7 @@ func New(svc *app.Service, cfg Config) (http.Handler, huma.API, error) {
 	aa := &authAPI{svc: svc, sm: sm, cfg: cfg}
 	registerAuth(api, aa)
 	registerSettings(api, aa)
+	registerChannels(api, aa)
 
 	mux.HandleFunc("GET /healthz", func(w http.ResponseWriter, _ *http.Request) { w.Write([]byte("ok")) })
 	mux.HandleFunc("GET /api/v1/events", events(svc))

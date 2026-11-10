@@ -27,6 +27,9 @@ type Message struct {
 	Rows     [][]Button
 	// Footer is shown in a muted style (e.g. "Moved by Claude · Undo").
 	Footer string
+	// Event is the data behind the message, for channels that only notify
+	// (email, ntfy, webhooks). Nil for screens that are not about a charge.
+	Event *Event
 }
 
 // Section is a titled block of a screen: a heading followed by lines and an
@@ -67,7 +70,9 @@ func (s Section) TableText() string {
 	return strings.Join(lines, "\n")
 }
 
-// Channel delivers messages to one chat platform.
+// Channel delivers messages to one chat platform. Channels that only notify
+// and cannot edit what they sent (email, ntfy, webhooks) return an empty
+// message id from Send; their messages are not tracked or re-edited.
 type Channel interface {
 	Name() string
 	Send(ctx context.Context, chatID string, m Message) (messageID string, err error)

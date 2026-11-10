@@ -355,13 +355,17 @@ func (e *Engine) Deliver(ctx context.Context, item app.OutboxItem) error {
 	var errs []error
 	for _, l := range links {
 		ch, ok := e.channels[l.Channel]
-		if !ok {
+		if !ok || e.delivered(ctx, item, l) {
 			continue
 		}
 		msgID, err := ch.Send(ctx, l.ExternalID, m)
 		if err != nil {
 			errs = append(errs, fmt.Errorf("%s: %w", l.Channel, err))
 			continue
+		}
+		e.markDelivered(ctx, item, l)
+		if msgID == "" {
+			continue // a notify-only channel: nothing to re-edit later
 		}
 		_ = e.svc.Store().Q.SaveMessage(ctx, db.SaveMessageParams{ID: domain.NewID("msg"), Channel: l.Channel, ChatID: l.ExternalID, MessageID: msgID, ChargeID: store.Ptr(item.ChargeID), MemberID: store.Ptr(item.MemberID), CreatedAt: store.FormatTime(time.Now())})
 	}

@@ -362,6 +362,47 @@
         ],
         "type": "object"
       },
+      "ChannelsStatus": {
+        "additionalProperties": false,
+        "properties": {
+          "$schema": {
+            "description": "A URL to the JSON Schema for this object.",
+            "examples": [
+              "https://example.com/api/schemas/ChannelsStatus.json"
+            ],
+            "format": "uri",
+            "readOnly": true,
+            "type": "string"
+          },
+          "allowPrivate": {
+            "description": "webhooks and ntfy may reach private-network addresses",
+            "type": "boolean"
+          },
+          "allowPrivateSource": {
+            "enum": [
+              "env",
+              "settings"
+            ],
+            "type": "string"
+          },
+          "ntfy": {
+            "$ref": "#/components/schemas/NtfyStatus"
+          },
+          "publicUrl": {
+            "description": "address used for links in messages; empty when the server was started without --public-url",
+            "type": "string"
+          },
+          "smtp": {
+            "$ref": "#/components/schemas/SMTPStatus"
+          }
+        },
+        "required": [
+          "allowPrivate",
+          "smtp",
+          "ntfy"
+        ],
+        "type": "object"
+      },
       "ChargeList": {
         "additionalProperties": false,
         "properties": {
@@ -657,6 +698,41 @@
         },
         "required": [
           "id"
+        ],
+        "type": "object"
+      },
+      "DestinationIn": {
+        "additionalProperties": false,
+        "properties": {
+          "$schema": {
+            "description": "A URL to the JSON Schema for this object.",
+            "examples": [
+              "https://example.com/api/schemas/DestinationIn.json"
+            ],
+            "format": "uri",
+            "readOnly": true,
+            "type": "string"
+          },
+          "channel": {
+            "enum": [
+              "email",
+              "ntfy",
+              "webhook"
+            ],
+            "type": "string"
+          },
+          "destination": {
+            "description": "email: the address; ntfy: your topic; webhook: the URL to POST to",
+            "type": "string"
+          },
+          "template": {
+            "description": "webhook only: JSON body with {{variables}}; empty sends the default body",
+            "type": "string"
+          }
+        },
+        "required": [
+          "channel",
+          "destination"
         ],
         "type": "object"
       },
@@ -1030,11 +1106,28 @@
       "LinkInfo": {
         "additionalProperties": false,
         "properties": {
+          "$schema": {
+            "description": "A URL to the JSON Schema for this object.",
+            "examples": [
+              "https://example.com/api/schemas/LinkInfo.json"
+            ],
+            "format": "uri",
+            "readOnly": true,
+            "type": "string"
+          },
           "channel": {
             "type": "string"
           },
           "createdAt": {
             "type": "string"
+          },
+          "destination": {
+            "description": "email address, ntfy topic or webhook host; empty for chat accounts",
+            "type": "string"
+          },
+          "hasTemplate": {
+            "description": "the webhook has its own body template",
+            "type": "boolean"
           },
           "id": {
             "type": "string"
@@ -1164,6 +1257,59 @@
         ],
         "type": "object"
       },
+      "NtfyInput": {
+        "additionalProperties": false,
+        "properties": {
+          "$schema": {
+            "description": "A URL to the JSON Schema for this object.",
+            "examples": [
+              "https://example.com/api/schemas/NtfyInput.json"
+            ],
+            "format": "uri",
+            "readOnly": true,
+            "type": "string"
+          },
+          "removeToken": {
+            "description": "forget the saved access token",
+            "type": "boolean"
+          },
+          "server": {
+            "description": "base address of the ntfy server; default https://ntfy.sh",
+            "type": "string"
+          },
+          "token": {
+            "description": "access token (tk_…), for servers that need one to publish; leave empty to keep the saved one",
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "NtfyStatus": {
+        "additionalProperties": false,
+        "properties": {
+          "hasToken": {
+            "description": "an access token is saved; it is never returned",
+            "type": "boolean"
+          },
+          "server": {
+            "description": "where members subscribe to their topic",
+            "type": "string"
+          },
+          "source": {
+            "description": "empty: the default public server",
+            "enum": [
+              "env",
+              "settings"
+            ],
+            "type": "string"
+          }
+        },
+        "required": [
+          "server",
+          "hasToken"
+        ],
+        "type": "object"
+      },
       "PasswordIn": {
         "additionalProperties": false,
         "properties": {
@@ -1285,6 +1431,28 @@
         ],
         "type": "object"
       },
+      "PrivateDestinationsIn": {
+        "additionalProperties": false,
+        "properties": {
+          "$schema": {
+            "description": "A URL to the JSON Schema for this object.",
+            "examples": [
+              "https://example.com/api/schemas/PrivateDestinationsIn.json"
+            ],
+            "format": "uri",
+            "readOnly": true,
+            "type": "string"
+          },
+          "allowPrivate": {
+            "description": "let webhooks and ntfy reach private-network addresses (a server on your LAN); loopback and cloud metadata addresses stay blocked",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "allowPrivate"
+        ],
+        "type": "object"
+      },
       "ReminderPolicy": {
         "additionalProperties": false,
         "properties": {
@@ -1337,6 +1505,100 @@
           "interval",
           "unit",
           "anchor"
+        ],
+        "type": "object"
+      },
+      "SMTPInput": {
+        "additionalProperties": false,
+        "properties": {
+          "$schema": {
+            "description": "A URL to the JSON Schema for this object.",
+            "examples": [
+              "https://example.com/api/schemas/SMTPInput.json"
+            ],
+            "format": "uri",
+            "readOnly": true,
+            "type": "string"
+          },
+          "from": {
+            "description": "sender address, e.g. reminders@example.com",
+            "type": "string"
+          },
+          "host": {
+            "description": "SMTP server, e.g. smtp.example.com",
+            "type": "string"
+          },
+          "password": {
+            "description": "leave empty to keep the saved password",
+            "type": "string"
+          },
+          "port": {
+            "description": "default: 587 with starttls, 465 with tls, 25 with none",
+            "format": "int64",
+            "type": "integer"
+          },
+          "tls": {
+            "description": "starttls (default), tls (implicit, port 465) or none (local relays)",
+            "enum": [
+              "starttls",
+              "tls",
+              "none"
+            ],
+            "type": "string"
+          },
+          "username": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "host",
+          "from"
+        ],
+        "type": "object"
+      },
+      "SMTPStatus": {
+        "additionalProperties": false,
+        "properties": {
+          "configured": {
+            "type": "boolean"
+          },
+          "from": {
+            "type": "string"
+          },
+          "hasPassword": {
+            "description": "a password is saved; it is never returned",
+            "type": "boolean"
+          },
+          "host": {
+            "type": "string"
+          },
+          "port": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "source": {
+            "description": "env: set by EXHALE_SMTP_* on the server and not editable in the web",
+            "enum": [
+              "env",
+              "settings"
+            ],
+            "type": "string"
+          },
+          "tls": {
+            "enum": [
+              "starttls",
+              "tls",
+              "none"
+            ],
+            "type": "string"
+          },
+          "username": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "configured",
+          "hasPassword"
         ],
         "type": "object"
       },
@@ -1861,6 +2123,49 @@
         ],
         "type": "object"
       },
+      "TestEmailOut": {
+        "additionalProperties": false,
+        "properties": {
+          "$schema": {
+            "description": "A URL to the JSON Schema for this object.",
+            "examples": [
+              "https://example.com/api/schemas/TestEmailOut.json"
+            ],
+            "format": "uri",
+            "readOnly": true,
+            "type": "string"
+          },
+          "sentTo": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "sentTo"
+        ],
+        "type": "object"
+      },
+      "TestLinkIn": {
+        "additionalProperties": false,
+        "properties": {
+          "$schema": {
+            "description": "A URL to the JSON Schema for this object.",
+            "examples": [
+              "https://example.com/api/schemas/TestLinkIn.json"
+            ],
+            "format": "uri",
+            "readOnly": true,
+            "type": "string"
+          },
+          "id": {
+            "description": "id of one of your links",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id"
+        ],
+        "type": "object"
+      },
       "TokenIn": {
         "additionalProperties": false,
         "properties": {
@@ -2335,7 +2640,48 @@
             "description": "Error"
           }
         },
-        "summary": "Your linked chat accounts",
+        "summary": "Your linked chat accounts and notification destinations",
+        "tags": [
+          "Auth"
+        ]
+      }
+    },
+    "/api/v1/auth/links/destination": {
+      "post": {
+        "operationId": "auth_add_destination",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DestinationIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LinkInfo"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorModel"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "summary": "Add an email address, ntfy topic or webhook for your reminders",
         "tags": [
           "Auth"
         ]
@@ -2367,6 +2713,47 @@
           }
         },
         "summary": "Get a one-time code to link Telegram",
+        "tags": [
+          "Auth"
+        ]
+      }
+    },
+    "/api/v1/auth/links/test": {
+      "post": {
+        "operationId": "auth_test_link",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TestLinkIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Empty"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorModel"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "summary": "Send a test reminder to one of your destinations",
         "tags": [
           "Auth"
         ]
@@ -2407,7 +2794,7 @@
             "description": "Error"
           }
         },
-        "summary": "Unlink a chat account",
+        "summary": "Unlink a chat account or remove a destination",
         "tags": [
           "Auth"
         ]
@@ -3258,6 +3645,251 @@
         "summary": "Preview charge dates",
         "tags": [
           "Charges"
+        ]
+      }
+    },
+    "/api/v1/settings/channels": {
+      "get": {
+        "operationId": "settings_channels",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ChannelsStatus"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorModel"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "summary": "Email, ntfy and webhook setup",
+        "tags": [
+          "Settings"
+        ]
+      },
+      "post": {
+        "operationId": "settings_set_channels",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PrivateDestinationsIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ChannelsStatus"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorModel"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "summary": "Allow or block private-network destinations (owners only)",
+        "tags": [
+          "Settings"
+        ]
+      }
+    },
+    "/api/v1/settings/ntfy": {
+      "post": {
+        "operationId": "settings_set_ntfy",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/NtfyInput"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ChannelsStatus"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorModel"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "summary": "Set the ntfy server (owners only)",
+        "tags": [
+          "Settings"
+        ]
+      }
+    },
+    "/api/v1/settings/ntfy/remove": {
+      "post": {
+        "operationId": "settings_remove_ntfy",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ChannelsStatus"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorModel"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "summary": "Go back to the public ntfy server (owners only)",
+        "tags": [
+          "Settings"
+        ]
+      }
+    },
+    "/api/v1/settings/smtp": {
+      "post": {
+        "operationId": "settings_set_smtp",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SMTPInput"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ChannelsStatus"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorModel"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "summary": "Set the mail server for email reminders (owners only)",
+        "tags": [
+          "Settings"
+        ]
+      }
+    },
+    "/api/v1/settings/smtp/remove": {
+      "post": {
+        "operationId": "settings_remove_smtp",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ChannelsStatus"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorModel"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "summary": "Remove the mail server (owners only)",
+        "tags": [
+          "Settings"
+        ]
+      }
+    },
+    "/api/v1/settings/smtp/test": {
+      "post": {
+        "operationId": "settings_test_smtp",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TestEmailOut"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorModel"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "summary": "Send a test email to your own address (owners only)",
+        "tags": [
+          "Settings"
         ]
       }
     },

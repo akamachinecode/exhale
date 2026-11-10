@@ -59,6 +59,7 @@ func chargeMessage(kind string, r app.ChargeResult, today engine.Date, locale st
 			{{Label: "⏭ Skip this one", Data: data(vSkip, id)}, {Label: "❌ Cancel subscription", Data: data(vCancel, id)}},
 		}
 	}
+	m.Event = chargeEvent(kind, r, today)
 	return m
 }
 
