@@ -12,7 +12,7 @@ It does not need a public address. Telegram is reached with outgoing connections
 | Debian, Ubuntu, Raspberry Pi OS, Fedora, RHEL | The `.deb` or `.rpm` package: installs a system service | [Linux](linux.md#packages-deb-and-rpm) |
 | Another Linux with systemd | The install script: same service, no package manager | [Linux](linux.md#install-script) |
 | A Mac that stays on | The binary and a launchd agent | [macOS](macos.md) |
-| Windows | The binary from the release `.zip`, started by hand (`exhale.exe serve`). There is no Windows service installer yet | |
+| Windows | The binary from the release `.zip`, started by hand (`exhale.exe serve`). There is no Windows service installer yet. To keep the PC from sleeping while Exhale runs, see [Keep the computer awake](#keep-the-computer-awake) | |
 
 All of them run the same binary with the same settings. The same instance serves a home or a small team: see [Exhale for a team](../guides/teams.md).
 
@@ -24,6 +24,17 @@ All of them run the same binary with the same settings. The same instance serves
 2. **Add your Telegram bot** from the web (Settings → Telegram). The page guides you through @BotFather.
 3. **Decide how you reach it.** At home, plain `http://` on your network is fine. From outside, use Tailscale or HTTPS: [HTTPS and remote access](https.md). Never forward the plain HTTP port to the internet.
 4. **Check your backups.** Exhale copies its database once a day and keeps 14 copies. Put them on another disk: [Backups](backups.md).
+
+## Keep the computer awake
+
+On a desktop Mac or Windows PC, let Exhale keep the machine from sleeping: in the web, **Settings → General → This computer** (owners), choose *Always* or *Only between two times*. The display still turns off unless you untick *Let the display sleep*. Exhale stops holding the machine when it exits.
+
+- **Windows**: Exhale asks Windows itself (`SetThreadExecutionState`), nothing to install. Sleep you ask for (Start → Sleep, closing a laptop lid) still happens.
+- **macOS**: see [macOS](macos.md#keep-the-mac-awake).
+- **Linux**: Exhale takes a `systemd-inhibit` lock. A desktop session may; a system service usually needs a polkit rule, and the web shows the refusal until then. Most Linux servers never sleep anyway.
+- **Docker**: not available: the container cannot keep its host awake. Use the host's own settings.
+
+A laptop with its lid closed sleeps whatever Exhale asks.
 
 ## Settings
 

@@ -44,6 +44,7 @@ Accepted ADRs are not rewritten. A decision that changes gets a new ADR that sup
 | [0027](0027-logos-and-documents.md) | Own logos and documents: stored in the database, served as inert files | Accepted |
 | [0024](0024-oauth-authorization-server.md) | Remote MCP: own minimal OAuth 2.1 authorization server | Accepted |
 | [0026](0026-web-push.md) | Web Push from the installed app, on the standard library | Accepted |
+| [0028](0028-keep-awake.md) | Keep this computer awake, from the web, without cgo | Accepted |
 
 Open questions are tracked in [../open-questions.md](../open-questions.md).
 
