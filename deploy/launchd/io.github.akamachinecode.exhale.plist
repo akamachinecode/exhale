@@ -1,0 +1,46 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!--
+  Exhale as a launchd agent: starts when you log in and is restarted if it
+  stops with an error.
+
+    cp io.github.akamachinecode.exhale.plist ~/Library/LaunchAgents/
+    launchctl bootstrap gui/$(id -u) ~/Library/LaunchAgents/io.github.akamachinecode.exhale.plist
+
+  Data: ~/Library/Application Support/Exhale    Logs: ~/Library/Logs/Exhale.log
+  Docs: https://github.com/akamachinecode/exhale/blob/main/docs/install/macos.md
+-->
+<plist version="1.0">
+<dict>
+	<key>Label</key>
+	<string>io.github.akamachinecode.exhale</string>
+
+	<!-- launchd does not expand ~ or $HOME in log paths, so a shell does it.
+	     Change /usr/local/bin/exhale if you put the binary elsewhere. -->
+	<key>ProgramArguments</key>
+	<array>
+		<string>/bin/sh</string>
+		<string>-c</string>
+		<string>exec /usr/local/bin/exhale serve >> "$HOME/Library/Logs/Exhale.log" 2>&amp;1</string>
+	</array>
+
+	<!-- Settings: the same EXHALE_* names as the flags of `exhale serve`. -->
+	<key>EnvironmentVariables</key>
+	<dict>
+		<key>EXHALE_LISTEN</key>
+		<string>127.0.0.1:8484</string>
+	</dict>
+
+	<key>RunAtLoad</key>
+	<true/>
+	<key>KeepAlive</key>
+	<dict>
+		<key>SuccessfulExit</key>
+		<false/>
+	</dict>
+	<key>ThrottleInterval</key>
+	<integer>10</integer>
+	<key>ProcessType</key>
+	<string>Background</string>
+</dict>
+</plist>
