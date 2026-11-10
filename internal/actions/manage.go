@@ -11,6 +11,7 @@ import (
 	"github.com/akamachinecode/exhale/internal/app"
 	"github.com/akamachinecode/exhale/internal/domain"
 	"github.com/akamachinecode/exhale/internal/engine"
+	"github.com/akamachinecode/exhale/internal/i18n"
 	"github.com/akamachinecode/exhale/internal/importer"
 )
 
@@ -50,7 +51,7 @@ const (
 	actUndo     = "u" // u|aud_id
 	scrSettings = "set"
 	actSetAsk   = "sf"  // sf|field          (typed: time, payday, currency)
-	actSetLang  = "sl"  // sl|en|es
+	actSetLang  = "sl"  // sl|code (sl alone: the list of languages)
 	scrCheckup  = "chk" // the audit
 )
 
@@ -275,6 +276,10 @@ func (e *Engine) manage(ctx context.Context, actor app.Actor, chat ChatRef, p []
 		return ask(flowState{Kind: "set", Field: arg(2)}, tr(locale, "⚙️ Settings"), hints[arg(2)])
 	case actSetLang:
 		lang := arg(2)
+		if lang == "" {
+			m, err := e.languagesScreen(ctx, actor)
+			return view(m, err, route(actSetLang))
+		}
 		if _, err := e.svc.UpdateHousehold(ctx, actor, app.UpdateHouseholdInput{Locale: &lang}); err != nil {
 			return Reply{}, "", true, err
 		}
@@ -969,7 +974,7 @@ func (e *Engine) settingsScreen(ctx context.Context, actor app.Actor) (Message, 
 	if h.Payday > 0 {
 		payday = tr(locale, "day %d", h.Payday)
 	}
-	lang := map[string]string{"en": "English", "es": "Español"}[h.Locale]
+	lang := i18n.Name(h.Locale)
 	m := Message{Title: tr(locale, "⚙️ Settings"), Sections: []Section{{Table: [][]string{
 		{tr(locale, "Reminders at"), fmt.Sprintf("%02d:%02d", h.ReminderHour, h.ReminderMinute)},
 		{tr(locale, "Time zone"), h.Timezone},
@@ -978,16 +983,43 @@ func (e *Engine) settingsScreen(ctx context.Context, actor app.Actor) (Message, 
 		{tr(locale, "Language"), lang},
 		{tr(locale, "Ask again"), repeatText(h.ConfirmTimes, h.ConfirmEveryDays, locale)},
 	}}}, Lines: []string{tr(locale, "They apply to everyone you share Exhale with.")}}
-	other, otherLabel := "es", "Español"
-	if h.Locale == "es" {
-		other, otherLabel = "en", "English"
+	// Two languages: a button to the other one. More: a list of them.
+	language := Button{Label: tr(locale, "🌐 Language"), Data: route(actSetLang)}
+	if others := otherLanguages(h.Locale); len(others) == 1 {
+		language = Button{Label: "🌐 " + others[0].Name, Data: route(actSetLang, others[0].Code)}
 	}
 	m.Rows = [][]Button{
 		{{Label: tr(locale, "🕘 Reminder time"), Data: route(actSetAsk, "time")}, {Label: tr(locale, "💰 Payday"), Data: route(actSetAsk, "payday")}},
-		{{Label: tr(locale, "💱 Currency"), Data: route(actSetAsk, "currency")}, {Label: "🌐 " + otherLabel, Data: route(actSetLang, other)}},
+		{{Label: tr(locale, "💱 Currency"), Data: route(actSetAsk, "currency")}, language},
 		{{Label: tr(locale, "💳 Payment methods"), Data: route(scrMethods)}, {Label: tr(locale, "🔁 Ask again"), Data: route(scrRepeat)}},
 		homeRow(locale),
 	}
+	return m, nil
+}
+
+// otherLanguages lists the registered languages but one.
+func otherLanguages(code string) []i18n.Language {
+	var out []i18n.Language
+	for _, l := range i18n.Languages() {
+		if l.Code != code {
+			out = append(out, l)
+		}
+	}
+	return out
+}
+
+// languagesScreen lists every language by its own name, for the household.
+func (e *Engine) languagesScreen(ctx context.Context, actor app.Actor) (Message, error) {
+	_, locale := e.context(ctx, actor)
+	info, err := e.svc.GetHousehold(ctx, actor, struct{}{})
+	if err != nil {
+		return Message{}, err
+	}
+	m := Message{Title: tr(locale, "🌐 Language"), Lines: []string{tr(locale, "They apply to everyone you share Exhale with.")}}
+	for _, l := range otherLanguages(info.Household.Locale) {
+		m.Rows = append(m.Rows, []Button{{Label: l.Name, Data: route(actSetLang, l.Code)}})
+	}
+	m.Rows = append(m.Rows, []Button{{Label: tr(locale, "↩︎ Back"), Data: route(scrSettings)}})
 	return m, nil
 }
 

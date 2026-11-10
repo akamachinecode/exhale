@@ -64,7 +64,7 @@ func HouseholdFromRow(r db.Household) domain.Household {
 }
 
 func MemberFromRow(r db.Member) domain.Member {
-	return domain.Member{ID: r.ID, HouseholdID: r.HouseholdID, Name: r.Name, Email: r.Email, Role: domain.Role(r.Role)}
+	return domain.Member{ID: r.ID, HouseholdID: r.HouseholdID, Name: r.Name, Email: r.Email, Role: domain.Role(r.Role), Locale: r.Locale}
 }
 
 func CategoryFromRow(r db.Category) domain.Category {

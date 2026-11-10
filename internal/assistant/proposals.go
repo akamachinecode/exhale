@@ -127,7 +127,7 @@ func (a *Assistant) today(ctx context.Context, actor app.Actor) (engine.Date, st
 	if err != nil {
 		return engine.DateOf(a.svc.Now()), "en"
 	}
-	return info.Today, info.Household.Locale
+	return info.Today, info.LanguageOf(actor.MemberID)
 }
 
 func (s stored) outcome() Outcome {

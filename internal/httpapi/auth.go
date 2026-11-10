@@ -79,6 +79,7 @@ type SessionUser struct {
 	Role        domain.Role `json:"role"`
 	HasPassword bool        `json:"hasPassword" doc:"the account has a password (accounts made through single sign-on have none)"`
 	SSOHost     string      `json:"ssoHost,omitempty" doc:"host of the identity provider this account is linked to, if any"`
+	Locale      string      `json:"locale,omitempty" doc:"the language this person chose; empty: the household's"`
 }
 
 // SSOInfo describes the configured OpenID Connect provider.
@@ -93,6 +94,7 @@ type AuthSession struct {
 	SetupNeedsCode bool         `json:"setupNeedsCode" doc:"the wizard must ask for the setup code (request not from the server's machine)"`
 	HasHousehold   bool         `json:"hasHousehold" doc:"a household exists (made with exhale init); setup only creates the owner's login"`
 	User           *SessionUser `json:"user,omitempty"`
+	Language       string       `json:"language,omitempty" doc:"the language to show the signed-in person: their own, else the household's"`
 	TelegramBot    string       `json:"telegramBot,omitempty" doc:"username of the Telegram bot, when Telegram is enabled"`
 	SSO            *SSOInfo     `json:"sso,omitempty" doc:"present when single sign-on (OpenID Connect) is enabled; start it by navigating to /api/v1/auth/oidc/start"`
 	// PasswordLoginDisabled hides the password forms: sign-in, sign-up and
@@ -138,7 +140,11 @@ func (a *authAPI) session(ctx context.Context) (AuthSession, error) {
 	if actor, ok := auth.SessionActor(ctx, a.sm, st); ok {
 		m, err := st.Q.GetMember(ctx, actor.MemberID)
 		if err == nil {
-			out.User = &SessionUser{ID: m.ID, Name: m.Name, Email: m.Email, Role: domain.Role(m.Role), HasPassword: m.PasswordHash != "", SSOHost: auth.IdentityHost(m)}
+			out.User = &SessionUser{ID: m.ID, Name: m.Name, Email: m.Email, Role: domain.Role(m.Role), HasPassword: m.PasswordHash != "", SSOHost: auth.IdentityHost(m), Locale: m.Locale}
+			out.Language = m.Locale
+			if h, err := st.Q.GetHousehold(ctx, m.HouseholdID); err == nil && out.Language == "" {
+				out.Language = h.Locale
+			}
 		}
 	}
 	// Only someone signed in learns whether the assistant is on.
@@ -257,6 +263,25 @@ func registerAuth(api huma.API, a *authAPI) {
 				return nil, httpError(err)
 			}
 			return &resp[empty]{}, nil
+		})
+
+	type languageIn struct {
+		Language string `json:"language" doc:"code of a registered language; empty follows the household's"`
+	}
+	huma.Register(api, authOp("auth_set_language", http.MethodPost, "/language", "Choose your own language (empty: the household's)"),
+		func(ctx context.Context, in *struct{ Body languageIn }) (*resp[AuthSession], error) {
+			actor, err := a.member(ctx)
+			if err != nil {
+				return nil, err
+			}
+			if err := auth.SetLanguage(ctx, a.svc.Store(), actor.MemberID, in.Body.Language); err != nil {
+				return nil, httpError(err)
+			}
+			s, err := a.session(ctx)
+			if err != nil {
+				return nil, httpError(err)
+			}
+			return &resp[AuthSession]{Body: s}, nil
 		})
 
 	type inviteIn struct {

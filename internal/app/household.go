@@ -9,6 +9,7 @@ import (
 	"github.com/akamachinecode/exhale/internal/bus"
 	"github.com/akamachinecode/exhale/internal/domain"
 	"github.com/akamachinecode/exhale/internal/engine"
+	"github.com/akamachinecode/exhale/internal/i18n"
 	"github.com/akamachinecode/exhale/internal/money"
 	"github.com/akamachinecode/exhale/internal/store"
 	"github.com/akamachinecode/exhale/internal/store/db"
@@ -63,7 +64,7 @@ func (s *Service) Bootstrap(ctx context.Context, in BootstrapInput) (Actor, erro
 	if _, err := time.LoadLocation(in.Timezone); err != nil || in.Timezone == "" {
 		return Actor{}, domain.Invalid("unknown time zone %q", in.Timezone)
 	}
-	in.Locale = cmp.Or(in.Locale, "en")
+	in.Locale = i18n.Match(in.Locale) // a registered language, else English
 	h := domain.Household{ID: domain.NewID(domain.PrefixHousehold), Name: in.HouseholdName, Currency: strings.ToUpper(in.Currency), Timezone: in.Timezone, Locale: in.Locale}
 	m := domain.Member{ID: domain.NewID(domain.PrefixMember), HouseholdID: h.ID, Name: in.OwnerName, Email: in.OwnerEmail, Role: domain.RoleOwner}
 	now := store.FormatTime(s.now())
@@ -98,6 +99,17 @@ type HouseholdInfo struct {
 	PaymentMethods []domain.PaymentMethod `json:"paymentMethods"`
 	Today          engine.Date            `json:"today" jsonschema:"today's date in the household time zone"`
 	Tags           []TagCount             `json:"tags" jsonschema:"every tag in use, with how many subscriptions carry it"`
+}
+
+// LanguageOf returns the language to speak to a member: their own, else
+// the household's.
+func (i HouseholdInfo) LanguageOf(memberID string) string {
+	for _, m := range i.Members {
+		if m.ID == memberID && m.Locale != "" {
+			return m.Locale
+		}
+	}
+	return i.Household.Locale
 }
 
 // GetHousehold returns the household reference data.
@@ -139,7 +151,7 @@ type UpdateHouseholdInput struct {
 	Name         *string `json:"name,omitempty" maxLength:"60"`
 	Currency     *string `json:"currency,omitempty" jsonschema:"display currency (ISO 4217): totals are converted into it"`
 	Timezone     *string `json:"timezone,omitempty" jsonschema:"IANA time zone, e.g. Europe/Madrid"`
-	Locale       *string `json:"locale,omitempty" jsonschema:"language of reminders: en or es"`
+	Locale       *string `json:"locale,omitempty" jsonschema:"language of reminders, and of everyone who has not chosen their own: a registered code such as en or es"`
 	ReminderTime *string `json:"reminderTime,omitempty" jsonschema:"default time of day for reminders, HH:MM; subscriptions still on the previous default move with it"`
 	Payday       *int    `json:"payday,omitempty" jsonschema:"day of the month the household gets paid, 1-31 (31 = last day); 0 clears it. Used to show what is due before the next payday" minimum:"0" maximum:"31"`
 	// Repeat until handled: how often an unanswered "was it charged?" comes back.
@@ -183,8 +195,8 @@ func (s *Service) UpdateHousehold(ctx context.Context, actor Actor, in UpdateHou
 			h.Timezone = *in.Timezone
 		}
 		if in.Locale != nil {
-			if *in.Locale != "en" && *in.Locale != "es" {
-				return domain.Invalid("language must be en or es")
+			if !i18n.Supported(*in.Locale) {
+				return domain.Invalid("unknown language %q", *in.Locale)
 			}
 			h.Locale = *in.Locale
 		}

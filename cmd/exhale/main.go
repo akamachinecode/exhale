@@ -236,7 +236,7 @@ type initCmd struct {
 	Email    string `help:"Your email (optional)."`
 	Currency string `default:"EUR" help:"Main currency (ISO 4217)."`
 	Timezone string `default:"Local" help:"IANA time zone, e.g. Europe/Madrid."`
-	Locale   string `default:"en" help:"Language for messages: en or es."`
+	Locale   string `default:"en" help:"Language for messages: a registered code such as en or es."`
 }
 
 func (c *initCmd) Run(ctx context.Context, g *globals) error {

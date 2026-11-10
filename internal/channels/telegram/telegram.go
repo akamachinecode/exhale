@@ -28,6 +28,7 @@ import (
 	"github.com/akamachinecode/exhale/internal/assistant"
 	"github.com/akamachinecode/exhale/internal/auth"
 	"github.com/akamachinecode/exhale/internal/domain"
+	"github.com/akamachinecode/exhale/internal/i18n"
 	"github.com/akamachinecode/exhale/internal/importer"
 	"github.com/akamachinecode/exhale/internal/store/db"
 )
@@ -92,9 +93,10 @@ const (
 	profileKey = "telegram_profile"
 )
 
-// publishProfile sets the bot's command menu (in English, and in Spanish for
-// people whose Telegram is in Spanish) and the texts people see before
-// pressing Start, so a fresh bot from BotFather needs no manual setup. It
+// publishProfile sets the bot's command menu (in English, and in every other
+// registered language for people whose Telegram speaks it) and the texts
+// people see before pressing Start, so a fresh bot from BotFather needs no
+// manual setup. It
 // only talks to Telegram when something changed: these calls are rate
 // limited, and a server that restarts often must not burn that limit.
 func (a *Adapter) publishProfile(ctx context.Context) {
@@ -102,7 +104,13 @@ func (a *Adapter) publishProfile(ctx context.Context) {
 	sum := sha256.New()
 	username, _ := a.username.Load().(string)
 	fmt.Fprint(sum, username, shortDescription, description)
-	for _, code := range []string{"", "es"} {
+	codes := []string{""} // the default menu, in English
+	for _, l := range i18n.Languages() {
+		if l.Code != i18n.Source {
+			codes = append(codes, l.Code)
+		}
+	}
+	for _, code := range codes {
 		for _, c := range actions.Commands {
 			cmd := models.BotCommand{Command: c.Command, Description: actions.CommandDescription(actions.Language(code), c.Description)}
 			menus[code] = append(menus[code], cmd)
@@ -115,7 +123,7 @@ func (a *Adapter) publishProfile(ctx context.Context) {
 		return
 	}
 	ok := true
-	for _, code := range []string{"", "es"} {
+	for _, code := range codes {
 		if _, err := a.b.SetMyCommands(ctx, &bot.SetMyCommandsParams{Commands: menus[code], LanguageCode: code}); err != nil {
 			a.log.Warn("telegram: could not set the command menu", "err", err)
 			ok = false
