@@ -680,6 +680,11 @@ func (a *Adapter) handleAction(ctx context.Context, cb slackapi.InteractionCallb
 		return
 	}
 	t.actor = actor.Label
+	if t.ts != "" && !t.direct() && a.pressed != nil {
+		// Before the change is saved: saving tells the channel sync, which
+		// must not race this press and redraw the message without its Undo.
+		a.pressed(t.ts, t.actor)
+	}
 	rep, err := a.eng.Load().Handle(ctx, actor, chat, act.Value)
 	if err != nil {
 		a.log.Error("slack button", "data", act.Value, "err", safe(err))
