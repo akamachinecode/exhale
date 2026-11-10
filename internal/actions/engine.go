@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"strconv"
 	"strings"
 	"time"
 
@@ -144,12 +145,33 @@ func (e *Engine) handleCharge(ctx context.Context, actor app.Actor, chat ChatRef
 	case vReopen:
 		return status(string(domain.ChargePending), tr(locale, "Reopened"))
 	case vNotYet:
+		// Not charged yet: the question really comes back tomorrow.
+		if _, err := e.svc.Snooze(ctx, actor, app.SnoozeInput{ChargeID: chargeID, Kind: app.KindConfirm, Days: 1}); err != nil {
+			return e.fail(err)
+		}
 		m, err := e.Render(ctx, actor, app.KindConfirm, chargeID)
 		if err != nil {
 			return e.fail(err)
 		}
 		m.Footer = tr(locale, "OK — I'll ask again tomorrow.")
 		return Reply{Edit: &m, Toast: tr(locale, "I'll ask again tomorrow")}, nil
+	case vSnooze:
+		kind := snoozeKinds[arg(3)]
+		days, _ := strconv.Atoi(arg(2))
+		if kind == "" {
+			return Reply{Toast: tr(locale, "This button has expired.")}, nil
+		}
+		res, err := e.svc.Snooze(ctx, actor, app.SnoozeInput{ChargeID: chargeID, Kind: kind, Days: days})
+		if err != nil {
+			return e.fail(err)
+		}
+		m, err := e.Render(ctx, actor, kind, chargeID)
+		if err != nil {
+			return e.fail(err)
+		}
+		m = withoutSnooze(m)
+		m.Footer = snoozedText(res, today, locale)
+		return Reply{Edit: &m, Toast: tr(locale, "💤 Snoozed")}, nil
 	case vBack:
 		m, err := e.Render(ctx, actor, "", chargeID)
 		if err != nil {
@@ -458,7 +480,7 @@ func (e *Engine) Deliver(ctx context.Context, item app.OutboxItem) error {
 	if err != nil {
 		return err
 	}
-	m, err := e.Render(ctx, actor, item.Kind, item.ChargeID)
+	m, err := e.outboxMessage(ctx, actor, item)
 	if err != nil {
 		if errors.Is(err, domain.ErrNotFound) {
 			return nil // the charge is gone; nothing to say
