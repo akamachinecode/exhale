@@ -1,17 +1,32 @@
 import { Link, Outlet } from "@tanstack/react-router";
-import { Activity, Bot, CalendarDays, LayoutGrid, Moon, Repeat, Settings, Sun } from "lucide-react";
+import {
+	Activity,
+	Bot,
+	CalendarDays,
+	ChartNoAxesColumn,
+	LayoutGrid,
+	Moon,
+	Repeat,
+	Settings,
+	Stethoscope,
+	Sun,
+} from "lucide-react";
 import { useEffect, useState } from "react";
 import { SignOut } from "@/components/sign-out";
 import { useAuthSession } from "@/gen/api";
 import { useLiveEvents } from "@/lib/events";
 import { cn } from "@/lib/utils";
 
+// `mobile` marks the five destinations of the phone's bottom bar; the rest
+// are reached from Overview and Settings there.
 const nav = [
-	{ to: "/", label: "Overview", icon: LayoutGrid },
-	{ to: "/subscriptions", label: "Subscriptions", icon: Repeat },
-	{ to: "/calendar", label: "Calendar", icon: CalendarDays },
-	{ to: "/activity", label: "Activity", icon: Activity },
-	{ to: "/agents", label: "AI agents", icon: Bot },
+	{ to: "/", label: "Overview", short: "Overview", icon: LayoutGrid, mobile: true },
+	{ to: "/subscriptions", label: "Subscriptions", short: "Subs", icon: Repeat, mobile: true },
+	{ to: "/calendar", label: "Calendar", short: "Calendar", icon: CalendarDays, mobile: true },
+	{ to: "/insights", label: "Insights", short: "Insights", icon: ChartNoAxesColumn, mobile: true },
+	{ to: "/checkup", label: "Check-up", short: "Check-up", icon: Stethoscope, mobile: true },
+	{ to: "/activity", label: "Activity", short: "Activity", icon: Activity, mobile: false },
+	{ to: "/agents", label: "AI agents", short: "Agents", icon: Bot, mobile: false },
 ] as const;
 
 function useTheme() {
@@ -122,18 +137,20 @@ export function Layout() {
 				</main>
 			</div>
 			<nav className="fixed inset-x-0 bottom-0 z-40 grid grid-cols-5 border-t border-line bg-surface/95 px-1 pt-1.5 pb-[max(0.375rem,env(safe-area-inset-bottom))] backdrop-blur md:hidden">
-				{nav.map(({ to, label, icon: Icon }) => (
-					<Link
-						key={to}
-						to={to}
-						activeOptions={{ exact: to === "/" }}
-						className="flex flex-col items-center gap-0.5 rounded-lg py-1 text-[11px] text-muted"
-						activeProps={{ className: "!text-accent font-medium" }}
-					>
-						<Icon className="size-5" />
-						{label.replace("AI agents", "Agents")}
-					</Link>
-				))}
+				{nav
+					.filter((n) => n.mobile)
+					.map(({ to, short, icon: Icon }) => (
+						<Link
+							key={to}
+							to={to}
+							activeOptions={{ exact: to === "/" }}
+							className="flex flex-col items-center gap-0.5 rounded-lg py-1 text-[11px] text-muted"
+							activeProps={{ className: "!text-accent font-medium" }}
+						>
+							<Icon className="size-5" />
+							{short}
+						</Link>
+					))}
 			</nav>
 		</div>
 	);

@@ -9,6 +9,8 @@ import { ActivityPage } from "@/routes/activity";
 import { AgentsPage } from "@/routes/agents";
 import { JoinPage, Root } from "@/routes/auth";
 import { Calendar } from "@/routes/calendar";
+import { Checkup } from "@/routes/checkup";
+import { Insights } from "@/routes/insights";
 import { Overview } from "@/routes/overview";
 import { SettingsPage } from "@/routes/settings";
 import { SubscriptionDetail } from "@/routes/subscription-detail";
@@ -38,6 +40,8 @@ const routeTree = root.addChildren([
 			month: str(s.month)?.match(/^\d{4}-\d{2}$/)?.[0],
 		}),
 	}),
+	createRoute({ getParentRoute: () => root, path: "/insights", component: Insights }),
+	createRoute({ getParentRoute: () => root, path: "/checkup", component: Checkup }),
 	createRoute({ getParentRoute: () => root, path: "/activity", component: ActivityPage }),
 	createRoute({ getParentRoute: () => root, path: "/agents", component: AgentsPage }),
 	createRoute({ getParentRoute: () => root, path: "/settings", component: SettingsPage }),

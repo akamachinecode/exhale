@@ -1,5 +1,5 @@
 import { Link } from "@tanstack/react-router";
-import { AlertTriangle, ArrowRight, CreditCard, Plus } from "lucide-react";
+import { AlertTriangle, ArrowRight, Clock, CreditCard, Plus, Wallet } from "lucide-react";
 import { useState } from "react";
 import { ChargeActions } from "@/components/charge-actions";
 import { GetStarted, readGetStartedHidden } from "@/components/get-started";
@@ -25,6 +25,8 @@ export function Overview() {
 	const next7 = s?.next7Days ?? [];
 	const unconfirmed = attention.data?.unconfirmed ?? [];
 	const expiring = attention.data?.expiringPaymentMethods ?? [];
+	const deadlines = attention.data?.deadlines ?? [];
+	const payday = s?.beforePayday;
 	const charges = upcoming.data?.charges ?? [];
 	const byCat = s?.byCategory ?? [];
 	const methods = s?.byPaymentMethod ?? [];
@@ -41,7 +43,7 @@ export function Overview() {
 			),
 		);
 	const fxNote = s?.converted ? `other currencies at ECB rates of ${date(s.ratesDate)}` : undefined;
-	const attentionCount = unconfirmed.length + expiring.length;
+	const attentionCount = unconfirmed.length + expiring.length + deadlines.length;
 	const empty = s && s.activeSubscriptions === 0;
 
 	return (
@@ -84,7 +86,15 @@ export function Overview() {
 				<Kpi
 					label="Needs attention"
 					value={String(attentionCount)}
-					hint={unconfirmed.length ? "unconfirmed charges" : "all clear"}
+					hint={
+						unconfirmed.length
+							? "unconfirmed charges"
+							: deadlines.length
+								? "deadlines close"
+								: expiring.length
+									? "a card expires soon"
+									: "all clear"
+					}
 					tone={attentionCount > 0 ? "warn" : undefined}
 				/>
 			</div>
@@ -111,9 +121,36 @@ export function Overview() {
 											Needs attention
 										</span>
 									}
-									description="Charges whose date passed without confirmation."
+									description="Dates that passed without an answer, and deadlines that are close."
+									action={
+										<Link
+											to="/checkup"
+											className="inline-flex shrink-0 items-center gap-1 text-[13px] whitespace-nowrap text-muted hover:text-fg"
+										>
+											Check-up <ArrowRight className="size-3.5" />
+										</Link>
+									}
 								/>
 								<ul className="divide-y divide-line border-t border-line">
+									{deadlines.map((c) => (
+										<li key={`d-${c.id}`} className="flex items-center gap-3 px-5 py-3 text-sm">
+											<Clock className="size-4 shrink-0 text-warn" />
+											<span className="min-w-0 flex-1">
+												<Link
+													to="/subscriptions/$id"
+													params={{ id: c.subscriptionId }}
+													className="font-medium hover:underline"
+												>
+													{c.subscriptionName}
+												</Link>{" "}
+												<span className="text-muted">
+													{c.kind === "trial"
+														? `free trial ends ${date(c.dueDate, "long")}, then ${money(c.amount)}`
+														: `cancel by ${date(c.cancelBy, "long")} or it renews for ${money(c.amount)}`}
+												</span>
+											</span>
+										</li>
+									))}
 									{unconfirmed.map((c) => (
 										<ChargeRow key={c.id} charge={c} />
 									))}
@@ -126,6 +163,18 @@ export function Overview() {
 										</li>
 									))}
 								</ul>
+							</Card>
+						)}
+						{payday && (payday.charges ?? []).length > 0 && (
+							<Card className="flex items-center gap-3 px-5 py-3.5 text-sm">
+								<Wallet className="size-4 shrink-0 text-muted" />
+								<span className="flex-1">
+									<span className="tnum font-medium">{money(payday.due)}</span>{" "}
+									<span className="text-muted">
+										due before payday on {date(payday.payday, "day")} · {(payday.charges ?? []).length} charge
+										{(payday.charges ?? []).length === 1 ? "" : "s"}
+									</span>
+								</span>
 							</Card>
 						)}
 						<Card>

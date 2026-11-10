@@ -147,3 +147,29 @@ func TestManualRenewalIsNeverAutoConfirmed(t *testing.T) {
 		t.Fatalf("a domain does not renew by itself; status = %s", got.Upcoming[0].Status)
 	}
 }
+
+func TestChangingTheBillingCycle(t *testing.T) {
+	f := newFixture(t)
+	ctx := context.Background()
+	d := f.create(t, CreateSubscriptionInput{Name: "Notion", Price: "10.00", Currency: "EUR", Unit: "month", FirstCharge: "2026-11-12"})
+	// Paid monthly so far; it becomes yearly from 1 December, at another price.
+	if _, err := f.svc.SetChargeStatus(ctx, f.owner, SetChargeStatusInput{ChargeID: d.Upcoming[0].ID, Status: "paid"}); err != nil {
+		t.Fatal(err)
+	}
+	unit, next, price := "year", "2026-12-01", "96.00"
+	got, err := f.svc.UpdateSubscription(ctx, f.owner, UpdateSubscriptionInput{ID: d.Subscription.ID, Unit: &unit, NextCharge: &next, Price: &price})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got.Subscription.Cadence != "yearly" || got.Subscription.NextCharge.String() != "2026-12-01" || len(got.Upcoming) != 1 || got.Upcoming[0].Amount.String() != "96.00 EUR" {
+		t.Fatalf("after the change: %+v upcoming=%+v", got.Subscription, got.Upcoming)
+	}
+	if len(got.History) != 1 || got.History[0].Amount.String() != "10.00 EUR" {
+		t.Fatalf("the paid charge must stay: %+v", got.History)
+	}
+	end := "2027-06-30"
+	got, err = f.svc.UpdateSubscription(ctx, f.owner, UpdateSubscriptionInput{ID: d.Subscription.ID, EndDate: &end})
+	if err != nil || got.Subscription.Schedule.Until.String() != end {
+		t.Fatalf("end date: %v %+v", err, got.Subscription.Schedule)
+	}
+}

@@ -1,7 +1,10 @@
+import { Link } from "@tanstack/react-router";
 import { type FormEvent, type ReactNode, useState } from "react";
 import { toast } from "sonner";
 import { PreferencesForm, ReminderTime, Sharing, TelegramSetup, TokensManager } from "@/components/connect";
+import { CalendarLink, ExportData, ImportData } from "@/components/data";
 import { PageHeader } from "@/components/layout";
+import { Categories, Payday, PaymentMethods } from "@/components/manage";
 import { SignOut } from "@/components/sign-out";
 import { Button } from "@/components/ui/button";
 import { Card, CardHeader } from "@/components/ui/card";
@@ -15,6 +18,14 @@ export function SettingsPage() {
 	return (
 		<div className="mx-auto max-w-[760px]">
 			<PageHeader title="Settings" />
+			<p className="mb-5 flex gap-4 text-[13px] md:hidden">
+				<Link to="/activity" className="font-medium hover:underline">
+					Activity
+				</Link>
+				<Link to="/agents" className="font-medium hover:underline">
+					AI agents
+				</Link>
+			</p>
 			<div className="grid gap-5">
 				<Section
 					title="Account"
@@ -30,13 +41,29 @@ export function SettingsPage() {
 					<div className="grid gap-5">
 						<PreferencesForm />
 						<ReminderTime withTimezone={false} />
+						<Payday />
 					</div>
+				</Section>
+				<Section title="Payment methods" description="The cards and accounts that pay your subscriptions.">
+					<PaymentMethods />
+				</Section>
+				<Section title="Categories">
+					<Categories />
 				</Section>
 				<Section title="Telegram" description="Reminders you act on, and the whole app inside one message.">
 					<TelegramSetup />
 				</Section>
 				<Section title="Sharing">
 					<Sharing />
+				</Section>
+				<Section title="Calendar">
+					<CalendarLink />
+				</Section>
+				<Section title="Import">
+					<ImportData />
+				</Section>
+				<Section title="Export">
+					<ExportData />
 				</Section>
 				<Section
 					title="API tokens"

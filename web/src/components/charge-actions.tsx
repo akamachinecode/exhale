@@ -1,13 +1,19 @@
 import { Popover } from "@base-ui/react/popover";
 import { useQueryClient } from "@tanstack/react-query";
-import { CalendarClock, Check, X } from "lucide-react";
+import { CalendarClock, Check, Coins, X } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/field";
-import { type ChargeView, useChangeChargeDate, useSetChargeStatus, useUndo } from "@/gen/api";
+import {
+	type ChargeView,
+	useChangeChargeDate,
+	useSetChargeStatus,
+	useUndo,
+	useUpdateSubscription,
+} from "@/gen/api";
 import { ApiError } from "@/lib/fetcher";
-import { cn } from "@/lib/utils";
+import { cn, decimal, money } from "@/lib/utils";
 
 function useUndoToast() {
 	const qc = useQueryClient();
@@ -72,6 +78,7 @@ export function ChargeActions({
 				>
 					<X /> {!compact && "Failed"}
 				</Button>
+				<PaidAmount charge={charge} />
 				<MoveCharge charge={charge} />
 			</div>
 		);
@@ -95,6 +102,91 @@ export function ChargeActions({
 			</Button>
 			<MoveCharge charge={charge} />
 		</div>
+	);
+}
+
+const iconTrigger =
+	"inline-flex size-8 items-center justify-center rounded-lg text-sm text-muted transition-colors hover:bg-raised hover:text-fg";
+
+/** Paid, but the bank took another amount: record it and offer to make it the new price. */
+function PaidAmount({ charge }: { charge: ChargeView }) {
+	const qc = useQueryClient();
+	const [open, setOpen] = useState(false);
+	const [amount, setAmount] = useState(decimal(charge.amount));
+	const reprice = useUpdateSubscription({
+		mutation: {
+			onSuccess: () => {
+				qc.invalidateQueries();
+				toast.success("New price saved for the next charges");
+			},
+			onError: errorToast,
+		},
+	});
+	const pay = useSetChargeStatus({
+		mutation: {
+			onSuccess: (r) => {
+				qc.invalidateQueries();
+				setOpen(false);
+				const h = r.priceChange;
+				if (!h) {
+					toast.success(`${charge.subscriptionName} marked paid`);
+					return;
+				}
+				toast(`${charge.subscriptionName} took ${money(h.charged)} instead of ${money(h.expected)}`, {
+					description: `${h.changePercent}% · ${money(h.yearlyDelta)} a year. Is it the new price?`,
+					duration: 20_000,
+					action: {
+						label: "Yes, from now on",
+						onClick: () => reprice.mutate({ data: { id: charge.subscriptionId, price: decimal(h.charged) } }),
+					},
+				});
+			},
+			onError: errorToast,
+		},
+	});
+	return (
+		<Popover.Root open={open} onOpenChange={setOpen}>
+			<Popover.Trigger
+				className={iconTrigger}
+				aria-label={`${charge.subscriptionName} was paid at another amount`}
+				title="Paid, another amount"
+			>
+				<Coins className="size-4" />
+			</Popover.Trigger>
+			<Popover.Portal>
+				<Popover.Positioner sideOffset={6} align="end">
+					<Popover.Popup className="z-50 w-64 rounded-xl border border-line bg-surface p-4 shadow-xl">
+						<p className="text-sm font-semibold">How much did it take?</p>
+						<p className="mt-0.5 text-xs text-muted">Expected {money(charge.amount)}.</p>
+						<form
+							className="mt-3 grid gap-3"
+							onSubmit={(e) => {
+								e.preventDefault();
+								pay.mutate({
+									data: {
+										chargeId: charge.id,
+										status: "paid",
+										chargedAmount: amount.trim().replace(",", "."),
+									},
+								});
+							}}
+						>
+							<Input
+								autoFocus
+								inputMode="decimal"
+								className="tnum"
+								value={amount}
+								onChange={(e) => setAmount(e.target.value)}
+								aria-label="Amount charged"
+							/>
+							<Button type="submit" variant="primary" disabled={pay.isPending}>
+								Mark paid
+							</Button>
+						</form>
+					</Popover.Popup>
+				</Popover.Positioner>
+			</Popover.Portal>
+		</Popover.Root>
 	);
 }
 

@@ -1,14 +1,22 @@
-import { useForm, useStore } from "@tanstack/react-form";
 import { useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "@tanstack/react-router";
-import { useEffect, useState } from "react";
+import { ChevronDown } from "lucide-react";
+import { type FormEvent, type ReactNode, useEffect, useState } from "react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Dialog } from "@/components/ui/dialog";
 import { Field, Input, Select } from "@/components/ui/field";
-import { useCreateSubscription, useGetHousehold, usePreviewSchedule } from "@/gen/api";
+import {
+	type CreateSubscriptionInput,
+	type SubscriptionView,
+	type UpdateSubscriptionInput,
+	useCreateSubscription,
+	useGetHousehold,
+	usePreviewSchedule,
+	useUpdateSubscription,
+} from "@/gen/api";
 import { ApiError } from "@/lib/fetcher";
-import { date, todayISO } from "@/lib/utils";
+import { cn, date, decimal, todayISO } from "@/lib/utils";
 
 const units = [
 	{ value: "month", label: "Month" },
@@ -16,208 +24,489 @@ const units = [
 	{ value: "week", label: "Week" },
 	{ value: "day", label: "Day" },
 ] as const;
+type Unit = (typeof units)[number]["value"];
 
-export function NewSubscription({
+const reminderOptions = [0, 1, 3, 7, 14, 30];
+
+export function reminderLabel(d: number) {
+	return d === 0 ? "Same day" : d === 1 ? "1 day before" : `${d} days before`;
+}
+
+type Values = {
+	name: string;
+	price: string;
+	currency: string;
+	interval: number;
+	unit: Unit;
+	nextCharge: string;
+	categoryId: string;
+	paymentMethodId: string;
+	trial: boolean;
+	noticeDays: string;
+	manual: boolean;
+	startedOn: string;
+	endDate: string;
+	cancelUrl: string;
+	account: string;
+	url: string;
+	notes: string;
+	payerId: string;
+	reminderDays: number[];
+	shares: Record<string, number>;
+	priceFrom: string;
+	private: boolean;
+	autoConfirm: boolean;
+};
+
+function initial(s: SubscriptionView | undefined, currency: string): Values {
+	const rule = s?.schedule.versions?.at(-1)?.rule;
+	return {
+		name: s?.name ?? "",
+		price: s ? decimal(s.price) : "",
+		currency: s?.price.currency ?? currency,
+		interval: rule?.interval ?? 1,
+		unit: (rule?.unit as Unit) ?? "month",
+		nextCharge: s?.nextCharge ?? (s ? "" : todayISO()),
+		categoryId: s?.categoryId ?? "",
+		paymentMethodId: s?.paymentMethodId ?? "",
+		trial: Boolean(s?.trialEndsOn),
+		noticeDays: s?.noticeDays ? String(s.noticeDays) : "",
+		manual: s?.renewal === "manual",
+		startedOn: s?.startedOn ?? "",
+		endDate: s?.schedule.until ?? "",
+		cancelUrl: s?.cancelUrl ?? "",
+		account: s?.account ?? "",
+		url: s?.url ?? "",
+		notes: s?.notes ?? "",
+		payerId: s?.payerId ?? "",
+		reminderDays: s?.reminders.daysBefore ?? [3, 0],
+		shares: Object.fromEntries((s?.shares ?? []).map((x) => [x.memberId, x.weight])),
+		priceFrom: "",
+		private: s?.visibility === "private",
+		autoConfirm: s?.autoConfirm ?? false,
+	};
+}
+
+const same = (a: unknown, b: unknown) => JSON.stringify(a) === JSON.stringify(b);
+
+/** Creates a subscription, or edits one when `subscription` is given. */
+export function SubscriptionDialog({
 	open,
 	onOpenChange,
+	subscription,
 }: {
 	open: boolean;
 	onOpenChange: (o: boolean) => void;
+	subscription?: SubscriptionView;
 }) {
 	const household = useGetHousehold();
 	const qc = useQueryClient();
 	const navigate = useNavigate();
-	const [serverError, setServerError] = useState<string>();
 	const create = useCreateSubscription();
-	const form = useForm({
-		defaultValues: {
-			name: "",
-			price: "",
-			currency: household.data?.household.currency ?? "EUR",
-			interval: 1,
-			unit: "month" as (typeof units)[number]["value"],
-			firstCharge: todayISO(),
-			categoryId: "",
-			paymentMethodId: "",
-		},
-		onSubmit: async ({ value }) => {
-			setServerError(undefined);
-			try {
-				const res = await create.mutateAsync({ data: { ...value, price: value.price.replace(",", ".") } });
-				await qc.invalidateQueries();
-				toast.success(`${res.subscription.name} added`);
-				onOpenChange(false);
-				form.reset();
-				navigate({ to: "/subscriptions/$id", params: { id: res.subscription.id } });
-			} catch (e) {
-				setServerError(e instanceof ApiError ? e.detail : "Could not save");
-			}
-		},
-	});
-	const rule = useStore(form.store, (s) => ({
-		interval: s.values.interval,
-		unit: s.values.unit,
-		firstCharge: s.values.firstCharge,
-	}));
+	const update = useUpdateSubscription();
+	const editing = Boolean(subscription);
+	const base = initial(subscription, household.data?.household.currency ?? "EUR");
+	const [v, setV] = useState<Values>(base);
+	const [more, setMore] = useState(false);
+	const [error, setError] = useState<string>();
+	const set = <K extends keyof Values>(k: K, value: Values[K]) => setV((old) => ({ ...old, [k]: value }));
+	const mainCurrency = household.data?.household.currency;
+
+	// Reset whenever the dialog opens (for another subscription or a new one).
+	// biome-ignore lint/correctness/useExhaustiveDependencies: only when it opens
+	useEffect(() => {
+		if (open) {
+			setV(initial(subscription, mainCurrency ?? "EUR"));
+			setError(undefined);
+			setMore(false);
+		}
+	}, [open, subscription?.id, mainCurrency]);
+
 	const preview = usePreviewSchedule();
 	const { mutate } = preview;
 	// The web never computes charge dates: the engine previews them (ADR 0013).
 	useEffect(() => {
-		if (!open || !rule.firstCharge) return;
-		const t = setTimeout(() => mutate({ data: { ...rule, count: 4 } }), 250);
+		if (!open || !v.nextCharge) return;
+		const t = setTimeout(
+			() => mutate({ data: { interval: v.interval, unit: v.unit, firstCharge: v.nextCharge, count: 4 } }),
+			250,
+		);
 		return () => clearTimeout(t);
-	}, [open, rule.interval, rule.unit, rule.firstCharge, mutate, rule]);
+	}, [open, v.interval, v.unit, v.nextCharge, mutate]);
 
+	const members = household.data?.members ?? [];
+	const shares = Object.entries(v.shares)
+		.filter(([, w]) => w > 0)
+		.map(([memberId, weight]) => ({ memberId, weight }));
+	const priceChanged = editing && v.price.replace(",", ".") !== base.price;
+
+	const onSubmit = async (e: FormEvent) => {
+		e.preventDefault();
+		setError(undefined);
+		const price = v.price.trim().replace(",", ".");
+		if (!v.name.trim()) return setError("Give it a name.");
+		if (!/^\d+(\.\d{1,3})?$/.test(price)) return setError("The price should look like 12.99.");
+		if (!v.nextCharge && !editing) return setError("Choose the date of the next charge.");
+		try {
+			if (!subscription) {
+				const data: CreateSubscriptionInput = {
+					name: v.name.trim(),
+					price,
+					currency: v.currency,
+					interval: v.interval,
+					unit: v.unit,
+					firstCharge: v.nextCharge,
+					categoryId: v.categoryId || undefined,
+					paymentMethodId: v.paymentMethodId || undefined,
+					payerId: v.payerId || undefined,
+					trialEndsOn: v.trial ? v.nextCharge : undefined,
+					noticeDays: Number(v.noticeDays) || undefined,
+					renewal: v.manual ? "manual" : undefined,
+					startedOn: v.startedOn || undefined,
+					endDate: v.endDate || undefined,
+					cancelUrl: v.cancelUrl || undefined,
+					account: v.account || undefined,
+					url: v.url || undefined,
+					notes: v.notes || undefined,
+					reminderDays: v.reminderDays,
+					shares: shares.length ? shares : undefined,
+					private: v.private || undefined,
+					autoConfirm: v.autoConfirm || undefined,
+				};
+				const res = await create.mutateAsync({ data });
+				await qc.invalidateQueries();
+				toast.success(`${res.subscription.name} added`);
+				onOpenChange(false);
+				navigate({ to: "/subscriptions/$id", params: { id: res.subscription.id } });
+				return;
+			}
+			// Only what changed is sent, so nothing else moves.
+			const data: UpdateSubscriptionInput = { id: subscription.id };
+			if (v.name.trim() !== base.name) data.name = v.name.trim();
+			if (priceChanged) {
+				data.price = price;
+				if (v.priceFrom) data.priceFrom = v.priceFrom;
+			}
+			if (v.interval !== base.interval) data.interval = v.interval;
+			if (v.unit !== base.unit) data.unit = v.unit;
+			if (v.nextCharge && v.nextCharge !== base.nextCharge) data.nextCharge = v.nextCharge;
+			if (v.categoryId !== base.categoryId) data.categoryId = v.categoryId;
+			if (v.paymentMethodId !== base.paymentMethodId) data.paymentMethodId = v.paymentMethodId;
+			if (v.payerId !== base.payerId) data.payerId = v.payerId;
+			if (v.trial !== base.trial) data.trialEndsOn = v.trial ? v.nextCharge : "";
+			if (v.noticeDays !== base.noticeDays) data.noticeDays = Number(v.noticeDays) || 0;
+			if (v.manual !== base.manual) data.renewal = v.manual ? "manual" : "auto";
+			if (v.startedOn !== base.startedOn) data.startedOn = v.startedOn;
+			if (v.endDate !== base.endDate) data.endDate = v.endDate;
+			if (v.cancelUrl !== base.cancelUrl) data.cancelUrl = v.cancelUrl;
+			if (v.account !== base.account) data.account = v.account;
+			if (v.url !== base.url) data.url = v.url;
+			if (v.notes !== base.notes) data.notes = v.notes;
+			if (!same(v.reminderDays, base.reminderDays)) data.reminderDays = v.reminderDays;
+			if (!same(v.shares, base.shares)) data.shares = shares;
+			if (v.private !== base.private) data.private = v.private;
+			if (v.autoConfirm !== base.autoConfirm) data.autoConfirm = v.autoConfirm;
+			await update.mutateAsync({ data });
+			await qc.invalidateQueries();
+			toast.success("Saved");
+			onOpenChange(false);
+		} catch (err) {
+			setError(err instanceof ApiError ? err.detail : "Could not save");
+		}
+	};
+
+	const dateLabel = v.manual ? "Expires on" : v.trial ? "Trial ends" : "Next charge";
 	return (
 		<Dialog
 			open={open}
 			onOpenChange={onOpenChange}
-			title="New subscription"
-			description="Exhale computes every charge from the first one."
+			title={editing ? `Edit ${subscription?.name}` : "New subscription"}
+			description={editing ? undefined : "Exhale computes every charge from the first one."}
 		>
-			<form
-				className="grid gap-4"
-				onSubmit={(e) => {
-					e.preventDefault();
-					form.handleSubmit();
-				}}
-			>
-				<form.Field
-					name="name"
-					validators={{ onChange: ({ value }) => (value.trim() ? undefined : "Give it a name") }}
+			<form className="grid gap-4" onSubmit={onSubmit}>
+				<Field label="Service">
+					<Input
+						autoFocus={!editing}
+						placeholder="Netflix, Spotify Family…"
+						value={v.name}
+						onChange={(e) => set("name", e.target.value)}
+					/>
+				</Field>
+				<div className="grid grid-cols-[1fr_110px] gap-3">
+					<Field label={v.trial ? "Price after the trial" : "Price per charge"}>
+						<Input
+							inputMode="decimal"
+							placeholder="12.99"
+							className="tnum"
+							value={v.price}
+							onChange={(e) => set("price", e.target.value)}
+						/>
+					</Field>
+					<Field label="Currency">
+						<Input
+							maxLength={3}
+							disabled={editing}
+							value={v.currency}
+							onChange={(e) => set("currency", e.target.value.toUpperCase())}
+						/>
+					</Field>
+				</div>
+				{priceChanged && (
+					<Field label="New price starts on" hint="Leave empty to apply it from the next charge.">
+						<Input type="date" value={v.priceFrom} onChange={(e) => set("priceFrom", e.target.value)} />
+					</Field>
+				)}
+				<div className="grid grid-cols-[80px_1fr_1fr] gap-3">
+					<Field label="Every">
+						<Input
+							type="number"
+							min={1}
+							value={v.interval}
+							onChange={(e) => set("interval", Number(e.target.value) || 1)}
+						/>
+					</Field>
+					<Field label="Period">
+						<Select value={v.unit} onChange={(e) => set("unit", e.target.value as Unit)}>
+							{units.map((u) => (
+								<option key={u.value} value={u.value}>
+									{u.label}
+									{v.interval > 1 ? "s" : ""}
+								</option>
+							))}
+						</Select>
+					</Field>
+					<Field label={dateLabel}>
+						<Input type="date" value={v.nextCharge} onChange={(e) => set("nextCharge", e.target.value)} />
+					</Field>
+				</div>
+				{v.nextCharge && (
+					<div className="rounded-lg border border-dashed border-line bg-raised/60 px-3 py-2.5 text-xs text-muted">
+						<span className="font-medium text-fg">{v.manual ? "Would expire: " : "Next charges: "}</span>
+						{preview.data?.dates?.map((d) => date(d)).join(" · ") ?? "…"}
+					</div>
+				)}
+				<div className="grid grid-cols-2 gap-3">
+					<Field label="Category">
+						<Select value={v.categoryId} onChange={(e) => set("categoryId", e.target.value)}>
+							<option value="">None</option>
+							{household.data?.categories?.map((c) => (
+								<option key={c.id} value={c.id}>
+									{c.name}
+								</option>
+							))}
+						</Select>
+					</Field>
+					<Field label="Payment method">
+						<Select value={v.paymentMethodId} onChange={(e) => set("paymentMethodId", e.target.value)}>
+							<option value="">None</option>
+							{household.data?.paymentMethods?.map((p) => (
+								<option key={p.id} value={p.id}>
+									{p.name}
+									{p.last4 ? ` ••${p.last4}` : ""}
+								</option>
+							))}
+						</Select>
+					</Field>
+				</div>
+				<div className="flex flex-wrap gap-2">
+					<Chip on={v.trial} onClick={() => set("trial", !v.trial)}>
+						Free trial
+					</Chip>
+					<Chip on={v.manual} onClick={() => set("manual", !v.manual)}>
+						Expires unless renewed
+					</Chip>
+					<Chip on={v.noticeDays !== ""} onClick={() => set("noticeDays", v.noticeDays === "" ? "30" : "")}>
+						Needs notice to cancel
+					</Chip>
+				</div>
+				{v.noticeDays !== "" && (
+					<Field
+						label="Days of notice"
+						hint="Exhale reminds you a week before the last day to cancel, and on that day."
+					>
+						<Input
+							type="number"
+							min={1}
+							max={366}
+							className="w-28"
+							value={v.noticeDays}
+							onChange={(e) => set("noticeDays", e.target.value)}
+						/>
+					</Field>
+				)}
+				<button
+					type="button"
+					onClick={() => setMore(!more)}
+					aria-expanded={more}
+					className="flex items-center gap-1.5 text-[13px] font-medium text-muted hover:text-fg"
 				>
-					{(f) => (
-						<Field label="Service" error={f.state.meta.isTouched ? f.state.meta.errors[0] : undefined}>
-							<Input
-								autoFocus
-								placeholder="Netflix, Spotify Family…"
-								value={f.state.value}
-								onBlur={f.handleBlur}
-								onChange={(e) => f.handleChange(e.target.value)}
+					<ChevronDown className={cn("size-4 transition-transform", more && "rotate-180")} />
+					More details
+				</button>
+				{more && (
+					<div className="grid gap-4 border-t border-line pt-4">
+						<Field label="Remind me">
+							<div className="flex flex-wrap gap-2">
+								{reminderOptions.map((d) => (
+									<Chip
+										key={d}
+										on={v.reminderDays.includes(d)}
+										onClick={() =>
+											set(
+												"reminderDays",
+												(v.reminderDays.includes(d)
+													? v.reminderDays.filter((x) => x !== d)
+													: [...v.reminderDays, d]
+												).sort((a, b) => b - a),
+											)
+										}
+									>
+										{reminderLabel(d)}
+									</Chip>
+								))}
+							</div>
+						</Field>
+						<div className="grid grid-cols-2 gap-3">
+							<Field label="Subscribed since">
+								<Input type="date" value={v.startedOn} onChange={(e) => set("startedOn", e.target.value)} />
+							</Field>
+							<Field label="Ends on" hint="For fixed-term contracts.">
+								<Input type="date" value={v.endDate} onChange={(e) => set("endDate", e.target.value)} />
+							</Field>
+						</div>
+						<div className="grid grid-cols-2 gap-3">
+							<Field label="Cancel or manage page">
+								<Input
+									type="url"
+									placeholder="https://…"
+									value={v.cancelUrl}
+									onChange={(e) => set("cancelUrl", e.target.value)}
+								/>
+							</Field>
+							<Field label="Account">
+								<Input
+									placeholder="Login or email"
+									value={v.account}
+									onChange={(e) => set("account", e.target.value)}
+								/>
+							</Field>
+						</div>
+						{members.length > 1 && (
+							<>
+								<Field label="Paid by">
+									<Select value={v.payerId} onChange={(e) => set("payerId", e.target.value)}>
+										{!editing && <option value="">Me</option>}
+										{members.map((m) => (
+											<option key={m.id} value={m.id}>
+												{m.name}
+											</option>
+										))}
+									</Select>
+								</Field>
+								<Field
+									label="Split the cost"
+									hint="Choose who shares it; equal parts unless you change them."
+								>
+									<div className="grid gap-2">
+										{members.map((m) => (
+											<span key={m.id} className="flex items-center gap-3 text-sm">
+												<input
+													type="checkbox"
+													className="size-4 accent-[var(--accent)]"
+													checked={(v.shares[m.id] ?? 0) > 0}
+													onChange={(e) => set("shares", { ...v.shares, [m.id]: e.target.checked ? 1 : 0 })}
+													aria-label={`${m.name} shares it`}
+												/>
+												<span className="flex-1">{m.name}</span>
+												{(v.shares[m.id] ?? 0) > 0 && (
+													<Input
+														type="number"
+														min={1}
+														className="h-8 w-20"
+														aria-label={`Parts for ${m.name}`}
+														value={v.shares[m.id]}
+														onChange={(e) =>
+															set("shares", { ...v.shares, [m.id]: Math.max(1, Number(e.target.value) || 1) })
+														}
+													/>
+												)}
+											</span>
+										))}
+									</div>
+								</Field>
+							</>
+						)}
+						<Field label="Notes">
+							<textarea
+								rows={2}
+								className="w-full rounded-lg border border-line bg-surface px-3 py-2 text-sm text-fg placeholder:text-faint focus:border-accent focus:outline-2 focus:outline-accent/25"
+								value={v.notes}
+								onChange={(e) => set("notes", e.target.value)}
 							/>
 						</Field>
-					)}
-				</form.Field>
-				<div className="grid grid-cols-[1fr_110px] gap-3">
-					<form.Field
-						name="price"
-						validators={{
-							onChange: ({ value }) => (/^\d+([.,]\d{1,3})?$/.test(value.trim()) ? undefined : "e.g. 12.99"),
-						}}
-					>
-						{(f) => (
-							<Field
-								label="Price per charge"
-								error={f.state.meta.isTouched ? f.state.meta.errors[0] : undefined}
-							>
-								<Input
-									inputMode="decimal"
-									placeholder="12.99"
-									className="tnum"
-									value={f.state.value}
-									onBlur={f.handleBlur}
-									onChange={(e) => f.handleChange(e.target.value)}
-								/>
-							</Field>
-						)}
-					</form.Field>
-					<form.Field name="currency">
-						{(f) => (
-							<Field label="Currency">
-								<Input
-									maxLength={3}
-									value={f.state.value}
-									onChange={(e) => f.handleChange(e.target.value.toUpperCase())}
-								/>
-							</Field>
-						)}
-					</form.Field>
-				</div>
-				<div className="grid grid-cols-[80px_1fr_1fr] gap-3">
-					<form.Field name="interval">
-						{(f) => (
-							<Field label="Every">
-								<Input
-									type="number"
-									min={1}
-									value={f.state.value}
-									onChange={(e) => f.handleChange(Number(e.target.value) || 1)}
-								/>
-							</Field>
-						)}
-					</form.Field>
-					<form.Field name="unit">
-						{(f) => (
-							<Field label="Period">
-								<Select
-									value={f.state.value}
-									onChange={(e) => f.handleChange(e.target.value as typeof f.state.value)}
-								>
-									{units.map((u) => (
-										<option key={u.value} value={u.value}>
-											{u.label}
-											{rule.interval > 1 ? "s" : ""}
-										</option>
-									))}
-								</Select>
-							</Field>
-						)}
-					</form.Field>
-					<form.Field name="firstCharge">
-						{(f) => (
-							<Field label="Next charge">
-								<Input type="date" value={f.state.value} onChange={(e) => f.handleChange(e.target.value)} />
-							</Field>
-						)}
-					</form.Field>
-				</div>
-				<div className="rounded-lg border border-dashed border-line bg-raised/60 px-3 py-2.5 text-xs text-muted">
-					<span className="font-medium text-fg">Next charges: </span>
-					{preview.data?.dates?.map((d) => date(d)).join(" · ") ?? "…"}
-				</div>
-				<div className="grid grid-cols-2 gap-3">
-					<form.Field name="categoryId">
-						{(f) => (
-							<Field label="Category">
-								<Select value={f.state.value} onChange={(e) => f.handleChange(e.target.value)}>
-									<option value="">None</option>
-									{household.data?.categories?.map((c) => (
-										<option key={c.id} value={c.id}>
-											{c.name}
-										</option>
-									))}
-								</Select>
-							</Field>
-						)}
-					</form.Field>
-					<form.Field name="paymentMethodId">
-						{(f) => (
-							<Field label="Payment method">
-								<Select value={f.state.value} onChange={(e) => f.handleChange(e.target.value)}>
-									<option value="">None</option>
-									{household.data?.paymentMethods?.map((p) => (
-										<option key={p.id} value={p.id}>
-											{p.name}
-											{p.last4 ? ` ••${p.last4}` : ""}
-										</option>
-									))}
-								</Select>
-							</Field>
-						)}
-					</form.Field>
-				</div>
-				{serverError && <p className="rounded-lg bg-bad-soft px-3 py-2 text-sm text-bad">{serverError}</p>}
+						<div className="grid gap-2 text-sm">
+							<Check on={v.autoConfirm} onChange={(x) => set("autoConfirm", x)}>
+								Mark each charge paid on its day, without asking
+							</Check>
+							{members.length > 1 && (
+								<Check on={v.private} onChange={(x) => set("private", x)}>
+									Private: only its creator and payer see it
+								</Check>
+							)}
+						</div>
+					</div>
+				)}
+				{error && <p className="rounded-lg bg-bad-soft px-3 py-2 text-sm text-bad">{error}</p>}
 				<div className="mt-1 flex justify-end gap-2">
 					<Button onClick={() => onOpenChange(false)}>Cancel</Button>
-					<form.Subscribe selector={(s) => [s.canSubmit, s.isSubmitting] as const}>
-						{([canSubmit, submitting]) => (
-							<Button type="submit" variant="primary" disabled={!canSubmit || submitting}>
-								{submitting ? "Saving…" : "Add subscription"}
-							</Button>
-						)}
-					</form.Subscribe>
+					<Button type="submit" variant="primary" disabled={create.isPending || update.isPending}>
+						{create.isPending || update.isPending ? "Saving…" : editing ? "Save" : "Add subscription"}
+					</Button>
 				</div>
 			</form>
 		</Dialog>
+	);
+}
+
+/** Kept for callers that only create. */
+export function NewSubscription(props: { open: boolean; onOpenChange: (o: boolean) => void }) {
+	return <SubscriptionDialog {...props} />;
+}
+
+export function Chip({ on, onClick, children }: { on: boolean; onClick: () => void; children: ReactNode }) {
+	return (
+		<button
+			type="button"
+			aria-pressed={on}
+			onClick={onClick}
+			className={cn(
+				"rounded-full border px-3 py-1 text-xs font-medium transition-colors",
+				on ? "border-fg bg-fg text-bg" : "border-line text-muted hover:border-fg/40 hover:text-fg",
+			)}
+		>
+			{children}
+		</button>
+	);
+}
+
+function Check({
+	on,
+	onChange,
+	children,
+}: {
+	on: boolean;
+	onChange: (v: boolean) => void;
+	children: ReactNode;
+}) {
+	return (
+		<label className="flex items-center gap-2.5 text-muted">
+			<input
+				type="checkbox"
+				className="size-4 accent-[var(--accent)]"
+				checked={on}
+				onChange={(e) => onChange(e.target.checked)}
+			/>
+			{children}
+		</label>
 	);
 }

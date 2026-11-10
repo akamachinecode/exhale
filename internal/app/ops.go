@@ -81,7 +81,7 @@ var (
 	}, (*Service).CreateSubscription}
 	OpUpdateSubscription = Op[UpdateSubscriptionInput, SubscriptionDetail]{Meta{
 		Name: "update_subscription", Title: "Update a subscription", Tag: "Subscriptions", Method: "POST", Path: "/subscriptions/update", Write: true, Idempotent: true,
-		Description: "Changes name, price (from the next open charge on, or from priceFrom for a change announced in advance), category, payment method, payer, cost shares, privacy, URL, notes, auto-confirm, reminders, or the contract terms (start date, trial end, notice period, renewal, cancel link, account). Only the fields you pass change.",
+		Description: "Changes name, price (from the next open charge on, or from priceFrom for a change announced in advance), billing cycle or day (interval, unit, nextCharge: from the next charge on), end date, category, payment method, payer, cost shares, privacy, URL, notes, auto-confirm, reminders, or the contract terms (start date, trial end, notice period, renewal, cancel link, account). Only the fields you pass change.",
 	}, (*Service).UpdateSubscription}
 	OpSetSubscriptionStatus = Op[SetSubscriptionStatusInput, SubscriptionDetail]{Meta{
 		Name: "set_subscription_status", Title: "Pause, resume or cancel", Tag: "Subscriptions", Method: "POST", Path: "/subscriptions/status", Write: true, Destructive: true, Idempotent: true,

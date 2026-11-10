@@ -3626,10 +3626,21 @@
           "dryRun": {
             "type": "boolean"
           },
+          "endDate": {
+            "type": "string"
+          },
           "id": {
             "type": "string"
           },
+          "interval": {
+            "format": "int64",
+            "minimum": 1,
+            "type": "integer"
+          },
           "name": {
+            "type": "string"
+          },
+          "nextCharge": {
             "type": "string"
           },
           "notes": {
@@ -3688,6 +3699,15 @@
             "type": "string"
           },
           "trialEndsOn": {
+            "type": "string"
+          },
+          "unit": {
+            "enum": [
+              "day",
+              "week",
+              "month",
+              "year"
+            ],
             "type": "string"
           },
           "url": {
@@ -5756,7 +5776,7 @@
     },
     "/api/v1/subscriptions/update": {
       "post": {
-        "description": "Changes name, price (from the next open charge on, or from priceFrom for a change announced in advance), category, payment method, payer, cost shares, privacy, URL, notes, auto-confirm, reminders, or the contract terms (start date, trial end, notice period, renewal, cancel link, account). Only the fields you pass change.",
+        "description": "Changes name, price (from the next open charge on, or from priceFrom for a change announced in advance), billing cycle or day (interval, unit, nextCharge: from the next charge on), end date, category, payment method, payer, cost shares, privacy, URL, notes, auto-confirm, reminders, or the contract terms (start date, trial end, notice period, renewal, cancel link, account). Only the fields you pass change.",
         "operationId": "update_subscription",
         "requestBody": {
           "content": {

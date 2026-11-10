@@ -195,6 +195,10 @@ type UpdateSubscriptionInput struct {
 	AutoConfirm     *bool   `json:"autoConfirm,omitempty"`
 	ReminderDays    []int   `json:"reminderDays,omitempty"`
 	ReminderHour    *int    `json:"reminderHour,omitempty" jsonschema:"local hour of day for reminders (0-23)"`
+	Interval        *int    `json:"interval,omitempty" jsonschema:"new number of units between charges, from the next charge on" minimum:"1"`
+	Unit            *string `json:"unit,omitempty" jsonschema:"new billing unit, from the next charge on" enum:"day,week,month,year"`
+	NextCharge      *string `json:"nextCharge,omitempty" jsonschema:"date of the next charge, YYYY-MM-DD: changes the billing day from now on (to move a single charge use change_charge_date)"`
+	EndDate         *string `json:"endDate,omitempty" jsonschema:"last possible charge date, YYYY-MM-DD, for fixed-term contracts; empty string removes it"`
 	PriceFrom       *string `json:"priceFrom,omitempty" jsonschema:"with price: the date the new price starts, YYYY-MM-DD, for a price change announced in advance. Default: from the next open charge"`
 	StartedOn       *string `json:"startedOn,omitempty" jsonschema:"when the member first subscribed, YYYY-MM-DD; empty string clears it"`
 	TrialEndsOn     *string `json:"trialEndsOn,omitempty" jsonschema:"day the free trial turns into the first paid charge, YYYY-MM-DD; empty string clears it"`
@@ -258,6 +262,39 @@ func (s *Service) UpdateSubscription(ctx context.Context, actor Actor, in Update
 		}
 		today := s.today(ctx, q, actor)
 		repriceFrom := engine.Date{}
+		if in.Interval != nil || in.Unit != nil || (in.NextCharge != nil && *in.NextCharge != "") {
+			// A new billing cycle or day applies from the next charge on.
+			at, ok := sub.Schedule.NextOnOrAfter(today)
+			if !ok {
+				at = today
+			}
+			rule := sub.Schedule.Current(at)
+			set(&rule.Interval, in.Interval)
+			if in.Unit != nil {
+				rule.Unit = engine.Unit(*in.Unit)
+			}
+			anchor := at
+			if in.NextCharge != nil && *in.NextCharge != "" {
+				if anchor, err = engine.ParseDate(*in.NextCharge); err != nil {
+					return fmt.Errorf("%w: next charge: %v", domain.ErrValidation, err)
+				}
+			}
+			if sub.Schedule, err = sub.Schedule.ChangeFrom(at, anchor, rule.Interval, rule.Unit); err != nil {
+				return fmt.Errorf("%w: %v", domain.ErrValidation, err)
+			}
+			repriceFrom = at
+			if anchor.Before(at) {
+				repriceFrom = anchor
+			}
+		}
+		if in.EndDate != nil {
+			if sub.Schedule.Until, err = optionalDate(*in.EndDate, "end date"); err != nil {
+				return err
+			}
+			if repriceFrom.IsZero() || today.Before(repriceFrom) {
+				repriceFrom = today
+			}
+		}
 		if in.Price != nil {
 			p, err := money.Parse(*in.Price, sub.Price.Currency)
 			if err != nil {
@@ -269,13 +306,18 @@ func (s *Service) UpdateSubscription(ctx context.Context, actor Actor, in Update
 					return fmt.Errorf("%w: price from: %v", domain.ErrValidation, err)
 				}
 			}
+			earliest := func(d engine.Date) {
+				if repriceFrom.IsZero() || d.Before(repriceFrom) {
+					repriceFrom = d
+				}
+			}
 			switch {
 			case from.After(today): // announced in advance: keep today's price until then
 				sub.NextPrice = &domain.PriceChange{From: from, Price: p}
-				repriceFrom = from
+				earliest(from)
 			case p != sub.Price || sub.NextPrice != nil:
 				sub.Price, sub.NextPrice = p, nil
-				repriceFrom = today
+				earliest(today)
 			}
 		}
 		sub.Name = strings.TrimSpace(sub.Name)
@@ -293,7 +335,7 @@ func (s *Service) UpdateSubscription(ctx context.Context, actor Actor, in Update
 			if err := q.DeleteFuturePendingCharges(ctx, db.DeleteFuturePendingChargesParams{SubscriptionID: sub.ID, OriginalDate: repriceFrom.String()}); err != nil {
 				return err
 			}
-			if err := s.materialize(ctx, q, sub, repriceFrom); err != nil {
+			if err := s.materialize(ctx, q, sub, maxDate(repriceFrom, today)); err != nil {
 				return err
 			}
 		}

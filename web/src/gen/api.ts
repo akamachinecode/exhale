@@ -1245,6 +1245,16 @@ export const UpdateSubscriptionInputRenewal = {
   manual: 'manual',
 } as const;
 
+export type UpdateSubscriptionInputUnit = typeof UpdateSubscriptionInputUnit[keyof typeof UpdateSubscriptionInputUnit];
+
+
+export const UpdateSubscriptionInputUnit = {
+  day: 'day',
+  week: 'week',
+  month: 'month',
+  year: 'year',
+} as const;
+
 export interface UpdateSubscriptionInput {
   /** A URL to the JSON Schema for this object. */
   readonly $schema?: string;
@@ -1253,8 +1263,12 @@ export interface UpdateSubscriptionInput {
   cancelUrl?: string;
   categoryId?: string;
   dryRun?: boolean;
+  endDate?: string;
   id: string;
+  /** @minimum 1 */
+  interval?: number;
   name?: string;
+  nextCharge?: string;
   notes?: string;
   noticeDays?: number;
   payerId?: string;
@@ -1270,6 +1284,7 @@ export interface UpdateSubscriptionInput {
   shares?: Share[] | null;
   startedOn?: string;
   trialEndsOn?: string;
+  unit?: UpdateSubscriptionInputUnit;
   url?: string;
   using?: boolean;
 }
@@ -5781,7 +5796,7 @@ export const getUpdateSubscriptionUrl = () => {
 }
 
 /**
- * Changes name, price (from the next open charge on, or from priceFrom for a change announced in advance), category, payment method, payer, cost shares, privacy, URL, notes, auto-confirm, reminders, or the contract terms (start date, trial end, notice period, renewal, cancel link, account). Only the fields you pass change.
+ * Changes name, price (from the next open charge on, or from priceFrom for a change announced in advance), billing cycle or day (interval, unit, nextCharge: from the next charge on), end date, category, payment method, payer, cost shares, privacy, URL, notes, auto-confirm, reminders, or the contract terms (start date, trial end, notice period, renewal, cancel link, account). Only the fields you pass change.
  * @summary Update a subscription
  */
 export const updateSubscription = async (updateSubscriptionInput: NonReadonly<UpdateSubscriptionInput>, options?: Parameters<typeof fetcher>[1]): Promise<SubscriptionDetail> => {
