@@ -61,6 +61,22 @@ type Charge struct {
 	Decision        string
 }
 
+type File struct {
+	ID             string
+	HouseholdID    string
+	SubscriptionID string
+	ChargeID       string
+	Kind           string
+	Name           string
+	MediaType      string
+	Size           int64
+	Sha256         string
+	CreatedAt      string
+	CreatedBy      string
+	DeletedAt      string
+	Data           []byte
+}
+
 type Flow struct {
 	ID        string
 	MemberID  string

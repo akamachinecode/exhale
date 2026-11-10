@@ -22,6 +22,7 @@ type SubscriptionView struct {
 	CancelBy       engine.Date `json:"cancelBy,omitzero" jsonschema:"last day to cancel before the next charge (next charge minus the notice period); empty when there is no notice period"`
 	Expires        bool        `json:"expires" jsonschema:"manual renewal: the next charge date is when it expires unless renewed"`
 	AskUsage       bool        `json:"askUsage" jsonschema:"it is time to ask the member whether they still use it (never asked, or asked over six months ago)"`
+	Logo           string      `json:"logo,omitempty" jsonschema:"path of a logo someone uploaded for it; empty: the bundled brand mark or the initials"`
 }
 
 // ChargeView is a charge with its subscription context.
@@ -35,6 +36,7 @@ type ChargeView struct {
 	Kind         string      `json:"kind" jsonschema:"renewal (a normal charge), trial (the first charge after a free trial) or expiry (manual renewal: it expires on this date unless renewed)" enum:"renewal,trial,expiry"`
 	CancelBy     engine.Date `json:"cancelBy,omitzero" jsonschema:"last day to cancel before this charge, when the subscription has a notice period"`
 	CancelPassed bool        `json:"cancelPassed" jsonschema:"the last day to cancel before this charge has passed: it will renew"`
+	Logo         string      `json:"logo,omitempty" jsonschema:"path of the subscription's uploaded logo, if any"`
 }
 
 // Charge kinds.

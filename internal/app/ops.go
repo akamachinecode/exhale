@@ -183,6 +183,21 @@ var (
 		Name: "undo", Title: "Undo a change", Tag: "Audit", Method: "POST", Path: "/changes/undo", Write: true,
 		Description: "Reverts a change by its auditId, restoring the previous state.",
 	}, (*Service).Undo}
+
+	// Logos and documents (ADR 0027). Uploading and downloading a file are
+	// plain HTTP endpoints, since they carry files, not JSON.
+	OpListDocuments = Op[ListDocumentsInput, DocumentList]{Meta{
+		Name: "list_documents", Title: "List a subscription's documents", Tag: "Documents", Method: "GET", Path: "/subscriptions/{id}/documents",
+		Description: "The files attached to a subscription (contract, terms, invoices and receipts), newest first: name, kind, size, the charge an invoice belongs to and the path to download it.",
+	}, (*Service).ListDocuments}
+	OpDeleteDocument = Op[DeleteDocumentInput, DocumentResult]{Meta{
+		Name: "delete_document", Title: "Delete a document", Tag: "Documents", Method: "POST", Path: "/documents/delete", Write: true, Destructive: true,
+		Description: "Deletes a document attached to a subscription. It is kept 30 days and can be restored with undo.",
+	}, (*Service).DeleteDocument}
+	OpRemoveLogo = Op[RemoveLogoInput, LogoResult]{Meta{
+		Name: "remove_logo", Title: "Remove an uploaded logo", Tag: "Documents", Method: "POST", Path: "/subscriptions/logo/remove", Write: true, Idempotent: true,
+		Description: "Drops the logo someone uploaded for a subscription: it shows the bundled brand mark or its initials again. Can be reverted with undo.",
+	}, (*Service).RemoveLogo}
 )
 
 // Catalog lists every use case exposed to adapters.
@@ -195,6 +210,7 @@ func Catalog() []Binding {
 		OpSpendHistory.Binding(), OpBalances.Binding(), OpAudit.Binding(),
 		OpSavePaymentMethod.Binding(), OpReassignPaymentMethod.Binding(), OpDeletePaymentMethod.Binding(),
 		OpCreateCategory.Binding(), OpUpdateCategory.Binding(), OpDeleteCategory.Binding(), OpExport.Binding(), OpImport.Binding(), OpReminders.Binding(), OpListAudit.Binding(), OpUndo.Binding(),
+		OpListDocuments.Binding(), OpDeleteDocument.Binding(), OpRemoveLogo.Binding(),
 	}
 }
 

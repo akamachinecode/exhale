@@ -20,6 +20,9 @@ import (
 type ExportedSubscription struct {
 	SubscriptionView
 	Charges []domain.Charge `json:"charges"`
+	// Files are its uploaded logo and documents, without their content:
+	// the full export archive and the backups carry the content (ADR 0027).
+	Files []Document `json:"files"`
 }
 
 // ExportData is everything the household keeps in Exhale, in one document.
@@ -49,12 +52,23 @@ func (s *Service) Export(ctx context.Context, actor Actor, _ struct{}) (ExportDa
 	if err != nil {
 		return out, err
 	}
+	fileRows, err := s.st.Q.ListFilesForExport(ctx, actor.HouseholdID)
+	if err != nil {
+		return out, err
+	}
+	files := map[string][]Document{}
+	for _, r := range fileRows {
+		files[r.SubscriptionID] = append(files[r.SubscriptionID], documentFromRow(db.GetFileMetaRow(r)))
+	}
 	for _, v := range list.Subscriptions {
 		rows, err := s.st.Q.ListChargesForSubscription(ctx, db.ListChargesForSubscriptionParams{SubscriptionID: v.ID, Limit: 5000})
 		if err != nil {
 			return out, err
 		}
-		e := ExportedSubscription{SubscriptionView: v, Charges: make([]domain.Charge, 0, len(rows))}
+		e := ExportedSubscription{SubscriptionView: v, Charges: make([]domain.Charge, 0, len(rows)), Files: files[v.ID]}
+		if e.Files == nil {
+			e.Files = []Document{}
+		}
 		for _, r := range slices.Backward(rows) {
 			e.Charges = append(e.Charges, store.ChargeFromRow(r))
 		}

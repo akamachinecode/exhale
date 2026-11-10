@@ -211,6 +211,55 @@
         ],
         "type": "object"
       },
+      "AssistantTerms": {
+        "additionalProperties": false,
+        "properties": {
+          "$schema": {
+            "description": "A URL to the JSON Schema for this object.",
+            "examples": [
+              "https://example.com/api/schemas/AssistantTerms.json"
+            ],
+            "format": "uri",
+            "readOnly": true,
+            "type": "string"
+          },
+          "documentId": {
+            "type": "string"
+          },
+          "fields": {
+            "items": {
+              "$ref": "#/components/schemas/TermsField"
+            },
+            "type": [
+              "array",
+              "null"
+            ]
+          },
+          "model": {
+            "type": "string"
+          },
+          "notes": {
+            "items": {
+              "type": "string"
+            },
+            "type": [
+              "array",
+              "null"
+            ]
+          },
+          "subscriptionId": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "subscriptionId",
+          "documentId",
+          "fields",
+          "notes",
+          "model"
+        ],
+        "type": "object"
+      },
       "AssistantTest": {
         "additionalProperties": false,
         "properties": {
@@ -1131,6 +1180,9 @@
             ],
             "type": "string"
           },
+          "logo": {
+            "type": "string"
+          },
           "note": {
             "type": "string"
           },
@@ -1416,6 +1468,30 @@
         ],
         "type": "object"
       },
+      "DeleteDocumentInput": {
+        "additionalProperties": false,
+        "properties": {
+          "$schema": {
+            "description": "A URL to the JSON Schema for this object.",
+            "examples": [
+              "https://example.com/api/schemas/DeleteDocumentInput.json"
+            ],
+            "format": "uri",
+            "readOnly": true,
+            "type": "string"
+          },
+          "dryRun": {
+            "type": "boolean"
+          },
+          "id": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id"
+        ],
+        "type": "object"
+      },
       "DeletePaymentMethodInput": {
         "additionalProperties": false,
         "properties": {
@@ -1545,6 +1621,119 @@
         "required": [
           "channel",
           "destination"
+        ],
+        "type": "object"
+      },
+      "Document": {
+        "additionalProperties": false,
+        "properties": {
+          "chargeId": {
+            "type": "string"
+          },
+          "createdAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "createdBy": {
+            "type": "string"
+          },
+          "id": {
+            "type": "string"
+          },
+          "kind": {
+            "enum": [
+              "contract",
+              "invoice",
+              "other",
+              "logo"
+            ],
+            "type": "string"
+          },
+          "mediaType": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "path": {
+            "type": "string"
+          },
+          "sha256": {
+            "type": "string"
+          },
+          "size": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "subscriptionId": {
+            "type": "string"
+          },
+          "url": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "subscriptionId",
+          "kind",
+          "name",
+          "mediaType",
+          "size",
+          "sha256",
+          "createdAt",
+          "createdBy",
+          "url"
+        ],
+        "type": "object"
+      },
+      "DocumentList": {
+        "additionalProperties": false,
+        "properties": {
+          "$schema": {
+            "description": "A URL to the JSON Schema for this object.",
+            "examples": [
+              "https://example.com/api/schemas/DocumentList.json"
+            ],
+            "format": "uri",
+            "readOnly": true,
+            "type": "string"
+          },
+          "documents": {
+            "items": {
+              "$ref": "#/components/schemas/Document"
+            },
+            "type": [
+              "array",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "documents"
+        ],
+        "type": "object"
+      },
+      "DocumentResult": {
+        "additionalProperties": false,
+        "properties": {
+          "$schema": {
+            "description": "A URL to the JSON Schema for this object.",
+            "examples": [
+              "https://example.com/api/schemas/DocumentResult.json"
+            ],
+            "format": "uri",
+            "readOnly": true,
+            "type": "string"
+          },
+          "auditId": {
+            "type": "string"
+          },
+          "document": {
+            "$ref": "#/components/schemas/Document"
+          }
+        },
+        "required": [
+          "document"
         ],
         "type": "object"
       },
@@ -1782,6 +1971,15 @@
           "expires": {
             "type": "boolean"
           },
+          "files": {
+            "items": {
+              "$ref": "#/components/schemas/Document"
+            },
+            "type": [
+              "array",
+              "null"
+            ]
+          },
           "householdId": {
             "type": "string"
           },
@@ -1790,6 +1988,9 @@
           },
           "inTrial": {
             "type": "boolean"
+          },
+          "logo": {
+            "type": "string"
           },
           "monthlyCost": {
             "$ref": "#/components/schemas/Money"
@@ -1878,6 +2079,7 @@
         },
         "required": [
           "charges",
+          "files",
           "cadence",
           "monthlyCost",
           "yearlyCost",
@@ -2513,6 +2715,33 @@
         "required": [
           "email",
           "password"
+        ],
+        "type": "object"
+      },
+      "LogoResult": {
+        "additionalProperties": false,
+        "properties": {
+          "$schema": {
+            "description": "A URL to the JSON Schema for this object.",
+            "examples": [
+              "https://example.com/api/schemas/LogoResult.json"
+            ],
+            "format": "uri",
+            "readOnly": true,
+            "type": "string"
+          },
+          "auditId": {
+            "type": "string"
+          },
+          "logo": {
+            "type": "string"
+          },
+          "subscriptionId": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "subscriptionId"
         ],
         "type": "object"
       },
@@ -3300,6 +3529,30 @@
           "hour",
           "minute",
           "confirmAfterDays"
+        ],
+        "type": "object"
+      },
+      "RemoveLogoInput": {
+        "additionalProperties": false,
+        "properties": {
+          "$schema": {
+            "description": "A URL to the JSON Schema for this object.",
+            "examples": [
+              "https://example.com/api/schemas/RemoveLogoInput.json"
+            ],
+            "format": "uri",
+            "readOnly": true,
+            "type": "string"
+          },
+          "dryRun": {
+            "type": "boolean"
+          },
+          "id": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id"
         ],
         "type": "object"
       },
@@ -4208,6 +4461,9 @@
           "inTrial": {
             "type": "boolean"
           },
+          "logo": {
+            "type": "string"
+          },
           "monthlyCost": {
             "$ref": "#/components/schemas/Money"
           },
@@ -4312,6 +4568,39 @@
           "createdAt",
           "updatedAt",
           "version"
+        ],
+        "type": "object"
+      },
+      "TermsField": {
+        "additionalProperties": false,
+        "properties": {
+          "current": {
+            "description": "what Exhale has now, if anything",
+            "type": "string"
+          },
+          "field": {
+            "description": "the update_subscription field it fills",
+            "enum": [
+              "noticeDays",
+              "cancelUrl",
+              "startedOn",
+              "trialEndsOn",
+              "account"
+            ],
+            "type": "string"
+          },
+          "quote": {
+            "description": "the words of the document it is based on, as the model reported them",
+            "type": "string"
+          },
+          "value": {
+            "description": "the checked value; noticeDays as a whole number",
+            "type": "string"
+          }
+        },
+        "required": [
+          "field",
+          "value"
         ],
         "type": "object"
       },
@@ -4802,6 +5091,48 @@
   },
   "openapi": "3.1.0",
   "paths": {
+    "/api/v1/assistant/documents/{id}/terms": {
+      "post": {
+        "description": "The built-in assistant reads the document and proposes notice days, cancel link, start date, trial end and account. Nothing is saved: apply what you keep with update_subscription.",
+        "operationId": "assistant_read_terms",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AssistantTerms"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorModel"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "summary": "Read contract details from an attached document",
+        "tags": [
+          "Assistant"
+        ]
+      }
+    },
     "/api/v1/assistant/messages": {
       "post": {
         "operationId": "assistant_message",
@@ -6311,6 +6642,53 @@
         ]
       }
     },
+    "/api/v1/documents/delete": {
+      "post": {
+        "description": "Deletes a document attached to a subscription. It is kept 30 days and can be restored with undo.",
+        "operationId": "delete_document",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DeleteDocumentInput"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DocumentResult"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorModel"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Delete a document",
+        "tags": [
+          "Documents"
+        ]
+      }
+    },
     "/api/v1/export": {
       "get": {
         "description": "Everything the household keeps in Exhale in one JSON document: settings, members, categories, payment methods and every subscription with all its charges.",
@@ -7613,6 +7991,53 @@
         ]
       }
     },
+    "/api/v1/subscriptions/logo/remove": {
+      "post": {
+        "description": "Drops the logo someone uploaded for a subscription: it shows the bundled brand mark or its initials again. Can be reverted with undo.",
+        "operationId": "remove_logo",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RemoveLogoInput"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LogoResult"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorModel"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Remove an uploaded logo",
+        "tags": [
+          "Documents"
+        ]
+      }
+    },
     "/api/v1/subscriptions/status": {
       "post": {
         "description": "Pauses, resumes or cancels a subscription. cancel_at_period_end keeps the service until the day before the next charge; cancel_now stops future charges immediately.",
@@ -7751,6 +8176,53 @@
         "summary": "Get a subscription",
         "tags": [
           "Subscriptions"
+        ]
+      }
+    },
+    "/api/v1/subscriptions/{id}/documents": {
+      "get": {
+        "description": "The files attached to a subscription (contract, terms, invoices and receipts), newest first: name, kind, size, the charge an invoice belongs to and the path to download it.",
+        "operationId": "list_documents",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DocumentList"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorModel"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "List a subscription's documents",
+        "tags": [
+          "Documents"
         ]
       }
     },

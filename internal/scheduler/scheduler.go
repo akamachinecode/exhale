@@ -46,6 +46,11 @@ func (s *Scheduler) Serve(ctx context.Context) error {
 			if err := s.svc.Plan(ctx); err != nil {
 				s.log.Error("planning reminders failed", "err", err)
 			}
+			if n, err := s.svc.PurgeDeletedFiles(ctx); err != nil {
+				s.log.Error("purging deleted files failed", "err", err)
+			} else if n > 0 {
+				s.log.Info("purged deleted files", "count", n)
+			}
 			lastPlan = now
 		}
 		s.Tick(ctx)

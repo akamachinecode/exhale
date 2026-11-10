@@ -151,6 +151,43 @@ export interface AssistantStatus {
   provider?: AssistantStatusProvider;
 }
 
+/**
+ * the update_subscription field it fills
+ */
+export type TermsFieldField = typeof TermsFieldField[keyof typeof TermsFieldField];
+
+
+export const TermsFieldField = {
+  noticeDays: 'noticeDays',
+  cancelUrl: 'cancelUrl',
+  startedOn: 'startedOn',
+  trialEndsOn: 'trialEndsOn',
+  account: 'account',
+} as const;
+
+export interface TermsField {
+  /** what Exhale has now, if anything */
+  current?: string;
+  /** the update_subscription field it fills */
+  field: TermsFieldField;
+  /** the words of the document it is based on, as the model reported them */
+  quote?: string;
+  /** the checked value; noticeDays as a whole number */
+  value: string;
+}
+
+export interface AssistantTerms {
+  /** A URL to the JSON Schema for this object. */
+  readonly $schema?: string;
+  documentId: string;
+  /** @nullable */
+  fields: TermsField[] | null;
+  model: string;
+  /** @nullable */
+  notes: string[] | null;
+  subscriptionId: string;
+}
+
 export interface AssistantTest {
   /** A URL to the JSON Schema for this object. */
   readonly $schema?: string;
@@ -224,6 +261,7 @@ export interface ChargeView {
   dueDate: string;
   id: string;
   kind: ChargeViewKind;
+  logo?: string;
   note?: string;
   originalDate: string;
   paymentMethod?: string;
@@ -686,6 +724,7 @@ export interface SubscriptionView {
   householdId: string;
   id: string;
   inTrial: boolean;
+  logo?: string;
   monthlyCost: Money;
   name: string;
   nextCharge?: string;
@@ -841,6 +880,13 @@ export interface DeleteCategoryInput {
   id: string;
 }
 
+export interface DeleteDocumentInput {
+  /** A URL to the JSON Schema for this object. */
+  readonly $schema?: string;
+  dryRun?: boolean;
+  id: string;
+}
+
 export interface DeletePaymentMethodInput {
   /** A URL to the JSON Schema for this object. */
   readonly $schema?: string;
@@ -880,6 +926,45 @@ export interface DestinationIn {
   destination: string;
   /** webhook only: JSON body with {{variables}}; empty sends the default body */
   template?: string;
+}
+
+export type DocumentKind = typeof DocumentKind[keyof typeof DocumentKind];
+
+
+export const DocumentKind = {
+  contract: 'contract',
+  invoice: 'invoice',
+  other: 'other',
+  logo: 'logo',
+} as const;
+
+export interface Document {
+  chargeId?: string;
+  createdAt: string;
+  createdBy: string;
+  id: string;
+  kind: DocumentKind;
+  mediaType: string;
+  name: string;
+  path?: string;
+  sha256: string;
+  size: number;
+  subscriptionId: string;
+  url: string;
+}
+
+export interface DocumentList {
+  /** A URL to the JSON Schema for this object. */
+  readonly $schema?: string;
+  /** @nullable */
+  documents: Document[] | null;
+}
+
+export interface DocumentResult {
+  /** A URL to the JSON Schema for this object. */
+  readonly $schema?: string;
+  auditId?: string;
+  document: Document;
 }
 
 export interface Empty {
@@ -949,9 +1034,12 @@ export interface ExportedSubscription {
   createdAt: string;
   createdBy?: string;
   expires: boolean;
+  /** @nullable */
+  files: Document[] | null;
   householdId: string;
   id: string;
   inTrial: boolean;
+  logo?: string;
   monthlyCost: Money;
   name: string;
   nextCharge?: string;
@@ -1196,6 +1284,14 @@ export interface LoginIn {
   password: string;
 }
 
+export interface LogoResult {
+  /** A URL to the JSON Schema for this object. */
+  readonly $schema?: string;
+  auditId?: string;
+  logo?: string;
+  subscriptionId: string;
+}
+
 export interface MemberDone {
   /** A URL to the JSON Schema for this object. */
   readonly $schema?: string;
@@ -1368,6 +1464,13 @@ export interface ReminderLog {
   readonly $schema?: string;
   /** @nullable */
   entries: ReminderEntry[] | null;
+}
+
+export interface RemoveLogoInput {
+  /** A URL to the JSON Schema for this object. */
+  readonly $schema?: string;
+  dryRun?: boolean;
+  id: string;
 }
 
 /**
@@ -1818,6 +1921,81 @@ const withQueryKey = <T extends object, K>(query: T, queryKey: K): T & { queryKe
   }
   return result;
 };
+
+export const getAssistantReadTermsUrl = (id: string,) => {
+
+
+
+
+  return `/api/v1/assistant/documents/${id}/terms`
+}
+
+/**
+ * The built-in assistant reads the document and proposes notice days, cancel link, start date, trial end and account. Nothing is saved: apply what you keep with update_subscription.
+ * @summary Read contract details from an attached document
+ */
+export const assistantReadTerms = async (id: string, options?: Parameters<typeof fetcher>[1]): Promise<AssistantTerms> => {
+
+  return fetcher<AssistantTerms>(getAssistantReadTermsUrl(id),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+);}
+
+
+
+
+
+export const getAssistantReadTermsMutationKey = () => ['assistantReadTerms'] as const;
+
+export const getAssistantReadTermsMutationOptions = <TError = ErrorModel,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof assistantReadTerms>>, TError,AssistantReadTermsMutationVariables, TContext>, request?: SecondParameter<typeof fetcher>}
+): UseMutationOptions<Awaited<ReturnType<typeof assistantReadTerms>>, TError,AssistantReadTermsMutationVariables, TContext> => {
+
+const mutationKey = getAssistantReadTermsMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof assistantReadTerms>>, AssistantReadTermsMutationVariables> = (props) => {
+          const {id} = props ?? {};
+
+          return  assistantReadTerms(id,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type AssistantReadTermsMutationResult = NonNullable<Awaited<ReturnType<typeof assistantReadTerms>>>
+
+    export type AssistantReadTermsMutationError = ErrorModel
+    export type AssistantReadTermsMutationVariables = {id: string}
+
+    /**
+ * @summary Read contract details from an attached document
+ */
+export const useAssistantReadTerms = <TError = ErrorModel,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof assistantReadTerms>>, TError,AssistantReadTermsMutationVariables, TContext>, request?: SecondParameter<typeof fetcher>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof assistantReadTerms>>,
+        TError,
+        AssistantReadTermsMutationVariables,
+        TContext
+      > => {
+      return useMutation(getAssistantReadTermsMutationOptions(options), queryClient);
+    }
 
 export const getAssistantMessageUrl = () => {
 
@@ -5205,6 +5383,95 @@ export function useGetContext<TData = Awaited<ReturnType<typeof getContext>>, TE
 
 
 
+export const getDeleteDocumentUrl = () => {
+
+
+
+
+  return `/api/v1/documents/delete`
+}
+
+/**
+ * Deletes a document attached to a subscription. It is kept 30 days and can be restored with undo.
+ * @summary Delete a document
+ */
+export const deleteDocument = async (deleteDocumentInput: NonReadonly<DeleteDocumentInput>, options?: Parameters<typeof fetcher>[1]): Promise<DocumentResult> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return fetcher<DocumentResult>(getDeleteDocumentUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(deleteDocumentInput)
+  }
+);}
+
+
+
+
+
+export const getDeleteDocumentMutationKey = () => ['deleteDocument'] as const;
+
+export const getDeleteDocumentMutationOptions = <TError = ErrorModel,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof deleteDocument>>, TError,DeleteDocumentMutationVariables, TContext>, request?: SecondParameter<typeof fetcher>}
+): UseMutationOptions<Awaited<ReturnType<typeof deleteDocument>>, TError,DeleteDocumentMutationVariables, TContext> => {
+
+const mutationKey = getDeleteDocumentMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof deleteDocument>>, DeleteDocumentMutationVariables> = (props) => {
+          const {data} = props ?? {};
+
+          return  deleteDocument(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type DeleteDocumentMutationResult = NonNullable<Awaited<ReturnType<typeof deleteDocument>>>
+    export type DeleteDocumentMutationBody = NonReadonly<DeleteDocumentInput>
+    export type DeleteDocumentMutationError = ErrorModel
+    export type DeleteDocumentMutationVariables = {data: NonReadonly<DeleteDocumentInput>}
+
+    /**
+ * @summary Delete a document
+ */
+export const useDeleteDocument = <TError = ErrorModel,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof deleteDocument>>, TError,DeleteDocumentMutationVariables, TContext>, request?: SecondParameter<typeof fetcher>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof deleteDocument>>,
+        TError,
+        DeleteDocumentMutationVariables,
+        TContext
+      > => {
+      return useMutation(getDeleteDocumentMutationOptions(options), queryClient);
+    }
+
 export const getExportDataUrl = () => {
 
 
@@ -8162,6 +8429,95 @@ export const useDeleteSubscription = <TError = ErrorModel,
       return useMutation(getDeleteSubscriptionMutationOptions(options), queryClient);
     }
 
+export const getRemoveLogoUrl = () => {
+
+
+
+
+  return `/api/v1/subscriptions/logo/remove`
+}
+
+/**
+ * Drops the logo someone uploaded for a subscription: it shows the bundled brand mark or its initials again. Can be reverted with undo.
+ * @summary Remove an uploaded logo
+ */
+export const removeLogo = async (removeLogoInput: NonReadonly<RemoveLogoInput>, options?: Parameters<typeof fetcher>[1]): Promise<LogoResult> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return fetcher<LogoResult>(getRemoveLogoUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(removeLogoInput)
+  }
+);}
+
+
+
+
+
+export const getRemoveLogoMutationKey = () => ['removeLogo'] as const;
+
+export const getRemoveLogoMutationOptions = <TError = ErrorModel,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof removeLogo>>, TError,RemoveLogoMutationVariables, TContext>, request?: SecondParameter<typeof fetcher>}
+): UseMutationOptions<Awaited<ReturnType<typeof removeLogo>>, TError,RemoveLogoMutationVariables, TContext> => {
+
+const mutationKey = getRemoveLogoMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof removeLogo>>, RemoveLogoMutationVariables> = (props) => {
+          const {data} = props ?? {};
+
+          return  removeLogo(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type RemoveLogoMutationResult = NonNullable<Awaited<ReturnType<typeof removeLogo>>>
+    export type RemoveLogoMutationBody = NonReadonly<RemoveLogoInput>
+    export type RemoveLogoMutationError = ErrorModel
+    export type RemoveLogoMutationVariables = {data: NonReadonly<RemoveLogoInput>}
+
+    /**
+ * @summary Remove an uploaded logo
+ */
+export const useRemoveLogo = <TError = ErrorModel,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof removeLogo>>, TError,RemoveLogoMutationVariables, TContext>, request?: SecondParameter<typeof fetcher>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof removeLogo>>,
+        TError,
+        RemoveLogoMutationVariables,
+        TContext
+      > => {
+      return useMutation(getRemoveLogoMutationOptions(options), queryClient);
+    }
+
 export const getSetSubscriptionStatusUrl = () => {
 
 
@@ -8430,6 +8786,108 @@ export function useGetSubscription<TData = Awaited<ReturnType<typeof getSubscrip
  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
 
   const queryOptions = getGetSubscriptionQueryOptions(id,options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getListDocumentsUrl = (id: string,) => {
+
+
+
+
+  return `/api/v1/subscriptions/${id}/documents`
+}
+
+/**
+ * The files attached to a subscription (contract, terms, invoices and receipts), newest first: name, kind, size, the charge an invoice belongs to and the path to download it.
+ * @summary List a subscription's documents
+ */
+export const listDocuments = async (id: string, options?: Parameters<typeof fetcher>[1]): Promise<DocumentList> => {
+
+  return fetcher<DocumentList>(getListDocumentsUrl(id),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListDocumentsQueryKey = (id: string,) => {
+    return [
+    `/api/v1/subscriptions/${id}/documents`
+    ] as const;
+    }
+
+
+export const getListDocumentsQueryOptions = <TData = Awaited<ReturnType<typeof listDocuments>>, TError = ErrorModel>(id: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listDocuments>>, TError, TData>>, request?: SecondParameter<typeof fetcher>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListDocumentsQueryKey(id);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listDocuments>>> = ({ signal }) => listDocuments(id, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: id !== null && id !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listDocuments>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type ListDocumentsQueryResult = NonNullable<Awaited<ReturnType<typeof listDocuments>>>
+export type ListDocumentsQueryError = ErrorModel
+
+
+export function useListDocuments<TData = Awaited<ReturnType<typeof listDocuments>>, TError = ErrorModel>(
+ id: string, options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof listDocuments>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof listDocuments>>,
+          TError,
+          Awaited<ReturnType<typeof listDocuments>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof fetcher>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useListDocuments<TData = Awaited<ReturnType<typeof listDocuments>>, TError = ErrorModel>(
+ id: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listDocuments>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof listDocuments>>,
+          TError,
+          Awaited<ReturnType<typeof listDocuments>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof fetcher>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useListDocuments<TData = Awaited<ReturnType<typeof listDocuments>>, TError = ErrorModel>(
+ id: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listDocuments>>, TError, TData>>, request?: SecondParameter<typeof fetcher>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+/**
+ * @summary List a subscription's documents
+ */
+
+export function useListDocuments<TData = Awaited<ReturnType<typeof listDocuments>>, TError = ErrorModel>(
+ id: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listDocuments>>, TError, TData>>, request?: SecondParameter<typeof fetcher>}
+ , queryClient?: QueryClient
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getListDocumentsQueryOptions(id,options)
 
   const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 
