@@ -556,6 +556,10 @@
             "description": "username of the Telegram bot, when Telegram is enabled",
             "type": "string"
           },
+          "twoFactor": {
+            "$ref": "#/components/schemas/TwoFactorStep",
+            "description": "the password was right; send a code to /api/v1/auth/login/two-factor to finish signing in"
+          },
           "user": {
             "$ref": "#/components/schemas/SessionUser"
           }
@@ -566,6 +570,34 @@
           "hasHousehold",
           "passwordLoginDisabled",
           "assistant"
+        ],
+        "type": "object"
+      },
+      "BackupCodesOut": {
+        "additionalProperties": false,
+        "properties": {
+          "$schema": {
+            "description": "A URL to the JSON Schema for this object.",
+            "examples": [
+              "https://example.com/api/schemas/BackupCodesOut.json"
+            ],
+            "format": "uri",
+            "readOnly": true,
+            "type": "string"
+          },
+          "backupCodes": {
+            "description": "one-time codes for when the phone is not at hand; shown only now",
+            "items": {
+              "type": "string"
+            },
+            "type": [
+              "array",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "backupCodes"
         ],
         "type": "object"
       },
@@ -1179,6 +1211,28 @@
         ],
         "type": "object"
       },
+      "CodeOnly": {
+        "additionalProperties": false,
+        "properties": {
+          "$schema": {
+            "description": "A URL to the JSON Schema for this object.",
+            "examples": [
+              "https://example.com/api/schemas/CodeOnly.json"
+            ],
+            "format": "uri",
+            "readOnly": true,
+            "type": "string"
+          },
+          "code": {
+            "maxLength": 32,
+            "type": "string"
+          }
+        },
+        "required": [
+          "code"
+        ],
+        "type": "object"
+      },
       "CreateCategoryInput": {
         "additionalProperties": false,
         "properties": {
@@ -1545,6 +1599,33 @@
         "required": [
           "channel",
           "destination"
+        ],
+        "type": "object"
+      },
+      "DisableIn": {
+        "additionalProperties": false,
+        "properties": {
+          "$schema": {
+            "description": "A URL to the JSON Schema for this object.",
+            "examples": [
+              "https://example.com/api/schemas/DisableIn.json"
+            ],
+            "format": "uri",
+            "readOnly": true,
+            "type": "string"
+          },
+          "code": {
+            "description": "6 digits from the authenticator app, or a backup code",
+            "maxLength": 32,
+            "type": "string"
+          },
+          "password": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "password",
+          "code"
         ],
         "type": "object"
       },
@@ -2491,6 +2572,33 @@
         ],
         "type": "object"
       },
+      "LoginCodeIn": {
+        "additionalProperties": false,
+        "properties": {
+          "$schema": {
+            "description": "A URL to the JSON Schema for this object.",
+            "examples": [
+              "https://example.com/api/schemas/LoginCodeIn.json"
+            ],
+            "format": "uri",
+            "readOnly": true,
+            "type": "string"
+          },
+          "code": {
+            "description": "6 digits from the authenticator app, or a backup code",
+            "maxLength": 32,
+            "type": "string"
+          },
+          "token": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "token",
+          "code"
+        ],
+        "type": "object"
+      },
       "LoginIn": {
         "additionalProperties": false,
         "properties": {
@@ -2849,6 +2957,27 @@
         "required": [
           "current",
           "new"
+        ],
+        "type": "object"
+      },
+      "PasswordOnly": {
+        "additionalProperties": false,
+        "properties": {
+          "$schema": {
+            "description": "A URL to the JSON Schema for this object.",
+            "examples": [
+              "https://example.com/api/schemas/PasswordOnly.json"
+            ],
+            "format": "uri",
+            "readOnly": true,
+            "type": "string"
+          },
+          "password": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "password"
         ],
         "type": "object"
       },
@@ -3300,6 +3429,28 @@
           "hour",
           "minute",
           "confirmAfterDays"
+        ],
+        "type": "object"
+      },
+      "ResetIn": {
+        "additionalProperties": false,
+        "properties": {
+          "$schema": {
+            "description": "A URL to the JSON Schema for this object.",
+            "examples": [
+              "https://example.com/api/schemas/ResetIn.json"
+            ],
+            "format": "uri",
+            "readOnly": true,
+            "type": "string"
+          },
+          "id": {
+            "description": "member whose two-factor sign-in to turn off",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id"
         ],
         "type": "object"
       },
@@ -4491,6 +4642,106 @@
         ],
         "type": "object"
       },
+      "TwoFactorMembersOut": {
+        "additionalProperties": false,
+        "properties": {
+          "$schema": {
+            "description": "A URL to the JSON Schema for this object.",
+            "examples": [
+              "https://example.com/api/schemas/TwoFactorMembersOut.json"
+            ],
+            "format": "uri",
+            "readOnly": true,
+            "type": "string"
+          },
+          "members": {
+            "description": "ids of the members with two-factor sign-in on",
+            "items": {
+              "type": "string"
+            },
+            "type": [
+              "array",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "members"
+        ],
+        "type": "object"
+      },
+      "TwoFactorSetup": {
+        "additionalProperties": false,
+        "properties": {
+          "$schema": {
+            "description": "A URL to the JSON Schema for this object.",
+            "examples": [
+              "https://example.com/api/schemas/TwoFactorSetup.json"
+            ],
+            "format": "uri",
+            "readOnly": true,
+            "type": "string"
+          },
+          "secret": {
+            "description": "base32 secret to type into the app",
+            "type": "string"
+          },
+          "uri": {
+            "description": "otpauth:// link, shown as a QR code",
+            "type": "string"
+          }
+        },
+        "required": [
+          "secret",
+          "uri"
+        ],
+        "type": "object"
+      },
+      "TwoFactorStatus": {
+        "additionalProperties": false,
+        "properties": {
+          "$schema": {
+            "description": "A URL to the JSON Schema for this object.",
+            "examples": [
+              "https://example.com/api/schemas/TwoFactorStatus.json"
+            ],
+            "format": "uri",
+            "readOnly": true,
+            "type": "string"
+          },
+          "backupCodesLeft": {
+            "description": "unused backup codes",
+            "format": "int64",
+            "type": "integer"
+          },
+          "enabled": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "enabled",
+          "backupCodesLeft"
+        ],
+        "type": "object"
+      },
+      "TwoFactorStep": {
+        "additionalProperties": false,
+        "properties": {
+          "expiresAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "token": {
+            "description": "send it back with the code; it works for a few minutes",
+            "type": "string"
+          }
+        },
+        "required": [
+          "token",
+          "expiresAt"
+        ],
+        "type": "object"
+      },
       "UndoInput": {
         "additionalProperties": false,
         "properties": {
@@ -5348,6 +5599,47 @@
         ]
       }
     },
+    "/api/v1/auth/login/two-factor": {
+      "post": {
+        "operationId": "auth_login_two_factor",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/LoginCodeIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AuthSession"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorModel"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "summary": "Finish signing in with a two-factor code",
+        "tags": [
+          "Auth"
+        ]
+      }
+    },
     "/api/v1/auth/logout": {
       "post": {
         "operationId": "auth_logout",
@@ -5598,6 +5890,201 @@
           }
         },
         "summary": "Revoke an API token",
+        "tags": [
+          "Auth"
+        ]
+      }
+    },
+    "/api/v1/auth/two-factor": {
+      "get": {
+        "operationId": "auth_two_factor",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TwoFactorStatus"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorModel"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "summary": "Your two-factor sign-in",
+        "tags": [
+          "Auth"
+        ]
+      }
+    },
+    "/api/v1/auth/two-factor/backup-codes": {
+      "post": {
+        "operationId": "auth_two_factor_backup_codes",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PasswordOnly"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BackupCodesOut"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorModel"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "summary": "Replace your backup codes",
+        "tags": [
+          "Auth"
+        ]
+      }
+    },
+    "/api/v1/auth/two-factor/disable": {
+      "post": {
+        "operationId": "auth_two_factor_disable",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DisableIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Empty"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorModel"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "summary": "Turn two-factor sign-in off",
+        "tags": [
+          "Auth"
+        ]
+      }
+    },
+    "/api/v1/auth/two-factor/enable": {
+      "post": {
+        "operationId": "auth_two_factor_enable",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CodeOnly"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BackupCodesOut"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorModel"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "summary": "Confirm the first code and turn two-factor sign-in on (signs out your other sessions)",
+        "tags": [
+          "Auth"
+        ]
+      }
+    },
+    "/api/v1/auth/two-factor/setup": {
+      "post": {
+        "operationId": "auth_two_factor_setup",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PasswordOnly"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TwoFactorSetup"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorModel"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "summary": "Start turning on two-factor sign-in: a new secret for the authenticator app",
         "tags": [
           "Auth"
         ]
@@ -6595,6 +7082,78 @@
           }
         },
         "summary": "Make a member an owner or a member (owners only)",
+        "tags": [
+          "Members"
+        ]
+      }
+    },
+    "/api/v1/members/two-factor": {
+      "get": {
+        "operationId": "members_two_factor",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TwoFactorMembersOut"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorModel"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "summary": "Members with two-factor sign-in on (owners only)",
+        "tags": [
+          "Members"
+        ]
+      }
+    },
+    "/api/v1/members/two-factor/reset": {
+      "post": {
+        "operationId": "members_reset_two_factor",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ResetIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MemberDone"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorModel"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "summary": "Turn off another member's two-factor sign-in (owners only)",
         "tags": [
           "Members"
         ]
