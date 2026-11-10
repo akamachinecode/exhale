@@ -212,6 +212,7 @@ func (s *serveCmd) Run(ctx context.Context, g *globals) error {
 	services = append(services, tg, sl)
 	eng := actions.New(e.svc, e.log, append([]actions.Channel{tg, sl}, others.Channels()...)...)
 	eng.SetAssistant(asst) // free text in chat (ADR 0018, part B)
+	eng.SetPublicURL(s.PublicURL) // links from chat to the web (import review)
 	tg.SetEngine(eng)
 	sl.SetEngine(eng)
 	services = append(services,

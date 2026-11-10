@@ -408,16 +408,7 @@ func (e *Engine) flowText(ctx context.Context, actor app.Actor, chat ChatRef, f 
 		if err != nil {
 			return e.fail(err)
 		}
-		m := chargeMessage("", res, today, locale)
-		if res.AuditID != "" {
-			m.Rows = append(m.Rows, []Button{{Label: tr(locale, "↩︎ Undo"), Data: data(vUndo, res.Charge.ID, res.AuditID)}})
-		}
-		if h := res.PriceChange; h != nil {
-			m.Sections = append(m.Sections, Section{Heading: tr(locale, "New price?"), Lines: []string{
-				tr(locale, "It took %s instead of %s (%s%%, %s a year).", h.Charged.Format(locale), h.Expected.Format(locale), h.Change, signed(h.YearlyDelta.Format(locale), h.YearlyDelta.Minor)),
-			}})
-			m.Rows = append([][]Button{{{Label: tr(locale, "Yes, from now on"), Data: data(vNewPrice, res.Charge.ID, h.Charged.Decimal())}, {Label: tr(locale, "Just this time"), Data: data(vBack, res.Charge.ID)}}}, m.Rows...)
-		}
+		m := paidMessage(res, today, locale)
 		return Reply{Send: &m}, nil
 	}
 	return Reply{}, nil

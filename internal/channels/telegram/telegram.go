@@ -12,7 +12,9 @@ import (
 	"errors"
 	"fmt"
 	"html"
+	"io"
 	"log/slog"
+	"net/http"
 	"strconv"
 	"strings"
 	"sync/atomic"
@@ -23,8 +25,10 @@ import (
 
 	"github.com/akamachinecode/exhale/internal/actions"
 	"github.com/akamachinecode/exhale/internal/app"
+	"github.com/akamachinecode/exhale/internal/assistant"
 	"github.com/akamachinecode/exhale/internal/auth"
 	"github.com/akamachinecode/exhale/internal/domain"
+	"github.com/akamachinecode/exhale/internal/importer"
 	"github.com/akamachinecode/exhale/internal/store/db"
 )
 
@@ -201,8 +205,104 @@ func (a *Adapter) handle(ctx context.Context, _ *bot.Bot, u *models.Update) {
 		a.handleButton(ctx, u.CallbackQuery)
 	case u.Message != nil && u.Message.Text != "":
 		a.handleText(ctx, u.Message)
+	case u.Message != nil && (u.Message.Document != nil || len(u.Message.Photo) > 0):
+		a.handleFile(ctx, u.Message)
 	}
 }
+
+// handleFile imports a document or a photo sent to the bot (ADR 0022): a
+// bank export, a PDF statement or a screenshot is read like an upload in
+// the web, and the review comes back as a message with buttons. The file
+// is read in memory and not kept.
+func (a *Adapter) handleFile(ctx context.Context, m *models.Message) {
+	chatID := strconv.FormatInt(m.Chat.ID, 10)
+	actor, err := auth.MemberForChannel(ctx, a.svc.Store(), Name, chatID)
+	if err != nil {
+		return // unlinked chats are ignored (ADR 0006)
+	}
+	locale := a.eng.Locale(ctx, actor)
+	fileID, size, limit := "", int64(0), int64(importer.MaxFileSize)
+	if d := m.Document; d != nil {
+		fileID, size = d.FileID, d.FileSize
+	} else {
+		// Telegram sends a photo in several sizes, smallest first; the
+		// largest is still compressed, well under the picture limit.
+		p := m.Photo[len(m.Photo)-1]
+		fileID, size, limit = p.FileID, int64(p.FileSize), assistant.MaxImageSize
+	}
+	if size > limit {
+		a.reply(ctx, chatID, actions.FileTooLargeText(locale))
+		return
+	}
+	actor.Label += " (Telegram)"
+	chat := actions.ChatRef{Channel: Name, ChatID: chatID}
+	// Off the polling loop: reading a file can take a model seconds.
+	go func(ctx context.Context) {
+		ctx, cancel := context.WithTimeout(ctx, 3*time.Minute)
+		defer cancel()
+		typing, stop := context.WithCancel(ctx)
+		go func() {
+			for {
+				_, _ = a.b.SendChatAction(typing, &bot.SendChatActionParams{ChatID: chatID, Action: models.ChatActionTyping})
+				select {
+				case <-typing.Done():
+					return
+				case <-time.After(4 * time.Second): // Telegram shows it for five
+				}
+			}
+		}()
+		data, err := a.download(ctx, fileID, limit)
+		if err != nil {
+			stop()
+			a.log.Warn("telegram: could not download a file", "err", err)
+			if errors.Is(err, errTooLarge) {
+				a.reply(ctx, chatID, actions.FileTooLargeText(locale))
+			} else {
+				a.reply(ctx, chatID, actions.FailedText(locale))
+			}
+			return
+		}
+		msg := a.eng.ImportFile(ctx, actor, chat, data)
+		stop()
+		if _, err := a.Send(ctx, chatID, msg); err != nil {
+			a.log.Warn("telegram send failed", "err", err)
+		}
+	}(context.WithoutCancel(ctx))
+}
+
+// download fetches a file the person sent, refusing more than limit bytes.
+func (a *Adapter) download(ctx context.Context, fileID string, limit int64) ([]byte, error) {
+	f, err := a.b.GetFile(ctx, &bot.GetFileParams{FileID: fileID})
+	if err != nil {
+		return nil, err
+	}
+	if f.FileSize > limit {
+		return nil, errTooLarge
+	}
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, a.b.FileDownloadLink(f), nil)
+	if err != nil {
+		return nil, err
+	}
+	res, err := http.DefaultClient.Do(req)
+	if err != nil {
+		// The error carries the address, and the address the bot token.
+		return nil, errors.New("the download failed")
+	}
+	defer res.Body.Close()
+	if res.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("the download answered %d", res.StatusCode)
+	}
+	data, err := io.ReadAll(io.LimitReader(res.Body, limit+1))
+	if err != nil {
+		return nil, errors.New("the download failed")
+	}
+	if int64(len(data)) > limit {
+		return nil, errTooLarge
+	}
+	return data, nil
+}
+
+var errTooLarge = errors.New("the file is over the import limit")
 
 func (a *Adapter) reply(ctx context.Context, chatID string, text string) {
 	if _, err := a.b.SendMessage(ctx, &bot.SendMessageParams{ChatID: chatID, Text: text}); err != nil {

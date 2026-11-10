@@ -6,6 +6,7 @@ import (
 	"log/slog"
 	"net/http"
 	"net/http/httptest"
+	"os"
 	"strings"
 	"sync"
 	"testing"
@@ -25,6 +26,8 @@ type fakeBotAPI struct {
 	updates []map[string]any
 	nextID  int
 	calls   []call
+	// files are what getFile and the file download serve, by file id.
+	files map[string][]byte
 }
 
 type call struct {
@@ -63,6 +66,13 @@ func (f *fakeBotAPI) called(method string) bool {
 }
 
 func (f *fakeBotAPI) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	if id, ok := strings.CutPrefix(r.URL.Path, "/file/bot123:abc/documents/"); ok {
+		f.mu.Lock()
+		data := f.files[id]
+		f.mu.Unlock()
+		_, _ = w.Write(data)
+		return
+	}
 	method := r.URL.Path[strings.LastIndex(r.URL.Path, "/")+1:]
 	_ = r.ParseMultipartForm(1 << 20)
 	fields := map[string]string{}
@@ -89,6 +99,12 @@ func (f *fakeBotAPI) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			time.Sleep(10 * time.Millisecond)
 		}
 		ok([]any{})
+	case "getFile":
+		f.mu.Lock()
+		f.calls = append(f.calls, call{method, fields})
+		size := len(f.files[fields["file_id"]])
+		f.mu.Unlock()
+		ok(map[string]any{"file_id": fields["file_id"], "file_unique_id": "u", "file_size": size, "file_path": "documents/" + fields["file_id"]})
 	case "getMe":
 		ok(map[string]any{"id": 1, "is_bot": true, "first_name": "Exhale Test", "username": "exhale_test_bot"})
 	case "sendMessage", "editMessageText":
@@ -339,5 +355,74 @@ func TestFreeText(t *testing.T) {
 	})
 	if model.Calls() != before {
 		t.Fatal("a command reached the model")
+	}
+}
+
+// TestImportFromChat: a bank export sent to the bot comes back as a review
+// list with buttons; a file over the limit is refused before it is
+// downloaded.
+func TestImportFromChat(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	csv, err := os.ReadFile("../../importer/testdata/bank.csv")
+	if err != nil {
+		t.Fatal(err)
+	}
+	api := &fakeBotAPI{files: map[string][]byte{"bank": csv}}
+	srv := httptest.NewServer(api)
+	defer srv.Close()
+	st, err := store.OpenMemory(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer st.Close()
+	now := time.Date(2026, 11, 10, 9, 0, 0, 0, time.UTC)
+	svc := app.New(st, bus.New(), nil, func() time.Time { return now })
+	owner, _ := svc.Bootstrap(ctx, app.BootstrapInput{HouseholdName: "Home", OwnerName: "Alex", Currency: "EUR", Timezone: "UTC", Locale: "en"})
+	log := slog.New(slog.DiscardHandler)
+	tg, err := New("123:abc", srv.URL, svc, log)
+	if err != nil {
+		t.Fatal(err)
+	}
+	eng := actions.New(svc, log, tg)
+	asst, err := assistant.New(svc, log, assistant.Env{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	eng.SetAssistant(asst)
+	tg.SetEngine(eng)
+	go tg.Serve(ctx)
+	code, _ := auth.CreateLinkCode(ctx, st, owner.MemberID, Name)
+	push := func(msg map[string]any) {
+		msg["message_id"], msg["date"] = 1, 0
+		msg["chat"] = map[string]any{"id": 42, "type": "private"}
+		msg["from"] = map[string]any{"id": 42, "first_name": "Alex"}
+		api.push(map[string]any{"message": msg})
+	}
+	push(map[string]any{"text": "/start " + code})
+	eventually(t, "link confirmation", func() bool { return api.find("sendMessage", "Linked") })
+
+	push(map[string]any{"document": map[string]any{"file_id": "bank", "file_unique_id": "u1", "file_name": "bank.csv", "file_size": len(csv)}})
+	eventually(t, "the review list", func() bool {
+		return api.find("sendMessage", "Read from your file") && api.find("sendMessage", "Dropbox") && api.find("sendMessage", "imp|ok|")
+	})
+	if l, _ := svc.ListSubscriptions(ctx, owner, app.ListSubscriptionsInput{}); len(l.Subscriptions) != 0 {
+		t.Fatal("something was imported before the list was accepted")
+	}
+	push(map[string]any{"document": map[string]any{"file_id": "huge", "file_unique_id": "u2", "file_name": "huge.pdf", "file_size": 30 << 20}})
+	eventually(t, "the size limit", func() bool { return api.find("sendMessage", "too large") })
+	api.mu.Lock()
+	defer api.mu.Unlock()
+	fetched := 0
+	for _, c := range api.calls {
+		if c.Method == "getFile" {
+			fetched++
+			if c.Fields["file_id"] == "huge" {
+				t.Fatal("a file over the limit was downloaded")
+			}
+		}
+	}
+	if fetched != 1 {
+		t.Fatalf("%d downloads, want 1", fetched)
 	}
 }

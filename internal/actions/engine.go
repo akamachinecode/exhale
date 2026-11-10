@@ -25,6 +25,9 @@ type Engine struct {
 	channels map[string]Channel
 	// assistant answers free text (assistant.go); nil when not wired.
 	assistant Assistant
+	// publicURL is the address of the web, for links from chat ("" if
+	// unknown).
+	publicURL string
 }
 
 // New returns an Engine delivering through the given channels.
@@ -97,6 +100,9 @@ func (e *Engine) Handle(ctx context.Context, actor app.Actor, chat ChatRef, raw 
 	}
 	if strings.HasPrefix(raw, aiPrefix+"|") {
 		return e.handleAssistant(ctx, actor, raw)
+	}
+	if strings.HasPrefix(raw, impPrefix+"|") {
+		return e.handleImport(ctx, actor, chat, raw)
 	}
 	rep, err := e.handleCharge(ctx, actor, chat, raw)
 	if err != nil || !e.isApp(ctx, chat) {
