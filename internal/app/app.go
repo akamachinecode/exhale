@@ -55,6 +55,25 @@ var ErrForbidden = errors.New("forbidden")
 // ErrDryRun is used internally to roll back preview transactions.
 var errDryRun = errors.New("dry run")
 
+// AuditRef identifies a change recorded in the audit log.
+type AuditRef struct {
+	ID       string `json:"id"`
+	Action   string `json:"action"`
+	Entity   string `json:"entity"`
+	EntityID string `json:"entityId"`
+}
+
+type auditSinkKey struct{}
+
+// CollectAudits returns a context that records every change committed with
+// it. Adapters that must offer undo for any use case (the in-app assistant)
+// read the ids from the returned slice after the call, without each use
+// case having to return them.
+func CollectAudits(ctx context.Context) (context.Context, *[]AuditRef) {
+	refs := &[]AuditRef{}
+	return context.WithValue(ctx, auditSinkKey{}, refs), refs
+}
+
 // Service implements the use cases.
 type Service struct {
 	st  *store.Store
@@ -150,6 +169,11 @@ func (s *Service) write(ctx context.Context, actor Actor, dryRun bool, fn func(q
 	}
 	if err != nil {
 		return err
+	}
+	if sink, ok := ctx.Value(auditSinkKey{}).(*[]AuditRef); ok {
+		for _, a := range c.audits {
+			*sink = append(*sink, AuditRef{ID: a.ID, Action: a.Action, Entity: a.Entity, EntityID: a.EntityID})
+		}
 	}
 	for _, e := range c.events {
 		if len(c.audits) > 0 && e.AuditID == "" {
