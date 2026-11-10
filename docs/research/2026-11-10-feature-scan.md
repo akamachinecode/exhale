@@ -40,7 +40,7 @@ Exhale already solves the first two by design (charges as a ledger, reminders th
 | Wallos feature | How Wallos does it | Verdict | In Exhale |
 |---|---|---|---|
 | Subscription fields | Name, price, currency, cycle, next payment, start date, payment method, URL, notes, categories, payers | **Have**, one gap | Add a **start date** field. Today the Wallos import had to put it in the notes. |
-| Cycles | Every N days, weeks, months or years | **Have** | Same range. "Third Wednesday" and weekend shifting are requested elsewhere: **Later**. |
+| Cycles | Every N days, weeks, months or years | **Have** | Same range. "Third Wednesday" and weekend shifting are requested elsewhere: **Have** since 2026-11-10 (ADR 0008 notes). |
 | Advancing the next date | A nightly cron adds the interval; month-end dates drift (31 Jan becomes early March for good) | **Have** | Dates are computed from the anchor, so they never drift. |
 | Mark as paid | One "paid" date that resets each cycle (added in 5.11 after years of requests) | **Have** | Each charge is a row: pending, paid, failed or skipped, with the real amount. |
 | Auto-renew off / manual renew | Date stays in the past until the user clicks; no reminder for overdue ones | **Have** | "Needs attention" plus a follow-up message after the due date. |
