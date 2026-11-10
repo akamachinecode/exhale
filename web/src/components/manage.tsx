@@ -2,6 +2,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { AlertTriangle, Check, Pencil, Plus, Trash2, X } from "lucide-react";
 import { type FormEvent, useState } from "react";
 import { toast } from "sonner";
+import { ResetTwoFactor } from "@/components/two-factor-reset";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Field, Input, Select } from "@/components/ui/field";
@@ -509,6 +510,7 @@ export function MemberRow({
 					<Pencil />
 				</Button>
 			)}
+			{isOwner && !self && name === undefined && <ResetTwoFactor id={member.id} name={member.name} />}
 			{isOwner && !self && (
 				<Button
 					size="sm"

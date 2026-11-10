@@ -801,4 +801,46 @@ export const es: Record<string, string> = {
 	Price: "Precio",
 	"Per month": "Al mes",
 	shown: "mostradas",
+	// Two-factor sign-in (ADR 0025)
+	"Turn off 2FA": "Desactivar 2FA",
+	"Two-factor sign-in is off for {0}": "El acceso en dos pasos está desactivado para {0}",
+	"Turn off 2FA for {0}": "Desactivar 2FA de {0}",
+	"Two-factor sign-in": "Acceso en dos pasos",
+	"After your password, a code from an authenticator app.":
+		"Después de la contraseña, un código de una app de autenticación.",
+	"New backup codes": "Nuevos códigos de respaldo",
+	"Turn off": "Desactivar",
+	"Turn on": "Activar",
+	"Your password": "Tu contraseña",
+	"Your current backup codes stop working.": "Tus códigos de respaldo actuales dejan de funcionar.",
+	Continue: "Continuar",
+	"Two-factor sign-in is on": "El acceso en dos pasos está activado",
+	"QR code for your authenticator app": "Código QR para tu app de autenticación",
+	"Scan it with an authenticator app (1Password, Bitwarden, Google Authenticator, Aegis…). Or type this key:":
+		"Escanéalo con una app de autenticación (1Password, Bitwarden, Google Authenticator, Aegis…). O escribe esta clave:",
+	"Code from the app": "Código de la app",
+	"Save your backup codes": "Guarda tus códigos de respaldo",
+	"If your phone is not at hand, each of these signs you in once. Keep them somewhere safe, like your password manager: they are not shown again.":
+		"Si no tienes el móvil a mano, cada uno te deja entrar una vez. Guárdalos en un sitio seguro, como tu gestor de contraseñas: no se vuelven a mostrar.",
+	"I saved them": "Ya los he guardado",
+	"Two-factor sign-in is off": "El acceso en dos pasos está desactivado",
+	"Code or backup code": "Código o código de respaldo",
+	"{n} backup code left": "Queda {n} código de respaldo",
+	"{n} backup codes left": "Quedan {n} códigos de respaldo",
+	"Turned on two-factor sign-in": "Activó el acceso en dos pasos",
+	"Turned off two-factor sign-in": "Desactivó el acceso en dos pasos",
+	"Turned off two-factor sign-in for a member": "Desactivó el acceso en dos pasos de un miembro",
+	"Made new backup codes": "Creó nuevos códigos de respaldo",
+	"That took too long. Enter your password again.":
+		"Ha pasado demasiado tiempo. Vuelve a escribir tu contraseña.",
+	"That code did not work. Codes change every 30 seconds; try the current one.":
+		"Ese código no ha funcionado. Los códigos cambian cada 30 segundos; prueba con el actual.",
+	"Enter your code": "Escribe tu código",
+	"From the authenticator app on your phone.": "De la app de autenticación de tu móvil.",
+	Code: "Código",
+	"No phone at hand? Use one of your backup codes.":
+		"¿No tienes el móvil a mano? Usa uno de tus códigos de respaldo.",
+	Back: "Atrás",
+	"Lost both? An owner can turn it off in Settings → Sharing, or on the server:":
+		"¿Has perdido los dos? Un propietario puede desactivarlo en Ajustes → Compartir, o en el servidor:",
 };

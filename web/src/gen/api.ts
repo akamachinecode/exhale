@@ -344,6 +344,12 @@ export interface SSOInfo {
   name: string;
 }
 
+export interface TwoFactorStep {
+  expiresAt: string;
+  /** send it back with the code; it works for a few minutes */
+  token: string;
+}
+
 export interface SessionUser {
   email: string;
   /** the account has a password (accounts made through single sign-on have none) */
@@ -372,7 +378,19 @@ export interface AuthSession {
   sso?: SSOInfo;
   /** username of the Telegram bot, when Telegram is enabled */
   telegramBot?: string;
+  /** the password was right; send a code to /api/v1/auth/login/two-factor to finish signing in */
+  twoFactor?: TwoFactorStep;
   user?: SessionUser;
+}
+
+export interface BackupCodesOut {
+  /** A URL to the JSON Schema for this object. */
+  readonly $schema?: string;
+  /**
+     * one-time codes for when the phone is not at hand; shown only now
+     * @nullable
+     */
+  backupCodes: string[] | null;
 }
 
 export interface SharedCharge {
@@ -724,6 +742,13 @@ export interface ChargeResult {
   subscription: SubscriptionView;
 }
 
+export interface CodeOnly {
+  /** A URL to the JSON Schema for this object. */
+  readonly $schema?: string;
+  /** @maxLength 32 */
+  code: string;
+}
+
 export interface CreateCategoryInput {
   /** A URL to the JSON Schema for this object. */
   readonly $schema?: string;
@@ -880,6 +905,17 @@ export interface DestinationIn {
   destination: string;
   /** webhook only: JSON body with {{variables}}; empty sends the default body */
   template?: string;
+}
+
+export interface DisableIn {
+  /** A URL to the JSON Schema for this object. */
+  readonly $schema?: string;
+  /**
+     * 6 digits from the authenticator app, or a backup code
+     * @maxLength 32
+     */
+  code: string;
+  password: string;
 }
 
 export interface Empty {
@@ -1189,6 +1225,17 @@ export interface LinksOut {
   links: LinkInfo[] | null;
 }
 
+export interface LoginCodeIn {
+  /** A URL to the JSON Schema for this object. */
+  readonly $schema?: string;
+  /**
+     * 6 digits from the authenticator app, or a backup code
+     * @maxLength 32
+     */
+  code: string;
+  token: string;
+}
+
 export interface LoginIn {
   /** A URL to the JSON Schema for this object. */
   readonly $schema?: string;
@@ -1273,6 +1320,12 @@ export interface PasswordIn {
   readonly $schema?: string;
   current: string;
   new: string;
+}
+
+export interface PasswordOnly {
+  /** A URL to the JSON Schema for this object. */
+  readonly $schema?: string;
+  password: string;
 }
 
 export interface PaydayOutlook {
@@ -1368,6 +1421,13 @@ export interface ReminderLog {
   readonly $schema?: string;
   /** @nullable */
   entries: ReminderEntry[] | null;
+}
+
+export interface ResetIn {
+  /** A URL to the JSON Schema for this object. */
+  readonly $schema?: string;
+  /** member whose two-factor sign-in to turn off */
+  id: string;
 }
 
 /**
@@ -1665,6 +1725,33 @@ export interface TokensOut {
   readonly $schema?: string;
   /** @nullable */
   tokens: TokenInfo[] | null;
+}
+
+export interface TwoFactorMembersOut {
+  /** A URL to the JSON Schema for this object. */
+  readonly $schema?: string;
+  /**
+     * ids of the members with two-factor sign-in on
+     * @nullable
+     */
+  members: string[] | null;
+}
+
+export interface TwoFactorSetup {
+  /** A URL to the JSON Schema for this object. */
+  readonly $schema?: string;
+  /** base32 secret to type into the app */
+  secret: string;
+  /** otpauth:// link, shown as a QR code */
+  uri: string;
+}
+
+export interface TwoFactorStatus {
+  /** A URL to the JSON Schema for this object. */
+  readonly $schema?: string;
+  /** unused backup codes */
+  backupCodesLeft: number;
+  enabled: boolean;
 }
 
 export interface UndoInput {
@@ -3078,6 +3165,94 @@ export const useAuthLogin = <TError = ErrorModel,
       return useMutation(getAuthLoginMutationOptions(options), queryClient);
     }
 
+export const getAuthLoginTwoFactorUrl = () => {
+
+
+
+
+  return `/api/v1/auth/login/two-factor`
+}
+
+/**
+ * @summary Finish signing in with a two-factor code
+ */
+export const authLoginTwoFactor = async (loginCodeIn: NonReadonly<LoginCodeIn>, options?: Parameters<typeof fetcher>[1]): Promise<AuthSession> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return fetcher<AuthSession>(getAuthLoginTwoFactorUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(loginCodeIn)
+  }
+);}
+
+
+
+
+
+export const getAuthLoginTwoFactorMutationKey = () => ['authLoginTwoFactor'] as const;
+
+export const getAuthLoginTwoFactorMutationOptions = <TError = ErrorModel,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof authLoginTwoFactor>>, TError,AuthLoginTwoFactorMutationVariables, TContext>, request?: SecondParameter<typeof fetcher>}
+): UseMutationOptions<Awaited<ReturnType<typeof authLoginTwoFactor>>, TError,AuthLoginTwoFactorMutationVariables, TContext> => {
+
+const mutationKey = getAuthLoginTwoFactorMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof authLoginTwoFactor>>, AuthLoginTwoFactorMutationVariables> = (props) => {
+          const {data} = props ?? {};
+
+          return  authLoginTwoFactor(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type AuthLoginTwoFactorMutationResult = NonNullable<Awaited<ReturnType<typeof authLoginTwoFactor>>>
+    export type AuthLoginTwoFactorMutationBody = NonReadonly<LoginCodeIn>
+    export type AuthLoginTwoFactorMutationError = ErrorModel
+    export type AuthLoginTwoFactorMutationVariables = {data: NonReadonly<LoginCodeIn>}
+
+    /**
+ * @summary Finish signing in with a two-factor code
+ */
+export const useAuthLoginTwoFactor = <TError = ErrorModel,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof authLoginTwoFactor>>, TError,AuthLoginTwoFactorMutationVariables, TContext>, request?: SecondParameter<typeof fetcher>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof authLoginTwoFactor>>,
+        TError,
+        AuthLoginTwoFactorMutationVariables,
+        TContext
+      > => {
+      return useMutation(getAuthLoginTwoFactorMutationOptions(options), queryClient);
+    }
+
 export const getAuthLogoutUrl = () => {
 
 
@@ -3704,6 +3879,459 @@ export const useAuthRevokeToken = <TError = ErrorModel,
         TContext
       > => {
       return useMutation(getAuthRevokeTokenMutationOptions(options), queryClient);
+    }
+
+export const getAuthTwoFactorUrl = () => {
+
+
+
+
+  return `/api/v1/auth/two-factor`
+}
+
+/**
+ * @summary Your two-factor sign-in
+ */
+export const authTwoFactor = async ( options?: Parameters<typeof fetcher>[1]): Promise<TwoFactorStatus> => {
+
+  return fetcher<TwoFactorStatus>(getAuthTwoFactorUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getAuthTwoFactorQueryKey = () => {
+    return [
+    `/api/v1/auth/two-factor`
+    ] as const;
+    }
+
+
+export const getAuthTwoFactorQueryOptions = <TData = Awaited<ReturnType<typeof authTwoFactor>>, TError = ErrorModel>( options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof authTwoFactor>>, TError, TData>>, request?: SecondParameter<typeof fetcher>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getAuthTwoFactorQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof authTwoFactor>>> = ({ signal }) => authTwoFactor({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof authTwoFactor>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type AuthTwoFactorQueryResult = NonNullable<Awaited<ReturnType<typeof authTwoFactor>>>
+export type AuthTwoFactorQueryError = ErrorModel
+
+
+export function useAuthTwoFactor<TData = Awaited<ReturnType<typeof authTwoFactor>>, TError = ErrorModel>(
+  options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof authTwoFactor>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof authTwoFactor>>,
+          TError,
+          Awaited<ReturnType<typeof authTwoFactor>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof fetcher>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useAuthTwoFactor<TData = Awaited<ReturnType<typeof authTwoFactor>>, TError = ErrorModel>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof authTwoFactor>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof authTwoFactor>>,
+          TError,
+          Awaited<ReturnType<typeof authTwoFactor>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof fetcher>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useAuthTwoFactor<TData = Awaited<ReturnType<typeof authTwoFactor>>, TError = ErrorModel>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof authTwoFactor>>, TError, TData>>, request?: SecondParameter<typeof fetcher>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+/**
+ * @summary Your two-factor sign-in
+ */
+
+export function useAuthTwoFactor<TData = Awaited<ReturnType<typeof authTwoFactor>>, TError = ErrorModel>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof authTwoFactor>>, TError, TData>>, request?: SecondParameter<typeof fetcher>}
+ , queryClient?: QueryClient
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getAuthTwoFactorQueryOptions(options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getAuthTwoFactorBackupCodesUrl = () => {
+
+
+
+
+  return `/api/v1/auth/two-factor/backup-codes`
+}
+
+/**
+ * @summary Replace your backup codes
+ */
+export const authTwoFactorBackupCodes = async (passwordOnly: NonReadonly<PasswordOnly>, options?: Parameters<typeof fetcher>[1]): Promise<BackupCodesOut> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return fetcher<BackupCodesOut>(getAuthTwoFactorBackupCodesUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(passwordOnly)
+  }
+);}
+
+
+
+
+
+export const getAuthTwoFactorBackupCodesMutationKey = () => ['authTwoFactorBackupCodes'] as const;
+
+export const getAuthTwoFactorBackupCodesMutationOptions = <TError = ErrorModel,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof authTwoFactorBackupCodes>>, TError,AuthTwoFactorBackupCodesMutationVariables, TContext>, request?: SecondParameter<typeof fetcher>}
+): UseMutationOptions<Awaited<ReturnType<typeof authTwoFactorBackupCodes>>, TError,AuthTwoFactorBackupCodesMutationVariables, TContext> => {
+
+const mutationKey = getAuthTwoFactorBackupCodesMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof authTwoFactorBackupCodes>>, AuthTwoFactorBackupCodesMutationVariables> = (props) => {
+          const {data} = props ?? {};
+
+          return  authTwoFactorBackupCodes(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type AuthTwoFactorBackupCodesMutationResult = NonNullable<Awaited<ReturnType<typeof authTwoFactorBackupCodes>>>
+    export type AuthTwoFactorBackupCodesMutationBody = NonReadonly<PasswordOnly>
+    export type AuthTwoFactorBackupCodesMutationError = ErrorModel
+    export type AuthTwoFactorBackupCodesMutationVariables = {data: NonReadonly<PasswordOnly>}
+
+    /**
+ * @summary Replace your backup codes
+ */
+export const useAuthTwoFactorBackupCodes = <TError = ErrorModel,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof authTwoFactorBackupCodes>>, TError,AuthTwoFactorBackupCodesMutationVariables, TContext>, request?: SecondParameter<typeof fetcher>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof authTwoFactorBackupCodes>>,
+        TError,
+        AuthTwoFactorBackupCodesMutationVariables,
+        TContext
+      > => {
+      return useMutation(getAuthTwoFactorBackupCodesMutationOptions(options), queryClient);
+    }
+
+export const getAuthTwoFactorDisableUrl = () => {
+
+
+
+
+  return `/api/v1/auth/two-factor/disable`
+}
+
+/**
+ * @summary Turn two-factor sign-in off
+ */
+export const authTwoFactorDisable = async (disableIn: NonReadonly<DisableIn>, options?: Parameters<typeof fetcher>[1]): Promise<Empty> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return fetcher<Empty>(getAuthTwoFactorDisableUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(disableIn)
+  }
+);}
+
+
+
+
+
+export const getAuthTwoFactorDisableMutationKey = () => ['authTwoFactorDisable'] as const;
+
+export const getAuthTwoFactorDisableMutationOptions = <TError = ErrorModel,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof authTwoFactorDisable>>, TError,AuthTwoFactorDisableMutationVariables, TContext>, request?: SecondParameter<typeof fetcher>}
+): UseMutationOptions<Awaited<ReturnType<typeof authTwoFactorDisable>>, TError,AuthTwoFactorDisableMutationVariables, TContext> => {
+
+const mutationKey = getAuthTwoFactorDisableMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof authTwoFactorDisable>>, AuthTwoFactorDisableMutationVariables> = (props) => {
+          const {data} = props ?? {};
+
+          return  authTwoFactorDisable(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type AuthTwoFactorDisableMutationResult = NonNullable<Awaited<ReturnType<typeof authTwoFactorDisable>>>
+    export type AuthTwoFactorDisableMutationBody = NonReadonly<DisableIn>
+    export type AuthTwoFactorDisableMutationError = ErrorModel
+    export type AuthTwoFactorDisableMutationVariables = {data: NonReadonly<DisableIn>}
+
+    /**
+ * @summary Turn two-factor sign-in off
+ */
+export const useAuthTwoFactorDisable = <TError = ErrorModel,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof authTwoFactorDisable>>, TError,AuthTwoFactorDisableMutationVariables, TContext>, request?: SecondParameter<typeof fetcher>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof authTwoFactorDisable>>,
+        TError,
+        AuthTwoFactorDisableMutationVariables,
+        TContext
+      > => {
+      return useMutation(getAuthTwoFactorDisableMutationOptions(options), queryClient);
+    }
+
+export const getAuthTwoFactorEnableUrl = () => {
+
+
+
+
+  return `/api/v1/auth/two-factor/enable`
+}
+
+/**
+ * @summary Confirm the first code and turn two-factor sign-in on (signs out your other sessions)
+ */
+export const authTwoFactorEnable = async (codeOnly: NonReadonly<CodeOnly>, options?: Parameters<typeof fetcher>[1]): Promise<BackupCodesOut> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return fetcher<BackupCodesOut>(getAuthTwoFactorEnableUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(codeOnly)
+  }
+);}
+
+
+
+
+
+export const getAuthTwoFactorEnableMutationKey = () => ['authTwoFactorEnable'] as const;
+
+export const getAuthTwoFactorEnableMutationOptions = <TError = ErrorModel,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof authTwoFactorEnable>>, TError,AuthTwoFactorEnableMutationVariables, TContext>, request?: SecondParameter<typeof fetcher>}
+): UseMutationOptions<Awaited<ReturnType<typeof authTwoFactorEnable>>, TError,AuthTwoFactorEnableMutationVariables, TContext> => {
+
+const mutationKey = getAuthTwoFactorEnableMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof authTwoFactorEnable>>, AuthTwoFactorEnableMutationVariables> = (props) => {
+          const {data} = props ?? {};
+
+          return  authTwoFactorEnable(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type AuthTwoFactorEnableMutationResult = NonNullable<Awaited<ReturnType<typeof authTwoFactorEnable>>>
+    export type AuthTwoFactorEnableMutationBody = NonReadonly<CodeOnly>
+    export type AuthTwoFactorEnableMutationError = ErrorModel
+    export type AuthTwoFactorEnableMutationVariables = {data: NonReadonly<CodeOnly>}
+
+    /**
+ * @summary Confirm the first code and turn two-factor sign-in on (signs out your other sessions)
+ */
+export const useAuthTwoFactorEnable = <TError = ErrorModel,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof authTwoFactorEnable>>, TError,AuthTwoFactorEnableMutationVariables, TContext>, request?: SecondParameter<typeof fetcher>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof authTwoFactorEnable>>,
+        TError,
+        AuthTwoFactorEnableMutationVariables,
+        TContext
+      > => {
+      return useMutation(getAuthTwoFactorEnableMutationOptions(options), queryClient);
+    }
+
+export const getAuthTwoFactorSetupUrl = () => {
+
+
+
+
+  return `/api/v1/auth/two-factor/setup`
+}
+
+/**
+ * @summary Start turning on two-factor sign-in: a new secret for the authenticator app
+ */
+export const authTwoFactorSetup = async (passwordOnly: NonReadonly<PasswordOnly>, options?: Parameters<typeof fetcher>[1]): Promise<TwoFactorSetup> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return fetcher<TwoFactorSetup>(getAuthTwoFactorSetupUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(passwordOnly)
+  }
+);}
+
+
+
+
+
+export const getAuthTwoFactorSetupMutationKey = () => ['authTwoFactorSetup'] as const;
+
+export const getAuthTwoFactorSetupMutationOptions = <TError = ErrorModel,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof authTwoFactorSetup>>, TError,AuthTwoFactorSetupMutationVariables, TContext>, request?: SecondParameter<typeof fetcher>}
+): UseMutationOptions<Awaited<ReturnType<typeof authTwoFactorSetup>>, TError,AuthTwoFactorSetupMutationVariables, TContext> => {
+
+const mutationKey = getAuthTwoFactorSetupMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof authTwoFactorSetup>>, AuthTwoFactorSetupMutationVariables> = (props) => {
+          const {data} = props ?? {};
+
+          return  authTwoFactorSetup(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type AuthTwoFactorSetupMutationResult = NonNullable<Awaited<ReturnType<typeof authTwoFactorSetup>>>
+    export type AuthTwoFactorSetupMutationBody = NonReadonly<PasswordOnly>
+    export type AuthTwoFactorSetupMutationError = ErrorModel
+    export type AuthTwoFactorSetupMutationVariables = {data: NonReadonly<PasswordOnly>}
+
+    /**
+ * @summary Start turning on two-factor sign-in: a new secret for the authenticator app
+ */
+export const useAuthTwoFactorSetup = <TError = ErrorModel,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof authTwoFactorSetup>>, TError,AuthTwoFactorSetupMutationVariables, TContext>, request?: SecondParameter<typeof fetcher>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof authTwoFactorSetup>>,
+        TError,
+        AuthTwoFactorSetupMutationVariables,
+        TContext
+      > => {
+      return useMutation(getAuthTwoFactorSetupMutationOptions(options), queryClient);
     }
 
 export const getMonthBalancesUrl = (params?: MonthBalancesParams,) => {
@@ -5849,6 +6477,195 @@ export const useMembersSetRole = <TError = ErrorModel,
         TContext
       > => {
       return useMutation(getMembersSetRoleMutationOptions(options), queryClient);
+    }
+
+export const getMembersTwoFactorUrl = () => {
+
+
+
+
+  return `/api/v1/members/two-factor`
+}
+
+/**
+ * @summary Members with two-factor sign-in on (owners only)
+ */
+export const membersTwoFactor = async ( options?: Parameters<typeof fetcher>[1]): Promise<TwoFactorMembersOut> => {
+
+  return fetcher<TwoFactorMembersOut>(getMembersTwoFactorUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getMembersTwoFactorQueryKey = () => {
+    return [
+    `/api/v1/members/two-factor`
+    ] as const;
+    }
+
+
+export const getMembersTwoFactorQueryOptions = <TData = Awaited<ReturnType<typeof membersTwoFactor>>, TError = ErrorModel>( options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof membersTwoFactor>>, TError, TData>>, request?: SecondParameter<typeof fetcher>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getMembersTwoFactorQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof membersTwoFactor>>> = ({ signal }) => membersTwoFactor({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof membersTwoFactor>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type MembersTwoFactorQueryResult = NonNullable<Awaited<ReturnType<typeof membersTwoFactor>>>
+export type MembersTwoFactorQueryError = ErrorModel
+
+
+export function useMembersTwoFactor<TData = Awaited<ReturnType<typeof membersTwoFactor>>, TError = ErrorModel>(
+  options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof membersTwoFactor>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof membersTwoFactor>>,
+          TError,
+          Awaited<ReturnType<typeof membersTwoFactor>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof fetcher>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useMembersTwoFactor<TData = Awaited<ReturnType<typeof membersTwoFactor>>, TError = ErrorModel>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof membersTwoFactor>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof membersTwoFactor>>,
+          TError,
+          Awaited<ReturnType<typeof membersTwoFactor>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof fetcher>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useMembersTwoFactor<TData = Awaited<ReturnType<typeof membersTwoFactor>>, TError = ErrorModel>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof membersTwoFactor>>, TError, TData>>, request?: SecondParameter<typeof fetcher>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+/**
+ * @summary Members with two-factor sign-in on (owners only)
+ */
+
+export function useMembersTwoFactor<TData = Awaited<ReturnType<typeof membersTwoFactor>>, TError = ErrorModel>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof membersTwoFactor>>, TError, TData>>, request?: SecondParameter<typeof fetcher>}
+ , queryClient?: QueryClient
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getMembersTwoFactorQueryOptions(options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getMembersResetTwoFactorUrl = () => {
+
+
+
+
+  return `/api/v1/members/two-factor/reset`
+}
+
+/**
+ * @summary Turn off another member's two-factor sign-in (owners only)
+ */
+export const membersResetTwoFactor = async (resetIn: NonReadonly<ResetIn>, options?: Parameters<typeof fetcher>[1]): Promise<MemberDone> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return fetcher<MemberDone>(getMembersResetTwoFactorUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(resetIn)
+  }
+);}
+
+
+
+
+
+export const getMembersResetTwoFactorMutationKey = () => ['membersResetTwoFactor'] as const;
+
+export const getMembersResetTwoFactorMutationOptions = <TError = ErrorModel,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof membersResetTwoFactor>>, TError,MembersResetTwoFactorMutationVariables, TContext>, request?: SecondParameter<typeof fetcher>}
+): UseMutationOptions<Awaited<ReturnType<typeof membersResetTwoFactor>>, TError,MembersResetTwoFactorMutationVariables, TContext> => {
+
+const mutationKey = getMembersResetTwoFactorMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof membersResetTwoFactor>>, MembersResetTwoFactorMutationVariables> = (props) => {
+          const {data} = props ?? {};
+
+          return  membersResetTwoFactor(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type MembersResetTwoFactorMutationResult = NonNullable<Awaited<ReturnType<typeof membersResetTwoFactor>>>
+    export type MembersResetTwoFactorMutationBody = NonReadonly<ResetIn>
+    export type MembersResetTwoFactorMutationError = ErrorModel
+    export type MembersResetTwoFactorMutationVariables = {data: NonReadonly<ResetIn>}
+
+    /**
+ * @summary Turn off another member's two-factor sign-in (owners only)
+ */
+export const useMembersResetTwoFactor = <TError = ErrorModel,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof membersResetTwoFactor>>, TError,MembersResetTwoFactorMutationVariables, TContext>, request?: SecondParameter<typeof fetcher>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof membersResetTwoFactor>>,
+        TError,
+        MembersResetTwoFactorMutationVariables,
+        TContext
+      > => {
+      return useMutation(getMembersResetTwoFactorMutationOptions(options), queryClient);
     }
 
 export const getSavePaymentMethodUrl = () => {

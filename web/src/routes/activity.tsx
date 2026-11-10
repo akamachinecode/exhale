@@ -31,6 +31,11 @@ const labels: Record<string, string> = {
 	"payment_method.save": t("Saved a payment method"),
 	"category.create": t("Created a category"),
 	undo: t("Undid a change"),
+	// Two-factor sign-in (ADR 0025): recorded, not undoable.
+	"two_factor.enable": t("Turned on two-factor sign-in"),
+	"two_factor.disable": t("Turned off two-factor sign-in"),
+	"two_factor.reset": t("Turned off two-factor sign-in for a member"),
+	"two_factor.backup_codes": t("Made new backup codes"),
 };
 
 export function ActivityPage() {
@@ -86,7 +91,7 @@ export function ActivityPage() {
 						<ul className="divide-y divide-line">
 							{entries.map((e) => {
 								const Icon = e.actorKind === "agent" ? Bot : e.actorKind === "system" ? Clock : User;
-								const canUndo = !e.undoneBy && e.action !== "undo";
+								const canUndo = !e.undoneBy && e.action !== "undo" && !e.action.startsWith("two_factor.");
 								return (
 									<li key={e.id} className="flex items-center gap-3 px-5 py-3 text-sm">
 										<span className="grid size-8 place-items-center rounded-full bg-raised text-muted">
