@@ -94,6 +94,7 @@ func New(svc *app.Service, cfg Config) (http.Handler, huma.API, error) {
 	registerSettings(api, aa)
 	registerSlack(api, aa)
 	registerAssistant(api, aa)
+	mux.HandleFunc("POST /api/v1/assistant/messages/stream", assistantStream(aa))
 	registerData(api, mux, svc, cfg.Assistant)
 	registerMembers(api, aa)
 	if err := registerOIDC(mux, aa); err != nil {

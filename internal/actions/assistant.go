@@ -3,6 +3,8 @@ package actions
 import (
 	"context"
 	"strings"
+	"sync"
+	"time"
 
 	"github.com/akamachinecode/exhale/internal/app"
 	"github.com/akamachinecode/exhale/internal/assistant"
@@ -28,7 +30,7 @@ const (
 // it; an Engine without one answers free text with the channel's help.
 type Assistant interface {
 	Enabled(ctx context.Context) bool
-	Ask(ctx context.Context, actor app.Actor, conv, text string) (assistant.Turn, error)
+	AskStream(ctx context.Context, actor app.Actor, conv, text string, progress assistant.Progress) (assistant.Turn, error)
 	Decide(ctx context.Context, actor app.Actor, id string, accept bool) (assistant.Outcome, error)
 	Undo(ctx context.Context, actor app.Actor, id string) (assistant.Outcome, error)
 }
@@ -46,11 +48,21 @@ func (e *Engine) CanAsk(ctx context.Context) bool {
 // the answer, then one message per prepared change with its buttons. ok is
 // false when the assistant is off; the channel then shows its help.
 func (e *Engine) Ask(ctx context.Context, actor app.Actor, chat ChatRef, text string) (msgs []Message, ok bool) {
+	return e.AskStream(ctx, actor, chat, text, nil)
+}
+
+// AskStream is Ask, telling progress the answer as it is written (see
+// AskLive). The cards come only in the messages returned at the end.
+func (e *Engine) AskStream(ctx context.Context, actor app.Actor, chat ChatRef, text string, progress func(Message)) (msgs []Message, ok bool) {
 	if !e.CanAsk(ctx) {
 		return nil, false
 	}
 	locale := e.Locale(ctx, actor)
-	turn, err := e.assistant.Ask(ctx, actor, chat.Channel+"_"+chat.ChatID, text)
+	var watch assistant.Progress
+	if progress != nil {
+		watch = func(text string) { progress(Message{Lines: strings.Split(strings.TrimSpace(text)+" …", "\n")}) }
+	}
+	turn, err := e.assistant.AskStream(ctx, actor, chat.Channel+"_"+chat.ChatID, text, watch)
 	if err != nil {
 		return []Message{{Lines: []string{"⚠️ " + Say(locale, assistant.Explain(err))}}}, true
 	}
@@ -77,6 +89,55 @@ func lines(locale string, ts []domain.Text) []string {
 		out[i] = domain.Capitalize(Say(locale, t))
 	}
 	return out
+}
+
+// AskLive answers free text in a chat whose messages can be edited: the
+// answer appears in one message as it is written, edited at most once per
+// every (chat platforms limit edits: Telegram allows about one message a
+// second per chat and twenty a minute in a group), and that message then
+// becomes the finished answer. The cards follow as their own messages.
+// ok is false when the assistant is off.
+func (e *Engine) AskLive(ctx context.Context, actor app.Actor, chat ChatRef, text string, ch Channel, every time.Duration) (ok bool) {
+	var mu sync.Mutex
+	var live string // the id of the message being written
+	var last time.Time
+	progress := func(m Message) {
+		mu.Lock()
+		defer mu.Unlock()
+		now := time.Now()
+		switch {
+		case live == "":
+			if id, err := ch.Send(ctx, chat.ChatID, m); err == nil && id != "" {
+				live, last = id, now
+			}
+		case now.Sub(last) >= every:
+			if err := ch.Edit(ctx, chat.ChatID, live, m); err == nil {
+				last = now
+			}
+		}
+	}
+	msgs, ok := e.AskStream(ctx, actor, chat, text, progress)
+	if !ok {
+		return false
+	}
+	mu.Lock()
+	defer mu.Unlock()
+	if live != "" && len(msgs) > 0 {
+		// The last edit waits its turn, so the limit holds to the end.
+		select {
+		case <-ctx.Done():
+		case <-time.After(every - time.Since(last)):
+		}
+		if err := ch.Edit(ctx, chat.ChatID, live, msgs[0]); err == nil {
+			msgs = msgs[1:]
+		}
+	}
+	for _, m := range msgs {
+		if _, err := ch.Send(ctx, chat.ChatID, m); err != nil {
+			e.log.Warn("could not send the assistant's answer", "channel", ch.Name(), "err", err)
+		}
+	}
+	return true
 }
 
 func proposalMessage(p assistant.Proposal, locale string) Message {

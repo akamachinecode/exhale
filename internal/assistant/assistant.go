@@ -265,10 +265,22 @@ func (a *Assistant) addEvent(ctx context.Context, actor app.Actor, conv, event s
 	a.saveMemory(ctx, actor, conv, m)
 }
 
+// Progress is told the answer as it is written: the text of the current
+// call to the model so far. After tools run, the next call starts again
+// from empty. The changes prepared (and any screen) arrive only with the
+// finished Turn, written by Exhale.
+type Progress func(text string)
+
 // Ask answers one message of a conversation. conv identifies the
 // conversation (a chat, or a member's web panel); its last turns are kept
 // for half an hour so follow-up questions work.
 func (a *Assistant) Ask(ctx context.Context, actor app.Actor, conv, text string) (Turn, error) {
+	return a.AskStream(ctx, actor, conv, text, nil)
+}
+
+// AskStream is Ask, telling progress the answer as it is written when the
+// provider can stream.
+func (a *Assistant) AskStream(ctx context.Context, actor app.Actor, conv, text string, progress Progress) (Turn, error) {
 	turn := Turn{Proposals: []Proposal{}, Mentions: []Mention{}}
 	text = strings.TrimSpace(text)
 	if text == "" {
@@ -318,7 +330,7 @@ func (a *Assistant) Ask(ctx context.Context, actor app.Actor, conv, text string)
 	rounds := 0
 	for rounds < MaxRounds {
 		rounds++
-		res, err := p.Complete(ctx, Request{System: systemPrompt, Messages: msgs, Tools: a.tools, MaxTokens: chatTokens})
+		res, err := call(ctx, p, Request{System: systemPrompt, Messages: msgs, Tools: a.tools, MaxTokens: chatTokens}, progress)
 		if err != nil {
 			a.log.Warn("assistant: the model call failed", "provider", p.Name(), "round", rounds, "err", err)
 			if len(st.proposals) == 0 {
@@ -492,3 +504,22 @@ func (a *Assistant) mentions(ctx context.Context, agent app.Actor, turn Turn, st
 }
 
 func sortStrings(s []string) { sort.Strings(s) }
+
+// call asks the model once: streaming when someone watches and the
+// provider can, whole otherwise. A provider that refuses a streaming
+// request before writing anything is asked again without streaming.
+func call(ctx context.Context, p Provider, req Request, progress Progress) (Response, error) {
+	st, ok := p.(Streamer)
+	if progress == nil || !ok {
+		return p.Complete(ctx, req)
+	}
+	var b strings.Builder
+	res, err := st.Stream(ctx, req, func(delta string) {
+		b.WriteString(delta)
+		progress(b.String())
+	})
+	if err != nil && b.Len() == 0 && IsKind(err, KindRejected) {
+		return p.Complete(ctx, req)
+	}
+	return res, err
+}

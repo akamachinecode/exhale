@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"strings"
 	"sync"
 )
 
@@ -37,6 +38,22 @@ func (f *Fake) Complete(_ context.Context, req Request) (Response, error) {
 		return f.Loop(req)
 	}
 	return Response{}, fmt.Errorf("fake provider: no step scripted for call %d", n+1)
+}
+
+// Stream implements Streamer: the scripted answer's text arrives word by
+// word, then the whole answer is returned.
+func (f *Fake) Stream(ctx context.Context, req Request, onText func(string)) (Response, error) {
+	res, err := f.Complete(ctx, req)
+	if err != nil || onText == nil {
+		return res, err
+	}
+	words := strings.SplitAfter(res.Text, " ")
+	for _, w := range words {
+		if w != "" {
+			onText(w)
+		}
+	}
+	return res, nil
 }
 
 // Calls returns how many times the model was called.

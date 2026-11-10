@@ -24,6 +24,8 @@ type OpenAI struct {
 	// completionTokens is set once the endpoint asked for
 	// max_completion_tokens instead of max_tokens (newer OpenAI models).
 	completionTokens atomic.Bool
+	// noStreamUsage is set once the endpoint rejected stream_options.
+	noStreamUsage atomic.Bool
 }
 
 // NewOpenAI returns a client for a chat completions endpoint. key may be
@@ -88,6 +90,12 @@ type openAIRequest struct {
 	Tools               []openAITool    `json:"tools,omitempty"`
 	MaxTokens           int             `json:"max_tokens,omitempty"`
 	MaxCompletionTokens int             `json:"max_completion_tokens,omitempty"`
+	Stream              bool            `json:"stream,omitempty"`
+	StreamOptions       *streamOptions  `json:"stream_options,omitempty"`
+}
+
+type streamOptions struct {
+	IncludeUsage bool `json:"include_usage"`
 }
 
 type openAIResponse struct {
@@ -106,8 +114,8 @@ type openAIResponse struct {
 	Error json.RawMessage `json:"error"`
 }
 
-// Complete implements Provider.
-func (o *OpenAI) Complete(ctx context.Context, req Request) (Response, error) {
+// build returns the request body and headers for req.
+func (o *OpenAI) build(req Request) (openAIRequest, map[string]string) {
 	body := openAIRequest{Model: o.model, Messages: openAIMessages(req)}
 	if o.completionTokens.Load() {
 		body.MaxCompletionTokens = req.MaxTokens
@@ -124,23 +132,45 @@ func (o *OpenAI) Complete(ctx context.Context, req Request) (Response, error) {
 	if o.key != "" {
 		headers["Authorization"] = "Bearer " + o.key
 	}
+	return body, headers
+}
+
+// failed turns an error response into a failure. retry is true when the
+// endpoint asked for max_completion_tokens: it is used from then on.
+func (o *OpenAI) failed(status int, data []byte) (retry bool, err error) {
+	var out openAIResponse
+	_ = json.Unmarshal(data, &out)
+	detail := openAIErrorText(out.Error, data)
+	if status == http.StatusBadRequest && !o.completionTokens.Load() && strings.Contains(detail, "max_completion_tokens") {
+		o.completionTokens.Store(true)
+		return true, nil
+	}
+	return false, statusError(status, detail)
+}
+
+// Complete implements Provider.
+func (o *OpenAI) Complete(ctx context.Context, req Request) (Response, error) {
+	body, headers := o.build(req)
 	status, data, err := post(ctx, o.hc, o.base+"/chat/completions", headers, body)
 	if err != nil {
 		return Response{}, err
 	}
-	var out openAIResponse
-	jsonErr := json.Unmarshal(data, &out)
 	if status != http.StatusOK {
-		detail := openAIErrorText(out.Error, data)
-		if status == http.StatusBadRequest && !o.completionTokens.Load() && strings.Contains(detail, "max_completion_tokens") {
-			o.completionTokens.Store(true)
+		retry, err := o.failed(status, data)
+		if retry {
 			return o.Complete(ctx, req)
 		}
-		return Response{}, statusError(status, detail)
+		return Response{}, err
 	}
-	if jsonErr != nil || len(out.Choices) == 0 {
+	var out openAIResponse
+	if json.Unmarshal(data, &out) != nil || len(out.Choices) == 0 {
 		return Response{}, errKind(KindNoAnswer, "the answer had no choices")
 	}
+	return openAIResult(out)
+}
+
+// openAIResult reads a whole answer.
+func openAIResult(out openAIResponse) (Response, error) {
 	c := out.Choices[0]
 	res := Response{Model: out.Model, Usage: Usage{Input: out.Usage.Input, Output: out.Usage.Output}}
 	if c.Message.Content != nil {

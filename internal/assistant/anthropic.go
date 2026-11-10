@@ -83,6 +83,7 @@ type anthropicRequest struct {
 	Tools     []anthropicTool    `json:"tools,omitempty"`
 	Messages  []anthropicMessage `json:"messages"`
 	Fallbacks string             `json:"fallbacks,omitempty"`
+	Stream    bool               `json:"stream,omitempty"`
 }
 
 type anthropicResponse struct {
@@ -110,8 +111,8 @@ func supportsFallback(model string) bool {
 	return false
 }
 
-// Complete implements Provider.
-func (a *Anthropic) Complete(ctx context.Context, req Request) (Response, error) {
+// build returns the request body and headers for req.
+func (a *Anthropic) build(req Request) (anthropicRequest, map[string]string, bool) {
 	body := anthropicRequest{Model: a.model, MaxTokens: req.MaxTokens, Messages: anthropicMessages(req.Messages)}
 	if req.System != "" {
 		// The rules and the tool list are the same for every question, so
@@ -127,26 +128,47 @@ func (a *Anthropic) Complete(ctx context.Context, req Request) (Response, error)
 		body.Fallbacks = "default"
 		headers["anthropic-beta"] = fallbackBeta
 	}
+	return body, headers, withFallback
+}
+
+// failed turns an error response into a failure. retry is true when the
+// endpoint rejected the fallback parameter: it is not sent again.
+func (a *Anthropic) failed(status int, data []byte, withFallback bool) (retry bool, err error) {
+	var out anthropicResponse
+	detail := strings.TrimSpace(string(data))
+	if json.Unmarshal(data, &out) == nil && out.Error != nil {
+		detail = out.Error.Type + ": " + out.Error.Message
+	}
+	if withFallback && status == http.StatusBadRequest && (strings.Contains(detail, "fallback") || strings.Contains(detail, "anthropic-beta")) {
+		a.noFallback.Store(true)
+		return true, nil
+	}
+	return false, statusError(status, detail)
+}
+
+// Complete implements Provider.
+func (a *Anthropic) Complete(ctx context.Context, req Request) (Response, error) {
+	body, headers, withFallback := a.build(req)
 	status, data, err := post(ctx, a.hc, a.base+"/v1/messages", headers, body)
 	if err != nil {
 		return Response{}, err
 	}
-	var out anthropicResponse
-	jsonErr := json.Unmarshal(data, &out)
 	if status != http.StatusOK {
-		detail := strings.TrimSpace(string(data))
-		if jsonErr == nil && out.Error != nil {
-			detail = out.Error.Type + ": " + out.Error.Message
-		}
-		if withFallback && status == http.StatusBadRequest && (strings.Contains(detail, "fallback") || strings.Contains(detail, "anthropic-beta")) {
-			a.noFallback.Store(true)
+		retry, err := a.failed(status, data, withFallback)
+		if retry {
 			return a.Complete(ctx, req)
 		}
-		return Response{}, statusError(status, detail)
+		return Response{}, err
 	}
-	if jsonErr != nil {
+	var out anthropicResponse
+	if json.Unmarshal(data, &out) != nil {
 		return Response{}, errKind(KindNoAnswer, "the answer was not JSON")
 	}
+	return anthropicResult(out)
+}
+
+// anthropicResult reads a whole answer.
+func anthropicResult(out anthropicResponse) (Response, error) {
 	res := Response{Raw: out.Content, Model: out.Model, Usage: Usage{Input: out.Usage.Input, Output: out.Usage.Output}}
 	var blocks []anthropicBlock
 	if len(out.Content) > 0 {

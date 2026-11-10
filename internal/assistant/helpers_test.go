@@ -2,7 +2,6 @@ package assistant
 
 import (
 	"context"
-	"github.com/akamachinecode/exhale/internal/domain"
 	"regexp"
 	"strings"
 	"testing"
@@ -10,6 +9,7 @@ import (
 
 	"github.com/akamachinecode/exhale/internal/app"
 	"github.com/akamachinecode/exhale/internal/bus"
+	"github.com/akamachinecode/exhale/internal/domain"
 	"github.com/akamachinecode/exhale/internal/store"
 	"github.com/akamachinecode/exhale/internal/store/db"
 )

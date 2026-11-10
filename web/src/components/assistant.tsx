@@ -20,7 +20,7 @@ import {
 	useSettingsSetAssistant,
 	useSettingsTestAssistant,
 } from "@/gen/api";
-import { ApiError } from "@/lib/fetcher";
+import { ApiError, problemDetail } from "@/lib/fetcher";
 import { capitalize, say, t } from "@/lib/i18n";
 import { cn } from "@/lib/utils";
 
@@ -42,12 +42,22 @@ type State = {
 	/** The next message starts a new conversation on the server too. */
 	fresh: boolean;
 	entries: Entry[];
+	/** The answer while it is being written. */
+	live: string;
 	/** What happened to each proposal, by its id. */
 	outcomes: Record<string, AssistantOutcome>;
 	deciding: Record<string, boolean>;
 };
 
-let state: State = { open: false, busy: false, fresh: true, entries: [], outcomes: {}, deciding: {} };
+let state: State = {
+	open: false,
+	busy: false,
+	fresh: true,
+	entries: [],
+	live: "",
+	outcomes: {},
+	deciding: {},
+};
 let nextId = 1;
 const listeners = new Set<() => void>();
 
@@ -66,16 +76,68 @@ const useAssistant = () => useSyncExternalStore(subscribe, () => state);
 async function ask(text: string) {
 	text = text.trim();
 	if (!text || state.busy) return;
-	set({ open: true, busy: true, entries: [...state.entries, { kind: "user", id: nextId++, text }] });
+	set({
+		open: true,
+		busy: true,
+		live: "",
+		entries: [...state.entries, { kind: "user", id: nextId++, text }],
+	});
 	try {
-		const turn = await assistantMessage({ text, reset: state.fresh });
-		set({ fresh: false, entries: [...state.entries, { kind: "answer", id: nextId++, turn }] });
+		const turn = await askStreaming(text, state.fresh, (live) => set({ live }));
+		set({ fresh: false, live: "", entries: [...state.entries, { kind: "answer", id: nextId++, turn }] });
 	} catch (err) {
 		const entry: Entry = { kind: "error", id: nextId++, text: errText(err, t("Something went wrong.")) };
 		set({ entries: [...state.entries, entry] });
 	} finally {
-		set({ busy: false });
+		set({ busy: false, live: "" });
 	}
+}
+
+/** Asks with the answer streamed as it is written (Server-Sent Events over
+ * a POST). The cards come with the finished turn. A server without the
+ * streaming endpoint gets the plain request. */
+async function askStreaming(
+	text: string,
+	reset: boolean,
+	onText: (text: string) => void,
+): Promise<AssistantTurn> {
+	const res = await fetch("/api/v1/assistant/messages/stream", {
+		method: "POST",
+		headers: { "Content-Type": "application/json" },
+		body: JSON.stringify({ text, reset }),
+	});
+	const type = res.headers.get("Content-Type") ?? "";
+	if (!res.ok || !res.body || !type.startsWith("text/event-stream")) {
+		if (res.status === 404 || res.status === 405) return assistantMessage({ text, reset });
+		const body = await res.json().catch(() => undefined);
+		throw new ApiError(res.status, problemDetail(body, t("Something went wrong.")));
+	}
+	const reader = res.body.pipeThrough(new TextDecoderStream()).getReader();
+	let buffer = "";
+	let answer = "";
+	for (;;) {
+		const { value, done } = await reader.read();
+		if (done) break;
+		buffer += value;
+		for (let end = buffer.indexOf("\n\n"); end >= 0; end = buffer.indexOf("\n\n")) {
+			const block = buffer.slice(0, end);
+			buffer = buffer.slice(end + 2);
+			let event = "message";
+			let data = "";
+			for (const line of block.split("\n")) {
+				if (line.startsWith("event:")) event = line.slice(6).trim();
+				else if (line.startsWith("data:")) data += line.slice(5).trimStart();
+			}
+			const v = data ? JSON.parse(data) : {};
+			if (event === "delta") answer += v.text;
+			else if (event === "text") answer = v.text;
+			else if (event === "turn") return v as AssistantTurn;
+			else if (event === "error")
+				throw new ApiError(v.status ?? 500, problemDetail(v, t("Something went wrong.")));
+			if (event === "delta" || event === "text") onText(answer);
+		}
+	}
+	throw new ApiError(502, t("The answer was cut off. Try again."));
 }
 
 const examples = ["What do I pay per month?", "What renews this week?", "Add Netflix, 13.99 on the 6th"];
@@ -157,7 +219,7 @@ export function AssistantPanel() {
 	// biome-ignore lint/correctness/useExhaustiveDependencies: scroll when something is added or decided
 	useEffect(() => {
 		end.current?.scrollIntoView({ block: "end" });
-	}, [count, s.busy, s.open, s.outcomes]);
+	}, [count, s.busy, s.open, s.outcomes, s.live]);
 
 	if (!enabled) return null;
 	const onSubmit = (e: FormEvent) => {
@@ -166,7 +228,7 @@ export function AssistantPanel() {
 		setText("");
 	};
 	const restart = () => {
-		set({ entries: [], outcomes: {}, deciding: {}, fresh: true });
+		set({ entries: [], live: "", outcomes: {}, deciding: {}, fresh: true });
 	};
 	return (
 		<Dialog
@@ -207,11 +269,17 @@ export function AssistantPanel() {
 								<Answer key={e.id} turn={e.turn} />
 							),
 						)}
-						{s.busy && (
-							<p className="flex items-center gap-2 text-sm text-muted">
-								<Loader2 className="size-4 animate-spin" /> {t("Thinking…")}
-							</p>
-						)}
+						{s.busy &&
+							(s.live ? (
+								<p className="text-sm leading-relaxed whitespace-pre-wrap">
+									{s.live}
+									<span className="ml-0.5 inline-block animate-pulse text-faint">▍</span>
+								</p>
+							) : (
+								<p className="flex items-center gap-2 text-sm text-muted">
+									<Loader2 className="size-4 animate-spin" /> {t("Thinking…")}
+								</p>
+							))}
 						<div ref={end} />
 					</div>
 				)}

@@ -1040,4 +1040,5 @@ export const es: Record<string, string> = {
 	Discarded: "Descartado",
 	"Not done": "No hecho",
 	"the model provider": "el proveedor del modelo",
+	"The answer was cut off. Try again.": "La respuesta se cortó. Vuelve a probar.",
 };

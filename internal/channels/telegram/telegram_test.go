@@ -312,8 +312,12 @@ func TestFreeText(t *testing.T) {
 		assistant.Call("create_subscription", map[string]any{"name": "Netflix", "price": "13.99", "currency": "EUR", "firstCharge": "2026-11-06"}),
 		assistant.Say("I prepared Netflix <13.99 EUR>."),
 	)
+	liveEvery = 20 * time.Millisecond
 	say("add Netflix 13.99 on the 6th")
-	eventually(t, "the answer", func() bool { return api.find("sendMessage", "I prepared Netflix &lt;13.99 EUR&gt;.") })
+	// The answer appears as it is written, in one message edited into the
+	// finished answer.
+	eventually(t, "the answer being written", func() bool { return api.find("sendMessage", "I …") })
+	eventually(t, "the answer", func() bool { return api.find("editMessageText", "I prepared Netflix &lt;13.99 EUR&gt;.") })
 	eventually(t, "the proposal with its buttons", func() bool {
 		return api.find("sendMessage", "<b>Add Netflix?</b>") && api.find("sendMessage", "ai|ok|p")
 	})

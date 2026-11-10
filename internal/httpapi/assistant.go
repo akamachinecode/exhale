@@ -2,8 +2,12 @@ package httpapi
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
+	"fmt"
+	"io"
 	"net/http"
+	"strings"
 
 	"github.com/danielgtaylor/huma/v2"
 
@@ -154,4 +158,66 @@ func registerAssistant(api huma.API, a *authAPI) {
 			}
 			return &resp[AssistantStatus]{Body: AssistantStatus(st)}, nil
 		})
+}
+
+// assistantStream is "Ask Exhale" with the answer streamed as it is
+// written (Server-Sent Events over a POST, read by the web with fetch):
+//
+//	event: delta  data: {"text":"more text"}       appended to the answer
+//	event: text   data: {"text":"the whole text"}  replaces it (a new call after tools)
+//	event: turn   data: AssistantTurn              the finished answer, with its cards
+//	event: error  data: a problem, as the other endpoints send
+//
+// The cards arrive only with the turn: they are written by Exhale once the
+// model has finished. POST /api/v1/assistant/messages stays for clients
+// that do not stream.
+func assistantStream(a *authAPI) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		actor, ok := actorFrom(r.Context())
+		if !ok || actor.Kind != app.ActorMember {
+			writeProblem(w, http.StatusUnauthorized, "sign in first")
+			return
+		}
+		var in struct {
+			Text  string `json:"text"`
+			Reset bool   `json:"reset"`
+		}
+		if err := json.NewDecoder(io.LimitReader(r.Body, 64<<10)).Decode(&in); err != nil {
+			writeProblem(w, http.StatusBadRequest, "send {\"text\": …} as JSON")
+			return
+		}
+		flusher, ok := w.(http.Flusher)
+		if !ok {
+			writeProblem(w, http.StatusInternalServerError, "streaming unsupported")
+			return
+		}
+		asst := a.cfg.Assistant
+		if in.Reset {
+			asst.Reset(r.Context(), actor, webConversation(actor))
+		}
+		w.Header().Set("Content-Type", "text/event-stream")
+		w.Header().Set("Cache-Control", "no-cache")
+		w.Header().Set("X-Accel-Buffering", "no")
+		w.WriteHeader(http.StatusOK)
+		send := func(event string, v any) {
+			b, _ := json.Marshal(v)
+			fmt.Fprintf(w, "event: %s\ndata: %s\n\n", event, b)
+			flusher.Flush()
+		}
+		sent := ""
+		progress := func(text string) {
+			if strings.HasPrefix(text, sent) {
+				send("delta", map[string]string{"text": text[len(sent):]})
+			} else {
+				send("text", map[string]string{"text": text})
+			}
+			sent = text
+		}
+		turn, err := asst.AskStream(r.Context(), actor, webConversation(actor), in.Text, progress)
+		if err != nil {
+			send("error", assistantError(err))
+			return
+		}
+		send("turn", AssistantTurn(turn))
+	}
 }

@@ -271,8 +271,14 @@ func (a *Adapter) handleText(ctx context.Context, m *models.Message) {
 	a.reply(ctx, chatID, actions.HelpText(a.eng.Locale(ctx, actor)))
 }
 
+// liveEvery is the shortest gap between two edits of an answer being
+// written: about twenty edits a minute, Telegram's limit in a group.
+var liveEvery = 3 * time.Second
+
 // ask sends free text to the built-in assistant (ADR 0018) and posts what
-// it answers. "typing…" shows while the model works.
+// it answers. "typing…" shows while the model works; once it writes, its
+// answer appears in one message that is edited as it grows (at most once
+// every liveEvery) and ends as the finished answer.
 func (a *Adapter) ask(ctx context.Context, actor app.Actor, chat actions.ChatRef, text string) {
 	ctx, cancel := context.WithTimeout(ctx, 3*time.Minute)
 	defer cancel()
@@ -287,13 +293,8 @@ func (a *Adapter) ask(ctx context.Context, actor app.Actor, chat actions.ChatRef
 			}
 		}
 	}()
-	msgs, _ := a.eng.Ask(ctx, actor, chat, text)
+	a.eng.AskLive(ctx, actor, chat, text, a, liveEvery)
 	stop()
-	for _, m := range msgs {
-		if _, err := a.Send(ctx, chat.ChatID, m); err != nil {
-			a.log.Warn("telegram send failed", "err", err)
-		}
-	}
 }
 
 // join accepts a household invite from Telegram: the person becomes a
