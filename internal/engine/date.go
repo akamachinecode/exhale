@@ -66,6 +66,9 @@ func (d Date) Month() time.Month { return d.m }
 func (d Date) Day() int          { return d.d }
 func (d Date) IsZero() bool      { return d == Date{} }
 
+// Weekday returns the day of the week of d.
+func (d Date) Weekday() time.Weekday { return d.utc().Weekday() }
+
 // String formats the date as YYYY-MM-DD.
 func (d Date) String() string {
 	if d.IsZero() {
