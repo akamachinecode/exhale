@@ -117,6 +117,20 @@ type Member struct {
 	OidcSubject    string
 }
 
+type MemberBackupCode struct {
+	MemberID string
+	CodeHash string
+	UsedAt   *string
+}
+
+type MemberTotp struct {
+	MemberID  string
+	Secret    string
+	CreatedAt string
+	EnabledAt *string
+	LastStep  int64
+}
+
 type Message struct {
 	ID        string
 	Channel   string
