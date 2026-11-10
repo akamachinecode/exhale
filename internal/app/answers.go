@@ -437,7 +437,9 @@ type StoppedSubscription struct {
 	ID     string      `json:"id"`
 	Name   string      `json:"name"`
 	Yearly money.Money `json:"yearly" jsonschema:"per year at its last price, in the subscription currency"`
-	Until  engine.Date `json:"until,omitzero" jsonschema:"last day of service"`
+	// YearlyMain is Yearly converted into the display currency.
+	YearlyMain money.Money `json:"yearlyMain" jsonschema:"per year, in the display currency"`
+	Until      engine.Date `json:"until,omitzero" jsonschema:"last day of service"`
 }
 
 // stopped sums the subscriptions cancelled in Exhale (not paused). One whose
@@ -465,7 +467,7 @@ func (s *Service) stopped(ctx context.Context, actor Actor, active []Subscriptio
 		}
 		out.Yearly, _ = out.Yearly.Add(yearly)
 		out.Count++
-		out.Subscriptions = append(out.Subscriptions, StoppedSubscription{ID: v.ID, Name: v.Name, Yearly: v.YearlyCost, Until: v.CancelledUntil})
+		out.Subscriptions = append(out.Subscriptions, StoppedSubscription{ID: v.ID, Name: v.Name, Yearly: v.YearlyCost, YearlyMain: yearly, Until: v.CancelledUntil})
 	}
 	slices.SortFunc(out.Subscriptions, func(a, b StoppedSubscription) int { return b.Until.Compare(a.Until) })
 	return out, nil

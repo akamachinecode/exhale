@@ -323,4 +323,3 @@ func TestAnswersConversation(t *testing.T) {
 	out = dupKey.ReplaceAllString(out, "|KEY")
 	testutil.Golden(t, "answers_conversation", out)
 }
-

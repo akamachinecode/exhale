@@ -144,7 +144,7 @@ type UpdateHouseholdInput struct {
 	// Repeat until handled: how often an unanswered "was it charged?" comes back.
 	ConfirmTimes     *int `json:"confirmTimes,omitempty" jsonschema:"how many times in all to ask whether a charge went through while nobody answers (1: once, no repeats); subscriptions still on the previous setting follow" minimum:"1" maximum:"10"`
 	ConfirmEveryDays *int `json:"confirmEveryDays,omitempty" jsonschema:"days between two of those questions" minimum:"1" maximum:"30"`
-	DryRun       bool    `json:"dryRun,omitempty"`
+	DryRun           bool `json:"dryRun,omitempty"`
 }
 
 // UpdateHousehold changes the display currency, time zone, language, name
