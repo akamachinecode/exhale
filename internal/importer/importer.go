@@ -29,9 +29,11 @@ var ErrUnknownFormat = errors.New("this file is not a Wallos database, a Wallos 
 
 // Result is what a file contained.
 type Result struct {
-	Source string           `json:"source" jsonschema:"what the file was: wallos-db, wallos-export, exhale-export or csv"`
+	Source string           `json:"source" jsonschema:"what the file was: wallos-db, wallos-export, exhale-export, csv, transactions (a bank export), statement (a PDF), picture or text"`
 	Items  []app.ImportItem `json:"items"`
 	Notes  []string         `json:"notes" jsonschema:"things the reviewer should know about the file as a whole"`
+	// Model is the model that proposed or tidied the items, when one did.
+	Model string `json:"model,omitempty" jsonschema:"the model that read the file or tidied the names; empty when Exhale read it by itself"`
 }
 
 // MaxFileSize bounds an uploaded file.
@@ -376,7 +378,9 @@ var headers = map[string]string{
 	"trial ends": "trial", "trial end": "trial",
 }
 
-func fromCSV(data []byte, defaultCurrency string) (Result, error) {
+// readCSV reads comma, semicolon or tab separated text, whichever the first
+// line uses most.
+func readCSV(data []byte) ([][]string, error) {
 	data = bytes.TrimPrefix(data, []byte("\xef\xbb\xbf"))
 	firstLine, _, _ := bytes.Cut(data, []byte("\n"))
 	r := csv.NewReader(bytes.NewReader(data))
@@ -386,7 +390,11 @@ func fromCSV(data []byte, defaultCurrency string) (Result, error) {
 		r.Comma = '\t'
 	}
 	r.FieldsPerRecord, r.LazyQuotes, r.TrimLeadingSpace = -1, true, true
-	rows, err := r.ReadAll()
+	return r.ReadAll()
+}
+
+func fromCSV(data []byte, defaultCurrency string) (Result, error) {
+	rows, err := readCSV(data)
 	if err != nil || len(rows) < 2 {
 		return Result{}, ErrUnknownFormat
 	}
