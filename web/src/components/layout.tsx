@@ -15,18 +15,19 @@ import { useEffect, useState } from "react";
 import { SignOut } from "@/components/sign-out";
 import { useAuthSession } from "@/gen/api";
 import { useLiveEvents } from "@/lib/events";
+import { lang, setLang, t } from "@/lib/i18n";
 import { cn } from "@/lib/utils";
 
 // `mobile` marks the five destinations of the phone's bottom bar; the rest
 // are reached from Overview and Settings there.
 const nav = [
-	{ to: "/", label: "Overview", short: "Overview", icon: LayoutGrid, mobile: true },
-	{ to: "/subscriptions", label: "Subscriptions", short: "Subs", icon: Repeat, mobile: true },
-	{ to: "/calendar", label: "Calendar", short: "Calendar", icon: CalendarDays, mobile: true },
-	{ to: "/insights", label: "Insights", short: "Insights", icon: ChartNoAxesColumn, mobile: true },
-	{ to: "/checkup", label: "Check-up", short: "Check-up", icon: Stethoscope, mobile: true },
-	{ to: "/activity", label: "Activity", short: "Activity", icon: Activity, mobile: false },
-	{ to: "/agents", label: "AI agents", short: "Agents", icon: Bot, mobile: false },
+	{ to: "/", label: t("Overview"), short: t("Overview"), icon: LayoutGrid, mobile: true },
+	{ to: "/subscriptions", label: t("Subscriptions"), short: t("Subs"), icon: Repeat, mobile: true },
+	{ to: "/calendar", label: t("Calendar"), short: t("Calendar"), icon: CalendarDays, mobile: true },
+	{ to: "/insights", label: t("Insights"), short: t("Insights"), icon: ChartNoAxesColumn, mobile: true },
+	{ to: "/checkup", label: t("Check-up"), short: t("Check-up"), icon: Stethoscope, mobile: true },
+	{ to: "/activity", label: t("Activity"), short: t("Activity"), icon: Activity, mobile: false },
+	{ to: "/agents", label: t("AI agents"), short: t("Agents"), icon: Bot, mobile: false },
 ] as const;
 
 function useTheme() {
@@ -103,7 +104,7 @@ export function Layout() {
 						activeProps={{ className: "bg-raised !text-fg font-medium" }}
 					>
 						<Settings className="size-4" />
-						Settings
+						{t("Settings")}
 					</Link>
 					<div className="mt-2 flex items-center justify-between gap-1 border-t border-line pt-3 pl-2">
 						<div className="min-w-0 text-xs">
@@ -111,6 +112,7 @@ export function Layout() {
 							<p className="truncate text-muted">{session.data?.user?.email}</p>
 						</div>
 						<div className="flex shrink-0 items-center">
+							<LanguageToggle />
 							<ThemeToggle dark={dark} onToggle={() => setDark(!dark)} />
 							<SignOut compact />
 						</div>
@@ -121,10 +123,11 @@ export function Layout() {
 				<header className="flex items-center justify-between border-b border-line bg-surface/60 px-4 py-3 md:hidden">
 					<Logo />
 					<div className="flex items-center">
+						<LanguageToggle />
 						<ThemeToggle dark={dark} onToggle={() => setDark(!dark)} />
 						<Link
 							to="/settings"
-							aria-label="Settings"
+							aria-label={t("Settings")}
 							className="rounded-lg p-2 text-muted transition-colors hover:bg-raised hover:text-fg"
 							activeProps={{ className: "!text-accent" }}
 						>
@@ -156,12 +159,28 @@ export function Layout() {
 	);
 }
 
+/** Switches this browser between English and Spanish. */
+function LanguageToggle() {
+	const other = lang === "es" ? "en" : "es";
+	return (
+		<button
+			type="button"
+			onClick={() => setLang(other)}
+			aria-label={other === "es" ? "Cambiar a español" : "Switch to English"}
+			title={other === "es" ? "Español" : "English"}
+			className="rounded-lg px-2 py-2 text-[11px] font-semibold text-muted uppercase transition-colors hover:bg-raised hover:text-fg"
+		>
+			{other}
+		</button>
+	);
+}
+
 function ThemeToggle({ dark, onToggle }: { dark: boolean; onToggle: () => void }) {
 	return (
 		<button
 			type="button"
 			onClick={onToggle}
-			aria-label={dark ? "Switch to light theme" : "Switch to dark theme"}
+			aria-label={dark ? t("Switch to light theme") : t("Switch to dark theme")}
 			className={cn("rounded-lg p-2 text-muted transition-colors hover:bg-raised hover:text-fg")}
 		>
 			{dark ? <Sun className="size-4" /> : <Moon className="size-4" />}

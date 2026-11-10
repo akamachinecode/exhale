@@ -7,6 +7,7 @@ import { ServiceTile } from "@/components/service-tile";
 import { Button } from "@/components/ui/button";
 import { Card, CardHeader } from "@/components/ui/card";
 import { type ChargeView, type SubscriptionRef, useAudit, useDecideRenewal } from "@/gen/api";
+import { t, tn } from "@/lib/i18n";
 import { date, money, relativeDays } from "@/lib/utils";
 
 /** The audit as a page: facts worth acting on, each with a way to act. */
@@ -15,64 +16,77 @@ export function Checkup() {
 	const a = q.data;
 	const qc = useQueryClient();
 	const keep = useDecideRenewal({ mutation: { onSuccess: () => qc.invalidateQueries() } });
-	if (!a) return <PageHeader title="Check-up" description="Looking…" />;
+	if (!a) return <PageHeader title={t("Check-up")} description={t("Looking…")} />;
 	return (
 		<>
 			<PageHeader
-				title="Check-up"
+				title={t("Check-up")}
 				description={
 					a.findings === 0
-						? "Nothing to look at. Breathe out."
-						: `${a.findings} thing${a.findings === 1 ? "" : "s"} worth a look.`
+						? t("Nothing to look at. Breathe out.")
+						: tn(a.findings, "{n} thing worth a look.", "{n} things worth a look.")
 				}
 			/>
 			<div className="grid max-w-[820px] gap-6">
 				<Section
-					title="Free trials about to charge"
-					hint="Cancel before the date or it starts charging."
+					title={t("Free trials about to charge")}
+					hint={t("Cancel before the date or it starts charging.")}
 					items={a.trialsEnding ?? []}
 				>
 					{(c) => (
 						<ChargeLine
 							key={c.id}
 							charge={c}
-							detail={`ends ${relativeDays(c.daysUntil)}, then ${money(c.amount)}`}
+							detail={t("ends {0}, then {1}", relativeDays(c.daysUntil), money(c.amount))}
 						/>
 					)}
 				</Section>
 				<Section
-					title="Last days to cancel"
-					hint="These need notice: after the date they renew."
+					title={t("Last days to cancel")}
+					hint={t("These need notice: after the date they renew.")}
 					items={a.cancelDeadlines ?? []}
 				>
 					{(c) => (
 						<ChargeLine
 							key={c.id}
 							charge={c}
-							detail={`cancel by ${date(c.cancelBy, "long")} · renews ${date(c.dueDate, "long")} for ${money(c.amount)}`}
+							detail={t(
+								"cancel by {0} · renews {1} for {2}",
+								date(c.cancelBy, "long"),
+								date(c.dueDate, "long"),
+								money(c.amount),
+							)}
 							action={
 								<Button size="sm" onClick={() => keep.mutate({ data: { chargeId: c.id, decision: "keep" } })}>
-									Keep it
+									{t("Keep it")}
 								</Button>
 							}
 						/>
 					)}
 				</Section>
-				<Section title="About to expire" hint="They do not renew by themselves." items={a.expiring ?? []}>
-					{(c) => <ChargeLine key={c.id} charge={c} detail={`expires ${date(c.dueDate, "long")}`} />}
+				<Section
+					title={t("About to expire")}
+					hint={t("They do not renew by themselves.")}
+					items={a.expiring ?? []}
+				>
+					{(c) => <ChargeLine key={c.id} charge={c} detail={t("expires {0}", date(c.dueDate, "long"))} />}
 				</Section>
 				<Section
-					title="Big charges this month"
-					hint="Yearly bills are the ones that surprise."
+					title={t("Big charges this month")}
+					hint={t("Yearly bills are the ones that surprise.")}
 					items={a.bigCharges ?? []}
 				>
 					{(c) => (
-						<ChargeLine key={c.id} charge={c} detail={`${money(c.amount)} on ${date(c.dueDate, "long")}`} />
+						<ChargeLine
+							key={c.id}
+							charge={c}
+							detail={t("{0} on {1}", money(c.amount), date(c.dueDate, "long"))}
+						/>
 					)}
 				</Section>
 				<Section
-					title="Cards about to expire"
-					hint="Move their subscriptions before charges fail."
+					title={t("Cards about to expire")}
+					hint={t("Move their subscriptions before charges fail.")}
 					items={a.cardsExpiring ?? []}
 				>
 					{(c) => (
@@ -81,40 +95,50 @@ export function Checkup() {
 								{c.paymentMethod.name}
 								{c.paymentMethod.last4 && ` ••${c.paymentMethod.last4}`}{" "}
 								<span className="font-normal text-muted">
-									expires {date(c.paymentMethod.expiresOn, "long")}
+									{t("expires")} {date(c.paymentMethod.expiresOn, "long")}
 								</span>
 							</p>
 							<p className="mt-0.5 text-xs text-muted">
 								{(c.subscriptions ?? []).length
-									? `Pays ${(c.subscriptions ?? []).map((s) => s.name).join(", ")}.`
-									: "No subscription uses it."}{" "}
+									? t("Pays {0}.", (c.subscriptions ?? []).map((s) => s.name).join(", "))
+									: t("No subscription uses it.")}{" "}
 								<Link to="/settings" className="font-medium text-fg hover:underline">
-									Manage payment methods
+									{t("Manage payment methods")}
 								</Link>
 							</p>
 						</li>
 					)}
 				</Section>
-				<Section title="Prices that went up" hint="In the last twelve months." items={a.priceIncreases ?? []}>
+				<Section
+					title={t("Prices that went up")}
+					hint={t("In the last twelve months.")}
+					items={a.priceIncreases ?? []}
+				>
 					{(p) => (
 						<SubLine
 							key={p.subscription.id + p.since}
 							sub={p.subscription}
-							detail={`${money(p.from)} → ${money(p.to)} since ${date(p.since, "long")} (${p.changePercent}%)`}
-							value={`+${money(p.yearlyDelta)} a year`}
+							detail={t(
+								"{0} → {1} since {2} ({3}%)",
+								money(p.from),
+								money(p.to),
+								date(p.since, "long"),
+								p.changePercent,
+							)}
+							value={t("+{0} a year", money(p.yearlyDelta))}
 						/>
 					)}
 				</Section>
 				<Section
-					title="Paid twice?"
-					hint="The same service in more than one subscription."
+					title={t("Paid twice?")}
+					hint={t("The same service in more than one subscription.")}
 					items={a.duplicates ?? []}
 				>
 					{(g) => (
 						<li key={g.service} className="px-5 py-3 text-sm">
 							{(g.subscriptions ?? []).map((s, i) => (
 								<span key={s.id}>
-									{i > 0 && <span className="text-muted"> and </span>}
+									{i > 0 && <span className="text-muted"> {t("and")} </span>}
 									<Link to="/subscriptions/$id" params={{ id: s.id }} className="font-medium hover:underline">
 										{s.name}
 									</Link>
@@ -125,29 +149,29 @@ export function Checkup() {
 					)}
 				</Section>
 				<Section
-					title="You said you don't use"
-					hint="What they cost if you keep them."
+					title={t("You said you don't use")}
+					hint={t("What they cost if you keep them.")}
 					items={a.notUsed ?? []}
 				>
 					{(u) => (
 						<SubLine
 							key={u.subscription.id}
 							sub={u.subscription}
-							detail={`answered ${date(u.answeredOn, "long")}`}
-							value={`${money(u.yearly)} a year`}
+							detail={t("answered {0}", date(u.answeredOn, "long"))}
+							value={t("{0} a year", money(u.yearly))}
 						/>
 					)}
 				</Section>
 				<Section
-					title="Charges to confirm"
-					hint="Their date passed. Were they charged?"
+					title={t("Charges to confirm")}
+					hint={t("Their date passed. Were they charged?")}
 					items={a.unconfirmed ?? []}
 				>
 					{(c) => (
 						<ChargeLine
 							key={c.id}
 							charge={c}
-							detail={`was due ${date(c.dueDate, "long")} · ${money(c.amount)}`}
+							detail={t("was due {0} · {1}", date(c.dueDate, "long"), money(c.amount))}
 						/>
 					)}
 				</Section>
@@ -194,7 +218,7 @@ function ChargeLine({ charge, detail, action }: { charge: ChargeView; detail: st
 			<Link
 				to="/subscriptions/$id"
 				params={{ id: charge.subscriptionId }}
-				aria-label={`Open ${charge.subscriptionName}`}
+				aria-label={t("Open {0}", charge.subscriptionName)}
 				className="text-muted hover:text-fg"
 			>
 				<ArrowRight className="size-4" />

@@ -12,32 +12,33 @@ import { Card, CardHeader } from "@/components/ui/card";
 import { Field, PasswordInput } from "@/components/ui/field";
 import { useAuthChangePassword, useAuthSession } from "@/gen/api";
 import { ApiError } from "@/lib/fetcher";
+import { t } from "@/lib/i18n";
 
 export function SettingsPage() {
 	const session = useAuthSession();
 	const user = session.data?.user;
 	return (
 		<div className="mx-auto max-w-[760px]">
-			<PageHeader title="Settings" />
+			<PageHeader title={t("Settings")} />
 			<p className="mb-5 flex gap-4 text-[13px] md:hidden">
 				<Link to="/activity" className="font-medium hover:underline">
-					Activity
+					{t("Activity")}
 				</Link>
 				<Link to="/agents" className="font-medium hover:underline">
-					AI agents
+					{t("AI agents")}
 				</Link>
 			</p>
 			<div className="grid gap-5">
 				<Section
-					title="Account"
+					title={t("Account")}
 					description={user ? `${user.name} · ${user.email}` : undefined}
 					action={<SignOut />}
 				>
 					<AccountLogin />
 				</Section>
 				<Section
-					title="Preferences"
-					description="Owners can change them; they apply to everyone you share with."
+					title={t("Preferences")}
+					description={t("Owners can change them; they apply to everyone you share with.")}
 				>
 					<div className="grid gap-5">
 						<PreferencesForm />
@@ -45,36 +46,42 @@ export function SettingsPage() {
 						<Payday />
 					</div>
 				</Section>
-				<Section title="Payment methods" description="The cards and accounts that pay your subscriptions.">
+				<Section
+					title={t("Payment methods")}
+					description={t("The cards and accounts that pay your subscriptions.")}
+				>
 					<PaymentMethods />
 				</Section>
-				<Section title="Categories">
+				<Section title={t("Categories")}>
 					<Categories />
 				</Section>
-				<Section title="Telegram" description="Reminders you act on, and the whole app inside one message.">
+				<Section
+					title="Telegram"
+					description={t("Reminders you act on, and the whole app inside one message.")}
+				>
 					<TelegramSetup />
 				</Section>
 				<Section
-					title="Other channels"
-					description="Reminders by email, ntfy or webhook, with a link back here."
+					title={t("Other channels")}
+					description={t("Reminders by email, ntfy or webhook, with a link back here.")}
 				>
 					<OtherChannels />
 				</Section>
-				<Section title="Sharing">
+				<Section title={t("Sharing")}>
 					<Sharing />
 				</Section>
-				<Section title="Calendar">
+				<Section title={t("Calendar")}>
 					<CalendarLink />
 				</Section>
-				<Section title="Import">
+				<Section title={t("Import")}>
 					<ImportData />
 				</Section>
-				<Section title="Export">
+				<Section title={t("Export")}>
 					<ExportData />
 				</Section>
 				<Section
-					title="API tokens"
-					description="For Claude and other AI agents over MCP, and for scripts. Each token acts as you."
+					title={t("API tokens")}
+					description={t("For Claude and other AI agents over MCP, and for scripts. Each token acts as you.")}
 				>
 					<TokensManager />
 				</Section>
@@ -111,12 +118,12 @@ function AccountLogin() {
 		<div className="grid gap-4">
 			{user?.ssoHost && (
 				<p className="text-sm text-muted">
-					Single sign-on · <span className="font-mono text-[13px] text-fg">{user.ssoHost}</span>
+					{t("Single sign-on ·")} <span className="font-mono text-[13px] text-fg">{user.ssoHost}</span>
 				</p>
 			)}
 			{password && <ChangePassword />}
 			{!password && !user?.ssoHost && (
-				<p className="text-sm text-muted">Password sign-in is turned off on this server.</p>
+				<p className="text-sm text-muted">{t("Password sign-in is turned off on this server.")}</p>
 			)}
 		</div>
 	);
@@ -134,14 +141,14 @@ function ChangePassword() {
 			await change.mutateAsync({ data: { current, new: next } });
 			setCurrent("");
 			setNext("");
-			toast.success("Password changed. Your other sessions were signed out.");
+			toast.success(t("Password changed. Your other sessions were signed out."));
 		} catch (err) {
-			setError(err instanceof ApiError ? err.detail : "Could not change the password");
+			setError(err instanceof ApiError ? err.detail : t("Could not change the password"));
 		}
 	};
 	return (
 		<form onSubmit={onSubmit} className="grid gap-3 sm:grid-cols-[1fr_1fr_auto] sm:items-end">
-			<Field label="Current password">
+			<Field label={t("Current password")}>
 				<PasswordInput
 					value={current}
 					onChange={(e) => setCurrent(e.target.value)}
@@ -149,7 +156,7 @@ function ChangePassword() {
 					autoComplete="current-password"
 				/>
 			</Field>
-			<Field label="New password">
+			<Field label={t("New password")}>
 				<PasswordInput
 					value={next}
 					onChange={(e) => setNext(e.target.value)}
@@ -159,7 +166,7 @@ function ChangePassword() {
 				/>
 			</Field>
 			<Button type="submit" disabled={change.isPending}>
-				Change password
+				{t("Change password")}
 			</Button>
 			{error && <p className="text-xs text-bad sm:col-span-3">{error}</p>}
 		</form>

@@ -9,13 +9,14 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/field";
 import { type SubscriptionView, useListSubscriptions, useSpendingSummary } from "@/gen/api";
-import { cn, date, money, sumMain } from "@/lib/utils";
+import { t } from "@/lib/i18n";
+import { cadenceText, cn, date, money, sumMain } from "@/lib/utils";
 
 const tabs = [
-	{ value: undefined, label: "All" },
-	{ value: "active", label: "Active" },
-	{ value: "paused", label: "Paused" },
-	{ value: "cancelled", label: "Cancelled" },
+	{ value: undefined, label: t("All") },
+	{ value: "active", label: t("Active") },
+	{ value: "paused", label: t("Paused") },
+	{ value: "cancelled", label: t("Cancelled") },
 ] as const;
 
 type Sort = "name" | "next" | "monthly";
@@ -73,15 +74,15 @@ export function Subscriptions() {
 	return (
 		<>
 			<PageHeader
-				title="Subscriptions"
+				title={t("Subscriptions")}
 				description={
 					active.length
-						? `${active.length} active · ${totals(active)} per month`
-						: "Everything you pay for on repeat."
+						? t("{0} active · {1} per month", active.length, totals(active))
+						: t("Everything you pay for on repeat.")
 				}
 				action={
 					<Button variant="primary" onClick={() => setCreating(true)}>
-						<Plus /> New subscription
+						<Plus /> {t("New subscription")}
 					</Button>
 				}
 			/>
@@ -90,22 +91,22 @@ export function Subscriptions() {
 				<div
 					className="flex gap-1 overflow-x-auto rounded-lg bg-raised p-1"
 					role="tablist"
-					aria-label="Filter by status"
+					aria-label={t("Filter by status")}
 				>
-					{tabs.map((t) => (
+					{tabs.map((tab) => (
 						<button
-							key={t.label}
+							key={tab.label}
 							type="button"
 							role="tab"
-							aria-selected={search.status === t.value}
-							onClick={() => set({ status: t.value })}
+							aria-selected={search.status === tab.value}
+							onClick={() => set({ status: tab.value })}
 							className={cn(
 								"flex items-center gap-1.5 rounded-md px-3 py-1.5 text-[13px] font-medium text-muted transition-colors",
-								search.status === t.value && "bg-surface text-fg shadow-sm",
+								search.status === tab.value && "bg-surface text-fg shadow-sm",
 							)}
 						>
-							{t.label}
-							<span className="tnum text-xs text-faint">{count(t.value)}</span>
+							{tab.label}
+							<span className="tnum text-xs text-faint">{count(tab.value)}</span>
 						</button>
 					))}
 				</div>
@@ -113,8 +114,8 @@ export function Subscriptions() {
 					<Search className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-faint" />
 					<Input
 						className="pl-9"
-						placeholder="Search"
-						aria-label="Search subscriptions"
+						placeholder={t("Search")}
+						aria-label={t("Search subscriptions")}
 						value={search.q ?? ""}
 						onChange={(e) => set({ q: e.target.value || undefined }, true)}
 					/>
@@ -123,17 +124,17 @@ export function Subscriptions() {
 			<Card className="overflow-hidden">
 				{subs.length === 0 ? (
 					<p className="px-5 py-12 text-center text-sm text-muted">
-						{list.isLoading ? "Loading…" : "Nothing matches."}
+						{list.isLoading ? t("Loading…") : t("Nothing matches.")}
 					</p>
 				) : (
 					<table className="w-full text-sm">
 						<thead className="border-b border-line bg-raised/50 text-left text-xs text-muted">
 							<tr>
-								{header("name", "Service", "pl-5")}
-								{header("next", "Next charge", "hidden md:table-cell")}
-								<th className="hidden px-3 py-2.5 font-medium lg:table-cell">Payment method</th>
-								<th className="hidden px-3 py-2.5 text-right font-medium sm:table-cell">Price</th>
-								{header("monthly", "Per month", "pr-5 text-right")}
+								{header("name", t("Service"), "pl-5")}
+								{header("next", t("Next charge"), "hidden md:table-cell")}
+								<th className="hidden px-3 py-2.5 font-medium lg:table-cell">{t("Payment method")}</th>
+								<th className="hidden px-3 py-2.5 text-right font-medium sm:table-cell">{t("Price")}</th>
+								{header("monthly", t("Per month"), "pr-5 text-right")}
 							</tr>
 						</thead>
 						<tbody className="divide-y divide-line">
@@ -154,7 +155,7 @@ export function Subscriptions() {
 													{s.status !== "active" && <SubscriptionStatus status={s.status} />}
 												</span>
 												<span className="block truncate text-xs text-muted">
-													{s.cadence.replace("every 1 ", "every ")}
+													{cadenceText(s.cadence)}
 													{s.categoryName && ` · ${s.categoryName}`}
 												</span>
 											</span>
@@ -174,7 +175,7 @@ export function Subscriptions() {
 						<tfoot className="border-t border-line bg-raised/40 text-xs text-muted">
 							<tr>
 								<td className="py-2.5 pl-5" colSpan={4}>
-									{subs.length} shown
+									{subs.length} {t("shown")}
 								</td>
 								<td className="tnum py-2.5 pr-5 text-right font-medium text-fg">{totals(subs) || "—"}</td>
 							</tr>

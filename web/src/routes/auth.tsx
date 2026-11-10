@@ -15,6 +15,7 @@ import {
 	useAuthSetup,
 } from "@/gen/api";
 import { ApiError } from "@/lib/fetcher";
+import { t } from "@/lib/i18n";
 import { browserLocale, browserTimezone, guessCurrency } from "@/lib/locale";
 import { applySession } from "@/lib/session";
 
@@ -28,9 +29,12 @@ export function Root() {
 	if (session.isPending) return <Splash />;
 	if (session.isError) {
 		return (
-			<AuthFrame title="Exhale is not answering" subtitle="Check that the server is running, then try again.">
+			<AuthFrame
+				title={t("Exhale is not answering")}
+				subtitle={t("Check that the server is running, then try again.")}
+			>
 				<Button variant="primary" className="w-full" onClick={() => session.refetch()}>
-					Try again
+					{t("Try again")}
 				</Button>
 			</AuthFrame>
 		);
@@ -47,8 +51,8 @@ export function Splash() {
 		<div className="grid min-h-dvh place-items-center bg-bg px-4">
 			<div className="flex flex-col items-center gap-5">
 				<Logo />
-				<p className="text-sm text-muted">Breathe out. Your subscriptions are handled.</p>
-				<Loader2 className="size-4 animate-spin text-faint" aria-label="Loading" />
+				<p className="text-sm text-muted">{t("Breathe out. Your subscriptions are handled.")}</p>
+				<Loader2 className="size-4 animate-spin text-faint" aria-label={t("Loading")} />
 			</div>
 		</div>
 	);
@@ -100,18 +104,20 @@ export function FormError({ message }: { message?: string }) {
 
 /** Why a single sign-on attempt came back with `?error=…` (internal/httpapi/oidc.go). */
 const ssoErrors: Record<string, string> = {
-	sso_failed: "The sign-in did not complete. Try again.",
-	sso_expired: "That sign-in took too long. Try again.",
-	sso_denied: "The sign-in was cancelled.",
-	sso_provider: "The sign-in provider is not answering. Try again in a moment.",
-	sso_config: "Single sign-on is not set up for this address. The server needs EXHALE_PUBLIC_URL.",
-	sso_throttled: "Too many attempts. Wait a minute and try again.",
-	sso_unverified: "Your provider has not verified your email, so it cannot be matched to your account here.",
-	sso_email_taken: "Your email belongs to an account that signs in with another identity.",
-	sso_no_account: "There is no account for you here yet. Ask the owner for an invite.",
-	sso_invite: "This invite has expired or was already used. Ask for a new one.",
-	sso_setup_code: "The setup code is wrong or expired.",
-	sso_setup: "Could not create your account. Try again from this page.",
+	sso_failed: t("The sign-in did not complete. Try again."),
+	sso_expired: t("That sign-in took too long. Try again."),
+	sso_denied: t("The sign-in was cancelled."),
+	sso_provider: t("The sign-in provider is not answering. Try again in a moment."),
+	sso_config: t("Single sign-on is not set up for this address. The server needs EXHALE_PUBLIC_URL."),
+	sso_throttled: t("Too many attempts. Wait a minute and try again."),
+	sso_unverified: t(
+		"Your provider has not verified your email, so it cannot be matched to your account here.",
+	),
+	sso_email_taken: t("Your email belongs to an account that signs in with another identity."),
+	sso_no_account: t("There is no account for you here yet. Ask the owner for an invite."),
+	sso_invite: t("This invite has expired or was already used. Ask for a new one."),
+	sso_setup_code: t("The setup code is wrong or expired."),
+	sso_setup: t("Could not create your account. Try again from this page."),
 };
 
 /** The message for the `?error=` a single sign-on attempt came back with; the URL is cleaned once read. */
@@ -175,7 +181,7 @@ function SsoButton({
 			disabled={leaving}
 		>
 			{leaving ? <Loader2 className="animate-spin" /> : null}
-			Continue with {name}
+			{t("Continue with")} {name}
 			{primary && !leaving && <ArrowRight />}
 		</Button>
 	);
@@ -185,7 +191,7 @@ function Or() {
 	return (
 		<div className="flex items-center gap-3 text-xs text-faint">
 			<span className="h-px flex-1 bg-line" />
-			or
+			{t("or")}
 			<span className="h-px flex-1 bg-line" />
 		</div>
 	);
@@ -215,7 +221,7 @@ function SignUp({ session }: { session: AuthSession }) {
 			}}
 			before={() => {
 				if (!session.setupNeedsCode || v.code.trim()) return true;
-				setError("Enter the setup code first.");
+				setError(t("Enter the setup code first."));
 				return false;
 			}}
 		/>
@@ -227,7 +233,7 @@ function SignUp({ session }: { session: AuthSession }) {
 		e.preventDefault();
 		if (!passwords) return;
 		if (v.password.length < 10) {
-			setError("Use at least 10 characters for the password.");
+			setError(t("Use at least 10 characters for the password."));
 			return;
 		}
 		setError(undefined);
@@ -246,26 +252,26 @@ function SignUp({ session }: { session: AuthSession }) {
 			qc.setQueryData(getAuthSessionQueryKey(), s);
 			navigate({ to: "/" });
 		} catch (err) {
-			setError(errorText(err, "Could not create your account"));
+			setError(errorText(err, t("Could not create your account")));
 		}
 	};
 
 	return (
 		<AuthFrame
-			title={session.hasHousehold ? "Create your login" : "Welcome to Exhale"}
+			title={session.hasHousehold ? t("Create your login") : t("Welcome to Exhale")}
 			subtitle={
 				session.hasHousehold
-					? "Your data is already here. Create the login to open it."
-					: "Create your account. The rest happens inside."
+					? t("Your data is already here. Create the login to open it.")
+					: t("Create your account. The rest happens inside.")
 			}
 		>
 			<form onSubmit={onSubmit} className="grid gap-4">
 				{session.setupNeedsCode && (
 					<Field
-						label="Setup code"
+						label={t("Setup code")}
 						hint={
 							<>
-								Printed in the server log, or run <code className="font-mono">exhale setup-code</code>.
+								{t("Printed in the server log, or run")} <code className="font-mono">exhale setup-code</code>.
 							</>
 						}
 					>
@@ -280,7 +286,7 @@ function SignUp({ session }: { session: AuthSession }) {
 				)}
 				{passwords && (
 					<>
-						<Field label="Name">
+						<Field label={t("Name")}>
 							<Input
 								value={v.name}
 								onChange={set("name")}
@@ -290,10 +296,10 @@ function SignUp({ session }: { session: AuthSession }) {
 								autoFocus
 							/>
 						</Field>
-						<Field label="Email">
+						<Field label={t("Email")}>
 							<Input type="email" value={v.email} onChange={set("email")} required autoComplete="email" />
 						</Field>
-						<Field label="Password" hint="At least 10 characters.">
+						<Field label={t("Password")} hint={t("At least 10 characters.")}>
 							<PasswordInput
 								value={v.password}
 								onChange={set("password")}
@@ -308,7 +314,7 @@ function SignUp({ session }: { session: AuthSession }) {
 				{passwords && (
 					<Button type="submit" variant="primary" className="mt-2 h-10" disabled={setup.isPending}>
 						{setup.isPending ? <Loader2 className="animate-spin" /> : null}
-						Create account
+						{t("Create account")}
 						{!setup.isPending && <ArrowRight />}
 					</Button>
 				)}
@@ -335,7 +341,7 @@ function SignIn({ session }: { session: AuthSession }) {
 	);
 	if (session.passwordLoginDisabled) {
 		return (
-			<AuthFrame title="Sign in">
+			<AuthFrame title={t("Sign in")}>
 				<div className="grid gap-4">
 					<FormError message={ssoError} />
 					{sso}
@@ -349,13 +355,13 @@ function SignIn({ session }: { session: AuthSession }) {
 		try {
 			applySession(qc, await login.mutateAsync({ data: { email, password } }));
 		} catch (err) {
-			setError(errorText(err, "Could not sign in"));
+			setError(errorText(err, t("Could not sign in")));
 		}
 	};
 	return (
-		<AuthFrame title="Sign in">
+		<AuthFrame title={t("Sign in")}>
 			<form onSubmit={onSubmit} className="grid gap-4">
-				<Field label="Email">
+				<Field label={t("Email")}>
 					<Input
 						type="email"
 						value={email}
@@ -365,7 +371,7 @@ function SignIn({ session }: { session: AuthSession }) {
 						autoFocus
 					/>
 				</Field>
-				<Field label="Password">
+				<Field label={t("Password")}>
 					<PasswordInput
 						value={password}
 						onChange={(e) => setPassword(e.target.value)}
@@ -376,12 +382,13 @@ function SignIn({ session }: { session: AuthSession }) {
 				<FormError message={error ?? ssoError} />
 				<Button type="submit" variant="primary" className="mt-2 h-10" disabled={login.isPending}>
 					{login.isPending ? <Loader2 className="animate-spin" /> : null}
-					Sign in
+					{t("Sign in")}
 				</Button>
 				{sso && <Or />}
 				{sso}
 				<p className="text-center text-xs text-faint">
-					Forgot it? On the server: <code className="font-mono">exhale user reset-password --email …</code>
+					{t("Forgot it? On the server:")}{" "}
+					<code className="font-mono">exhale user reset-password --email …</code>
 				</p>
 			</form>
 		</AuthFrame>
@@ -403,11 +410,11 @@ export function JoinPage() {
 	if (invite.isError) {
 		return (
 			<AuthFrame
-				title="This invite does not work"
-				subtitle="It has expired or was already used. Ask for a new one."
+				title={t("This invite does not work")}
+				subtitle={t("It has expired or was already used. Ask for a new one.")}
 			>
 				<Button className="w-full" onClick={() => navigate({ to: "/" })}>
-					Go to sign in
+					{t("Go to sign in")}
 				</Button>
 			</AuthFrame>
 		);
@@ -419,16 +426,19 @@ export function JoinPage() {
 			applySession(qc, await join.mutateAsync({ data: { code, ...v } }));
 			navigate({ to: "/" });
 		} catch (err) {
-			setError(errorText(err, "Could not create your account"));
+			setError(errorText(err, t("Could not create your account")));
 		}
 	};
-	const subtitle = `${invite.data.invitedBy} wants to share their Exhale with you. You get your own login; private subscriptions stay private.`;
+	const subtitle = t(
+		"{0} wants to share their Exhale with you. You get your own login; private subscriptions stay private.",
+		invite.data.invitedBy,
+	);
 	const sso = session?.sso && (
 		<SsoButton name={session.sso.name} primary={session.passwordLoginDisabled} params={{ invite: code }} />
 	);
 	if (session?.passwordLoginDisabled) {
 		return (
-			<AuthFrame title="You're invited" subtitle={subtitle}>
+			<AuthFrame title={t("You're invited")} subtitle={subtitle}>
 				<div className="grid gap-4">
 					<FormError message={ssoError} />
 					{sso}
@@ -437,9 +447,9 @@ export function JoinPage() {
 		);
 	}
 	return (
-		<AuthFrame title="You're invited" subtitle={subtitle}>
+		<AuthFrame title={t("You're invited")} subtitle={subtitle}>
 			<form onSubmit={onSubmit} className="grid gap-4">
-				<Field label="Name">
+				<Field label={t("Name")}>
 					<Input
 						value={v.name}
 						onChange={(e) => setV({ ...v, name: e.target.value })}
@@ -448,7 +458,7 @@ export function JoinPage() {
 						autoFocus
 					/>
 				</Field>
-				<Field label="Email">
+				<Field label={t("Email")}>
 					<Input
 						type="email"
 						value={v.email}
@@ -457,7 +467,7 @@ export function JoinPage() {
 						autoComplete="email"
 					/>
 				</Field>
-				<Field label="Password" hint="At least 10 characters.">
+				<Field label={t("Password")} hint={t("At least 10 characters.")}>
 					<PasswordInput
 						value={v.password}
 						onChange={(e) => setV({ ...v, password: e.target.value })}
@@ -468,7 +478,7 @@ export function JoinPage() {
 				</Field>
 				<FormError message={error ?? ssoError} />
 				<Button type="submit" variant="primary" className="mt-2 h-10" disabled={join.isPending}>
-					Create account
+					{t("Create account")}
 				</Button>
 				{sso && <Or />}
 				{sso}

@@ -5,10 +5,11 @@ import { PageHeader } from "@/components/layout";
 import { ServiceTile } from "@/components/service-tile";
 import { Card, CardHeader } from "@/components/ui/card";
 import { type MonthSpend, useMonthBalances, useSpendingHistory, useSpendingSummary } from "@/gen/api";
+import { locale, t, tn } from "@/lib/i18n";
 import { cn, date, money, todayISO } from "@/lib/utils";
 
 const monthName = (m: string, long = false) =>
-	new Intl.DateTimeFormat(undefined, {
+	new Intl.DateTimeFormat(locale, {
 		month: long ? "long" : "short",
 		year: long ? "numeric" : undefined,
 		timeZone: "UTC",
@@ -40,25 +41,25 @@ export function Insights() {
 
 	return (
 		<>
-			<PageHeader title="Insights" description="What you really paid, and what is coming." />
+			<PageHeader title={t("Insights")} description={t("What you really paid, and what is coming.")} />
 			<div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
-				<Stat label="Paid in the last 12 months" value={money(h?.totalPaid)} />
+				<Stat label={t("Paid in the last 12 months")} value={money(h?.totalPaid)} />
 				<Stat
-					label="Average month"
+					label={t("Average month")}
 					value={money(average)}
 					hint={
 						paidMonths.length
-							? `over ${paidMonths.length} month${paidMonths.length === 1 ? "" : "s"} with payments`
-							: "no payments yet"
+							? tn(paidMonths.length, "over {n} month with payments", "over {n} months with payments")
+							: t("no payments yet")
 					}
 				/>
 				<Stat
-					label="Put away each month"
+					label={t("Put away each month")}
 					value={money(s?.setAsideMonthly)}
-					hint="for what is billed yearly or every few months"
+					hint={t("for what is billed yearly or every few months")}
 				/>
 				<Stat
-					label="Heaviest month ahead"
+					label={t("Heaviest month ahead")}
 					value={h?.heaviestMonth ? monthName(h.heaviestMonth, true) : "—"}
 					hint={money(months.find((m) => m.month === h?.heaviestMonth)?.expected)}
 				/>
@@ -66,17 +67,20 @@ export function Insights() {
 
 			<Card className="mt-6">
 				<CardHeader
-					title="Month by month"
-					description={`Paid so far and still to come, in ${h?.mainCurrency ?? ""}. Past months come from the charges you confirmed.`}
+					title={t("Month by month")}
+					description={t(
+						"Paid so far and still to come, in {0}. Past months come from the charges you confirmed.",
+						h?.mainCurrency ?? "",
+					)}
 				/>
 				<div className="border-t border-line px-5 py-5">
 					<Bars months={months} current={thisMonth} />
 					<div className="mt-4 flex gap-5 text-xs text-muted">
 						<span className="flex items-center gap-1.5">
-							<span className="size-2.5 rounded-sm bg-fg" /> Paid
+							<span className="size-2.5 rounded-sm bg-fg" /> {t("Paid")}
 						</span>
 						<span className="flex items-center gap-1.5">
-							<span className="size-2.5 rounded-sm border border-dashed border-muted" /> Still to come
+							<span className="size-2.5 rounded-sm border border-dashed border-muted" /> {t("Still to come")}
 						</span>
 					</div>
 				</div>
@@ -85,12 +89,12 @@ export function Insights() {
 			<div className="mt-6 grid grid-cols-1 gap-6 lg:grid-cols-2">
 				<Card className="self-start">
 					<CardHeader
-						title="What each one has cost"
-						description="Everything marked as paid, since you track it."
+						title={t("What each one has cost")}
+						description={t("Everything marked as paid, since you track it.")}
 					/>
 					{subs.length === 0 ? (
 						<p className="border-t border-line px-5 py-8 text-center text-sm text-muted">
-							Confirm a charge and it shows up here.
+							{t("Confirm a charge and it shows up here.")}
 						</p>
 					) : (
 						<ul className="divide-y divide-line border-t border-line">
@@ -105,8 +109,8 @@ export function Insights() {
 										<span className="min-w-0 flex-1">
 											<span className="block truncate font-medium group-hover:underline">{x.name}</span>
 											<span className="block text-xs text-muted">
-												{x.count} charge{x.count === 1 ? "" : "s"}
-												{x.since && ` since ${date(x.since, "long")}`}
+												{tn(x.count, "{n} charge", "{n} charges")}
+												{x.since && t(" since {0}", date(x.since, "long"))}
 											</span>
 										</span>
 										<span className="tnum font-medium">{money(x.paid)}</span>
@@ -126,7 +130,7 @@ export function Insights() {
 			</div>
 			{(h?.unconverted ?? []).length > 0 && (
 				<p className="mt-4 text-xs text-muted">
-					Not included (no exchange rate): {(h?.unconverted ?? []).join(", ")}.
+					{t("Not included (no exchange rate):")} {(h?.unconverted ?? []).join(", ")}.
 				</p>
 			)}
 		</>
@@ -146,7 +150,7 @@ function Stat({ label, value, hint }: { label: string; value: string; hint?: str
 function Bars({ months, current }: { months: MonthSpend[]; current: string }) {
 	const max = Math.max(1, ...months.map((m) => m.paid.minor + m.expected.minor));
 	return (
-		<div className="flex gap-1 sm:gap-2" role="img" aria-label="Spend per month">
+		<div className="flex gap-1 sm:gap-2" role="img" aria-label={t("Spend per month")}>
 			{months.map((m) => {
 				const total = m.paid.minor + m.expected.minor;
 				return (
@@ -157,11 +161,17 @@ function Bars({ months, current }: { months: MonthSpend[]; current: string }) {
 								role="tooltip"
 							>
 								<span className="font-medium">{monthName(m.month, true)}</span>
-								{m.paid.minor > 0 && <span className="block text-muted">Paid {money(m.paid)}</span>}
-								{m.expected.minor > 0 && (
-									<span className="block text-muted">To come {money(m.expected)}</span>
+								{m.paid.minor > 0 && (
+									<span className="block text-muted">
+										{t("Paid")} {money(m.paid)}
+									</span>
 								)}
-								{total === 0 && <span className="block text-muted">Nothing</span>}
+								{m.expected.minor > 0 && (
+									<span className="block text-muted">
+										{t("To come")} {money(m.expected)}
+									</span>
+								)}
+								{total === 0 && <span className="block text-muted">{t("Nothing")}</span>}
 							</div>
 							{m.expected.minor > 0 && (
 								<div
@@ -201,14 +211,14 @@ function BalancesCard() {
 	return (
 		<Card className="self-start">
 			<CardHeader
-				title="Who owes whom"
-				description="For the subscriptions whose cost you split."
+				title={t("Who owes whom")}
+				description={t("For the subscriptions whose cost you split.")}
 				action={
 					<div className="flex items-center gap-1 text-[13px]">
 						<button
 							type="button"
 							className="rounded-md px-1.5 py-1 text-muted hover:bg-raised hover:text-fg"
-							aria-label="Previous month"
+							aria-label={t("Previous month")}
 							onClick={() => setMonth(shiftMonth(month, -1))}
 						>
 							‹
@@ -217,7 +227,7 @@ function BalancesCard() {
 						<button
 							type="button"
 							className="rounded-md px-1.5 py-1 text-muted hover:bg-raised hover:text-fg"
-							aria-label="Next month"
+							aria-label={t("Next month")}
 							onClick={() => setMonth(shiftMonth(month, 1))}
 						>
 							›
@@ -227,27 +237,27 @@ function BalancesCard() {
 			/>
 			{charges.length === 0 ? (
 				<p className="border-t border-line px-5 py-8 text-center text-sm text-muted">
-					Nothing split this month. Edit a subscription and choose who shares it.
+					{t("Nothing split this month. Edit a subscription and choose who shares it.")}
 				</p>
 			) : (
 				<div className="border-t border-line">
 					<ul className="grid gap-2 px-5 py-4">
 						{(b?.transfers ?? []).length === 0 && (
-							<li className="text-sm">All even. Nobody owes anything.</li>
+							<li className="text-sm">{t("All even. Nobody owes anything.")}</li>
 						)}
-						{(b?.transfers ?? []).map((t) => (
-							<li key={t.from + t.to} className="flex items-center gap-2 text-sm font-medium">
+						{(b?.transfers ?? []).map((transfer) => (
+							<li key={transfer.from + transfer.to} className="flex items-center gap-2 text-sm font-medium">
 								<ArrowRight className="size-4 text-muted" />
-								{t.text}
+								{transfer.text}
 							</li>
 						))}
 					</ul>
 					<table className="w-full border-t border-line text-sm">
 						<thead className="text-left text-xs text-muted">
 							<tr>
-								<th className="py-2 pl-5 font-medium">Member</th>
-								<th className="px-3 py-2 text-right font-medium">Paid</th>
-								<th className="py-2 pr-5 text-right font-medium">Share</th>
+								<th className="py-2 pl-5 font-medium">{t("Member")}</th>
+								<th className="px-3 py-2 text-right font-medium">{t("Paid")}</th>
+								<th className="py-2 pr-5 text-right font-medium">{t("Share")}</th>
 							</tr>
 						</thead>
 						<tbody className="divide-y divide-line">
@@ -265,7 +275,7 @@ function BalancesCard() {
 							<li key={c.subscription + c.date} className="flex gap-2 px-5 py-2">
 								<span className="flex-1 truncate">
 									{date(c.date)} · {c.subscription} · {c.paidBy}
-									{c.status === "pending" && " · not paid yet"}
+									{c.status === "pending" && t(" · not paid yet")}
 								</span>
 								<span className="tnum">{money(c.amount)}</span>
 							</li>

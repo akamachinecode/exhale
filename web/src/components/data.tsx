@@ -14,17 +14,18 @@ import {
 	useImportSubscriptions,
 } from "@/gen/api";
 import { ApiError } from "@/lib/fetcher";
-import { date } from "@/lib/utils";
+import { t, tn } from "@/lib/i18n";
+import { date, every } from "@/lib/utils";
 
 const errText = (e: unknown, fallback: string) => (e instanceof ApiError ? e.detail : fallback);
 
 type Parsed = { source: string; items: ImportItem[]; notes: string[] };
 
 const sources: Record<string, string> = {
-	"wallos-db": "Wallos database",
-	"wallos-export": "Wallos export",
-	"exhale-export": "Exhale export",
-	csv: "Spreadsheet (CSV)",
+	"wallos-db": t("Wallos database"),
+	"wallos-export": t("Wallos export"),
+	"exhale-export": t("Exhale export"),
+	csv: t("Spreadsheet (CSV)"),
 };
 
 /** Import: read a file, review the list, then bring in what is ticked. */
@@ -48,7 +49,7 @@ export function ImportData() {
 				body: file,
 			});
 			const body = await res.json();
-			if (!res.ok) throw new ApiError(res.status, body?.detail ?? "Could not read the file");
+			if (!res.ok) throw new ApiError(res.status, body?.detail ?? t("Could not read the file"));
 			const p = body as Parsed;
 			// A dry run says what would happen to each item before anything is saved.
 			const dry = await run.mutateAsync({ data: { items: p.items, dryRun: true } });
@@ -56,7 +57,7 @@ export function ImportData() {
 			setPreview(dry);
 			setPicked((dry.items ?? []).map((o) => o.action === "create"));
 		} catch (err) {
-			setError(errText(err, "Could not read the file"));
+			setError(errText(err, t("Could not read the file")));
 		} finally {
 			setBusy(false);
 			if (input.current) input.current.value = "";
@@ -70,11 +71,11 @@ export function ImportData() {
 			const items = parsed.items.filter((_, i) => picked[i]);
 			const res = await run.mutateAsync({ data: { items } });
 			await qc.invalidateQueries();
-			toast.success(`${res.created} subscription${res.created === 1 ? "" : "s"} imported`);
+			toast.success(tn(res.created, "{n} subscription imported", "{n} subscriptions imported"));
 			setParsed(undefined);
 			setPreview(undefined);
 		} catch (err) {
-			setError(errText(err, "Could not import"));
+			setError(errText(err, t("Could not import")));
 		}
 	};
 
@@ -86,18 +87,21 @@ export function ImportData() {
 				type="file"
 				accept=".db,.sqlite,.json,.csv,.tsv,.txt"
 				className="sr-only"
-				aria-label="File to import"
+				aria-label={t("File to import")}
 				onChange={(e) => e.target.files?.[0] && onFile(e.target.files[0])}
 			/>
 			{!parsed && (
 				<>
 					<p className="text-sm text-muted">
-						A Wallos database (<code className="font-mono text-xs">db/wallos.db</code>) or export, a
-						spreadsheet saved as CSV, or an Exhale export. You review the list before anything is saved.
+						{t("A Wallos database (")}
+						<code className="font-mono text-xs">db/wallos.db</code>
+						{t(
+							") or export, a spreadsheet saved as CSV, or an Exhale export. You review the list before anything is saved.",
+						)}
 					</p>
 					<div>
 						<Button disabled={busy} onClick={() => input.current?.click()}>
-							<Upload /> {busy ? "Reading…" : "Choose a file"}
+							<Upload /> {busy ? t("Reading…") : t("Choose a file")}
 						</Button>
 					</div>
 				</>
@@ -108,8 +112,8 @@ export function ImportData() {
 						<span className="font-medium">{sources[parsed.source] ?? parsed.source}</span>
 						<span className="text-muted">
 							{" "}
-							· {parsed.items.length} found · {preview.duplicates} already in Exhale
-							{preview.errors > 0 && ` · ${preview.errors} with problems`}
+							· {parsed.items.length} {t("found ·")} {preview.duplicates} {t("already in Exhale")}
+							{preview.errors > 0 && t(" · {0} with problems", preview.errors)}
 						</span>
 					</p>
 					{parsed.notes.map((n) => (
@@ -130,19 +134,19 @@ export function ImportData() {
 										disabled={!ok}
 										checked={Boolean(picked[i])}
 										onChange={(e) => setPicked(picked.map((p, j) => (j === i ? e.target.checked : p)))}
-										aria-label={`Import ${it.name}`}
+										aria-label={t("Import {0}", it.name)}
 									/>
 									<span className="min-w-0 flex-1">
 										<span className="flex flex-wrap items-center gap-2">
 											<span className="font-medium">{it.name}</span>
-											{it.status === "cancelled" && <Badge>Cancelled</Badge>}
-											{o?.action === "duplicate" && <Badge tone="warn">Already here</Badge>}
-											{o?.action === "error" && <Badge tone="bad">Problem</Badge>}
+											{it.status === "cancelled" && <Badge>{t("Cancelled")}</Badge>}
+											{o?.action === "duplicate" && <Badge tone="warn">{t("Already here")}</Badge>}
+											{o?.action === "error" && <Badge tone="bad">{t("Problem")}</Badge>}
 										</span>
 										<span className="block text-xs text-muted">
 											{[
 												`${it.price} ${it.currency ?? ""}`.trim(),
-												`every ${(it.interval ?? 1) > 1 ? `${it.interval} ` : ""}${it.unit ?? "month"}${(it.interval ?? 1) > 1 ? "s" : ""}`,
+												every(it.interval ?? 1, it.unit ?? "month"),
 												it.nextCharge &&
 													(it.status === "cancelled"
 														? `from ${date(it.nextCharge, "long")}`
@@ -165,7 +169,7 @@ export function ImportData() {
 					</ul>
 					{((preview.newCategories ?? []).length > 0 || (preview.newPaymentMethods ?? []).length > 0) && (
 						<p className="text-xs text-muted">
-							Will also create{" "}
+							{t("Will also create")}{" "}
 							{[
 								(preview.newPaymentMethods ?? []).length &&
 									`payment methods: ${(preview.newPaymentMethods ?? []).join(", ")}`,
@@ -179,9 +183,9 @@ export function ImportData() {
 					)}
 					<div className="flex gap-2">
 						<Button variant="primary" disabled={count === 0 || run.isPending} onClick={apply}>
-							Import {count} subscription{count === 1 ? "" : "s"}
+							{tn(count, "Import {n} subscription", "Import {n} subscriptions")}
 						</Button>
-						<Button onClick={() => setParsed(undefined)}>Discard</Button>
+						<Button onClick={() => setParsed(undefined)}>{t("Discard")}</Button>
 					</div>
 				</>
 			)}
@@ -196,16 +200,16 @@ export function ExportData() {
 		"inline-flex h-9 items-center gap-2 rounded-lg border border-line bg-surface px-4 text-sm font-medium transition-colors hover:bg-raised [&_svg]:size-4";
 	return (
 		<div className="grid gap-3">
-			<p className="text-sm text-muted">Your data is yours: take it out whenever you want.</p>
+			<p className="text-sm text-muted">{t("Your data is yours: take it out whenever you want.")}</p>
 			<div className="flex flex-wrap gap-2">
 				<a className={link} href="/api/v1/export/subscriptions.csv" download>
-					<Download /> Subscriptions (CSV)
+					<Download /> {t("Subscriptions (CSV)")}
 				</a>
 				<a className={link} href="/api/v1/export/charges.csv" download>
-					<Download /> Charges (CSV)
+					<Download /> {t("Charges (CSV)")}
 				</a>
 				<a className={link} href="/api/v1/export" download="exhale-export.json">
-					<Download /> Everything (JSON)
+					<Download /> {t("Everything (JSON)")}
 				</a>
 			</div>
 		</div>
@@ -226,7 +230,7 @@ export function CalendarLink() {
 			setUrl(`${apiOrigin}${r.path}`);
 			await qc.invalidateQueries();
 		} catch (err) {
-			toast.error(errText(err, "Could not create the link"));
+			toast.error(errText(err, t("Could not create the link")));
 		}
 	};
 	const drop = async () => {
@@ -235,14 +239,15 @@ export function CalendarLink() {
 			setUrl(undefined);
 			await qc.invalidateQueries();
 		} catch (err) {
-			toast.error(errText(err, "Could not remove the link"));
+			toast.error(errText(err, t("Could not remove the link")));
 		}
 	};
 	return (
 		<div className="grid gap-3">
 			<p className="text-sm text-muted">
-				Charges, trial ends and last days to cancel in Apple Calendar, Google Calendar or Outlook. Subscribe
-				to the link; it updates by itself.
+				{t(
+					"Charges, trial ends and last days to cancel in Apple Calendar, Google Calendar or Outlook. Subscribe to the link; it updates by itself.",
+				)}
 			</p>
 			{url ? (
 				<div className="grid gap-2">
@@ -251,7 +256,7 @@ export function CalendarLink() {
 						<Button
 							size="icon"
 							variant="ghost"
-							aria-label="Copy the link"
+							aria-label={t("Copy the link")}
 							onClick={async () => {
 								try {
 									await navigator.clipboard.writeText(url);
@@ -264,21 +269,22 @@ export function CalendarLink() {
 						</Button>
 					</div>
 					<p className="text-xs text-muted">
-						Copy it now: Exhale does not keep it. Anyone with the link can read your calendar.
+						{t("Copy it now: Exhale does not keep it. Anyone with the link can read your calendar.")}
 					</p>
 				</div>
 			) : feed.data?.enabled ? (
 				<p className="text-sm">
-					A link is active{feed.data.createdAt && ` since ${date(feed.data.createdAt.slice(0, 10), "long")}`}.
+					{t("A link is active")}
+					{feed.data.createdAt && t(" since {0}", date(feed.data.createdAt.slice(0, 10), "long"))}.
 				</p>
 			) : null}
 			<div className="flex gap-2">
 				<Button disabled={create.isPending} onClick={make}>
-					{feed.data?.enabled ? "Replace the link" : "Create a calendar link"}
+					{feed.data?.enabled ? t("Replace the link") : t("Create a calendar link")}
 				</Button>
 				{feed.data?.enabled && (
 					<Button variant="danger" disabled={remove.isPending} onClick={drop}>
-						Remove it
+						{t("Remove it")}
 					</Button>
 				)}
 			</div>

@@ -5,6 +5,7 @@ import { createRoot } from "react-dom/client";
 import { Toaster } from "sonner";
 import { getAuthSessionQueryKey } from "@/gen/api";
 import { ApiError } from "@/lib/fetcher";
+import { lang } from "@/lib/i18n";
 import { ActivityPage } from "@/routes/activity";
 import { AgentsPage } from "@/routes/agents";
 import { JoinPage, Root } from "@/routes/auth";
@@ -79,6 +80,8 @@ const queryClient: QueryClient = new QueryClient({
 		},
 	},
 });
+
+document.documentElement.lang = lang;
 
 const el = document.getElementById("root");
 if (el) {

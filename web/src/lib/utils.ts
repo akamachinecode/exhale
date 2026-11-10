@@ -1,12 +1,11 @@
 import { type ClassValue, clsx } from "clsx";
 import { twMerge } from "tailwind-merge";
 import type { Money } from "@/gen/api";
+import { locale, t } from "@/lib/i18n";
 
 export function cn(...inputs: ClassValue[]) {
 	return twMerge(clsx(inputs));
 }
-
-const locale = typeof navigator === "undefined" ? "en" : navigator.language;
 
 function fractionDigits(currency: string) {
 	return (
@@ -47,10 +46,53 @@ export function date(d?: string | null, style: "short" | "long" | "day" = "short
 }
 
 export function relativeDays(days: number) {
-	if (days === 0) return "today";
-	if (days === 1) return "tomorrow";
-	if (days === -1) return "yesterday";
-	return days > 0 ? `in ${days} days` : `${-days} days ago`;
+	if (days === 0) return t("today");
+	if (days === 1) return t("tomorrow");
+	if (days === -1) return t("yesterday");
+	return days > 0 ? t("in {0} days", days) : t("{0} days ago", -days);
+}
+
+const unitNames: Record<string, [string, string]> = {
+	day: [t("Day"), t("Days")],
+	week: [t("Week"), t("Weeks")],
+	month: [t("Month"), t("Months")],
+	year: [t("Year"), t("Years")],
+};
+
+/** "Month" or "Months" for a billing unit. */
+export function unitLabel(unit: string, many = false) {
+	return unitNames[unit]?.[many ? 1 : 0] ?? unit;
+}
+
+const everyOne: Record<string, string> = {
+	day: t("every day"),
+	week: t("every week"),
+	month: t("every month"),
+	year: t("every year"),
+};
+const everyMany: Record<string, (n: number) => string> = {
+	day: (n) => t("every {0} days", n),
+	week: (n) => t("every {0} weeks", n),
+	month: (n) => t("every {0} months", n),
+	year: (n) => t("every {0} years", n),
+};
+
+/** A billing cycle in words: "every month", "every 3 months". */
+export function every(interval: number, unit: string) {
+	return interval > 1 ? (everyMany[unit]?.(interval) ?? `${interval} ${unit}`) : (everyOne[unit] ?? unit);
+}
+
+const cadences: Record<string, string> = {
+	daily: t("daily"),
+	weekly: t("weekly"),
+	monthly: t("monthly"),
+	yearly: t("yearly"),
+};
+
+/** Translates the server's description of a billing cycle ("monthly", "every 3 months"). */
+export function cadenceText(cadence: string) {
+	const m = /^every (\d+) (day|week|month|year)s$/.exec(cadence);
+	return m ? every(Number(m[1]), m[2]) : (cadences[cadence] ?? cadence);
 }
 
 export function todayISO() {

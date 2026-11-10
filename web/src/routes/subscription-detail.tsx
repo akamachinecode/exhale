@@ -20,7 +20,8 @@ import {
 	useUpdateSubscription,
 } from "@/gen/api";
 import { ApiError } from "@/lib/fetcher";
-import { date, money } from "@/lib/utils";
+import { t, tn } from "@/lib/i18n";
+import { cadenceText, date, money } from "@/lib/utils";
 
 export function SubscriptionDetail() {
 	const { id } = useParams({ from: "/subscriptions/$id" });
@@ -31,22 +32,22 @@ export function SubscriptionDetail() {
 	const household = useGetHousehold();
 	const [editing, setEditing] = useState(false);
 	const usage = useUpdateSubscription({ mutation: { onSuccess: () => qc.invalidateQueries() } });
-	const onError = (e: unknown) => toast.error(e instanceof ApiError ? e.detail : "Something went wrong");
+	const onError = (e: unknown) => toast.error(e instanceof ApiError ? e.detail : t("Something went wrong"));
 	const status = useSetSubscriptionStatus({ mutation: { onSuccess: () => qc.invalidateQueries(), onError } });
 	const del = useDeleteSubscription({
 		mutation: {
 			onSuccess: (r) => {
 				qc.invalidateQueries();
 				navigate({ to: "/subscriptions", search: {} });
-				toast.success("Subscription deleted", {
-					action: { label: "Undo", onClick: () => undo.mutate({ data: { auditId: r.auditId } }) },
+				toast.success(t("Subscription deleted"), {
+					action: { label: t("Undo"), onClick: () => undo.mutate({ data: { auditId: r.auditId } }) },
 				});
 			},
 			onError,
 		},
 	});
-	if (q.isLoading) return <p className="text-sm text-muted">Loading…</p>;
-	if (!q.data) return <p className="text-sm text-muted">Subscription not found.</p>;
+	if (q.isLoading) return <p className="text-sm text-muted">{t("Loading…")}</p>;
+	if (!q.data) return <p className="text-sm text-muted">{t("Subscription not found.")}</p>;
 	const { subscription: s, upcoming, history, priceHistory, paid } = q.data;
 	const act = (action: "pause" | "resume" | "cancel_at_period_end") =>
 		status.mutate({ data: { id: s.id, action } });
@@ -62,7 +63,7 @@ export function SubscriptionDetail() {
 				search={{}}
 				className="mb-4 inline-flex items-center gap-1.5 text-[13px] text-muted hover:text-fg"
 			>
-				<ArrowLeft className="size-3.5" /> Subscriptions
+				<ArrowLeft className="size-3.5" /> {t("Subscriptions")}
 			</Link>
 			<div className="mb-6 flex flex-wrap items-center gap-4">
 				<ServiceTile name={s.name} size="lg" />
@@ -70,37 +71,39 @@ export function SubscriptionDetail() {
 					<div className="flex flex-wrap items-center gap-2">
 						<h1 className="truncate text-[22px] font-semibold tracking-tight">{s.name}</h1>
 						<SubscriptionStatus status={s.status} />
-						{s.inTrial && <Badge tone="accent">Free trial</Badge>}
-						{s.expires && <Badge>Expires unless renewed</Badge>}
+						{s.inTrial && <Badge tone="accent">{t("Free trial")}</Badge>}
+						{s.expires && <Badge>{t("Expires unless renewed")}</Badge>}
 					</div>
 					<p className="mt-0.5 text-sm text-muted">
-						<span className="tnum font-medium text-fg">{money(s.price)}</span> {s.cadence}
-						{s.status === "cancelled" && s.serviceUntil && ` · service until ${date(s.serviceUntil, "long")}`}
+						<span className="tnum font-medium text-fg">{money(s.price)}</span> {cadenceText(s.cadence)}
+						{s.status === "cancelled" &&
+							s.serviceUntil &&
+							t(" · service until {0}", date(s.serviceUntil, "long"))}
 					</p>
 				</div>
 				<div className="flex flex-wrap gap-2">
 					<Button size="sm" onClick={() => setEditing(true)}>
-						<Pencil /> Edit
+						<Pencil /> {t("Edit")}
 					</Button>
 					{s.status === "active" && (
 						<Button size="sm" onClick={() => act("pause")}>
-							<Pause /> Pause
+							<Pause /> {t("Pause")}
 						</Button>
 					)}
 					{s.status !== "active" && (
 						<Button size="sm" onClick={() => act("resume")}>
-							<Play /> Resume
+							<Play /> {t("Resume")}
 						</Button>
 					)}
 					{s.status === "active" && (
 						<Button size="sm" onClick={() => act("cancel_at_period_end")}>
-							<XCircle /> Cancel at period end
+							<XCircle /> {t("Cancel at period end")}
 						</Button>
 					)}
 					<Button
 						size="sm"
 						variant="danger"
-						aria-label="Delete"
+						aria-label={t("Delete")}
 						onClick={() => del.mutate({ data: { id: s.id } })}
 					>
 						<Trash2 />
@@ -112,8 +115,12 @@ export function SubscriptionDetail() {
 			{s.status === "active" && s.cancelBy && (
 				<Card className="mb-6 flex flex-wrap items-center gap-3 border-warn/40 px-5 py-3.5 text-sm">
 					<span className="flex-1">
-						<span className="font-medium">Cancel by {date(s.cancelBy, "long")}</span>{" "}
-						<span className="text-muted">or it renews: it needs {s.noticeDays} days' notice.</span>
+						<span className="font-medium">
+							{t("Cancel by")} {date(s.cancelBy, "long")}
+						</span>{" "}
+						<span className="text-muted">
+							{t("or it renews: it needs")} {s.noticeDays} {t("days' notice.")}
+						</span>
 					</span>
 					{s.cancelUrl && (
 						<a
@@ -122,7 +129,7 @@ export function SubscriptionDetail() {
 							rel="noreferrer"
 							className="inline-flex items-center gap-1.5 text-[13px] font-medium hover:underline"
 						>
-							Cancel page <ExternalLink className="size-3.5" />
+							{t("Cancel page")} <ExternalLink className="size-3.5" />
 						</a>
 					)}
 				</Card>
@@ -130,13 +137,16 @@ export function SubscriptionDetail() {
 			{s.status === "active" && s.askUsage && (
 				<Card className="mb-6 flex flex-wrap items-center gap-3 px-5 py-3.5 text-sm">
 					<span className="flex-1">
-						Still using it? <span className="text-muted">It costs {money(s.yearlyCost)} a year.</span>
+						{t("Still using it?")}{" "}
+						<span className="text-muted">
+							{t("It costs")} {money(s.yearlyCost)} {t("a year.")}
+						</span>
 					</span>
 					<Button size="sm" onClick={() => usage.mutate({ data: { id: s.id, using: true } })}>
-						Yes
+						{t("Yes")}
 					</Button>
 					<Button size="sm" onClick={() => usage.mutate({ data: { id: s.id, using: false } })}>
-						Not really
+						{t("Not really")}
 					</Button>
 				</Card>
 			)}
@@ -144,40 +154,40 @@ export function SubscriptionDetail() {
 				<div className="grid min-w-0 content-start gap-6">
 					<Card>
 						<CardHeader
-							title="Upcoming charges"
-							description="Move one charge for a one-off delay, or the series from that charge on."
+							title={t("Upcoming charges")}
+							description={t("Move one charge for a one-off delay, or the series from that charge on.")}
 						/>
-						<Charges charges={upcoming ?? []} empty="No upcoming charges." />
+						<Charges charges={upcoming ?? []} empty={t("No upcoming charges.")} />
 					</Card>
 					<Card>
-						<CardHeader title="History" />
-						<Charges charges={history ?? []} empty="No past charges yet." />
+						<CardHeader title={t("History")} />
+						<Charges charges={history ?? []} empty={t("No past charges yet.")} />
 					</Card>
 				</div>
 				<div className="grid content-start gap-6">
 					<Card>
-						<CardHeader title="Details" />
+						<CardHeader title={t("Details")} />
 						<dl className="grid gap-3 border-t border-line px-5 py-4 text-sm">
 							<Detail
-								label="Per month · per year"
+								label={t("Per month · per year")}
 								value={`${money(s.monthlyCost)} · ${money(s.yearlyCost)}`}
 							/>
 							<Detail
-								label={s.expires ? "Expires" : s.inTrial ? "Trial ends" : "Next charge"}
+								label={s.expires ? t("Expires") : s.inTrial ? t("Trial ends") : t("Next charge")}
 								value={date(s.nextCharge, "long")}
 							/>
 							{s.nextPrice && (
 								<Detail
-									label="Price change"
+									label={t("Price change")}
 									value={`${money(s.nextPrice.price)} from ${date(s.nextPrice.from, "long")}`}
 								/>
 							)}
-							<Detail label="Payment method" value={s.paymentMethod ?? "—"} />
-							<Detail label="Category" value={s.categoryName ?? "—"} />
-							<Detail label="Paid by" value={s.payerName ?? "—"} />
+							<Detail label={t("Payment method")} value={s.paymentMethod ?? "—"} />
+							<Detail label={t("Category")} value={s.categoryName ?? "—"} />
+							<Detail label={t("Paid by")} value={s.payerName ?? "—"} />
 							{shares.length > 0 && (
 								<Detail
-									label="Split"
+									label={t("Split")}
 									value={shares
 										.map(
 											(x) => `${names.get(x.memberId) ?? "?"} ${Math.round((x.weight / totalWeight) * 100)}%`,
@@ -185,23 +195,23 @@ export function SubscriptionDetail() {
 										.join(" · ")}
 								/>
 							)}
-							{s.account && <Detail label="Account" value={s.account} />}
-							{s.startedOn && <Detail label="Subscribed since" value={date(s.startedOn, "long")} />}
+							{s.account && <Detail label={t("Account")} value={s.account} />}
+							{s.startedOn && <Detail label={t("Subscribed since")} value={date(s.startedOn, "long")} />}
 							{s.schedule.until && s.status !== "cancelled" && (
-								<Detail label="Ends on" value={date(s.schedule.until, "long")} />
+								<Detail label={t("Ends on")} value={date(s.schedule.until, "long")} />
 							)}
 							<Detail
-								label="Reminders"
+								label={t("Reminders")}
 								value={
 									(s.reminders.daysBefore ?? []).length
 										? `${(s.reminders.daysBefore ?? []).map((d) => reminderLabel(d).toLowerCase()).join(", ")} · ${String(s.reminders.hour).padStart(2, "0")}:${String(s.reminders.minute).padStart(2, "0")}`
 										: "Off"
 								}
 							/>
-							{s.visibility === "private" && <Detail label="Visibility" value="Private" />}
+							{s.visibility === "private" && <Detail label={t("Visibility")} value="Private" />}
 							{s.cancelUrl && (
 								<div className="grid gap-0.5">
-									<dt className="text-xs text-muted">Cancel or manage</dt>
+									<dt className="text-xs text-muted">{t("Cancel or manage")}</dt>
 									<dd>
 										<a
 											href={s.cancelUrl}
@@ -214,26 +224,34 @@ export function SubscriptionDetail() {
 									</dd>
 								</div>
 							)}
-							{s.notes && <Detail label="Notes" value={s.notes} />}
+							{s.notes && <Detail label={t("Notes")} value={s.notes} />}
 						</dl>
 					</Card>
 					<Card>
 						<CardHeader
-							title="What it has cost"
+							title={t("What it has cost")}
 							description={
 								paid.count
-									? `${paid.count} charge${paid.count === 1 ? "" : "s"} paid since ${date(paid.since, "long")}`
-									: "Nothing marked as paid yet."
+									? tn(
+											paid.count,
+											"{n} charge paid since {0}",
+											"{n} charges paid since {0}",
+											date(paid.since, "long"),
+										)
+									: t("Nothing marked as paid yet.")
 							}
 						/>
 						<div className="border-t border-line px-5 py-4">
 							<p className="tnum text-2xl font-semibold tracking-tight">{money(paid.total)}</p>
 							{prices.length > 1 && (
-								<ol className="mt-4 grid gap-2 border-t border-line pt-3 text-sm" aria-label="Price history">
+								<ol
+									className="mt-4 grid gap-2 border-t border-line pt-3 text-sm"
+									aria-label={t("Price history")}
+								>
 									{prices.map((p) => (
 										<li key={p.from} className="flex items-center gap-2">
 											<span className="flex-1 text-muted">
-												{p.scheduled ? "From " : ""}
+												{p.scheduled ? t("From ") : ""}
 												{date(p.from, "long")}
 											</span>
 											{p.changePercent && (
@@ -277,15 +295,23 @@ function Charges({ charges, empty }: { charges: ChargeView[]; empty: string }) {
 				>
 					<div className="min-w-0 flex-1">
 						<p className="font-medium">{date(c.dueDate, "long")}</p>
-						{c.delayed && <p className="text-xs text-muted">moved from {date(c.originalDate)}</p>}
+						{c.delayed && (
+							<p className="text-xs text-muted">
+								{t("moved from")} {date(c.originalDate)}
+							</p>
+						)}
 						{c.chargedAmount && c.chargedAmount.minor !== c.amount.minor && (
-							<p className="text-xs text-muted">charged {money(c.chargedAmount)}</p>
+							<p className="text-xs text-muted">
+								{t("charged")} {money(c.chargedAmount)}
+							</p>
 						)}
 						{c.kind === "trial" && c.status === "pending" && (
-							<p className="text-xs text-muted">the free trial ends</p>
+							<p className="text-xs text-muted">{t("the free trial ends")}</p>
 						)}
 						{c.cancelBy && !c.cancelPassed && c.status === "pending" && (
-							<p className="text-xs text-muted">cancel by {date(c.cancelBy)}</p>
+							<p className="text-xs text-muted">
+								{t("cancel by")} {date(c.cancelBy)}
+							</p>
 						)}
 					</div>
 					<ChargeStatus charge={c} />

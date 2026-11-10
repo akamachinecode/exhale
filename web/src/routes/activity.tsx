@@ -9,27 +9,28 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { useListChanges, useListReminders, useUndo } from "@/gen/api";
 import { ApiError } from "@/lib/fetcher";
+import { locale, t } from "@/lib/i18n";
 import { cn, date } from "@/lib/utils";
 
 const labels: Record<string, string> = {
-	"subscription.create": "Created a subscription",
-	"subscription.update": "Updated a subscription",
-	"subscription.pause": "Paused a subscription",
-	"subscription.resume": "Resumed a subscription",
-	"subscription.cancel_now": "Cancelled a subscription",
-	"subscription.cancel_at_period_end": "Cancelled at period end",
-	"subscription.delete": "Deleted a subscription",
-	"subscription.reschedule": "Changed the billing day",
-	"subscription.reprice": "Changed the price",
-	"charge.move": "Moved a charge",
-	"charge.amount": "Changed a charge amount",
-	"charge.paid": "Marked a charge paid",
-	"charge.failed": "Marked a charge failed",
-	"charge.skipped": "Skipped a charge",
-	"charge.pending": "Reopened a charge",
-	"payment_method.save": "Saved a payment method",
-	"category.create": "Created a category",
-	undo: "Undid a change",
+	"subscription.create": t("Created a subscription"),
+	"subscription.update": t("Updated a subscription"),
+	"subscription.pause": t("Paused a subscription"),
+	"subscription.resume": t("Resumed a subscription"),
+	"subscription.cancel_now": t("Cancelled a subscription"),
+	"subscription.cancel_at_period_end": t("Cancelled at period end"),
+	"subscription.delete": t("Deleted a subscription"),
+	"subscription.reschedule": t("Changed the billing day"),
+	"subscription.reprice": t("Changed the price"),
+	"charge.move": t("Moved a charge"),
+	"charge.amount": t("Changed a charge amount"),
+	"charge.paid": t("Marked a charge paid"),
+	"charge.failed": t("Marked a charge failed"),
+	"charge.skipped": t("Skipped a charge"),
+	"charge.pending": t("Reopened a charge"),
+	"payment_method.save": t("Saved a payment method"),
+	"category.create": t("Created a category"),
+	undo: t("Undid a change"),
 };
 
 export function ActivityPage() {
@@ -39,9 +40,9 @@ export function ActivityPage() {
 		mutation: {
 			onSuccess: () => {
 				qc.invalidateQueries();
-				toast.success("Change undone");
+				toast.success(t("Change undone"));
 			},
-			onError: (e) => toast.error(e instanceof ApiError ? e.detail : "Could not undo"),
+			onError: (e) => toast.error(e instanceof ApiError ? e.detail : t("Could not undo")),
 		},
 	});
 	const entries = q.data?.entries ?? [];
@@ -49,27 +50,29 @@ export function ActivityPage() {
 	return (
 		<>
 			<PageHeader
-				title="Activity"
+				title={t("Activity")}
 				description={
 					tab === "changes"
-						? "Every change, by you, the people you share with, the scheduler or an AI agent. Anything can be undone."
-						: "Every reminder Exhale planned and what happened to it."
+						? t(
+								"Every change, by you, the people you share with, the scheduler or an AI agent. Anything can be undone.",
+							)
+						: t("Every reminder Exhale planned and what happened to it.")
 				}
 			/>
 			<div className="mb-4 inline-flex gap-1 rounded-lg bg-raised p-1" role="tablist">
-				{(["changes", "reminders"] as const).map((t) => (
+				{(["changes", "reminders"] as const).map((name) => (
 					<button
-						key={t}
+						key={name}
 						type="button"
 						role="tab"
-						aria-selected={tab === t}
-						onClick={() => setTab(t)}
+						aria-selected={tab === name}
+						onClick={() => setTab(name)}
 						className={cn(
 							"rounded-md px-3 py-1.5 text-[13px] font-medium text-muted transition-colors",
-							tab === t && "bg-surface text-fg shadow-sm",
+							tab === name && "bg-surface text-fg shadow-sm",
 						)}
 					>
-						{t === "changes" ? "Changes" : "Reminders"}
+						{name === "changes" ? t("Changes") : t("Reminders")}
 					</button>
 				))}
 			</div>
@@ -78,7 +81,7 @@ export function ActivityPage() {
 			) : (
 				<Card>
 					{entries.length === 0 ? (
-						<p className="px-5 py-12 text-center text-sm text-muted">No changes yet.</p>
+						<p className="px-5 py-12 text-center text-sm text-muted">{t("No changes yet.")}</p>
 					) : (
 						<ul className="divide-y divide-line">
 							{entries.map((e) => {
@@ -91,14 +94,14 @@ export function ActivityPage() {
 										</span>
 										<div className="min-w-0 flex-1">
 											<p className="truncate">
-												<span className="font-medium">{e.actor || "Someone"}</span>{" "}
+												<span className="font-medium">{e.actor || t("Someone")}</span>{" "}
 												<span className="text-muted">{(labels[e.action] ?? e.action).toLowerCase()}</span>
 											</p>
-											<p className="text-xs text-faint">{new Date(e.at).toLocaleString()}</p>
+											<p className="text-xs text-faint">{new Date(e.at).toLocaleString(locale)}</p>
 										</div>
-										{e.actorKind === "agent" && <Badge tone="accent">AI agent</Badge>}
+										{e.actorKind === "agent" && <Badge tone="accent">{t("AI agent")}</Badge>}
 										{e.undoneBy ? (
-											<Badge>Undone</Badge>
+											<Badge>{t("Undone")}</Badge>
 										) : (
 											canUndo && (
 												<Button
@@ -106,7 +109,7 @@ export function ActivityPage() {
 													variant="ghost"
 													onClick={() => undo.mutate({ data: { auditId: e.id } })}
 												>
-													<Undo2 /> Undo
+													<Undo2 /> {t("Undo")}
 												</Button>
 											)
 										)}
@@ -122,9 +125,9 @@ export function ActivityPage() {
 }
 
 const kinds: Record<string, string> = {
-	reminder: "Reminder",
-	decision: "Last day to cancel",
-	confirm: "Was it charged?",
+	reminder: t("Reminder"),
+	decision: t("Last day to cancel"),
+	confirm: t("Was it charged?"),
 };
 
 /** The reminder log: the answer to "why didn't I get that reminder?". */
@@ -134,7 +137,7 @@ function Reminders() {
 	return (
 		<Card>
 			{entries.length === 0 ? (
-				<p className="px-5 py-12 text-center text-sm text-muted">No reminders yet.</p>
+				<p className="px-5 py-12 text-center text-sm text-muted">{t("No reminders yet.")}</p>
 			) : (
 				<ul className="divide-y divide-line">
 					{entries.map((e) => (
@@ -149,12 +152,12 @@ function Reminders() {
 										{e.subscription}
 									</Link>{" "}
 									<span className="text-muted">
-										· {kinds[e.kind] ?? e.kind} · charge of {date(e.chargeDate, "long")}
-										{e.to && ` · for ${e.to}`}
+										· {kinds[e.kind] ?? e.kind} {t("· charge of")} {date(e.chargeDate, "long")}
+										{e.to && t(" · for {0}", e.to)}
 									</span>
 								</p>
 								<p className="text-xs text-faint">
-									{new Date(e.sentAt ?? e.dueAt).toLocaleString()} · {e.explanation}
+									{new Date(e.sentAt ?? e.dueAt).toLocaleString(locale)} · {e.explanation}
 								</p>
 							</div>
 							<Badge
@@ -169,12 +172,12 @@ function Reminders() {
 								}
 							>
 								{e.status === "pending"
-									? "Scheduled"
+									? t("Scheduled")
 									: e.status === "cancelled"
-										? "Not needed"
+										? t("Not needed")
 										: e.status === "sent"
-											? "Sent"
-											: "Not sent"}
+											? t("Sent")
+											: t("Not sent")}
 							</Badge>
 						</li>
 					))}

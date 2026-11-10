@@ -9,6 +9,7 @@ import {
 	useGetHousehold,
 	useListSubscriptions,
 } from "@/gen/api";
+import { t } from "@/lib/i18n";
 import { cn } from "@/lib/utils";
 
 const HIDE_KEY = "exhale.getStarted.hidden";
@@ -49,39 +50,45 @@ export function GetStarted({
 		{
 			id: "telegram",
 			icon: <Send />,
-			title: "Get reminders in Telegram",
-			summary: "Fix any renewal from the message itself.",
+			title: t("Get reminders in Telegram"),
+			summary: t("Fix any renewal from the message itself."),
 			done: (links.data.links ?? []).some((l) => l.channel === "telegram"),
 			body: <TelegramSetup />,
 		},
 		{
 			id: "subs",
 			icon: <Repeat />,
-			title: "Add your subscriptions",
-			summary: count ? `${count} so far` : "One by one, or let Claude add them",
+			title: t("Add your subscriptions"),
+			summary: count ? t("{0} so far", count) : t("One by one, or let Claude add them"),
 			done: count > 0,
 			body: (
 				<div className="flex flex-wrap items-center gap-3">
 					<Button variant="primary" onClick={onAddSubscription}>
-						Add a subscription
+						{t("Add a subscription")}
 					</Button>
-					<span className="text-sm text-muted">or connect Claude and paste your list.</span>
+					<span className="text-sm text-muted">{t("or connect Claude and paste your list.")}</span>
 				</div>
 			),
 		},
 		{
 			id: "claude",
 			icon: <Bot />,
-			title: "Connect Claude",
-			summary: "Manage everything by asking",
+			title: t("Connect Claude"),
+			summary: t("Manage everything by asking"),
 			done: (tokens.data.tokens ?? []).some((t) => t.lastUsedAt),
 			body: <ClaudeConnect />,
 		},
 		{
 			id: "prefs",
 			icon: <SlidersHorizontal />,
-			title: "Check your preferences",
-			summary: `Totals in ${h.currency} · ${h.timezone.replaceAll("_", " ")} · reminders at ${String(h.reminderHour).padStart(2, "0")}:${String(h.reminderMinute).padStart(2, "0")}`,
+			title: t("Check your preferences"),
+			summary: t(
+				"Totals in {0} · {1} · reminders at {2}:{3}",
+				h.currency,
+				h.timezone.replaceAll("_", " "),
+				String(h.reminderHour).padStart(2, "0"),
+				String(h.reminderMinute).padStart(2, "0"),
+			),
 			done: true,
 			optional: true,
 			body: (
@@ -94,8 +101,8 @@ export function GetStarted({
 		{
 			id: "share",
 			icon: <Users />,
-			title: "Share it with someone",
-			summary: "A partner, family or flatmates",
+			title: t("Share it with someone"),
+			summary: t("A partner, family or flatmates"),
 			done: (household.data.members ?? []).length > 1,
 			optional: true,
 			body: <Sharing />,
@@ -121,15 +128,15 @@ export function GetStarted({
 			<header className="flex items-start justify-between gap-4 px-5 pt-5 pb-4">
 				<div>
 					<h2 id="get-started" className="text-lg font-semibold tracking-tight">
-						{allDone ? "You're all set" : name ? `Welcome, ${name}` : "Welcome"}
+						{allDone ? t("You're all set") : name ? t("Welcome, {0}", name) : t("Welcome")}
 					</h2>
 					<p className="mt-0.5 text-sm text-muted">
-						{allDone ? "Reminders will find you." : `${doneCount} of ${required.length} done`}
+						{allDone ? t("Reminders will find you.") : t("{0} of {1} done", doneCount, required.length)}
 					</p>
 				</div>
 				<div className="flex items-center gap-3">
 					<Progress value={doneCount / required.length} />
-					<Button variant="ghost" size="icon" aria-label="Hide setup" onClick={hide}>
+					<Button variant="ghost" size="icon" aria-label={t("Hide setup")} onClick={hide}>
 						<X />
 					</Button>
 				</div>
@@ -193,9 +200,11 @@ function StepRow({
 				</span>
 				<span className="min-w-0 flex-1">
 					<span className="block text-sm font-medium">
-						<span className="sr-only">Step {n}: </span>
+						<span className="sr-only">
+							{t("Step")} {n}:{" "}
+						</span>
 						{step.title}
-						{step.optional && <span className="ml-2 text-xs font-normal text-faint">optional</span>}
+						{step.optional && <span className="ml-2 text-xs font-normal text-faint">{t("optional")}</span>}
 					</span>
 					<span className="block truncate text-xs text-muted">{step.summary}</span>
 				</span>

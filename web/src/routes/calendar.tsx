@@ -5,6 +5,7 @@ import { ServiceTile } from "@/components/service-tile";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { type CalendarEvent, useCalendar, useSpendingSummary } from "@/gen/api";
+import { locale, t } from "@/lib/i18n";
 import { cn, money, sumMain, todayISO } from "@/lib/utils";
 
 const weekdays = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
@@ -44,7 +45,7 @@ export function Calendar() {
 		),
 	);
 	const count = charges.length;
-	const title = new Intl.DateTimeFormat(undefined, {
+	const title = new Intl.DateTimeFormat(locale, {
 		month: "long",
 		year: "numeric",
 		timeZone: "UTC",
@@ -54,14 +55,16 @@ export function Calendar() {
 	return (
 		<>
 			<PageHeader
-				title="Calendar"
-				description={count ? `${count} charges this month · ${monthTotal}` : "No charges this month."}
+				title={t("Calendar")}
+				description={
+					count ? t("{0} charges this month · {1}", count, monthTotal) : t("No charges this month.")
+				}
 				action={
 					<div className="flex items-center gap-1">
 						<Button
 							size="icon"
 							variant="ghost"
-							aria-label="Previous month"
+							aria-label={t("Previous month")}
 							onClick={() => navigate({ search: { month: shift(month, -1) } })}
 						>
 							<ChevronLeft />
@@ -70,13 +73,13 @@ export function Calendar() {
 						<Button
 							size="icon"
 							variant="ghost"
-							aria-label="Next month"
+							aria-label={t("Next month")}
 							onClick={() => navigate({ search: { month: shift(month, 1) } })}
 						>
 							<ChevronRight />
 						</Button>
 						<Button size="sm" className="ml-2" onClick={() => navigate({ search: {} })}>
-							Today
+							{t("Today")}
 						</Button>
 					</div>
 				}
@@ -147,11 +150,11 @@ export function Calendar() {
 												<span className="block truncate font-medium">{c.subscription}</span>
 												<span className="tnum block truncate text-muted">
 													{c.kind === "cancelBy"
-														? "last day to cancel"
+														? t("last day to cancel")
 														: c.kind === "trial"
-															? `trial ends · ${money(c.amount)}`
+															? t("trial ends · {0}", money(c.amount))
 															: c.kind === "expiry"
-																? `expires · ${money(c.amount)}`
+																? t("expires · {0}", money(c.amount))
 																: money(c.amount)}
 												</span>
 											</span>

@@ -84,7 +84,7 @@ test("mark a charge paid from the overview", async () => {
 	const row = page.getByRole("listitem").filter({ hasText: "Netflix" }).first();
 	await row.hover();
 	await row.getByRole("button", { name: "Mark Netflix as paid" }).click();
-	await page.getByText("Netflix marked paid").waitFor();
+	await page.getByText("Netflix: marked paid").waitFor();
 });
 
 test("insights, calendar and activity render", async () => {

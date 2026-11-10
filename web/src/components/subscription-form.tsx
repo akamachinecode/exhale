@@ -16,20 +16,16 @@ import {
 	useUpdateSubscription,
 } from "@/gen/api";
 import { ApiError } from "@/lib/fetcher";
-import { cn, date, decimal, todayISO } from "@/lib/utils";
+import { t } from "@/lib/i18n";
+import { cn, date, decimal, todayISO, unitLabel } from "@/lib/utils";
 
-const units = [
-	{ value: "month", label: "Month" },
-	{ value: "year", label: "Year" },
-	{ value: "week", label: "Week" },
-	{ value: "day", label: "Day" },
-] as const;
+const units = [{ value: "month" }, { value: "year" }, { value: "week" }, { value: "day" }] as const;
 type Unit = (typeof units)[number]["value"];
 
 const reminderOptions = [0, 1, 3, 7, 14, 30];
 
 export function reminderLabel(d: number) {
-	return d === 0 ? "Same day" : d === 1 ? "1 day before" : `${d} days before`;
+	return d === 0 ? t("Same day") : d === 1 ? t("1 day before") : t("{0} days before", d);
 }
 
 type Values = {
@@ -144,9 +140,9 @@ export function SubscriptionDialog({
 		e.preventDefault();
 		setError(undefined);
 		const price = v.price.trim().replace(",", ".");
-		if (!v.name.trim()) return setError("Give it a name.");
-		if (!/^\d+(\.\d{1,3})?$/.test(price)) return setError("The price should look like 12.99.");
-		if (!v.nextCharge && !editing) return setError("Choose the date of the next charge.");
+		if (!v.name.trim()) return setError(t("Give it a name."));
+		if (!/^\d+(\.\d{1,3})?$/.test(price)) return setError(t("The price should look like 12.99."));
+		if (!v.nextCharge && !editing) return setError(t("Choose the date of the next charge."));
 		try {
 			if (!subscription) {
 				const data: CreateSubscriptionInput = {
@@ -175,7 +171,7 @@ export function SubscriptionDialog({
 				};
 				const res = await create.mutateAsync({ data });
 				await qc.invalidateQueries();
-				toast.success(`${res.subscription.name} added`);
+				toast.success(t("{0} added", res.subscription.name));
 				onOpenChange(false);
 				navigate({ to: "/subscriptions/$id", params: { id: res.subscription.id } });
 				return;
@@ -208,23 +204,23 @@ export function SubscriptionDialog({
 			if (v.autoConfirm !== base.autoConfirm) data.autoConfirm = v.autoConfirm;
 			await update.mutateAsync({ data });
 			await qc.invalidateQueries();
-			toast.success("Saved");
+			toast.success(t("Saved"));
 			onOpenChange(false);
 		} catch (err) {
-			setError(err instanceof ApiError ? err.detail : "Could not save");
+			setError(err instanceof ApiError ? err.detail : t("Could not save"));
 		}
 	};
 
-	const dateLabel = v.manual ? "Expires on" : v.trial ? "Trial ends" : "Next charge";
+	const dateLabel = v.manual ? t("Expires on") : v.trial ? t("Trial ends") : t("Next charge");
 	return (
 		<Dialog
 			open={open}
 			onOpenChange={onOpenChange}
-			title={editing ? `Edit ${subscription?.name}` : "New subscription"}
-			description={editing ? undefined : "Exhale computes every charge from the first one."}
+			title={editing ? t("Edit {0}", subscription?.name) : t("New subscription")}
+			description={editing ? undefined : t("Exhale computes every charge from the first one.")}
 		>
 			<form className="grid gap-4" onSubmit={onSubmit}>
-				<Field label="Service">
+				<Field label={t("Service")}>
 					<Input
 						autoFocus={!editing}
 						placeholder="Netflix, Spotify Family…"
@@ -233,7 +229,7 @@ export function SubscriptionDialog({
 					/>
 				</Field>
 				<div className="grid grid-cols-[1fr_110px] gap-3">
-					<Field label={v.trial ? "Price after the trial" : "Price per charge"}>
+					<Field label={v.trial ? t("Price after the trial") : t("Price per charge")}>
 						<Input
 							inputMode="decimal"
 							placeholder="12.99"
@@ -242,7 +238,7 @@ export function SubscriptionDialog({
 							onChange={(e) => set("price", e.target.value)}
 						/>
 					</Field>
-					<Field label="Currency">
+					<Field label={t("Currency")}>
 						<Input
 							maxLength={3}
 							disabled={editing}
@@ -252,12 +248,12 @@ export function SubscriptionDialog({
 					</Field>
 				</div>
 				{priceChanged && (
-					<Field label="New price starts on" hint="Leave empty to apply it from the next charge.">
+					<Field label={t("New price starts on")} hint={t("Leave empty to apply it from the next charge.")}>
 						<Input type="date" value={v.priceFrom} onChange={(e) => set("priceFrom", e.target.value)} />
 					</Field>
 				)}
 				<div className="grid grid-cols-[80px_1fr_1fr] gap-3">
-					<Field label="Every">
+					<Field label={t("Every")}>
 						<Input
 							type="number"
 							min={1}
@@ -265,12 +261,11 @@ export function SubscriptionDialog({
 							onChange={(e) => set("interval", Number(e.target.value) || 1)}
 						/>
 					</Field>
-					<Field label="Period">
+					<Field label={t("Period")}>
 						<Select value={v.unit} onChange={(e) => set("unit", e.target.value as Unit)}>
 							{units.map((u) => (
 								<option key={u.value} value={u.value}>
-									{u.label}
-									{v.interval > 1 ? "s" : ""}
+									{unitLabel(u.value, v.interval > 1)}
 								</option>
 							))}
 						</Select>
@@ -281,14 +276,16 @@ export function SubscriptionDialog({
 				</div>
 				{v.nextCharge && (
 					<div className="rounded-lg border border-dashed border-line bg-raised/60 px-3 py-2.5 text-xs text-muted">
-						<span className="font-medium text-fg">{v.manual ? "Would expire: " : "Next charges: "}</span>
+						<span className="font-medium text-fg">
+							{v.manual ? t("Would expire: ") : t("Next charges: ")}
+						</span>
 						{preview.data?.dates?.map((d) => date(d)).join(" · ") ?? "…"}
 					</div>
 				)}
 				<div className="grid grid-cols-2 gap-3">
-					<Field label="Category">
+					<Field label={t("Category")}>
 						<Select value={v.categoryId} onChange={(e) => set("categoryId", e.target.value)}>
-							<option value="">None</option>
+							<option value="">{t("None")}</option>
 							{household.data?.categories?.map((c) => (
 								<option key={c.id} value={c.id}>
 									{c.name}
@@ -296,9 +293,9 @@ export function SubscriptionDialog({
 							))}
 						</Select>
 					</Field>
-					<Field label="Payment method">
+					<Field label={t("Payment method")}>
 						<Select value={v.paymentMethodId} onChange={(e) => set("paymentMethodId", e.target.value)}>
-							<option value="">None</option>
+							<option value="">{t("None")}</option>
 							{household.data?.paymentMethods?.map((p) => (
 								<option key={p.id} value={p.id}>
 									{p.name}
@@ -310,19 +307,19 @@ export function SubscriptionDialog({
 				</div>
 				<div className="flex flex-wrap gap-2">
 					<Chip on={v.trial} onClick={() => set("trial", !v.trial)}>
-						Free trial
+						{t("Free trial")}
 					</Chip>
 					<Chip on={v.manual} onClick={() => set("manual", !v.manual)}>
-						Expires unless renewed
+						{t("Expires unless renewed")}
 					</Chip>
 					<Chip on={v.noticeDays !== ""} onClick={() => set("noticeDays", v.noticeDays === "" ? "30" : "")}>
-						Needs notice to cancel
+						{t("Needs notice to cancel")}
 					</Chip>
 				</div>
 				{v.noticeDays !== "" && (
 					<Field
-						label="Days of notice"
-						hint="Exhale reminds you a week before the last day to cancel, and on that day."
+						label={t("Days of notice")}
+						hint={t("Exhale reminds you a week before the last day to cancel, and on that day.")}
 					>
 						<Input
 							type="number"
@@ -341,11 +338,11 @@ export function SubscriptionDialog({
 					className="flex items-center gap-1.5 text-[13px] font-medium text-muted hover:text-fg"
 				>
 					<ChevronDown className={cn("size-4 transition-transform", more && "rotate-180")} />
-					More details
+					{t("More details")}
 				</button>
 				{more && (
 					<div className="grid gap-4 border-t border-line pt-4">
-						<Field label="Remind me">
+						<Field label={t("Remind me")}>
 							<div className="flex flex-wrap gap-2">
 								{reminderOptions.map((d) => (
 									<Chip
@@ -367,15 +364,15 @@ export function SubscriptionDialog({
 							</div>
 						</Field>
 						<div className="grid grid-cols-2 gap-3">
-							<Field label="Subscribed since">
+							<Field label={t("Subscribed since")}>
 								<Input type="date" value={v.startedOn} onChange={(e) => set("startedOn", e.target.value)} />
 							</Field>
-							<Field label="Ends on" hint="For fixed-term contracts.">
+							<Field label={t("Ends on")} hint={t("For fixed-term contracts.")}>
 								<Input type="date" value={v.endDate} onChange={(e) => set("endDate", e.target.value)} />
 							</Field>
 						</div>
 						<div className="grid grid-cols-2 gap-3">
-							<Field label="Cancel or manage page">
+							<Field label={t("Cancel or manage page")}>
 								<Input
 									type="url"
 									placeholder="https://…"
@@ -383,9 +380,9 @@ export function SubscriptionDialog({
 									onChange={(e) => set("cancelUrl", e.target.value)}
 								/>
 							</Field>
-							<Field label="Account">
+							<Field label={t("Account")}>
 								<Input
-									placeholder="Login or email"
+									placeholder={t("Login or email")}
 									value={v.account}
 									onChange={(e) => set("account", e.target.value)}
 								/>
@@ -393,9 +390,9 @@ export function SubscriptionDialog({
 						</div>
 						{members.length > 1 && (
 							<>
-								<Field label="Paid by">
+								<Field label={t("Paid by")}>
 									<Select value={v.payerId} onChange={(e) => set("payerId", e.target.value)}>
-										{!editing && <option value="">Me</option>}
+										{!editing && <option value="">{t("Me")}</option>}
 										{members.map((m) => (
 											<option key={m.id} value={m.id}>
 												{m.name}
@@ -404,8 +401,8 @@ export function SubscriptionDialog({
 									</Select>
 								</Field>
 								<Field
-									label="Split the cost"
-									hint="Choose who shares it; equal parts unless you change them."
+									label={t("Split the cost")}
+									hint={t("Choose who shares it; equal parts unless you change them.")}
 								>
 									<div className="grid gap-2">
 										{members.map((m) => (
@@ -415,7 +412,7 @@ export function SubscriptionDialog({
 													className="size-4 accent-[var(--accent)]"
 													checked={(v.shares[m.id] ?? 0) > 0}
 													onChange={(e) => set("shares", { ...v.shares, [m.id]: e.target.checked ? 1 : 0 })}
-													aria-label={`${m.name} shares it`}
+													aria-label={t("{0} shares it", m.name)}
 												/>
 												<span className="flex-1">{m.name}</span>
 												{(v.shares[m.id] ?? 0) > 0 && (
@@ -423,7 +420,7 @@ export function SubscriptionDialog({
 														type="number"
 														min={1}
 														className="h-8 w-20"
-														aria-label={`Parts for ${m.name}`}
+														aria-label={t("Parts for {0}", m.name)}
 														value={v.shares[m.id]}
 														onChange={(e) =>
 															set("shares", { ...v.shares, [m.id]: Math.max(1, Number(e.target.value) || 1) })
@@ -436,7 +433,7 @@ export function SubscriptionDialog({
 								</Field>
 							</>
 						)}
-						<Field label="Notes">
+						<Field label={t("Notes")}>
 							<textarea
 								rows={2}
 								className="w-full rounded-lg border border-line bg-surface px-3 py-2 text-sm text-fg placeholder:text-faint focus:border-accent focus:outline-2 focus:outline-accent/25"
@@ -446,11 +443,11 @@ export function SubscriptionDialog({
 						</Field>
 						<div className="grid gap-2 text-sm">
 							<Check on={v.autoConfirm} onChange={(x) => set("autoConfirm", x)}>
-								Mark each charge paid on its day, without asking
+								{t("Mark each charge paid on its day, without asking")}
 							</Check>
 							{members.length > 1 && (
 								<Check on={v.private} onChange={(x) => set("private", x)}>
-									Private: only its creator and payer see it
+									{t("Private: only its creator and payer see it")}
 								</Check>
 							)}
 						</div>
@@ -458,9 +455,13 @@ export function SubscriptionDialog({
 				)}
 				{error && <p className="rounded-lg bg-bad-soft px-3 py-2 text-sm text-bad">{error}</p>}
 				<div className="mt-1 flex justify-end gap-2">
-					<Button onClick={() => onOpenChange(false)}>Cancel</Button>
+					<Button onClick={() => onOpenChange(false)}>{t("Cancel")}</Button>
 					<Button type="submit" variant="primary" disabled={create.isPending || update.isPending}>
-						{create.isPending || update.isPending ? "Saving…" : editing ? "Save" : "Add subscription"}
+						{create.isPending || update.isPending
+							? t("Saving…")
+							: editing
+								? t("Save")
+								: t("Add subscription")}
 					</Button>
 				</div>
 			</form>

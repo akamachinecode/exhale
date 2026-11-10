@@ -23,6 +23,7 @@ import {
 	useSettingsTestSmtp,
 } from "@/gen/api";
 import { ApiError } from "@/lib/fetcher";
+import { t } from "@/lib/i18n";
 import { cn } from "@/lib/utils";
 
 // Email, ntfy and webhooks: channels that only notify. Owners set up how
@@ -57,18 +58,18 @@ export function OtherChannels() {
 	const links = useAuthListLinks();
 	if (status.isPending || links.isPending) return <Loader2 className="size-4 animate-spin text-muted" />;
 	const s = status.data;
-	if (!s) return <p className="text-sm text-muted">Could not load the channels.</p>;
+	if (!s) return <p className="text-sm text-muted">{t("Could not load the channels.")}</p>;
 	const user = session.data?.user;
 	const isOwner = user?.role === "owner";
 	const mine = (channel: DestinationInChannel) =>
 		(links.data?.links ?? []).filter((l) => l.channel === channel);
 	return (
 		<div className="divide-y divide-line">
-			<Block title="Email">
+			<Block title={t("Email")}>
 				<MailServer status={s} isOwner={isOwner} />
 				{s.smtp.configured && <EmailDestination links={mine("email")} account={user?.email ?? ""} />}
 			</Block>
-			<Block title="ntfy" hint="Push notifications on your phone, through the ntfy app.">
+			<Block title="ntfy" hint={t("Push notifications on your phone, through the ntfy app.")}>
 				<NtfyServer status={s} isOwner={isOwner} />
 				<NtfyTopic links={mine("ntfy")} />
 			</Block>
@@ -76,9 +77,9 @@ export function OtherChannels() {
 				title="Webhook"
 				hint={
 					<>
-						One POST per reminder: Discord, Slack, Home Assistant…{" "}
+						{t("One POST per reminder: Discord, Slack, Home Assistant…")}{" "}
 						<a href={docs} target="_blank" rel="noopener" className="underline underline-offset-4">
-							Examples
+							{t("Examples")}
 						</a>
 					</>
 				}
@@ -88,8 +89,8 @@ export function OtherChannels() {
 			</Block>
 			{isOwner && !s.publicUrl && (
 				<p className="pt-4 text-xs text-muted">
-					These messages have no link back to Exhale yet. Start the server with{" "}
-					<code className="font-mono">--public-url</code> to add one.
+					{t("These messages have no link back to Exhale yet. Start the server with")}{" "}
+					<code className="font-mono">--public-url</code> {t("to add one.")}
 				</p>
 			)}
 		</div>
@@ -118,19 +119,19 @@ function Destination({ link, label, name }: { link: LinkInfo; label: ReactNode; 
 							setError(undefined);
 							try {
 								await test.mutateAsync({ data: { id: link.id } });
-								toast.success(`Test sent to ${name}`);
+								toast.success(t("Test sent to {0}", name));
 							} catch (err) {
-								setError(errText(err, "The test could not be sent"));
+								setError(errText(err, t("The test could not be sent")));
 							}
 						}}
 					>
 						{test.isPending && <Loader2 className="animate-spin" />}
-						Test
+						{t("Test")}
 					</Button>
 					<Button
 						variant="ghost"
 						size="icon"
-						aria-label={`Remove ${name}`}
+						aria-label={t("Remove {0}", name)}
 						disabled={unlink.isPending}
 						onClick={async () => {
 							await unlink.mutateAsync({ data: { id: link.id } });
@@ -159,7 +160,7 @@ function useAdd(channel: DestinationInChannel) {
 			await qc.invalidateQueries();
 			return true;
 		} catch (err) {
-			setError(errText(err, "Could not add it"));
+			setError(errText(err, t("Could not add it")));
 			return false;
 		}
 	};
@@ -181,7 +182,9 @@ function MailServer({ status, isOwner }: { status: ChannelsStatus; isOwner: bool
 	const [error, setError] = useState<string>();
 	const smtp = status.smtp;
 	if (!isOwner) {
-		return smtp.configured ? null : <p className="text-sm text-muted">The owner hasn't set up email yet.</p>;
+		return smtp.configured ? null : (
+			<p className="text-sm text-muted">{t("The owner hasn't set up email yet.")}</p>
+		);
 	}
 	if (!smtp.configured || editing) {
 		return <MailServerForm status={status} onDone={editing ? () => setEditing(false) : undefined} />;
@@ -196,8 +199,8 @@ function MailServer({ status, isOwner }: { status: ChannelsStatus; isOwner: bool
 					</span>
 					<span className="text-muted">
 						{" "}
-						· {security[smtp.tls ?? "starttls"]} · from {smtp.from}
-						{fromEnv && " · set on the server"}
+						· {security[smtp.tls ?? "starttls"]} {t("· from")} {smtp.from}
+						{fromEnv && t(" · set on the server")}
 					</span>
 				</p>
 				<span className="flex items-center gap-1">
@@ -208,29 +211,29 @@ function MailServer({ status, isOwner }: { status: ChannelsStatus; isOwner: bool
 							setError(undefined);
 							try {
 								const out = await test.mutateAsync();
-								toast.success(`Test sent to ${out.sentTo}`);
+								toast.success(t("Test sent to {0}", out.sentTo));
 							} catch (err) {
-								setError(errText(err, "The test could not be sent"));
+								setError(errText(err, t("The test could not be sent")));
 							}
 						}}
 					>
 						{test.isPending && <Loader2 className="animate-spin" />}
-						Send test
+						{t("Send test")}
 					</Button>
 					{!fromEnv && (
 						<>
 							<Button variant="ghost" size="sm" onClick={() => setEditing(true)}>
-								Edit
+								{t("Edit")}
 							</Button>
 							<Button
 								variant="ghost"
 								size="icon"
-								aria-label="Remove the mail server"
+								aria-label={t("Remove the mail server")}
 								disabled={remove.isPending}
 								onClick={async () => {
 									await remove.mutateAsync();
 									await qc.invalidateQueries();
-									toast.success("Mail server removed");
+									toast.success(t("Mail server removed"));
 								}}
 							>
 								<Trash2 />
@@ -263,16 +266,16 @@ function MailServerForm({ status, onDone }: { status: ChannelsStatus; onDone?: (
 				data: { host, tls, port: port ? Number(port) : undefined, username, password, from },
 			});
 			await qc.invalidateQueries();
-			toast.success("Email is ready");
+			toast.success(t("Email is ready"));
 			onDone?.();
 		} catch (err) {
-			setError(errText(err, "Could not save the mail server"));
+			setError(errText(err, t("Could not save the mail server")));
 		}
 	};
 	return (
 		<form onSubmit={onSubmit} className="grid gap-3">
 			<div className="grid gap-3 sm:grid-cols-[2fr_1fr_1.4fr]">
-				<Field label="Mail server">
+				<Field label={t("Mail server")}>
 					<Input
 						value={host}
 						onChange={(e) => setHost(e.target.value)}
@@ -282,7 +285,7 @@ function MailServerForm({ status, onDone }: { status: ChannelsStatus; onDone?: (
 						autoComplete="off"
 					/>
 				</Field>
-				<Field label="Port">
+				<Field label={t("Port")}>
 					<Input
 						value={port}
 						onChange={(e) => setPort(e.target.value.replace(/\D/g, ""))}
@@ -291,7 +294,7 @@ function MailServerForm({ status, onDone }: { status: ChannelsStatus; onDone?: (
 						maxLength={5}
 					/>
 				</Field>
-				<Field label="Security">
+				<Field label={t("Security")}>
 					<Select value={tls} onChange={(e) => setTls(e.target.value as SMTPInputTls)}>
 						{Object.entries(security).map(([k, label]) => (
 							<option key={k} value={k}>
@@ -302,7 +305,7 @@ function MailServerForm({ status, onDone }: { status: ChannelsStatus; onDone?: (
 				</Field>
 			</div>
 			<div className="grid gap-3 sm:grid-cols-2">
-				<Field label="Username">
+				<Field label={t("Username")}>
 					<Input
 						value={username}
 						onChange={(e) => setUsername(e.target.value)}
@@ -310,17 +313,17 @@ function MailServerForm({ status, onDone }: { status: ChannelsStatus; onDone?: (
 						autoComplete="off"
 					/>
 				</Field>
-				<Field label="Password">
+				<Field label={t("Password")}>
 					<PasswordInput
 						value={password}
 						onChange={(e) => setPassword(e.target.value)}
-						placeholder={smtp.hasPassword ? "Saved. Type to change it" : undefined}
+						placeholder={smtp.hasPassword ? t("Saved. Type to change it") : undefined}
 						autoComplete="new-password"
 					/>
 				</Field>
 			</div>
 			<div className="grid gap-3 sm:grid-cols-[1fr_auto] sm:items-end">
-				<Field label="From">
+				<Field label={t("From")}>
 					<Input
 						type="email"
 						value={from}
@@ -332,11 +335,11 @@ function MailServerForm({ status, onDone }: { status: ChannelsStatus; onDone?: (
 				<span className="flex items-center gap-2">
 					<Button type="submit" variant="primary" disabled={save.isPending}>
 						{save.isPending && <Loader2 className="animate-spin" />}
-						Save
+						{t("Save")}
 					</Button>
 					{onDone && (
 						<Button variant="ghost" onClick={onDone}>
-							Cancel
+							{t("Cancel")}
 						</Button>
 					)}
 				</span>
@@ -363,7 +366,7 @@ function EmailDestination({ links, account }: { links: LinkInfo[]; account: stri
 		<form
 			onSubmit={async (e: FormEvent) => {
 				e.preventDefault();
-				if (await add.run(address)) toast.success(`Reminders will also go to ${address}`);
+				if (await add.run(address)) toast.success(t("Reminders will also go to {0}", address));
 			}}
 			className="grid gap-2"
 		>
@@ -372,12 +375,12 @@ function EmailDestination({ links, account }: { links: LinkInfo[]; account: stri
 					type="email"
 					value={address}
 					onChange={(e) => setAddress(e.target.value)}
-					aria-label="Email address for your reminders"
+					aria-label={t("Email address for your reminders")}
 					placeholder="you@example.com"
 					required
 				/>
 				<Button type="submit" disabled={add.pending}>
-					Email me reminders
+					{t("Email me reminders")}
 				</Button>
 			</div>
 			<Problem>{add.error}</Problem>
@@ -406,18 +409,18 @@ function NtfyServer({ status, isOwner }: { status: ChannelsStatus; isOwner: bool
 		return (
 			<div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-2">
 				<p className="text-sm">
-					<span className="text-muted">Server: </span>
+					<span className="text-muted">{t("Server:")} </span>
 					<a href={ntfy.server} target="_blank" rel="noopener" className="font-medium hover:underline">
 						{host(ntfy.server)}
 					</a>
 					<span className="text-muted">
-						{ntfy.hasToken && " · with access token"}
-						{ntfy.source === "env" && " · set on the server"}
+						{ntfy.hasToken && t(" · with access token")}
+						{ntfy.source === "env" && t(" · set on the server")}
 					</span>
 				</p>
 				{isOwner && ntfy.source !== "env" && (
 					<Button variant="ghost" size="sm" onClick={() => setEditing(true)}>
-						Use another server
+						{t("Use another server")}
 					</Button>
 				)}
 			</div>
@@ -433,16 +436,16 @@ function NtfyServer({ status, isOwner }: { status: ChannelsStatus; isOwner: bool
 		setError(undefined);
 		try {
 			await save.mutateAsync({ data: { server, token } });
-			toast.success(`Using ${host(server)}`);
+			toast.success(t("Using {0}", host(server)));
 			await done();
 		} catch (err) {
-			setError(errText(err, "Could not save the server"));
+			setError(errText(err, t("Could not save the server")));
 		}
 	};
 	return (
 		<form onSubmit={onSubmit} className="grid gap-3">
 			<div className="grid gap-3 sm:grid-cols-2">
-				<Field label="Server address">
+				<Field label={t("Server address")}>
 					<Input
 						type="url"
 						value={server}
@@ -452,11 +455,11 @@ function NtfyServer({ status, isOwner }: { status: ChannelsStatus; isOwner: bool
 						spellCheck={false}
 					/>
 				</Field>
-				<Field label="Access token" hint="Only if the server needs one to publish.">
+				<Field label={t("Access token")} hint={t("Only if the server needs one to publish.")}>
 					<PasswordInput
 						value={token}
 						onChange={(e) => setToken(e.target.value)}
-						placeholder={ntfy.hasToken ? "Saved. Type to change it" : "tk_…"}
+						placeholder={ntfy.hasToken ? t("Saved. Type to change it") : "tk_…"}
 						autoComplete="off"
 					/>
 				</Field>
@@ -464,10 +467,10 @@ function NtfyServer({ status, isOwner }: { status: ChannelsStatus; isOwner: bool
 			<span className="flex flex-wrap items-center gap-2">
 				<Button type="submit" variant="primary" disabled={save.isPending}>
 					{save.isPending && <Loader2 className="animate-spin" />}
-					Save
+					{t("Save")}
 				</Button>
 				<Button variant="ghost" onClick={() => setEditing(false)}>
-					Cancel
+					{t("Cancel")}
 				</Button>
 				{ntfy.source === "settings" && (
 					<Button
@@ -476,11 +479,11 @@ function NtfyServer({ status, isOwner }: { status: ChannelsStatus; isOwner: bool
 						onClick={async () => {
 							await reset.mutateAsync();
 							setServer("https://ntfy.sh");
-							toast.success("Using ntfy.sh");
+							toast.success(t("Using ntfy.sh"));
 							await done();
 						}}
 					>
-						Back to ntfy.sh
+						{t("Back to ntfy.sh")}
 					</Button>
 				)}
 			</span>
@@ -507,7 +510,7 @@ function NtfyTopic({ links }: { links: LinkInfo[] }) {
 						link={l}
 						label={
 							<>
-								<span className="text-muted">Topic </span>
+								<span className="text-muted">{t("Topic")} </span>
 								<span className="font-mono text-[13px]">{l.destination}</span>
 							</>
 						}
@@ -521,12 +524,12 @@ function NtfyTopic({ links }: { links: LinkInfo[] }) {
 		<form
 			onSubmit={async (e: FormEvent) => {
 				e.preventDefault();
-				if (await add.run(topic)) toast.success("Subscribe to the topic in the ntfy app");
+				if (await add.run(topic)) toast.success(t("Subscribe to the topic in the ntfy app"));
 			}}
 			className="grid gap-2"
 		>
 			<div className="grid gap-2 sm:grid-cols-[1fr_auto] sm:items-start">
-				<Field label="Your topic" hint="Subscribe to it in the ntfy app. Keep it hard to guess.">
+				<Field label={t("Your topic")} hint={t("Subscribe to it in the ntfy app. Keep it hard to guess.")}>
 					<Input
 						value={topic}
 						onChange={(e) => setTopic(e.target.value)}
@@ -538,7 +541,7 @@ function NtfyTopic({ links }: { links: LinkInfo[] }) {
 					/>
 				</Field>
 				<Button type="submit" disabled={add.pending} className="sm:mt-[26px]">
-					Send me reminders
+					{t("Send me reminders")}
 				</Button>
 			</div>
 			<Problem>{add.error}</Problem>
@@ -548,10 +551,10 @@ function NtfyTopic({ links }: { links: LinkInfo[] }) {
 
 // Body templates: text variables go inside quotes. \n is JSON's line break.
 const bodies = {
-	default: { label: "Exhale's JSON", template: "" },
+	default: { label: t("Exhale's JSON"), template: "" },
 	discord: { label: "Discord", template: String.raw`{"content": "**{{title}}**\n{{message}}\n{{link}}"}` },
 	slack: { label: "Slack", template: String.raw`{"text": "*{{title}}*\n{{message}}\n{{link}}"}` },
-	custom: { label: "Custom", template: '{"title": "{{title}}", "message": "{{message}}"}' },
+	custom: { label: t("Custom"), template: '{"title": "{{title}}", "message": "{{message}}"}' },
 } as const;
 type Body = keyof typeof bodies;
 
@@ -583,7 +586,7 @@ function Webhooks({ links }: { links: LinkInfo[] }) {
 							label={
 								<>
 									{l.destination}
-									{l.hasTemplate && <span className="text-muted"> · own body</span>}
+									{l.hasTemplate && <span className="text-muted"> {t("· own body")}</span>}
 								</>
 							}
 							name={l.destination ?? "webhook"}
@@ -596,13 +599,13 @@ function Webhooks({ links }: { links: LinkInfo[] }) {
 					e.preventDefault();
 					if (await add.run(url, body === "default" ? "" : template)) {
 						setUrl("");
-						toast.success("Webhook added");
+						toast.success(t("Webhook added"));
 					}
 				}}
 				className="grid gap-3"
 			>
 				<div className="grid gap-3 sm:grid-cols-[1fr_10rem_auto] sm:items-end">
-					<Field label="Address">
+					<Field label={t("Address")}>
 						<Input
 							type="url"
 							value={url}
@@ -613,7 +616,7 @@ function Webhooks({ links }: { links: LinkInfo[] }) {
 							autoComplete="off"
 						/>
 					</Field>
-					<Field label="Body">
+					<Field label={t("Body")}>
 						<Select
 							value={body}
 							onChange={(e) => {
@@ -630,7 +633,7 @@ function Webhooks({ links }: { links: LinkInfo[] }) {
 						</Select>
 					</Field>
 					<Button type="submit" disabled={add.pending}>
-						Add webhook
+						{t("Add webhook")}
 					</Button>
 				</div>
 				{body !== "default" && (
@@ -638,7 +641,7 @@ function Webhooks({ links }: { links: LinkInfo[] }) {
 						value={template}
 						onChange={(e) => setTemplate(e.target.value)}
 						rows={3}
-						aria-label="Body template"
+						aria-label={t("Body template")}
 						spellCheck={false}
 					/>
 				)}
@@ -665,14 +668,15 @@ function PrivateDestinations({ status }: { status: ChannelsStatus }) {
 						await set.mutateAsync({ data: { allowPrivate: e.target.checked } });
 						await qc.invalidateQueries();
 					} catch (err) {
-						toast.error(errText(err, "Could not save"));
+						toast.error(errText(err, t("Could not save")));
 					}
 				}}
 			/>
 			<span>
-				Allow addresses on my private network
+				{t("Allow addresses on my private network")}
 				<span className="block text-xs text-muted">
-					For ntfy or a webhook on your LAN, like Home Assistant.{fromEnv && " Set on the server."}
+					{t("For ntfy or a webhook on your LAN, like Home Assistant.")}
+					{fromEnv && t(" Set on the server.")}
 				</span>
 			</span>
 		</label>

@@ -44,6 +44,7 @@ jobs:
         run: |
           pnpm -C web lint
           pnpm -C web exec tsc --noEmit
+          pnpm -C web i18n
       - name: The API client is up to date
         run: |
           go run ./cmd/exhale openapi > web/openapi.json
