@@ -12,8 +12,8 @@ import (
 // Sentences people read, in any language (ADR 0023).
 //
 // A Text keeps a sentence as its English format and its arguments, so each
-// edge renders it in the reader's language: chat with the catalog in
-// internal/actions/i18n_es.go, the web with web/src/lib/es.ts. Error()
+// edge renders it in the reader's language: chat with the catalogs of
+// internal/i18n, the web with their copy in web/src/locales/server. Error()
 // stays English, which is what MCP agents and logs get.
 //
 // Write errors people may see with Invalid, NotFound, Conflict, Missing or
@@ -135,7 +135,7 @@ func TextOf(err error) (Text, bool) {
 // --- the web's form ------------------------------------------------------------
 
 // Wire is a Text as the web receives it: Key is the format with {0}, {1}…
-// in place of the verbs (the key of web/src/lib/es.ts), and each argument
+// in place of the verbs (the key of the web's catalogs), and each argument
 // is either a string, already formatted, or a nested Wire to translate.
 type Wire struct {
 	Key  string `json:"key"`
