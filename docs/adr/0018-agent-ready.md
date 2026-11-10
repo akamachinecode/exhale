@@ -1,6 +1,6 @@
 # 0018. Agent-ready app: AI is a first-class feature of v1
 
-- Status: Accepted (OAuth authorization-server library to be evaluated before milestone 3)
+- Status: Accepted (OAuth authorization server: [ADR 0024](0024-oauth-authorization-server.md))
 - Date: 2026-11-06
 
 ## Context
@@ -175,3 +175,7 @@ With the assistant on, the model **only tidies the names**: it is sent the merch
 - **Chat text is English**, like the rest of `internal/actions` until its translation lands. The model answers in the person's language; the cards and buttons do not yet.
 - **Sending a photo to the bot** to import it: import is in the web only.
 - **PDF without a model**, and PDFs on local models that do not accept files.
+
+## Implementation notes: milestone 3, remote MCP (2026-11-10)
+
+Remote MCP with OAuth 2.1 shipped. Exhale is its own authorization server; the library question was settled by measurement in [ADR 0024](0024-oauth-authorization-server.md) (own minimal: +0.2 MB and no modules, against +1.8 MB for zitadel/oidc and +8.2 MB for ory/fosite). Both Client ID Metadata Documents and dynamic registration are supported. The "Connect an agent" page (**AI agents**) shows the remote address and lists the connected apps, each revocable; setup per assistant is in [docs/guides/remote-agents.md](../guides/remote-agents.md). Exposure guides (Tailscale Funnel, reverse proxy) are in [docs/install/https.md](../install/https.md).
