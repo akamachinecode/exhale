@@ -1081,6 +1081,63 @@ export interface SetupInput {
   timezone?: string;
 }
 
+export interface SlackConfig {
+  /** A URL to the JSON Schema for this object. */
+  readonly $schema?: string;
+  /** app-level token with connections:write, xapp-… */
+  appToken?: string;
+  /** Bot User OAuth Token, xoxb-… */
+  botToken?: string;
+  /** channel name or id for reminders of shared subscriptions; empty to stop posting there */
+  channel?: string;
+}
+
+export interface SlackLinkCode {
+  /** A URL to the JSON Schema for this object. */
+  readonly $schema?: string;
+  code: string;
+  /** what to type in Slack, anywhere */
+  command: string;
+  expiresAt: string;
+  /** link that opens the app in Slack, when it is connected */
+  url?: string;
+}
+
+/**
+ * env: set by EXHALE_SLACK_BOT_TOKEN and EXHALE_SLACK_APP_TOKEN and not editable in the web
+ */
+export type SlackStatusSource = typeof SlackStatusSource[keyof typeof SlackStatusSource];
+
+
+export const SlackStatusSource = {
+  env: 'env',
+  settings: 'settings',
+} as const;
+
+export interface SlackStatus {
+  /** A URL to the JSON Schema for this object. */
+  readonly $schema?: string;
+  /** link that opens the app in Slack */
+  appUrl?: string;
+  /** the bot's name in the workspace */
+  bot?: string;
+  /** channel where reminders of shared subscriptions are also posted */
+  channel?: string;
+  configured: boolean;
+  /** opens Slack's create-app page with the manifest filled in */
+  createUrl: string;
+  /** why the app is not connected, when Slack says so */
+  error?: string;
+  /** app manifest (YAML) to create the Slack app from */
+  manifest: string;
+  /** the socket to Slack is open */
+  running: boolean;
+  /** env: set by EXHALE_SLACK_BOT_TOKEN and EXHALE_SLACK_APP_TOKEN and not editable in the web */
+  source?: SlackStatusSource;
+  /** workspace name */
+  team?: string;
+}
+
 export interface SubscriptionSpend {
   count: number;
   id: string;
@@ -1923,6 +1980,80 @@ export function useAuthListLinks<TData = Awaited<ReturnType<typeof authListLinks
 
 
 
+
+export const getAuthLinkSlackUrl = () => {
+
+
+
+
+  return `/api/v1/auth/links/slack`
+}
+
+/**
+ * @summary Get a one-time code to link Slack
+ */
+export const authLinkSlack = async ( options?: Parameters<typeof fetcher>[1]): Promise<SlackLinkCode> => {
+
+  return fetcher<SlackLinkCode>(getAuthLinkSlackUrl(),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+);}
+
+
+
+
+
+export const getAuthLinkSlackMutationKey = () => ['authLinkSlack'] as const;
+
+export const getAuthLinkSlackMutationOptions = <TError = ErrorModel,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof authLinkSlack>>, TError,void, TContext>, request?: SecondParameter<typeof fetcher>}
+): UseMutationOptions<Awaited<ReturnType<typeof authLinkSlack>>, TError,void, TContext> => {
+
+const mutationKey = getAuthLinkSlackMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof authLinkSlack>>, void> = () => {
+
+
+          return  authLinkSlack(requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type AuthLinkSlackMutationResult = NonNullable<Awaited<ReturnType<typeof authLinkSlack>>>
+
+    export type AuthLinkSlackMutationError = ErrorModel
+
+
+    /**
+ * @summary Get a one-time code to link Slack
+ */
+export const useAuthLinkSlack = <TError = ErrorModel,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof authLinkSlack>>, TError,void, TContext>, request?: SecondParameter<typeof fetcher>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof authLinkSlack>>,
+        TError,
+        void,
+        TContext
+      > => {
+      return useMutation(getAuthLinkSlackMutationOptions(options), queryClient);
+    }
 
 export const getAuthLinkTelegramUrl = () => {
 
@@ -5037,6 +5168,269 @@ export const usePreviewSchedule = <TError = ErrorModel,
         TContext
       > => {
       return useMutation(getPreviewScheduleMutationOptions(options), queryClient);
+    }
+
+export const getSettingsSlackUrl = () => {
+
+
+
+
+  return `/api/v1/settings/slack`
+}
+
+/**
+ * @summary Slack app status and the manifest to create it
+ */
+export const settingsSlack = async ( options?: Parameters<typeof fetcher>[1]): Promise<SlackStatus> => {
+
+  return fetcher<SlackStatus>(getSettingsSlackUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getSettingsSlackQueryKey = () => {
+    return [
+    `/api/v1/settings/slack`
+    ] as const;
+    }
+
+
+export const getSettingsSlackQueryOptions = <TData = Awaited<ReturnType<typeof settingsSlack>>, TError = ErrorModel>( options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof settingsSlack>>, TError, TData>>, request?: SecondParameter<typeof fetcher>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getSettingsSlackQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof settingsSlack>>> = ({ signal }) => settingsSlack({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof settingsSlack>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type SettingsSlackQueryResult = NonNullable<Awaited<ReturnType<typeof settingsSlack>>>
+export type SettingsSlackQueryError = ErrorModel
+
+
+export function useSettingsSlack<TData = Awaited<ReturnType<typeof settingsSlack>>, TError = ErrorModel>(
+  options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof settingsSlack>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof settingsSlack>>,
+          TError,
+          Awaited<ReturnType<typeof settingsSlack>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof fetcher>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useSettingsSlack<TData = Awaited<ReturnType<typeof settingsSlack>>, TError = ErrorModel>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof settingsSlack>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof settingsSlack>>,
+          TError,
+          Awaited<ReturnType<typeof settingsSlack>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof fetcher>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useSettingsSlack<TData = Awaited<ReturnType<typeof settingsSlack>>, TError = ErrorModel>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof settingsSlack>>, TError, TData>>, request?: SecondParameter<typeof fetcher>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+/**
+ * @summary Slack app status and the manifest to create it
+ */
+
+export function useSettingsSlack<TData = Awaited<ReturnType<typeof settingsSlack>>, TError = ErrorModel>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof settingsSlack>>, TError, TData>>, request?: SecondParameter<typeof fetcher>}
+ , queryClient?: QueryClient
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getSettingsSlackQueryOptions(options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getSettingsSetSlackUrl = () => {
+
+
+
+
+  return `/api/v1/settings/slack`
+}
+
+/**
+ * @summary Set the Slack app tokens or the team channel (owners only)
+ */
+export const settingsSetSlack = async (slackConfig: NonReadonly<SlackConfig>, options?: Parameters<typeof fetcher>[1]): Promise<SlackStatus> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return fetcher<SlackStatus>(getSettingsSetSlackUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(slackConfig)
+  }
+);}
+
+
+
+
+
+export const getSettingsSetSlackMutationKey = () => ['settingsSetSlack'] as const;
+
+export const getSettingsSetSlackMutationOptions = <TError = ErrorModel,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof settingsSetSlack>>, TError,SettingsSetSlackMutationVariables, TContext>, request?: SecondParameter<typeof fetcher>}
+): UseMutationOptions<Awaited<ReturnType<typeof settingsSetSlack>>, TError,SettingsSetSlackMutationVariables, TContext> => {
+
+const mutationKey = getSettingsSetSlackMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof settingsSetSlack>>, SettingsSetSlackMutationVariables> = (props) => {
+          const {data} = props ?? {};
+
+          return  settingsSetSlack(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type SettingsSetSlackMutationResult = NonNullable<Awaited<ReturnType<typeof settingsSetSlack>>>
+    export type SettingsSetSlackMutationBody = NonReadonly<SlackConfig>
+    export type SettingsSetSlackMutationError = ErrorModel
+    export type SettingsSetSlackMutationVariables = {data: NonReadonly<SlackConfig>}
+
+    /**
+ * @summary Set the Slack app tokens or the team channel (owners only)
+ */
+export const useSettingsSetSlack = <TError = ErrorModel,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof settingsSetSlack>>, TError,SettingsSetSlackMutationVariables, TContext>, request?: SecondParameter<typeof fetcher>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof settingsSetSlack>>,
+        TError,
+        SettingsSetSlackMutationVariables,
+        TContext
+      > => {
+      return useMutation(getSettingsSetSlackMutationOptions(options), queryClient);
+    }
+
+export const getSettingsRemoveSlackUrl = () => {
+
+
+
+
+  return `/api/v1/settings/slack/remove`
+}
+
+/**
+ * @summary Disconnect the Slack app (owners only)
+ */
+export const settingsRemoveSlack = async ( options?: Parameters<typeof fetcher>[1]): Promise<SlackStatus> => {
+
+  return fetcher<SlackStatus>(getSettingsRemoveSlackUrl(),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+);}
+
+
+
+
+
+export const getSettingsRemoveSlackMutationKey = () => ['settingsRemoveSlack'] as const;
+
+export const getSettingsRemoveSlackMutationOptions = <TError = ErrorModel,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof settingsRemoveSlack>>, TError,void, TContext>, request?: SecondParameter<typeof fetcher>}
+): UseMutationOptions<Awaited<ReturnType<typeof settingsRemoveSlack>>, TError,void, TContext> => {
+
+const mutationKey = getSettingsRemoveSlackMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof settingsRemoveSlack>>, void> = () => {
+
+
+          return  settingsRemoveSlack(requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type SettingsRemoveSlackMutationResult = NonNullable<Awaited<ReturnType<typeof settingsRemoveSlack>>>
+
+    export type SettingsRemoveSlackMutationError = ErrorModel
+
+
+    /**
+ * @summary Disconnect the Slack app (owners only)
+ */
+export const useSettingsRemoveSlack = <TError = ErrorModel,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof settingsRemoveSlack>>, TError,void, TContext>, request?: SecondParameter<typeof fetcher>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof settingsRemoveSlack>>,
+        TError,
+        void,
+        TContext
+      > => {
+      return useMutation(getSettingsRemoveSlackMutationOptions(options), queryClient);
     }
 
 export const getSettingsTelegramUrl = () => {

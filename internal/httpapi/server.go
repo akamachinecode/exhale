@@ -39,7 +39,10 @@ type Config struct {
 	// Telegram configures and reports the household's bot (nil when not
 	// available, e.g. in tests).
 	Telegram TelegramControl
-	Log      *slog.Logger
+	// Slack configures and reports the team's Slack app (nil when not
+	// available, e.g. in tests).
+	Slack SlackControl
+	Log   *slog.Logger
 }
 
 type ctxKey struct{}
@@ -62,6 +65,7 @@ func New(svc *app.Service, cfg Config) (http.Handler, huma.API, error) {
 	aa := &authAPI{svc: svc, sm: sm, cfg: cfg}
 	registerAuth(api, aa)
 	registerSettings(api, aa)
+	registerSlack(api, aa)
 	registerData(api, mux, svc)
 
 	mux.HandleFunc("GET /healthz", func(w http.ResponseWriter, _ *http.Request) { w.Write([]byte("ok")) })

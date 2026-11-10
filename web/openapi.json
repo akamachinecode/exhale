@@ -2868,6 +2868,132 @@
         ],
         "type": "object"
       },
+      "SlackConfig": {
+        "additionalProperties": false,
+        "properties": {
+          "$schema": {
+            "description": "A URL to the JSON Schema for this object.",
+            "examples": [
+              "https://example.com/api/schemas/SlackConfig.json"
+            ],
+            "format": "uri",
+            "readOnly": true,
+            "type": "string"
+          },
+          "appToken": {
+            "description": "app-level token with connections:write, xapp-…",
+            "type": "string"
+          },
+          "botToken": {
+            "description": "Bot User OAuth Token, xoxb-…",
+            "type": "string"
+          },
+          "channel": {
+            "description": "channel name or id for reminders of shared subscriptions; empty to stop posting there",
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "SlackLinkCode": {
+        "additionalProperties": false,
+        "properties": {
+          "$schema": {
+            "description": "A URL to the JSON Schema for this object.",
+            "examples": [
+              "https://example.com/api/schemas/SlackLinkCode.json"
+            ],
+            "format": "uri",
+            "readOnly": true,
+            "type": "string"
+          },
+          "code": {
+            "type": "string"
+          },
+          "command": {
+            "description": "what to type in Slack, anywhere",
+            "type": "string"
+          },
+          "expiresAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "url": {
+            "description": "link that opens the app in Slack, when it is connected",
+            "type": "string"
+          }
+        },
+        "required": [
+          "code",
+          "command",
+          "expiresAt"
+        ],
+        "type": "object"
+      },
+      "SlackStatus": {
+        "additionalProperties": false,
+        "properties": {
+          "$schema": {
+            "description": "A URL to the JSON Schema for this object.",
+            "examples": [
+              "https://example.com/api/schemas/SlackStatus.json"
+            ],
+            "format": "uri",
+            "readOnly": true,
+            "type": "string"
+          },
+          "appUrl": {
+            "description": "link that opens the app in Slack",
+            "type": "string"
+          },
+          "bot": {
+            "description": "the bot's name in the workspace",
+            "type": "string"
+          },
+          "channel": {
+            "description": "channel where reminders of shared subscriptions are also posted",
+            "type": "string"
+          },
+          "configured": {
+            "type": "boolean"
+          },
+          "createUrl": {
+            "description": "opens Slack's create-app page with the manifest filled in",
+            "type": "string"
+          },
+          "error": {
+            "description": "why the app is not connected, when Slack says so",
+            "type": "string"
+          },
+          "manifest": {
+            "description": "app manifest (YAML) to create the Slack app from",
+            "type": "string"
+          },
+          "running": {
+            "description": "the socket to Slack is open",
+            "type": "boolean"
+          },
+          "source": {
+            "description": "env: set by EXHALE_SLACK_BOT_TOKEN and EXHALE_SLACK_APP_TOKEN and not editable in the web",
+            "enum": [
+              "env",
+              "settings"
+            ],
+            "type": "string"
+          },
+          "team": {
+            "description": "workspace name",
+            "type": "string"
+          }
+        },
+        "required": [
+          "configured",
+          "running",
+          "manifest",
+          "createUrl"
+        ],
+        "type": "object"
+      },
       "SpendingHistory": {
         "additionalProperties": false,
         "properties": {
@@ -3994,6 +4120,37 @@
           }
         },
         "summary": "Your linked chat accounts",
+        "tags": [
+          "Auth"
+        ]
+      }
+    },
+    "/api/v1/auth/links/slack": {
+      "post": {
+        "operationId": "auth_link_slack",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SlackLinkCode"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorModel"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "summary": "Get a one-time code to link Slack",
         "tags": [
           "Auth"
         ]
@@ -5426,6 +5583,107 @@
         "summary": "Preview charge dates",
         "tags": [
           "Charges"
+        ]
+      }
+    },
+    "/api/v1/settings/slack": {
+      "get": {
+        "operationId": "settings_slack",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SlackStatus"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorModel"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "summary": "Slack app status and the manifest to create it",
+        "tags": [
+          "Settings"
+        ]
+      },
+      "post": {
+        "operationId": "settings_set_slack",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SlackConfig"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SlackStatus"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorModel"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "summary": "Set the Slack app tokens or the team channel (owners only)",
+        "tags": [
+          "Settings"
+        ]
+      }
+    },
+    "/api/v1/settings/slack/remove": {
+      "post": {
+        "operationId": "settings_remove_slack",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SlackStatus"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorModel"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "summary": "Disconnect the Slack app (owners only)",
+        "tags": [
+          "Settings"
         ]
       }
     },

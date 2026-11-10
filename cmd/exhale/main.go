@@ -25,6 +25,7 @@ import (
 	"github.com/akamachinecode/exhale/internal/app"
 	"github.com/akamachinecode/exhale/internal/auth"
 	"github.com/akamachinecode/exhale/internal/bus"
+	"github.com/akamachinecode/exhale/internal/channels/slack"
 	"github.com/akamachinecode/exhale/internal/channels/telegram"
 	"github.com/akamachinecode/exhale/internal/fx"
 	"github.com/akamachinecode/exhale/internal/httpapi"
@@ -48,7 +49,7 @@ type cli struct {
 	Init    initCmd    `cmd:"" help:"Create the household on first run."`
 	Mcp     mcpCmd     `cmd:"" help:"Serve MCP over stdio, for local AI clients (Claude Desktop, Claude Code, Cursor…)."`
 	Token   tokenCmd   `cmd:"" help:"Manage personal access tokens for scripts and AI agents."`
-	Link    linkCmd    `cmd:"" help:"Link a chat account (Telegram) to the household owner."`
+	Link    linkCmd    `cmd:"" help:"Link a chat account (Telegram, Slack) to the household owner."`
 	User    userCmd    `cmd:"" help:"Manage web accounts (password recovery)."`
 	Setup   setupCmd   `cmd:"" name:"setup-code" help:"Print a new one-time code for the web setup wizard."`
 	Backup  backupCmd  `cmd:"" help:"Write a consistent backup of the database."`
@@ -97,6 +98,9 @@ type serveCmd struct {
 	Listen        string `env:"EXHALE_LISTEN" default:"127.0.0.1:8484" help:"Address to listen on (use 0.0.0.0:8484 in Docker)."`
 	TelegramToken string `name:"telegram-token" env:"EXHALE_TELEGRAM_TOKEN" help:"Bot token from @BotFather. Optional: usually set from the web (Settings → Telegram)."`
 	TelegramAPI   string `name:"telegram-api" env:"EXHALE_TELEGRAM_API" hidden:"" help:"Bot API base URL (tests)."`
+	SlackBotToken string `name:"slack-bot-token" env:"EXHALE_SLACK_BOT_TOKEN" help:"Slack bot token (xoxb-…). Optional: usually set from the web (Settings → Slack)."`
+	SlackAppToken string `name:"slack-app-token" env:"EXHALE_SLACK_APP_TOKEN" help:"Slack app-level token (xapp-…) for Socket Mode. Needed with --slack-bot-token."`
+	SlackAPI      string `name:"slack-api" env:"EXHALE_SLACK_API" hidden:"" help:"Slack Web API base URL (tests)."`
 	TrustLocal    bool   `name:"trust-local" env:"EXHALE_TRUST_LOCAL" help:"Let requests from this machine act as the owner without signing in (development, scripts)."`
 	SecureCookies bool   `name:"secure-cookies" env:"EXHALE_SECURE_COOKIES" help:"Mark the session cookie Secure. Set it when Exhale is served over HTTPS."`
 	Dev           bool   `help:"Development mode."`
@@ -122,8 +126,9 @@ func (s *serveCmd) Run(ctx context.Context, g *globals) error {
 		}
 	}
 	tg := telegram.NewManager(s.TelegramToken, s.TelegramAPI, e.svc, e.log)
+	sl := slack.NewManager(s.SlackBotToken, s.SlackAppToken, s.SlackAPI, e.svc, e.log)
 	handler, _, err := httpapi.New(e.svc, httpapi.Config{
-		Version: version, TrustLocal: s.TrustLocal, SecureCookies: s.SecureCookies, Log: e.log, Telegram: tg,
+		Version: version, TrustLocal: s.TrustLocal, SecureCookies: s.SecureCookies, Log: e.log, Telegram: tg, Slack: sl,
 	})
 	if err != nil {
 		return err
@@ -149,12 +154,16 @@ func (s *serveCmd) Run(ctx context.Context, g *globals) error {
 	services := []platform.Service{httpSvc}
 	// The bot comes from EXHALE_TELEGRAM_TOKEN or from the web (Settings →
 	// Telegram); the manager starts and swaps it at runtime.
-	services = append(services, tg)
-	eng := actions.New(e.svc, e.log, tg)
+	// The Slack app works the same way (Settings → Slack, or
+	// EXHALE_SLACK_BOT_TOKEN and EXHALE_SLACK_APP_TOKEN).
+	services = append(services, tg, sl)
+	eng := actions.New(e.svc, e.log, tg, sl)
 	tg.SetEngine(eng)
+	sl.SetEngine(eng)
 	services = append(services,
 		&fx.Updater{St: e.st, Log: e.log},
-		scheduler.New(e.svc, e.log, eng),
+		// Slack also posts reminders of shared subscriptions to the team channel.
+		scheduler.New(e.svc, e.log, sl.Deliverer(eng)),
 		platform.Func{Name: "message-sync", Fn: eng.Sync},
 	)
 	return platform.Run(ctx, e.log, services...)
@@ -271,7 +280,7 @@ func (t *tokenCreateCmd) Run(ctx context.Context, g *globals) error {
 // --- link ------------------------------------------------------------------------
 
 type linkCmd struct {
-	Channel string `arg:"" enum:"telegram" help:"Channel to link."`
+	Channel string `arg:"" enum:"telegram,slack" help:"Channel to link."`
 }
 
 func (l *linkCmd) Run(ctx context.Context, g *globals) error {
@@ -287,6 +296,10 @@ func (l *linkCmd) Run(ctx context.Context, g *globals) error {
 	code, err := auth.CreateLinkCode(ctx, e.st, o.MemberID, l.Channel)
 	if err != nil {
 		return err
+	}
+	if l.Channel == slack.Name {
+		fmt.Printf("Type this in Slack within 10 minutes, anywhere:\n\n  /exhale link %s\n\nor send the code to the Exhale app in a direct message.\n", code)
+		return nil
 	}
 	fmt.Printf("Send this message to your Telegram bot within 10 minutes:\n\n  /start %s\n\nor open https://t.me/<your_bot>?start=%s\n", code, code)
 	return nil
