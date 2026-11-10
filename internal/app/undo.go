@@ -3,7 +3,7 @@ package app
 import (
 	"context"
 	"encoding/json"
-	"fmt"
+	"strings"
 
 	"github.com/akamachinecode/exhale/internal/bus"
 	"github.com/akamachinecode/exhale/internal/domain"
@@ -68,10 +68,10 @@ func (s *Service) Undo(ctx context.Context, actor Actor, in UndoInput) (UndoResu
 	err := s.write(ctx, actor, in.DryRun, func(q *db.Queries, c *change) error {
 		a, err := q.GetAudit(ctx, in.AuditID)
 		if err != nil {
-			return store.NotFound(err, "change "+in.AuditID)
+			return store.NotFound(err, "change %s: not found", in.AuditID)
 		}
 		if a.UndoneBy != "" {
-			return fmt.Errorf("%w: change %s was already undone", domain.ErrValidation, a.ID)
+			return domain.Invalid("change %s was already undone", a.ID)
 		}
 		switch a.Entity {
 		case "charge":
@@ -93,7 +93,7 @@ func (s *Service) Undo(ctx context.Context, actor Actor, in UndoInput) (UndoResu
 				return err
 			}
 		default:
-			return fmt.Errorf("%w: changes to %s cannot be undone yet", domain.ErrValidation, a.Entity)
+			return domain.Invalid("changes to %s cannot be undone yet", domain.Word(strings.ReplaceAll(a.Entity, "_", " ")))
 		}
 		id, err := c.record(q, "undo", a.Entity, a.EntityID, nil, map[string]string{"undid": a.ID})
 		if err != nil {

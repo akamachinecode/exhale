@@ -63,7 +63,7 @@ func (e *Engine) Command(ctx context.Context, actor app.Actor, chat ChatRef, cmd
 	}
 	rep, err := e.startAdd(ctx, actor, chat)
 	if err != nil {
-		rep, _ = e.fail(err)
+		rep, _ = e.fail(ctx, actor, err)
 	}
 	return rep, true
 }
@@ -297,7 +297,7 @@ func (e *Engine) flowText(ctx context.Context, actor app.Actor, chat ChatRef, f 
 	today, locale := e.context(ctx, actor)
 	send := func(m Message, err error) (Reply, error) {
 		if err != nil {
-			return e.fail(err)
+			return e.fail(ctx, actor, err)
 		}
 		return Reply{Send: &m}, nil
 	}
@@ -317,7 +317,7 @@ func (e *Engine) flowText(ctx context.Context, actor app.Actor, chat ChatRef, f 
 			}
 			f.Draft = map[string]string{"name": text}
 			if err := e.saveFlow(ctx, actor, chat, f); err != nil {
-				return e.fail(err)
+				return e.fail(ctx, actor, err)
 			}
 			return Reply{Send: &Message{Title: "💳 " + text, Lines: []string{tr(locale, "What is it?")}, Rows: [][]Button{
 				{{Label: tr(locale, "💳 Card"), Data: route(actPMKind, "card")}, {Label: tr(locale, "🏦 Bank account"), Data: route(actPMKind, "bank")}},
@@ -326,11 +326,11 @@ func (e *Engine) flowText(ctx context.Context, actor app.Actor, chat ChatRef, f 
 		default:
 			info, err := e.svc.GetHousehold(ctx, actor, struct{}{})
 			if err != nil {
-				return e.fail(err)
+				return e.fail(ctx, actor, err)
 			}
 			i := slices.IndexFunc(info.PaymentMethods, func(pm domain.PaymentMethod) bool { return pm.ID == f.Ref })
 			if i < 0 {
-				return e.fail(fmt.Errorf("payment method %s: %w", f.Ref, domain.ErrNotFound))
+				return e.fail(ctx, actor, domain.Missing("payment method %s: not found", f.Ref))
 			}
 			pm := info.PaymentMethods[i]
 			in := app.SavePaymentMethodInput{ID: pm.ID, Name: pm.Name, Kind: string(pm.Kind), Last4: pm.Last4, OwnerID: pm.OwnerID}
@@ -353,7 +353,7 @@ func (e *Engine) flowText(ctx context.Context, actor app.Actor, chat ChatRef, f 
 				in.ExpiresOn = exp.String()
 			}
 			if _, err := e.svc.SavePaymentMethod(ctx, actor, in); err != nil {
-				return e.fail(err)
+				return e.fail(ctx, actor, err)
 			}
 			return send(e.methodScreen(ctx, actor, pm.ID, today))
 		}
@@ -381,7 +381,7 @@ func (e *Engine) flowText(ctx context.Context, actor app.Actor, chat ChatRef, f 
 			in.Account = &text
 		}
 		if _, err := e.svc.UpdateSubscription(ctx, actor, in); err != nil {
-			return e.fail(err)
+			return e.fail(ctx, actor, err)
 		}
 		return send(e.editScreen(ctx, actor, f.Ref, locale))
 	case "set":
@@ -399,14 +399,14 @@ func (e *Engine) flowText(ctx context.Context, actor app.Actor, chat ChatRef, f 
 			in.Currency = &text
 		}
 		if _, err := e.svc.UpdateHousehold(ctx, actor, in); err != nil {
-			return e.fail(err)
+			return e.fail(ctx, actor, err)
 		}
 		return send(e.settingsScreen(ctx, actor))
 	case "paid":
 		amount, cur := importer.SplitPrice(text, "")
 		res, err := e.svc.SetChargeStatus(ctx, actor, app.SetChargeStatusInput{ChargeID: f.ChargeID, Status: string(domain.ChargePaid), ChargedAmount: amount, ChargedIn: cur})
 		if err != nil {
-			return e.fail(err)
+			return e.fail(ctx, actor, err)
 		}
 		m := chargeMessage("", res, today, locale)
 		if res.AuditID != "" {
@@ -475,13 +475,13 @@ func (e *Engine) addText(ctx context.Context, actor app.Actor, chat ChatRef, f f
 		}
 		f.Draft["name"], f.Field = text, "price"
 		if err := e.saveFlow(ctx, actor, chat, f); err != nil {
-			return e.fail(err)
+			return e.fail(ctx, actor, err)
 		}
 		return Reply{Send: &Message{Title: "➕ " + text, Lines: []string{tr(locale, "How much is each charge? Type it like 12.99, or 12.99 USD for another currency.")}}}, nil
 	case "price":
 		info, err := e.svc.GetHousehold(ctx, actor, struct{}{})
 		if err != nil {
-			return e.fail(err)
+			return e.fail(ctx, actor, err)
 		}
 		amount, cur := importer.SplitPrice(text, info.Household.Currency)
 		if _, err := e.svc.CreateSubscription(ctx, actor, app.CreateSubscriptionInput{Name: f.Draft["name"], Price: amount, Currency: cur, FirstCharge: today.String(), DryRun: true}); err != nil {
@@ -490,7 +490,7 @@ func (e *Engine) addText(ctx context.Context, actor app.Actor, chat ChatRef, f f
 		}
 		f.Draft["price"], f.Draft["currency"], f.Field = amount, cur, ""
 		if err := e.saveFlow(ctx, actor, chat, f); err != nil {
-			return e.fail(err)
+			return e.fail(ctx, actor, err)
 		}
 		return Reply{Send: &Message{Title: "➕ " + f.Draft["name"], Lines: []string{tr(locale, "How often is it charged?")}, Rows: [][]Button{
 			{{Label: tr(locale, "Every month"), Data: route(actAddFreq, "month", "1")}, {Label: tr(locale, "Every year"), Data: route(actAddFreq, "year", "1")}},
@@ -506,7 +506,7 @@ func (e *Engine) addText(ctx context.Context, actor app.Actor, chat ChatRef, f f
 		}
 		m, err := e.addAfterDate(ctx, actor, chat, f, d)
 		if err != nil {
-			return e.fail(err)
+			return e.fail(ctx, actor, err)
 		}
 		return Reply{Send: &m}, nil
 	}
@@ -534,7 +534,7 @@ func (e *Engine) addStep(ctx context.Context, actor app.Actor, chat ChatRef, p [
 	case actAddFreq:
 		f.Draft["unit"], f.Draft["interval"], f.Field = arg(2), arg(3), "date"
 		if err := save(); err != nil {
-			return e.fail(err)
+			return e.fail(ctx, actor, err)
 		}
 		m := pickDate(today)
 		return Reply{Edit: &m}, nil
@@ -548,7 +548,7 @@ func (e *Engine) addStep(ctx context.Context, actor app.Actor, chat ChatRef, p [
 	case actAddDay:
 		m, err := e.addAfterDate(ctx, actor, chat, f, arg(2))
 		if err != nil {
-			return e.fail(err)
+			return e.fail(ctx, actor, err)
 		}
 		return Reply{Edit: &m}, nil
 	case actAddPM:
@@ -557,11 +557,11 @@ func (e *Engine) addStep(ctx context.Context, actor app.Actor, chat ChatRef, p [
 		}
 		f.Draft["pmDone"] = "1"
 		if err := save(); err != nil {
-			return e.fail(err)
+			return e.fail(ctx, actor, err)
 		}
 		m, err := e.addNext(ctx, actor, f, locale)
 		if err != nil {
-			return e.fail(err)
+			return e.fail(ctx, actor, err)
 		}
 		return Reply{Edit: &m}, nil
 	case actAddCat:
@@ -570,11 +570,11 @@ func (e *Engine) addStep(ctx context.Context, actor app.Actor, chat ChatRef, p [
 		}
 		f.Draft["catDone"] = "1"
 		if err := save(); err != nil {
-			return e.fail(err)
+			return e.fail(ctx, actor, err)
 		}
 		m, err := e.addNext(ctx, actor, f, locale)
 		if err != nil {
-			return e.fail(err)
+			return e.fail(ctx, actor, err)
 		}
 		return Reply{Edit: &m}, nil
 	case actAddTrial:
@@ -584,22 +584,22 @@ func (e *Engine) addStep(ctx context.Context, actor app.Actor, chat ChatRef, p [
 			f.Draft["trial"] = ""
 		}
 		if err := save(); err != nil {
-			return e.fail(err)
+			return e.fail(ctx, actor, err)
 		}
 		m, err := e.addNext(ctx, actor, f, locale)
 		if err != nil {
-			return e.fail(err)
+			return e.fail(ctx, actor, err)
 		}
 		return Reply{Edit: &m}, nil
 	case actAddOK:
 		d, err := e.svc.CreateSubscription(ctx, actor, addInput(f, false))
 		if err != nil {
-			return e.fail(err)
+			return e.fail(ctx, actor, err)
 		}
 		e.dropFlow(ctx, chat)
 		m, err := e.subScreen(ctx, actor, d.Subscription.ID, locale)
 		if err != nil {
-			return e.fail(err)
+			return e.fail(ctx, actor, err)
 		}
 		m.Title = tr(locale, "✅ %s added", m.Title)
 		return Reply{Edit: &m, Toast: tr(locale, "Added ✅")}, nil
@@ -622,7 +622,7 @@ func addInput(f flowState, dry bool) app.CreateSubscriptionInput {
 
 func (e *Engine) addAfterDate(ctx context.Context, actor app.Actor, chat ChatRef, f flowState, date string) (Message, error) {
 	if _, err := engine.ParseDate(date); err != nil {
-		return Message{}, fmt.Errorf("%w: %v", domain.ErrValidation, err)
+		return Message{}, domain.BadDate("date", date)
 	}
 	f.Draft["date"], f.Field = date, ""
 	if err := e.saveFlow(ctx, actor, chat, f); err != nil {
@@ -751,7 +751,7 @@ func (e *Engine) method(ctx context.Context, actor app.Actor, id string) (domain
 	}
 	i := slices.IndexFunc(info.PaymentMethods, func(pm domain.PaymentMethod) bool { return pm.ID == id })
 	if i < 0 {
-		return domain.PaymentMethod{}, nil, fmt.Errorf("payment method %s: %w", id, domain.ErrNotFound)
+		return domain.PaymentMethod{}, nil, domain.Missing("payment method %s: not found", id)
 	}
 	return info.PaymentMethods[i], slices.Delete(slices.Clone(info.PaymentMethods), i, i+1), nil
 }

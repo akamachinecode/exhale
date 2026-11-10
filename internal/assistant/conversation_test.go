@@ -184,7 +184,7 @@ func TestRoundsCap(t *testing.T) {
 	if w.fake.Calls() != MaxRounds {
 		t.Fatalf("the model was called %d times, the cap is %d", w.fake.Calls(), MaxRounds)
 	}
-	if !strings.Contains(turn.Note, "stopped") {
+	if turn.Note == nil || !strings.Contains(turn.Note.String(), "stopped") {
 		t.Fatalf("the person must be told it stopped: %+v", turn)
 	}
 	testutil.Golden(t, "rounds_cap", w.transcript())
@@ -251,7 +251,7 @@ func TestInjectedInstructionCannotWrite(t *testing.T) {
 	if got := w.names(w.owner); !strings.Contains(got, "Netflix:active") {
 		t.Fatalf("the injected instruction deleted a subscription: %q", got)
 	}
-	if len(turn.Proposals) != 1 || !turn.Proposals[0].Destructive || turn.Proposals[0].Title != "Delete Netflix" {
+	if len(turn.Proposals) != 1 || !turn.Proposals[0].Destructive || turn.Proposals[0].Title.String() != "Delete Netflix" {
 		t.Fatalf("the person must see exactly what was asked for, as a destructive change: %+v", turn.Proposals)
 	}
 	first := w.fake.Requests[0]

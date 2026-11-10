@@ -11,6 +11,7 @@ import (
 	"log/slog"
 	"net"
 	"net/http"
+	"reflect"
 	"strings"
 	"time"
 
@@ -76,6 +77,8 @@ func New(svc *app.Service, cfg Config) (http.Handler, huma.API, error) {
 	hc.Info.Description = "Self-hosted subscription manager. Every operation is also available to AI agents over MCP at /mcp."
 	hc.OpenAPIPath, hc.DocsPath, hc.SchemasPath = "/api/openapi", "/api/docs", "/api/schemas"
 	hc.Components.SecuritySchemes = map[string]*huma.SecurityScheme{"bearer": {Type: "http", Scheme: "bearer", Description: "Personal access token (exhale_pat_…)"}}
+	// A domain.Text travels as its web form: a key and arguments.
+	hc.Components.Schemas.RegisterTypeAlias(reflect.TypeFor[domain.Text](), reflect.TypeFor[domain.Wire]())
 	api := humago.New(mux, hc)
 	registerAll(api, svc)
 	if cfg.Assistant == nil {
@@ -175,6 +178,13 @@ func isLoopback(r *http.Request) bool {
 	return ip != nil && ip.IsLoopback() && r.Header.Get("X-Forwarded-For") == ""
 }
 
+// writeJSONProblem writes a problem outside huma, with its text.
+func writeJSONProblem(w http.ResponseWriter, p *problem) {
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(p.Status)
+	_ = json.NewEncoder(w).Encode(p)
+}
+
 func writeProblem(w http.ResponseWriter, status int, detail string) {
 	w.Header().Set("Content-Type", "application/problem+json")
 	w.WriteHeader(status)
@@ -247,17 +257,36 @@ func register[In, Out any](api huma.API, svc *app.Service, op app.Op[In, Out]) {
 }
 
 func httpError(err error) error {
+	status := 0
+	var sentinel error
 	switch {
 	case errors.Is(err, domain.ErrValidation):
-		return huma.Error422UnprocessableEntity(humanize(err, domain.ErrValidation))
+		status, sentinel = http.StatusUnprocessableEntity, domain.ErrValidation
 	case errors.Is(err, domain.ErrNotFound):
-		return huma.Error404NotFound(humanize(err, domain.ErrNotFound))
+		status, sentinel = http.StatusNotFound, domain.ErrNotFound
 	case errors.Is(err, domain.ErrConflict):
-		return huma.Error409Conflict(humanize(err, domain.ErrConflict))
+		status, sentinel = http.StatusConflict, domain.ErrConflict
 	case errors.Is(err, app.ErrForbidden):
-		return huma.Error403Forbidden(humanize(err, app.ErrForbidden))
+		status, sentinel = http.StatusForbidden, app.ErrForbidden
+	default:
+		return huma.Error500InternalServerError("internal error", err)
 	}
-	return huma.Error500InternalServerError("internal error", err)
+	if t, ok := domain.TextOf(err); ok {
+		return newProblem(status, t)
+	}
+	return huma.NewError(status, humanize(err, sentinel))
+}
+
+// problem is an RFC 9457 problem whose sentence the web can translate:
+// detail is English, text the same sentence as a key and its arguments
+// (web/src/lib/es.ts).
+type problem struct {
+	huma.ErrorModel
+	Text *domain.Text `json:"text,omitempty" doc:"the detail as a translatable text: key and arguments"`
+}
+
+func newProblem(status int, t domain.Text) *problem {
+	return &problem{ErrorModel: huma.ErrorModel{Status: status, Title: http.StatusText(status), Detail: domain.Capitalize(t.String())}, Text: &t}
 }
 
 // humanize drops the sentinel prefix ("validation failed: …") so the detail

@@ -6,6 +6,7 @@ import (
 
 	"github.com/akamachinecode/exhale/internal/app"
 	"github.com/akamachinecode/exhale/internal/assistant"
+	"github.com/akamachinecode/exhale/internal/domain"
 )
 
 // Plain language in chat (ADR 0018, part B). Free text that is neither a
@@ -48,30 +49,43 @@ func (e *Engine) Ask(ctx context.Context, actor app.Actor, chat ChatRef, text st
 	if !e.CanAsk(ctx) {
 		return nil, false
 	}
+	locale := e.Locale(ctx, actor)
 	turn, err := e.assistant.Ask(ctx, actor, chat.Channel+"_"+chat.ChatID, text)
 	if err != nil {
-		return []Message{{Lines: []string{"⚠️ " + assistant.Explain(err)}}}, true
+		return []Message{{Lines: []string{"⚠️ " + Say(locale, assistant.Explain(err))}}}, true
 	}
-	if turn.Text != "" || turn.Note != "" {
-		m := Message{Footer: turn.Note}
+	if turn.Text != "" || turn.Note != nil {
+		m := Message{}
+		if turn.Note != nil {
+			m.Footer = Say(locale, *turn.Note)
+		}
 		if turn.Text != "" {
 			m.Lines = strings.Split(turn.Text, "\n")
 		}
 		msgs = append(msgs, m)
 	}
 	for _, p := range turn.Proposals {
-		msgs = append(msgs, proposalMessage(p, e.Locale(ctx, actor)))
+		msgs = append(msgs, proposalMessage(p, locale))
 	}
 	return msgs, true
 }
 
+// lines renders the lines of a card, each a sentence.
+func lines(locale string, ts []domain.Text) []string {
+	out := make([]string, len(ts))
+	for i, t := range ts {
+		out[i] = domain.Capitalize(Say(locale, t))
+	}
+	return out
+}
+
 func proposalMessage(p assistant.Proposal, locale string) Message {
-	title := p.Title + "?"
+	title := tr(locale, "%s?", Say(locale, p.Title))
 	if p.Destructive {
 		title = "⚠️ " + title
 	}
 	return Message{
-		Title: title, Lines: p.Lines,
+		Title: title, Lines: lines(locale, p.Lines),
 		Rows: [][]Button{{{Label: tr(locale, "✅ Do it"), Data: data(aiPrefix, aiDo, p.ID)}, {Label: tr(locale, "✖ Don't"), Data: data(aiPrefix, aiDont, p.ID)}}},
 	}
 }
@@ -97,22 +111,23 @@ func (e *Engine) handleAssistant(ctx context.Context, actor app.Actor, raw strin
 		return Reply{Toast: tr(locale, "Unknown action.")}, nil
 	}
 	if err != nil {
-		return Reply{Toast: assistant.Explain(err)}, nil
+		return Reply{Toast: Say(locale, assistant.Explain(err))}, nil
 	}
-	m := Message{Lines: out.Lines}
+	m := Message{Lines: lines(locale, out.Lines)}
+	title := Say(locale, out.Title)
 	toast := ""
 	switch out.Status {
 	case assistant.StatusApplied:
-		m.Title, toast = tr(locale, "✅ Done: %s", out.Title), tr(locale, "Done ✅")
+		m.Title, toast = tr(locale, "✅ Done: %s", title), tr(locale, "Done ✅")
 		if out.CanUndo {
 			m.Rows = [][]Button{{{Label: tr(locale, "↩︎ Undo"), Data: data(aiPrefix, aiUndo, out.ID)}}}
 		}
 	case assistant.StatusDiscarded:
-		m.Title, toast = tr(locale, "✖ Not done: %s", out.Title), tr(locale, "Nothing was changed")
+		m.Title, toast = tr(locale, "✖ Not done: %s", title), tr(locale, "Nothing was changed")
 	case assistant.StatusUndone:
-		m.Title, toast = tr(locale, "↩︎ Undone: %s", out.Title), tr(locale, "Undone ↩︎")
+		m.Title, toast = tr(locale, "↩︎ Undone: %s", title), tr(locale, "Undone ↩︎")
 	case assistant.StatusFailed:
-		m.Title, toast = tr(locale, "⚠️ Could not do it: %s", out.Title), tr(locale, "It could not be done")
+		m.Title, toast = tr(locale, "⚠️ Could not do it: %s", title), tr(locale, "It could not be done")
 	default:
 		return Reply{Edit: new(proposalMessage(assistant.Proposal{ID: out.ID, Title: out.Title, Lines: out.Lines}, locale))}, nil
 	}

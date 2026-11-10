@@ -70,7 +70,7 @@
           },
           "lines": {
             "items": {
-              "type": "string"
+              "$ref": "#/components/schemas/Wire"
             },
             "type": [
               "array",
@@ -91,7 +91,7 @@
             "type": "string"
           },
           "title": {
-            "type": "string"
+            "$ref": "#/components/schemas/Wire"
           }
         },
         "required": [
@@ -224,7 +224,8 @@
             "type": "string"
           },
           "message": {
-            "type": "string"
+            "$ref": "#/components/schemas/Wire",
+            "description": "a translatable text"
           },
           "model": {
             "description": "the model that answered",
@@ -263,8 +264,8 @@
             ]
           },
           "note": {
-            "description": "why the answer may be incomplete, e.g. the step limit was reached",
-            "type": "string"
+            "$ref": "#/components/schemas/Wire",
+            "description": "why the answer may be incomplete, e.g. the step limit was reached; a translatable text"
           },
           "proposals": {
             "description": "changes prepared for the person to confirm or discard; nothing is applied until they confirm",
@@ -3101,9 +3102,9 @@
             "type": "string"
           },
           "lines": {
-            "description": "the details of the change",
+            "description": "the details of the change, as translatable texts",
             "items": {
-              "type": "string"
+              "$ref": "#/components/schemas/Wire"
             },
             "type": [
               "array",
@@ -3111,8 +3112,8 @@
             ]
           },
           "title": {
-            "description": "what would happen, e.g. Add Netflix",
-            "type": "string"
+            "$ref": "#/components/schemas/Wire",
+            "description": "what would happen, e.g. Add Netflix, as a translatable text"
           },
           "tool": {
             "description": "the use case that would run, e.g. create_subscription",
@@ -4783,6 +4784,26 @@
         "required": [
           "from",
           "rule"
+        ],
+        "type": "object"
+      },
+      "Wire": {
+        "additionalProperties": false,
+        "properties": {
+          "args": {
+            "items": {},
+            "type": [
+              "array",
+              "null"
+            ]
+          },
+          "key": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "key",
+          "args"
         ],
         "type": "object"
       }

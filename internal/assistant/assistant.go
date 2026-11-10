@@ -145,10 +145,10 @@ func agentFor(actor app.Actor) app.Actor {
 
 // Turn is the assistant's answer to one message.
 type Turn struct {
-	Text      string     `json:"text" doc:"the answer, plain text"`
-	Proposals []Proposal `json:"proposals" doc:"changes prepared for the person to confirm or discard; nothing is applied until they confirm"`
-	Mentions  []Mention  `json:"mentions" doc:"subscriptions the answer talks about, for links"`
-	Note      string     `json:"note,omitempty" doc:"why the answer may be incomplete, e.g. the step limit was reached"`
+	Text      string       `json:"text" doc:"the answer, plain text"`
+	Proposals []Proposal   `json:"proposals" doc:"changes prepared for the person to confirm or discard; nothing is applied until they confirm"`
+	Mentions  []Mention    `json:"mentions" doc:"subscriptions the answer talks about, for links"`
+	Note      *domain.Text `json:"note,omitempty" doc:"why the answer may be incomplete, e.g. the step limit was reached; a translatable text"`
 }
 
 // Mention is a subscription the answer talks about.
@@ -325,7 +325,7 @@ func (a *Assistant) Ask(ctx context.Context, actor app.Actor, conv, text string)
 				return turn, err
 			}
 			// Keep what was prepared before the failure.
-			turn.Note = Explain(err)
+			turn.Note = new(Explain(err))
 			break
 		}
 		usage.Input, usage.Output = usage.Input+res.Usage.Input, usage.Output+res.Usage.Output
@@ -333,13 +333,13 @@ func (a *Assistant) Ask(ctx context.Context, actor app.Actor, conv, text string)
 			turn.Text = res.Text
 		}
 		if res.Stop == StopLength {
-			turn.Note = "The answer was cut short because it was too long."
+			turn.Note = new(domain.T("The answer was cut short because it was too long."))
 		}
 		if len(res.ToolCalls) == 0 {
 			break
 		}
 		if rounds == MaxRounds {
-			turn.Note = fmt.Sprintf("I stopped after %d steps. Ask for one thing at a time if something is missing.", MaxRounds)
+			turn.Note = new(domain.T("I stopped after %d steps. Ask for one thing at a time if something is missing.", MaxRounds))
 			break
 		}
 		msgs = append(msgs, Message{Role: RoleAssistant, Text: res.Text, ToolCalls: res.ToolCalls, Raw: res.Raw})
@@ -350,8 +350,8 @@ func (a *Assistant) Ask(ctx context.Context, actor app.Actor, conv, text string)
 		msgs = append(msgs, Message{Role: RoleTool, ToolResults: results})
 	}
 	turn.Proposals = append(turn.Proposals, st.proposals...)
-	if turn.Text == "" && len(turn.Proposals) == 0 && turn.Note == "" {
-		turn.Text = "I have no answer for that."
+	if turn.Text == "" && len(turn.Proposals) == 0 && turn.Note == nil {
+		turn.Note = new(domain.T("I have no answer for that."))
 	}
 	turn.Mentions = a.mentions(ctx, agent, turn, st)
 	// Token counts and round counts only: never the words.
@@ -359,7 +359,7 @@ func (a *Assistant) Ask(ctx context.Context, actor app.Actor, conv, text string)
 
 	said := turn.Text
 	for _, pr := range turn.Proposals {
-		said += "\n[prepared for confirmation: " + pr.Title + "]"
+		said += "\n[prepared for confirmation: " + pr.Title.String() + "]"
 	}
 	if strings.TrimSpace(said) == "" {
 		said = "(no answer)"

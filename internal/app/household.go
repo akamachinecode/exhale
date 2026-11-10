@@ -3,7 +3,6 @@ package app
 import (
 	"cmp"
 	"context"
-	"fmt"
 	"strings"
 	"time"
 
@@ -30,7 +29,7 @@ type BootstrapInput struct {
 func (s *Service) Owner(ctx context.Context) (Actor, error) {
 	r, err := s.st.Q.FirstHousehold(ctx)
 	if err != nil {
-		return Actor{}, fmt.Errorf("%w: no household yet", domain.ErrNotFound)
+		return Actor{}, domain.NotFound("no household yet")
 	}
 	members, err := s.st.Q.ListMembers(ctx, r.ID)
 	if err != nil {
@@ -41,7 +40,7 @@ func (s *Service) Owner(ctx context.Context) (Actor, error) {
 			return MemberActor(store.MemberFromRow(m), ScopeTrusted), nil
 		}
 	}
-	return Actor{}, fmt.Errorf("%w: household %s has no owner", domain.ErrNotFound, r.ID)
+	return Actor{}, domain.NotFound("household %s has no owner", r.ID)
 }
 
 // Bootstrap creates the household, its owner and default categories if no
@@ -53,16 +52,16 @@ func (s *Service) Bootstrap(ctx context.Context, in BootstrapInput) (Actor, erro
 	}
 	in.HouseholdName = cmp.Or(strings.TrimSpace(in.HouseholdName), "Home")
 	if strings.TrimSpace(in.OwnerName) == "" {
-		return Actor{}, fmt.Errorf("%w: the owner's name is required", domain.ErrValidation)
+		return Actor{}, domain.Invalid("the owner's name is required")
 	}
 	if in.Currency == "" {
-		return Actor{}, fmt.Errorf("%w: the main currency is required", domain.ErrValidation)
+		return Actor{}, domain.Invalid("the main currency is required")
 	}
 	if _, err := money.New(0, in.Currency); err != nil {
-		return Actor{}, fmt.Errorf("%w: %v", domain.ErrValidation, err)
+		return Actor{}, domain.Invalid("unknown currency %q", in.Currency)
 	}
 	if _, err := time.LoadLocation(in.Timezone); err != nil || in.Timezone == "" {
-		return Actor{}, fmt.Errorf("%w: unknown time zone %q", domain.ErrValidation, in.Timezone)
+		return Actor{}, domain.Invalid("unknown time zone %q", in.Timezone)
 	}
 	in.Locale = cmp.Or(in.Locale, "en")
 	h := domain.Household{ID: domain.NewID(domain.PrefixHousehold), Name: in.HouseholdName, Currency: strings.ToUpper(in.Currency), Timezone: in.Timezone, Locale: in.Locale}
@@ -152,7 +151,7 @@ func (s *Service) UpdateHousehold(ctx context.Context, actor Actor, in UpdateHou
 		if actor.Kind != ActorSystem {
 			m, err := q.GetMember(ctx, actor.MemberID)
 			if err != nil || m.Role != string(domain.RoleOwner) {
-				return fmt.Errorf("%w: only a household owner can change its settings", ErrForbidden)
+				return domain.Fail(ErrForbidden, "only a household owner can change its settings")
 			}
 		}
 		before, err := s.household(ctx, q, actor.HouseholdID)
@@ -163,37 +162,37 @@ func (s *Service) UpdateHousehold(ctx context.Context, actor Actor, in UpdateHou
 		if in.Name != nil {
 			h.Name = strings.TrimSpace(*in.Name)
 			if h.Name == "" {
-				return fmt.Errorf("%w: the name cannot be empty", domain.ErrValidation)
+				return domain.Invalid("the name cannot be empty")
 			}
 		}
 		if in.Currency != nil {
 			h.Currency = strings.ToUpper(strings.TrimSpace(*in.Currency))
 			if _, err := money.New(0, h.Currency); err != nil || h.Currency == "" {
-				return fmt.Errorf("%w: unknown currency %q", domain.ErrValidation, *in.Currency)
+				return domain.Invalid("unknown currency %q", *in.Currency)
 			}
 		}
 		if in.Timezone != nil {
 			if _, err := time.LoadLocation(*in.Timezone); err != nil || *in.Timezone == "" {
-				return fmt.Errorf("%w: unknown time zone %q", domain.ErrValidation, *in.Timezone)
+				return domain.Invalid("unknown time zone %q", *in.Timezone)
 			}
 			h.Timezone = *in.Timezone
 		}
 		if in.Locale != nil {
 			if *in.Locale != "en" && *in.Locale != "es" {
-				return fmt.Errorf("%w: language must be en or es", domain.ErrValidation)
+				return domain.Invalid("language must be en or es")
 			}
 			h.Locale = *in.Locale
 		}
 		if in.ReminderTime != nil {
 			t, err := time.Parse("15:04", strings.TrimSpace(*in.ReminderTime))
 			if err != nil {
-				return fmt.Errorf("%w: reminder time must look like 09:00", domain.ErrValidation)
+				return domain.Invalid("reminder time must look like 09:00")
 			}
 			h.ReminderHour, h.ReminderMinute = t.Hour(), t.Minute()
 		}
 		if in.Payday != nil {
 			if *in.Payday < 0 || *in.Payday > 31 {
-				return fmt.Errorf("%w: payday must be a day of the month (1-31), or 0 for none", domain.ErrValidation)
+				return domain.Invalid("payday must be a day of the month (1-31), or 0 for none")
 			}
 			h.Payday = *in.Payday
 		}
@@ -258,15 +257,15 @@ func (s *Service) SavePaymentMethod(ctx context.Context, actor Actor, in SavePay
 	switch pm.Kind {
 	case domain.KindCard, domain.KindBank, domain.KindPayPal, domain.KindOther:
 	default:
-		return pm, fmt.Errorf("%w: unknown kind %q", domain.ErrValidation, in.Kind)
+		return pm, domain.Invalid("unknown kind %q", in.Kind)
 	}
 	if pm.Name == "" || len(pm.Last4) > 4 {
-		return pm, fmt.Errorf("%w: name is required and last4 has at most 4 digits", domain.ErrValidation)
+		return pm, domain.Invalid("name is required and last4 has at most 4 digits")
 	}
 	if in.ExpiresOn != "" {
 		var err error
 		if pm.ExpiresOn, err = engine.ParseDate(in.ExpiresOn); err != nil {
-			return pm, fmt.Errorf("%w: %v", domain.ErrValidation, err)
+			return pm, domain.BadDate("expires", in.ExpiresOn)
 		}
 	}
 	err := s.write(ctx, actor, in.DryRun, func(q *db.Queries, c *change) error {
@@ -279,7 +278,7 @@ func (s *Service) SavePaymentMethod(ctx context.Context, actor Actor, in SavePay
 		} else {
 			old, err := q.GetPaymentMethod(ctx, db.GetPaymentMethodParams{ID: pm.ID, HouseholdID: actor.HouseholdID})
 			if err != nil {
-				return store.NotFound(err, "payment method "+pm.ID)
+				return store.NotFound(err, "payment method %s: not found", pm.ID)
 			}
 			before = store.PaymentMethodFromRow(old)
 			if err := q.UpdatePaymentMethod(ctx, db.UpdatePaymentMethodParams{Name: pm.Name, Kind: string(pm.Kind), Last4: pm.Last4, ExpiresOn: store.DatePtr(pm.ExpiresOn), OwnerID: store.Ptr(pm.OwnerID), ID: pm.ID, HouseholdID: actor.HouseholdID}); err != nil {
@@ -306,7 +305,7 @@ type CreateCategoryInput struct {
 func (s *Service) CreateCategory(ctx context.Context, actor Actor, in CreateCategoryInput) (domain.Category, error) {
 	cat := domain.Category{ID: domain.NewID(domain.PrefixCategory), HouseholdID: actor.HouseholdID, Name: strings.TrimSpace(in.Name), Color: in.Color}
 	if cat.Name == "" {
-		return cat, fmt.Errorf("%w: name is required", domain.ErrValidation)
+		return cat, domain.Invalid("name is required")
 	}
 	err := s.write(ctx, actor, in.DryRun, func(q *db.Queries, c *change) error {
 		if err := q.CreateCategory(ctx, db.CreateCategoryParams{ID: cat.ID, HouseholdID: cat.HouseholdID, Name: cat.Name, Color: cat.Color}); err != nil {
@@ -349,14 +348,14 @@ func (s *Service) ReassignPaymentMethod(ctx context.Context, actor Actor, in Rea
 
 func (s *Service) reassign(ctx context.Context, q *db.Queries, c *change, actor Actor, from, to string) (int, error) {
 	if from == to {
-		return 0, fmt.Errorf("%w: choose a different payment method to move to", domain.ErrValidation)
+		return 0, domain.Invalid("choose a different payment method to move to")
 	}
 	for _, id := range []string{from, to} {
 		if id == "" {
 			continue
 		}
 		if _, err := q.GetPaymentMethod(ctx, db.GetPaymentMethodParams{ID: id, HouseholdID: actor.HouseholdID}); err != nil {
-			return 0, store.NotFound(err, "payment method "+id)
+			return 0, store.NotFound(err, "payment method %s: not found", id)
 		}
 	}
 	n, err := q.ReassignPaymentMethod(ctx, db.ReassignPaymentMethodParams{ToID: store.Ptr(to), UpdatedAt: store.FormatTime(s.now()), HouseholdID: actor.HouseholdID, FromID: store.Ptr(from)})
@@ -417,16 +416,16 @@ func (s *Service) UpdateCategory(ctx context.Context, actor Actor, in UpdateCate
 			}
 		}
 		if !found {
-			return fmt.Errorf("category %s: %w", in.ID, domain.ErrNotFound)
+			return domain.Missing("category %s: not found", in.ID)
 		}
 		before := cat
 		set(&cat.Name, in.Name)
 		set(&cat.Color, in.Color)
 		if cat.Name = strings.TrimSpace(cat.Name); cat.Name == "" {
-			return fmt.Errorf("%w: name is required", domain.ErrValidation)
+			return domain.Invalid("name is required")
 		}
 		if err := q.UpdateCategory(ctx, db.UpdateCategoryParams{Name: cat.Name, Color: cat.Color, ID: cat.ID, HouseholdID: actor.HouseholdID}); err != nil {
-			return fmt.Errorf("%w: a category named %q already exists", domain.ErrValidation, cat.Name)
+			return domain.Invalid("a category named %q already exists", cat.Name)
 		}
 		if _, err := c.record(q, "category.update", "category", cat.ID, before, cat); err != nil {
 			return err

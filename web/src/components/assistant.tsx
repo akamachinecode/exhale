@@ -21,7 +21,7 @@ import {
 	useSettingsTestAssistant,
 } from "@/gen/api";
 import { ApiError } from "@/lib/fetcher";
-import { t } from "@/lib/i18n";
+import { capitalize, say, t } from "@/lib/i18n";
 import { cn } from "@/lib/utils";
 
 // Ask Exhale (ADR 0018, part B): plain language in the web. The model only
@@ -82,7 +82,7 @@ const examples = ["What do I pay per month?", "What renews this week?", "Add Net
 
 /** Where messages go, in words a person recognises. */
 function providerName(s?: AssistantStatus) {
-	if (!s?.provider) return "the model provider";
+	if (!s?.provider) return t("the model provider");
 	if (s.provider === "anthropic") return s.baseUrl ? hostOf(s.baseUrl) : "Anthropic";
 	return s.baseUrl ? hostOf(s.baseUrl) : "OpenAI";
 }
@@ -259,7 +259,7 @@ function Answer({ turn }: { turn: AssistantTurn }) {
 	return (
 		<div className="grid gap-2">
 			{turn.text && <p className="text-sm leading-relaxed whitespace-pre-wrap">{turn.text}</p>}
-			{turn.note && <p className="text-xs text-muted">{turn.note}</p>}
+			{turn.note && <p className="text-xs text-muted">{say(turn.note)}</p>}
 			{(turn.proposals ?? []).map((p) => (
 				<ProposalCard key={p.id} proposal={p} />
 			))}
@@ -283,10 +283,10 @@ function Answer({ turn }: { turn: AssistantTurn }) {
 }
 
 const done: Record<string, string> = {
-	applied: "Done",
-	discarded: "Discarded",
-	undone: "Undone",
-	failed: "Not done",
+	applied: t("Done"),
+	discarded: t("Discarded"),
+	undone: t("Undone"),
+	failed: t("Not done"),
 };
 
 /** A change the assistant prepared. Exhale writes the card, not the model. */
@@ -312,7 +312,7 @@ function ProposalCard({ proposal: p }: { proposal: Proposal }) {
 	return (
 		<div className={cn("rounded-lg border border-line px-3.5 py-3", p.destructive && "border-bad/40")}>
 			<div className="flex flex-wrap items-center gap-2">
-				<p className="text-sm font-medium">{p.title}</p>
+				<p className="text-sm font-medium">{say(p.title)}</p>
 				{status !== "pending" && (
 					<Badge tone={status === "applied" ? "ok" : status === "failed" ? "bad" : "neutral"}>
 						{status === "applied" && <Check className="size-3" />}
@@ -320,9 +320,13 @@ function ProposalCard({ proposal: p }: { proposal: Proposal }) {
 					</Badge>
 				)}
 			</div>
-			{lines.map((l) => (
-				<p key={l} className={cn("mt-0.5 text-xs text-muted", status === "failed" && "text-bad")}>
-					{l}
+			{lines.map((l, i) => (
+				<p
+					// biome-ignore lint/suspicious/noArrayIndexKey: the lines of a card never move
+					key={i}
+					className={cn("mt-0.5 text-xs text-muted", status === "failed" && "text-bad")}
+				>
+					{capitalize(say(l))}
 				</p>
 			))}
 			{status === "pending" && (
@@ -446,7 +450,8 @@ export function AssistantSettings() {
 	const onTest = async () => {
 		setResult(undefined);
 		try {
-			setResult(await test.mutateAsync());
+			const r = await test.mutateAsync();
+			setResult({ ok: r.ok, message: say(r.message) });
 		} catch (err) {
 			setResult({ ok: false, message: errText(err, t("Could not run the test")) });
 		}

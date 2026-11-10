@@ -14,7 +14,7 @@ import {
 	useCalendarFeedRemove,
 	useImportSubscriptions,
 } from "@/gen/api";
-import { ApiError } from "@/lib/fetcher";
+import { ApiError, problemDetail } from "@/lib/fetcher";
 import { t, tn } from "@/lib/i18n";
 import { date, every } from "@/lib/utils";
 
@@ -57,7 +57,7 @@ export function ImportData() {
 				body: file,
 			});
 			const body = await res.json();
-			if (!res.ok) throw new ApiError(res.status, body?.detail ?? t("Could not read the file"));
+			if (!res.ok) throw new ApiError(res.status, problemDetail(body, t("Could not read the file")));
 			const p = body as Parsed;
 			// A dry run says what would happen to each item before anything is saved.
 			const dry = await run.mutateAsync({ data: { items: p.items, dryRun: true } });

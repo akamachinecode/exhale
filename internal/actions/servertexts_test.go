@@ -1,0 +1,273 @@
+package actions
+
+import (
+	"bytes"
+	"encoding/json"
+	"flag"
+	"go/ast"
+	"go/constant"
+	"go/importer"
+	"go/parser"
+	"go/token"
+	"go/types"
+	"io"
+	"os"
+	"os/exec"
+	"path/filepath"
+	"sort"
+	"strings"
+	"sync"
+	"testing"
+
+	"github.com/akamachinecode/exhale/internal/app"
+	"github.com/akamachinecode/exhale/internal/domain"
+)
+
+// Texts written outside this package (ADR 0023): the errors of the service
+// and the assistant's cards. They are domain.Text values; chat renders them
+// with the Spanish catalog of this package and the web with es.ts, so both
+// must have every one. This test finds them by type, not by name:
+//
+//   - a call to a function with a parameter named format that returns an
+//     error or a domain.Text (domain.Invalid, domain.T, store.NotFound…)
+//     must pass a constant, which is a text;
+//   - a string constant of type domain.Word is a text;
+//   - fmt.Errorf wrapping domain.ErrValidation, ErrNotFound, ErrConflict or
+//     app.ErrForbidden is refused: it cannot be translated.
+//
+// The web's list of these texts (web/scripts/server-texts.json, read by
+// pnpm i18n) is regenerated with go test ./internal/actions -update.
+
+// serverPackages are the packages whose texts reach people.
+var serverPackages = []string{"app", "domain", "assistant", "actions", "store", "httpapi"}
+
+// serverDynamicWords are words passed as domain.Word from a variable: charge
+// statuses and the names of what a change is about.
+var serverDynamicWords = []string{
+	"paid", "pending", "failed", "skipped",
+	"subscription", "charge", "category", "payment method", "household", "member", "reminder",
+	"daily", "weekly", "monthly", "yearly",
+}
+
+var (
+	serverOnce  sync.Once
+	serverFound map[string]bool
+	serverErrs  []string
+)
+
+// serverTexts returns every text written outside the tr calls, keyed by
+// its English format.
+func serverTexts(t *testing.T) map[string]bool {
+	t.Helper()
+	serverOnce.Do(func() { serverFound, serverErrs = scanServerTexts() })
+	for _, e := range serverErrs {
+		t.Error(e)
+	}
+	return serverFound
+}
+
+func scanServerTexts() (map[string]bool, []string) {
+	found := map[string]bool{}
+	for _, w := range serverDynamicWords {
+		found[w] = true
+	}
+	// The titles of the use cases name a change the assistant prepares.
+	for _, b := range app.Catalog() {
+		found[b.Title] = true
+	}
+	var problems []string
+	root := filepath.Join("..", "..")
+	var dirs []string
+	for _, p := range serverPackages {
+		dirs = append(dirs, "./internal/"+p)
+	}
+	// Export data of every dependency, so each package is type-checked from
+	// source without compiling the world again.
+	cmd := exec.Command("go", append([]string{"list", "-export", "-deps", "-f", "{{.ImportPath}}\t{{.Export}}"}, dirs...)...)
+	cmd.Dir = root
+	out, err := cmd.Output()
+	if err != nil {
+		return nil, []string{"go list: " + err.Error()}
+	}
+	exports := map[string]string{}
+	for _, line := range strings.Split(strings.TrimSpace(string(out)), "\n") {
+		path, file, _ := strings.Cut(line, "\t")
+		exports[path] = file
+	}
+	fset := token.NewFileSet()
+	imp := importer.ForCompiler(fset, "gc", func(path string) (io.ReadCloser, error) {
+		f, ok := exports[path]
+		if !ok || f == "" {
+			return nil, os.ErrNotExist
+		}
+		return os.Open(f)
+	})
+	for _, p := range serverPackages {
+		dir := filepath.Join(root, "internal", p)
+		entries, _ := os.ReadDir(dir)
+		var files []*ast.File
+		for _, e := range entries {
+			n := e.Name()
+			if !strings.HasSuffix(n, ".go") || strings.HasSuffix(n, "_test.go") {
+				continue
+			}
+			f, err := parser.ParseFile(fset, filepath.Join(dir, n), nil, 0)
+			if err != nil {
+				return nil, []string{err.Error()}
+			}
+			files = append(files, f)
+		}
+		info := &types.Info{Types: map[ast.Expr]types.TypeAndValue{}, Uses: map[*ast.Ident]types.Object{}, Defs: map[*ast.Ident]types.Object{}}
+		conf := types.Config{Importer: imp}
+		if _, err := conf.Check("github.com/akamachinecode/exhale/internal/"+p, fset, files, info); err != nil {
+			return nil, []string{"type-check " + p + ": " + err.Error()}
+		}
+		for _, f := range files {
+			ast.Inspect(f, func(n ast.Node) bool {
+				switch n := n.(type) {
+				case ast.Expr:
+					if tv, ok := info.Types[n]; ok && tv.Value != nil && tv.Value.Kind() == constant.String && isWord(tv.Type) && constant.StringVal(tv.Value) != "" {
+						found[constant.StringVal(tv.Value)] = true
+					}
+				}
+				call, ok := n.(*ast.CallExpr)
+				if !ok {
+					return true
+				}
+				if isErrorf(call, info) {
+					for _, a := range call.Args[1:] {
+						if isSentinel(a, info) {
+							problems = append(problems, fset.Position(call.Pos()).String()+": write this error with domain.Invalid, NotFound, Conflict, Missing or Fail so it can be translated")
+						}
+					}
+					return true
+				}
+				sig, ok := info.Types[call.Fun].Type.(*types.Signature)
+				if !ok {
+					return true
+				}
+				idx := formatParam(sig)
+				if idx < 0 || idx >= len(call.Args) {
+					return true
+				}
+				arg := call.Args[idx]
+				if tv := info.Types[arg]; tv.Value != nil && tv.Value.Kind() == constant.String {
+					found[constant.StringVal(tv.Value)] = true
+					return true
+				}
+				if id, ok := arg.(*ast.Ident); ok && id.Name == "format" {
+					return true // a helper passing its own format on
+				}
+				problems = append(problems, fset.Position(arg.Pos()).String()+": the text must be a constant, so it can be translated")
+				return true
+			})
+		}
+	}
+	return found, problems
+}
+
+func isWord(t types.Type) bool {
+	n, ok := t.(*types.Named)
+	return ok && n.Obj().Name() == "Word" && n.Obj().Pkg() != nil && strings.HasSuffix(n.Obj().Pkg().Path(), "/internal/domain")
+}
+
+// formatParam returns the index of a parameter named format in a function
+// that returns an error or a domain.Text, or -1.
+func formatParam(sig *types.Signature) int {
+	if sig.Results().Len() != 1 {
+		return -1
+	}
+	rt := sig.Results().At(0).Type()
+	n, named := rt.(*types.Named)
+	isText := named && n.Obj().Name() == "Text" && n.Obj().Pkg() != nil && strings.HasSuffix(n.Obj().Pkg().Path(), "/internal/domain")
+	if !isText && rt.String() != "error" {
+		return -1
+	}
+	for i := range sig.Params().Len() {
+		p := sig.Params().At(i)
+		if p.Name() == "format" && p.Type().String() == "string" {
+			return i
+		}
+	}
+	return -1
+}
+
+func isErrorf(call *ast.CallExpr, info *types.Info) bool {
+	sel, ok := call.Fun.(*ast.SelectorExpr)
+	if !ok || sel.Sel.Name != "Errorf" {
+		return false
+	}
+	obj := info.Uses[sel.Sel]
+	return obj != nil && obj.Pkg() != nil && obj.Pkg().Path() == "fmt"
+}
+
+func isSentinel(e ast.Expr, info *types.Info) bool {
+	var id *ast.Ident
+	switch v := e.(type) {
+	case *ast.Ident:
+		id = v
+	case *ast.SelectorExpr:
+		id = v.Sel
+	default:
+		return false
+	}
+	obj := info.Uses[id]
+	if obj == nil || obj.Pkg() == nil {
+		return false
+	}
+	path := obj.Pkg().Path()
+	switch obj.Name() {
+	case "ErrValidation", "ErrNotFound", "ErrConflict":
+		return strings.HasSuffix(path, "/internal/domain")
+	case "ErrForbidden":
+		return strings.HasSuffix(path, "/internal/app")
+	}
+	return false
+}
+
+// TestServerTextsAreTranslated fails when a text of the service or the
+// assistant has no Spanish, or when the web's list of them is stale.
+func TestServerTextsAreTranslated(t *testing.T) {
+	texts := serverTexts(t)
+	var missing, keys []string
+	for k := range texts {
+		if _, ok := spanish[k]; !ok {
+			missing = append(missing, k)
+		}
+		keys = append(keys, domain.WebKey(k))
+	}
+	sort.Strings(missing)
+	if len(missing) > 0 {
+		t.Errorf("no Spanish translation in i18n_es.go for:\n  %q", missing)
+	}
+	sort.Strings(keys)
+	keys = compactStrings(keys)
+	var b bytes.Buffer
+	enc := json.NewEncoder(&b)
+	enc.SetEscapeHTML(false)
+	enc.SetIndent("", "\t")
+	if err := enc.Encode(keys); err != nil {
+		t.Fatal(err)
+	}
+	path := filepath.Join("..", "..", "web", "scripts", "server-texts.json")
+	if f := flag.Lookup("update"); f != nil && f.Value.String() == "true" {
+		if err := os.WriteFile(path, b.Bytes(), 0o644); err != nil {
+			t.Fatal(err)
+		}
+		return
+	}
+	cur, _ := os.ReadFile(path)
+	if !bytes.Equal(cur, b.Bytes()) {
+		t.Errorf("%s is stale: run go test ./internal/actions -update, then add the new texts to web/src/lib/es.ts", path)
+	}
+}
+
+func compactStrings(s []string) []string {
+	out := s[:0]
+	for i, v := range s {
+		if i == 0 || v != s[i-1] {
+			out = append(out, v)
+		}
+	}
+	return out
+}

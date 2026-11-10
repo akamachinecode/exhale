@@ -2,7 +2,6 @@ package domain
 
 import (
 	"errors"
-	"fmt"
 	"strings"
 	"time"
 
@@ -20,7 +19,7 @@ var ErrNotFound = errors.New("not found")
 var ErrConflict = errors.New("conflict")
 
 func invalid(format string, args ...any) error {
-	return fmt.Errorf("%w: %s", ErrValidation, fmt.Sprintf(format, args...))
+	return Invalid(format, args...)
 }
 
 // Household is one Exhale instance's family or group (ADR 0006).
@@ -306,7 +305,7 @@ func (s Subscription) Validate() error {
 		return invalid("unknown status %q", s.Status)
 	}
 	if err := s.Schedule.Validate(); err != nil {
-		return fmt.Errorf("%w: %v", ErrValidation, err)
+		return Invalid("the billing schedule is not valid (%v)", err)
 	}
 	if err := s.Details.Validate(); err != nil {
 		return err

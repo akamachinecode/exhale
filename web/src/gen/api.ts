@@ -81,6 +81,12 @@ export const AssistantOutcomeStatus = {
   undone: 'undone',
 } as const;
 
+export interface Wire {
+  /** @nullable */
+  args: unknown[] | null;
+  key: string;
+}
+
 export interface AssistantOutcome {
   /** A URL to the JSON Schema for this object. */
   readonly $schema?: string;
@@ -88,10 +94,10 @@ export interface AssistantOutcome {
   canUndo: boolean;
   id: string;
   /** @nullable */
-  lines: string[] | null;
+  lines: Wire[] | null;
   status: AssistantOutcomeStatus;
   subscriptionId?: string;
-  title: string;
+  title: Wire;
 }
 
 /**
@@ -154,7 +160,8 @@ export interface AssistantStatus {
 export interface AssistantTest {
   /** A URL to the JSON Schema for this object. */
   readonly $schema?: string;
-  message: string;
+  /** a translatable text */
+  message: Wire;
   /** the model that answered */
   model?: string;
   ok: boolean;
@@ -170,12 +177,12 @@ export interface Proposal {
   destructive: boolean;
   id: string;
   /**
-     * the details of the change
+     * the details of the change, as translatable texts
      * @nullable
      */
-  lines: string[] | null;
-  /** what would happen, e.g. Add Netflix */
-  title: string;
+  lines: Wire[] | null;
+  /** what would happen, e.g. Add Netflix, as a translatable text */
+  title: Wire;
   /** the use case that would run, e.g. create_subscription */
   tool: string;
 }
@@ -188,8 +195,8 @@ export interface AssistantTurn {
      * @nullable
      */
   mentions: Mention[] | null;
-  /** why the answer may be incomplete, e.g. the step limit was reached */
-  note?: string;
+  /** why the answer may be incomplete, e.g. the step limit was reached; a translatable text */
+  note?: Wire;
   /**
      * changes prepared for the person to confirm or discard; nothing is applied until they confirm
      * @nullable

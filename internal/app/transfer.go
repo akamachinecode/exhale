@@ -130,7 +130,7 @@ const MaxImportItems = 500
 func (s *Service) Import(ctx context.Context, actor Actor, in ImportInput) (ImportResult, error) {
 	out := ImportResult{Items: []ImportOutcome{}, NewCategories: []string{}, NewPaymentMethods: []string{}, DryRun: in.DryRun}
 	if len(in.Items) == 0 || len(in.Items) > MaxImportItems {
-		return out, fmt.Errorf("%w: pass between 1 and %d items", domain.ErrValidation, MaxImportItems)
+		return out, domain.Invalid("pass between 1 and %d items", MaxImportItems)
 	}
 	err := s.write(ctx, actor, in.DryRun, func(q *db.Queries, c *change) error {
 		h, err := s.household(ctx, q, actor.HouseholdID)
@@ -255,14 +255,14 @@ func (it ImportItem) createInput(h domain.Household, members map[string]string) 
 	}
 	if ci.FirstCharge == "" && ci.TrialEndsOn == "" {
 		if ci.StartedOn == "" {
-			return ci, fmt.Errorf("%w: a next charge date is needed", domain.ErrValidation)
+			return ci, domain.Invalid("a next charge date is needed")
 		}
 		ci.FirstCharge = ci.StartedOn
 	}
 	if name := strings.TrimSpace(it.Payer); name != "" {
 		id, ok := members[strings.ToLower(name)]
 		if !ok {
-			return ci, fmt.Errorf("%w: nobody called %q shares this Exhale", domain.ErrValidation, name)
+			return ci, domain.Invalid("nobody called %q shares this Exhale", name)
 		}
 		ci.PayerID = id
 	}

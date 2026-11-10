@@ -81,21 +81,21 @@ func TestEval(t *testing.T) {
 	t.Run("adding prepares one creation with the facts given", func(t *testing.T) {
 		f := setup(t)
 		p := only(t, ask(t, f, "add Disney+ for 8.99 a month, charged on the 12th"), "create_subscription")
-		if !strings.Contains(p.Title, "Disney") || !strings.Contains(strings.Join(p.Lines, " "), "8.99") || !strings.Contains(strings.Join(p.Lines, " "), "2026-11-12") {
+		if !strings.Contains(p.Title.String(), "Disney") || !strings.Contains(joined(p.Lines), "8.99") || !strings.Contains(joined(p.Lines), "2026-11-12") {
 			t.Errorf("proposal: %+v", p)
 		}
 	})
 	t.Run("cancelling asks, on the right subscription", func(t *testing.T) {
 		f := setup(t)
 		p := only(t, ask(t, f, "cancel spotify"), "set_subscription_status")
-		if !p.Destructive || !strings.Contains(p.Title, "Spotify Family") {
+		if !p.Destructive || !strings.Contains(p.Title.String(), "Spotify Family") {
 			t.Errorf("proposal: %+v", p)
 		}
 	})
 	t.Run("a price change names the subscription and the new price", func(t *testing.T) {
 		f := setup(t)
 		turn := ask(t, f, "netflix went up to 15.99")
-		if len(turn.Proposals) != 1 || !strings.Contains(turn.Proposals[0].Title, "Netflix") || !strings.Contains(strings.Join(turn.Proposals[0].Lines, " "), "15.99") {
+		if len(turn.Proposals) != 1 || !strings.Contains(turn.Proposals[0].Title.String(), "Netflix") || !strings.Contains(joined(turn.Proposals[0].Lines), "15.99") {
 			t.Errorf("proposals: %+v", turn.Proposals)
 		}
 	})

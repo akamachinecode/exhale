@@ -13,6 +13,8 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+
+	"github.com/akamachinecode/exhale/internal/domain"
 )
 
 // Providers the owner can pick.
@@ -149,44 +151,45 @@ func (e *Error) Error() string {
 	if e.Detail != "" {
 		return fmt.Sprintf("assistant: %s (%s)", Explain(e), e.Detail)
 	}
-	return "assistant: " + Explain(e)
+	return "assistant: " + Explain(e).String()
 }
 
-// Explain turns an error into one sentence for the person.
-func Explain(err error) string {
+// Explain turns an error into one sentence for the person, in a form each
+// edge renders in their language.
+func Explain(err error) domain.Text {
 	var e *Error
 	if !errors.As(err, &e) {
 		if errors.Is(err, context.DeadlineExceeded) || errors.Is(err, context.Canceled) {
-			return "The model did not answer in time. Try again."
+			return domain.T("The model did not answer in time. Try again.")
 		}
-		return "Something went wrong talking to the model."
+		return domain.T("Something went wrong talking to the model.")
 	}
 	switch e.Kind {
 	case KindNotConfigured:
-		return "The built-in assistant is off. An owner can turn it on in Settings."
+		return domain.T("The built-in assistant is off. An owner can turn it on in Settings.")
 	case KindAuth:
-		return "The model provider rejected the API key. An owner can fix it in Settings."
+		return domain.T("The model provider rejected the API key. An owner can fix it in Settings.")
 	case KindNoAnswer:
-		return "The model did not answer. Try again in a moment."
+		return domain.T("The model did not answer. Try again in a moment.")
 	case KindRateLimited:
-		return "The model provider is asking to slow down. Try again in a minute."
+		return domain.T("The model provider is asking to slow down. Try again in a minute.")
 	case KindBusy:
-		return "That is a lot of messages in a short time. Wait a minute and try again."
+		return domain.T("That is a lot of messages in a short time. Wait a minute and try again.")
 	case KindModel:
-		return "The model set in Settings does not exist or is not available with this key."
+		return domain.T("The model set in Settings does not exist or is not available with this key.")
 	case KindRejected:
-		return "The model provider did not accept the request."
+		return domain.T("The model provider did not accept the request.")
 	case KindTooLarge:
-		return "That is more than the model accepts in one request."
+		return domain.T("That is more than the model accepts in one request.")
 	case KindRefused:
-		return "The model declined to answer that."
+		return domain.T("The model declined to answer that.")
 	case KindOverloaded:
-		return "The model provider is having trouble. Try again in a moment."
+		return domain.T("The model provider is having trouble. Try again in a moment.")
 	case KindExpired:
-		return "This proposal has expired. Ask again."
+		return domain.T("This proposal has expired. Ask again.")
 	case KindOther:
 	}
-	return "Something went wrong talking to the model."
+	return domain.T("Something went wrong talking to the model.")
 }
 
 func errKind(k Kind, detail string) *Error { return &Error{Kind: k, Detail: detail} }

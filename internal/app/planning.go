@@ -189,7 +189,7 @@ func (s *Service) MarkFailed(ctx context.Context, item OutboxItem, cause error) 
 func (s *Service) ActorForMember(ctx context.Context, memberID string) (Actor, error) {
 	m, err := s.st.Q.GetMember(ctx, memberID)
 	if err != nil {
-		return Actor{}, store.NotFound(err, "member "+memberID)
+		return Actor{}, store.NotFound(err, "member %s: not found", memberID)
 	}
 	return MemberActor(store.MemberFromRow(m), ScopeWrite), nil
 }

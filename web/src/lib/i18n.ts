@@ -45,3 +45,19 @@ export function t(text: string, ...args: Arg[]): string {
 export function tn(n: number, one: string, many: string, ...args: Arg[]): string {
 	return t(n === 1 ? one : many, ...args).replace(/\{n\}/g, String(n));
 }
+
+/** A sentence written by the server: an English key with {0}… and its
+ * arguments, each a formatted value or another sentence (ADR 0023). */
+export type ServerText = { key: string; args?: readonly unknown[] | null };
+
+/** Renders a sentence of the server in this browser's language. */
+export function say(text: ServerText | null | undefined): string {
+	if (!text) return "";
+	const args = (text.args ?? []).map((a) => (typeof a === "string" ? a : say(a as ServerText)));
+	return t(text.key, ...args);
+}
+
+/** Upper-cases the first letter, for a sentence shown alone. */
+export function capitalize(s: string): string {
+	return s.charAt(0).toUpperCase() + s.slice(1);
+}

@@ -169,7 +169,7 @@ func TestAnthropicErrors(t *testing.T) {
 			if !IsKind(err, c.kind) {
 				t.Fatalf("got %v", err)
 			}
-			if strings.Contains(Explain(err), "x-api-key") {
+			if strings.Contains(Explain(err).String(), "x-api-key") {
 				t.Error("the sentence for the person must not quote the provider")
 			}
 		})
@@ -224,7 +224,7 @@ func TestAnthropicErrors(t *testing.T) {
 		if !IsKind(err, KindNoAnswer) || !isTimeout(err) {
 			t.Fatalf("got %v", err)
 		}
-		if !strings.Contains(Explain(err), "did not answer") {
+		if !strings.Contains(Explain(err).String(), "did not answer") {
 			t.Errorf("sentence: %s", Explain(err))
 		}
 	})

@@ -33,7 +33,7 @@ const (
 
 // ErrNeedsAssistant is returned for files only a model can read while the
 // assistant is off.
-var ErrNeedsAssistant = fmt.Errorf("%w: reading a PDF, a picture or free text needs the built-in assistant. An owner can turn it on in Settings; a spreadsheet saved as CSV works without it", domain.ErrValidation)
+var ErrNeedsAssistant = domain.Invalid("reading a PDF, a picture or free text needs the built-in assistant. An owner can turn it on in Settings; a spreadsheet saved as CSV works without it")
 
 const reportTool = "report_recurring_charges"
 
@@ -92,12 +92,12 @@ func (a *Assistant) ReadImport(ctx context.Context, actor app.Actor, data []byte
 	kind, media := importer.Sniff(data)
 	switch kind {
 	case importer.FilePDF, importer.FileImage:
-		limit, what := MaxImageSize, "picture"
+		limit, what := MaxImageSize, domain.Word("picture")
 		if kind == importer.FilePDF {
 			limit, what = MaxPDFSize, "PDF"
 		}
 		if len(data) > limit {
-			return importer.Result{}, fmt.Errorf("%w: the %s is larger than %d MB", domain.ErrValidation, what, limit>>20)
+			return importer.Result{}, domain.Invalid("the %s is larger than %d MB", what, limit>>20)
 		}
 		source := "statement"
 		if kind == importer.FileImage {
@@ -121,7 +121,7 @@ func (a *Assistant) ReadImport(ctx context.Context, actor app.Actor, data []byte
 			if sheet, err := importer.Parse(ctx, data, cur); err == nil {
 				return sheet, nil
 			}
-			return importer.Result{}, fmt.Errorf("%w: no charge repeats in these transactions. A subscription shows after two charges from the same merchant: export a longer period", domain.ErrValidation)
+			return importer.Result{}, domain.Invalid("no charge repeats in these transactions. A subscription shows after two charges from the same merchant: export a longer period")
 		}
 		return a.extractText(ctx, actor, cur, today, data)
 	}
@@ -137,7 +137,7 @@ func (a *Assistant) ReadImport(ctx context.Context, actor app.Actor, data []byte
 
 func (a *Assistant) extractText(ctx context.Context, actor app.Actor, cur string, today engine.Date, data []byte) (importer.Result, error) {
 	if len(data) > MaxTextSize {
-		return importer.Result{}, fmt.Errorf("%w: the text is longer than the model reads in one go (%d KB). Import a shorter period", domain.ErrValidation, MaxTextSize/1000)
+		return importer.Result{}, domain.Invalid("the text is longer than the model reads in one go (%d KB). Import a shorter period", MaxTextSize/1000)
 	}
 	return a.extract(ctx, actor, "text", cur, today, "Report the recurring charges in this document.\n\n<document>\n"+dataText(string(data))+"\n</document>", nil)
 }

@@ -35,20 +35,21 @@ func assistantError(err error) error {
 		return httpError(err)
 	}
 	msg := assistant.Explain(err)
+	status := http.StatusBadGateway
 	switch e.Kind {
 	case assistant.KindNotConfigured:
-		return huma.Error409Conflict(msg)
+		status = http.StatusConflict
 	case assistant.KindBusy, assistant.KindRateLimited:
-		return huma.Error429TooManyRequests(msg)
+		status = http.StatusTooManyRequests
 	case assistant.KindTooLarge:
-		return huma.Error413RequestEntityTooLarge(msg)
+		status = http.StatusRequestEntityTooLarge
 	case assistant.KindExpired:
-		return huma.Error404NotFound(msg)
+		status = http.StatusNotFound
 	case assistant.KindNoAnswer:
-		return huma.Error504GatewayTimeout(msg)
+		status = http.StatusGatewayTimeout
 	case assistant.KindAuth, assistant.KindModel, assistant.KindRejected, assistant.KindRefused, assistant.KindOverloaded, assistant.KindOther:
 	}
-	return huma.Error502BadGateway(msg)
+	return newProblem(status, msg)
 }
 
 func (a *authAPI) assistantOwner(ctx context.Context) error {
