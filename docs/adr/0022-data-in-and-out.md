@@ -34,3 +34,7 @@ Parsers (`internal/importer`) only read files and produce items: a **Wallos data
 
 - People need to import charge history (paid dates and amounts) from another tool.
 - CalDAV two-way sync is requested enough to justify it.
+
+## Implementation notes: tags and the other price (2026-11-10)
+
+The subscriptions CSV gained three columns at the end: `tags` (separated by commas), `other price` and `other price per` (`month` or `year`). The CSV importer reads them back (also `tag`, `labels`, `etiquetas`), and an Exhale JSON export carries `tags` and `altPrice` on each subscription, so both formats round-trip. Columns were added at the end so spreadsheets built on the old order keep working.

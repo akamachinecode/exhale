@@ -175,3 +175,9 @@ With the assistant on, the model **only tidies the names**: it is sent the merch
 - **Chat text is English**, like the rest of `internal/actions` until its translation lands. The model answers in the person's language; the cards and buttons do not yet.
 - **Sending a photo to the bot** to import it: import is in the web only.
 - **PDF without a model**, and PDFs on local models that do not accept files.
+
+## Implementation notes: changes to many subscriptions (2026-11-10)
+
+- **One op, all or nothing.** `bulk_update_subscriptions` sets category, payment method or tags (`action: update`), or pauses, resumes, cancels or deletes up to 500 subscriptions in one transaction. One unknown or hidden id fails the whole call. It is marked destructive (it can delete), so agents confirm first; its `dryRun` lists what changes for each subscription by name, and the ones already as asked show no change and get no audit entry.
+- **Audited per subscription, undone as one.** Each subscription gets its own audit entry, the same action names as the single-subscription ops, so **Activity** and per-item undo work unchanged. `undo` now also takes `auditIds` and reverts them in one transaction, newest first; the web's Undo and the assistant use it. We chose this over a "batch" audit entry because it needs no new table and no new undo path: a batch is just the list of ids its call returned.
+- **Tags renamed or deleted everywhere** (`rename_tag`, `delete_tag`) are the same kind of change: one audit entry per subscription touched, `auditIds` to undo. They only touch subscriptions the caller can see; someone else's private subscription keeps its tag.
