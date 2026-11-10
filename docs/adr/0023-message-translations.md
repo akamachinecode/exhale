@@ -1,4 +1,4 @@
-# 0023. Translating chat messages
+# 0023. Translating chat messages and the web
 
 - Status: Accepted
 - Date: 2026-11-10
@@ -30,12 +30,15 @@ A test parses the package and fails when a text passed to `tr` or `plural` has n
 
 Texts a channel says outside any screen (linking a chat, joining, help) live in the action layer too, so Telegram and Slack say the same thing. An unlinked chat is answered in the language the chat platform reports.
 
+The **web** follows the same idea in TypeScript: `t("English text {0}", value)` and `tn(count, "one", "many")` in `web/src/lib/i18n.ts`, with the Spanish catalog in `web/src/lib/es.ts`. The language is the browser's unless the person switches it (saved in that browser); dates, amounts and billing cycles follow it. `pnpm i18n`, run in CI, applies the same three checks as the Go test.
+
 Errors raised by the service (validation messages) stay in English for now.
 
 ## Consequences — cost we accept
 
 - Changing an English sentence breaks the test until its translation is updated. That is the point.
-- The web UI is still English only; it will use its own catalog (ADR 0014).
+- The web language is per browser, not per account: someone using two devices chooses twice.
+- Sentences split around a link or a bold word are translated in pieces, which limits how freely a translator can reorder them.
 - Languages with complex plural rules would need more than "one or many".
 
 ## Revisit when

@@ -38,5 +38,7 @@ Exhale is a self-hosted subscription manager written in Go (backend, single bina
 - Dates of charges are `engine.Date`, never `time.Time`. Money is `money.Money`, never floats.
 - The web never computes charge dates; it calls `preview_schedule`.
 - Every text shown in chat goes through `tr(locale, "English text")` and has a Spanish entry in `internal/actions/i18n_es.go`; a test fails otherwise (ADR 0023).
+- Every text of the web goes through `t("English text")` or `tn(n, "one", "many")` from `web/src/lib/i18n.ts` and has a Spanish entry in `web/src/lib/es.ts`; `pnpm -C web i18n` fails otherwise.
 - New migrations get a number above every existing one; never renumber or reuse one that shipped.
+- `mise run test:e2e` drives a real browser against a fresh server; keep it green when changing web flows.
 - Commits: Conventional Commits, signed off (`git commit -s`).
