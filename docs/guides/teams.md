@@ -35,19 +35,38 @@ The person chooses their own name, email and password. Exhale never sends email:
 
 Each person then links their own Telegram account from Settings. Reminders for a subscription go to its payer, in their own chat, with the buttons to fix it there.
 
+## Two-factor sign-in
+
+Anyone who signs in with a password can add a second step: a 6-digit code from an authenticator app on their phone (1Password, Bitwarden, Google Authenticator, Aegis…).
+
+1. Settings → You → Two-factor sign-in → **Turn on**, and enter your password.
+2. Scan the QR code with the app, or type the key shown under it.
+3. Enter the code the app shows. Two-factor sign-in is now on, and your other sessions are signed out.
+4. **Save the 10 backup codes** shown next, in your password manager for example. Each one signs you in once, when the phone is not at hand. They are not shown again; **New backup codes** replaces them all.
+
+From then on, sign-in asks for the password, then for a code. A code works only once, and many wrong codes in a row make Exhale wait before it accepts more. To turn it off, you need your password and a code (or a backup code).
+
+It does not change anything else:
+
+- **Single sign-on** never asks for it: your identity provider handles its own second factor.
+- **API tokens** and connected AI agents keep working without codes.
+
+Lost the phone and the backup codes? An owner can turn it off for you in Settings → Sharing (it shows in Activity), and then you sign in with the password alone. On the server, `exhale user reset-2fa --email …` does the same.
+
 ## Who is the owner
 
 Owners can do what members cannot:
 
 - invite people,
 - change the team's settings (name, main currency, time zone, language, default reminder time),
+- turn off someone's two-factor sign-in when they are locked out,
 - set or remove the Telegram bot.
 
 Everything else is open to every member: adding and editing subscriptions, confirming charges, payment methods, categories, their own Telegram link and their own API tokens.
 
 **Have at least two owners.** Invite a second person as owner, so access does not depend on one account.
 
-Whoever controls the server is above any owner: `exhale user reset-password --email …` on the server sets a new password for any account and signs it out everywhere. That is also the way back in when a password is lost.
+Whoever controls the server is above any owner: `exhale user reset-password --email …` on the server sets a new password for any account and signs it out everywhere. That is also the way back in when a password is lost. `exhale user reset-2fa --email …` turns off an account's two-factor sign-in, for a lost phone.
 
 ## What everyone sees
 
@@ -74,5 +93,4 @@ These are planned, not built. Do not rely on them today.
 | **Slack**: reminders and the same in-chat screens in Slack | Telegram, and the web |
 | **Single sign-on (OIDC)** with your identity provider | Email and password per person |
 | **Removing a member and changing roles** | Reset the person's password on the server, which signs them out of the web everywhere. Their Telegram link and API tokens keep working until removed from their own Settings, so do this together with them when they leave |
-| **Two-factor codes** | Keep the page off the public internet (Tailscale or VPN) |
 | **Splitting a cost between members** | One payer per subscription |

@@ -75,6 +75,10 @@ Sign-in with an OpenID Connect provider shipped. How to configure it: [docs/inst
 
 Still pending from this ADR: member management (remove a member, change roles, unlink an identity), linking an identity to an existing account from Settings (needed where the provider does not verify emails, e.g. Entra), setting a password on an account made through the provider from the web, TOTP and passkeys (later), trusted proxy header auth (v1.x).
 
+## Implementation notes: two-factor (2026-11-10)
+
+TOTP with backup codes shipped for password sign-in, with the standard library instead of `pquerna/otp`: [ADR 0025](0025-two-factor-sign-in.md). Single sign-on and tokens are not affected. Recovery: an owner in Settings → Sharing, or `exhale user reset-2fa --email …` on the server.
+
 ## Options rejected
 
 - **Authboss:** maintained and the closest thing to Better Auth in Go, but it covers only the easy parts, imposes its own flows and email-centric modules, sits outside the OpenAPI contract, and has no passkeys.

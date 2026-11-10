@@ -40,6 +40,7 @@ Accepted ADRs are not rewritten. A decision that changes gets a new ADR that sup
 | [0021](0021-dates-that-matter.md) | The dates that matter: trials, notice periods and expiries | Accepted |
 | [0022](0022-data-in-and-out.md) | Data in and out: import with a review list, export, calendar feed | Accepted |
 | [0023](0023-message-translations.md) | Translating chat messages | Accepted |
+| [0025](0025-two-factor-sign-in.md) | Two-factor sign-in: TOTP and backup codes, standard library, QR in the browser | Accepted |
 
 Open questions are tracked in [../open-questions.md](../open-questions.md).
 
