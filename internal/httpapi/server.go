@@ -25,6 +25,7 @@ import (
 	"github.com/akamachinecode/exhale/internal/auth"
 	"github.com/akamachinecode/exhale/internal/channels/notifiers"
 	"github.com/akamachinecode/exhale/internal/domain"
+	"github.com/akamachinecode/exhale/internal/oauth"
 	"github.com/akamachinecode/exhale/web"
 )
 
@@ -60,6 +61,9 @@ type Config struct {
 	// DisablePasswordLogin turns password sign-in off. Only honoured when
 	// OIDC is set.
 	DisablePasswordLogin bool
+	// OAuth is the authorization server of remote MCP (ADR 0024). When nil
+	// one is made over the service's store; tests pass their own clock.
+	OAuth *oauth.Service
 }
 
 type ctxKey struct{}
@@ -97,6 +101,8 @@ func New(svc *app.Service, cfg Config) (http.Handler, huma.API, error) {
 		return nil, nil, err
 	}
 	registerChannels(api, aa)
+	oa := newOAuthAPI(aa)
+	registerOAuth(api, mux, oa)
 
 	mux.HandleFunc("GET /healthz", func(w http.ResponseWriter, _ *http.Request) { w.Write([]byte("ok")) })
 	mux.HandleFunc("GET /api/v1/events", events(svc))
@@ -106,7 +112,8 @@ func New(svc *app.Service, cfg Config) (http.Handler, huma.API, error) {
 		if !ok {
 			return app.Actor{}, auth.ErrUnauthorized
 		}
-		if name := agents.ClientName(session); name != "" && a.Kind == app.ActorAgent {
+		// An OAuth connection is already named after its application.
+		if name := agents.ClientName(session); name != "" && a.Kind == app.ActorAgent && !viaOAuth(ctx) {
 			a.Label = name + " (" + a.Label + ")"
 		}
 		return a, nil
@@ -120,19 +127,31 @@ func New(svc *app.Service, cfg Config) (http.Handler, huma.API, error) {
 	// CSRF: browsers' cross-origin writes are rejected (Sec-Fetch-Site and
 	// Origin checks); the session cookie is also SameSite=Lax.
 	csrf := http.NewCrossOriginProtection()
-	return csrf.Handler(sm.LoadAndSave(authenticate(svc, sm, cfg, mux))), api, nil
+	// The OAuth endpoints use no cookies, and browser-based MCP clients
+	// call them from another origin.
+	for _, p := range []string{oauthRegister, oauthToken, oauthRevoke} {
+		csrf.AddInsecureBypassPattern("POST " + p)
+	}
+	return csrf.Handler(sm.LoadAndSave(authenticate(svc, sm, cfg, oa, mux))), api, nil
 }
 
+type oauthKey struct{}
+
+// viaOAuth reports whether the request came with an OAuth access token.
+func viaOAuth(ctx context.Context) bool { v, _ := ctx.Value(oauthKey{}).(bool); return v }
+
 // authenticate resolves the actor of every API and MCP request: an API
-// token (agents, scripts), else the web session, else (with TrustLocal) the
-// owner for requests from this machine.
-func authenticate(svc *app.Service, sm *scs.SessionManager, cfg Config, next http.Handler) http.Handler {
+// token (agents, scripts) or, at /mcp only, an OAuth access token (remote
+// assistants), else the web session, else (with TrustLocal) the owner for
+// requests from this machine.
+func authenticate(svc *app.Service, sm *scs.SessionManager, cfg Config, oa *oauthAPI, next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		ctx := context.WithValue(r.Context(), localKey{}, isLoopback(r))
 		host, _, _ := net.SplitHostPort(r.RemoteAddr)
 		ctx = context.WithValue(ctx, ipKey{}, host)
 		r = r.WithContext(ctx)
-		protected := strings.HasPrefix(r.URL.Path, "/api/v1") || r.URL.Path == "/mcp"
+		isMCP := r.URL.Path == mcpPath
+		protected := strings.HasPrefix(r.URL.Path, "/api/v1") || isMCP
 		if !protected {
 			next.ServeHTTP(w, r)
 			return
@@ -140,8 +159,22 @@ func authenticate(svc *app.Service, sm *scs.SessionManager, cfg Config, next htt
 		var actor app.Actor
 		ok := false
 		if tok := auth.BearerToken(r.Header); tok != "" {
-			a, err := auth.ResolveToken(ctx, svc.Store(), tok)
+			var a app.Actor
+			var err error
+			switch {
+			case strings.HasPrefix(tok, oauth.AccessPrefix) && isMCP:
+				a, err = oa.accessActor(r, tok)
+				ctx = context.WithValue(ctx, oauthKey{}, true)
+			case strings.HasPrefix(tok, oauth.AccessPrefix):
+				// Its audience is the MCP endpoint (RFC 8707), nothing else.
+				err = errors.New("an OAuth token only works at /mcp")
+			default:
+				a, err = auth.ResolveToken(ctx, svc.Store(), tok)
+			}
 			if err != nil {
+				if isMCP {
+					w.Header().Set("WWW-Authenticate", oa.challenge(r, "invalid_token"))
+				}
 				writeProblem(w, http.StatusUnauthorized, "invalid token")
 				return
 			}
@@ -156,8 +189,8 @@ func authenticate(svc *app.Service, sm *scs.SessionManager, cfg Config, next htt
 		if ok {
 			r = r.WithContext(context.WithValue(ctx, ctxKey{}, actor))
 		} else if !publicPath(r.URL.Path) {
-			if r.URL.Path == "/mcp" {
-				w.Header().Set("WWW-Authenticate", `Bearer realm="exhale"`)
+			if isMCP {
+				w.Header().Set("WWW-Authenticate", oa.challenge(r, ""))
 			}
 			writeProblem(w, http.StatusUnauthorized, "sign in or send a bearer token")
 			return

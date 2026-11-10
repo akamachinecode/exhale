@@ -129,6 +129,52 @@ type Message struct {
 	Route     string
 }
 
+type OauthClient struct {
+	ID           string
+	Kind         string
+	Name         string
+	Uri          string
+	RedirectUris string
+	SecretHash   string
+	CreatedAt    string
+	LastUsedAt   *string
+	FreshUntil   *string
+}
+
+type OauthCode struct {
+	CodeHash       string
+	ClientID       string
+	MemberID       string
+	RedirectUri    string
+	CodeChallenge  string
+	Scope          string
+	Resource       string
+	SessionVersion int64
+	ExpiresAt      string
+	UsedAt         *string
+	GrantID        *string
+}
+
+type OauthGrant struct {
+	ID             string
+	MemberID       string
+	ClientID       string
+	Scope          string
+	Resource       string
+	SessionVersion int64
+	CreatedAt      string
+	LastUsedAt     *string
+}
+
+type OauthToken struct {
+	TokenHash string
+	GrantID   string
+	Kind      string
+	CreatedAt string
+	ExpiresAt string
+	UsedAt    *string
+}
+
 type Outbox struct {
 	ID        string
 	Kind      string

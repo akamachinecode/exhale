@@ -42,6 +42,9 @@ func publicPath(p string) bool {
 type limiter struct {
 	mu sync.Mutex
 	m  map[string]*rate.Limiter
+	// every and burst default to 10 at once, then one every 6 s.
+	every time.Duration
+	burst int
 }
 
 func (l *limiter) allow(key string) bool {
@@ -52,7 +55,11 @@ func (l *limiter) allow(key string) bool {
 	}
 	lim, ok := l.m[key]
 	if !ok {
-		lim = rate.NewLimiter(rate.Every(6*time.Second), 10) // 10 at once, then 10 per minute
+		every, burst := l.every, l.burst
+		if every == 0 {
+			every, burst = 6*time.Second, 10 // 10 at once, then 10 per minute
+		}
+		lim = rate.NewLimiter(rate.Every(every), burst)
 		l.m[key] = lim
 	}
 	return lim.Allow()
