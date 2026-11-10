@@ -58,7 +58,8 @@ func mustDate(s string) engine.Date {
 
 func HouseholdFromRow(r db.Household) domain.Household {
 	return domain.Household{ID: r.ID, Name: r.Name, Currency: r.Currency, Timezone: r.Timezone, Locale: r.Locale,
-		ReminderHour: int(r.ReminderHour), ReminderMinute: int(r.ReminderMinute), Payday: int(r.Payday)}
+		ReminderHour: int(r.ReminderHour), ReminderMinute: int(r.ReminderMinute), Payday: int(r.Payday),
+		ConfirmTimes: int(r.ConfirmTimes), ConfirmEveryDays: int(r.ConfirmEveryDays)}
 }
 
 func MemberFromRow(r db.Member) domain.Member {
@@ -88,6 +89,8 @@ func SubscriptionFromRow(r db.Subscription) (domain.Subscription, error) {
 	if err := json.Unmarshal([]byte(r.Schedule), &s.Schedule); err != nil {
 		return s, fmt.Errorf("subscription %s: schedule: %w", r.ID, err)
 	}
+	// Policies saved before repeats existed ask three times, daily.
+	s.Reminders.ConfirmTimes, s.Reminders.ConfirmEveryDays = domain.DefaultConfirmTimes, domain.DefaultConfirmEveryDays
 	if err := json.Unmarshal([]byte(r.Reminders), &s.Reminders); err != nil {
 		return s, fmt.Errorf("subscription %s: reminders: %w", r.ID, err)
 	}

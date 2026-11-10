@@ -80,3 +80,6 @@ SELECT count(*) FROM members WHERE household_id = ? AND role = 'owner';
 -- name: ReassignPayer :exec
 UPDATE subscriptions SET payer_id = sqlc.narg(to_id), updated_at = sqlc.arg(updated_at), version = version + 1
 WHERE household_id = sqlc.arg(household_id) AND payer_id = sqlc.arg(from_id);
+
+-- name: SetHouseholdConfirmRepeat :exec
+UPDATE households SET confirm_times = ?, confirm_every_days = ? WHERE id = ?;

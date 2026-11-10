@@ -61,6 +61,14 @@ type Charge struct {
 	Decision        string
 }
 
+type DismissedFinding struct {
+	HouseholdID string
+	Kind        string
+	Key         string
+	MemberID    *string
+	CreatedAt   string
+}
+
 type Flow struct {
 	ID        string
 	MemberID  string
@@ -77,15 +85,17 @@ type FxRate struct {
 }
 
 type Household struct {
-	ID             string
-	Name           string
-	Currency       string
-	Timezone       string
-	Locale         string
-	CreatedAt      string
-	ReminderHour   int64
-	ReminderMinute int64
-	Payday         int64
+	ID               string
+	Name             string
+	Currency         string
+	Timezone         string
+	Locale           string
+	CreatedAt        string
+	ReminderHour     int64
+	ReminderMinute   int64
+	Payday           int64
+	ConfirmTimes     int64
+	ConfirmEveryDays int64
 }
 
 type Invite struct {
@@ -141,6 +151,7 @@ type Outbox struct {
 	LastError string
 	SentAt    *string
 	CreatedAt string
+	Ref       string
 }
 
 type PaymentMethod struct {

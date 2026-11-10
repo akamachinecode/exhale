@@ -175,7 +175,7 @@ func (q *Queries) DeleteSetting(ctx context.Context, key string) error {
 }
 
 const firstHousehold = `-- name: FirstHousehold :one
-SELECT id, name, currency, timezone, locale, created_at, reminder_hour, reminder_minute, payday FROM households ORDER BY created_at LIMIT 1
+SELECT id, name, currency, timezone, locale, created_at, reminder_hour, reminder_minute, payday, confirm_times, confirm_every_days FROM households ORDER BY created_at LIMIT 1
 `
 
 func (q *Queries) FirstHousehold(ctx context.Context) (Household, error) {
@@ -191,12 +191,14 @@ func (q *Queries) FirstHousehold(ctx context.Context) (Household, error) {
 		&i.ReminderHour,
 		&i.ReminderMinute,
 		&i.Payday,
+		&i.ConfirmTimes,
+		&i.ConfirmEveryDays,
 	)
 	return i, err
 }
 
 const getHousehold = `-- name: GetHousehold :one
-SELECT id, name, currency, timezone, locale, created_at, reminder_hour, reminder_minute, payday FROM households WHERE id = ?
+SELECT id, name, currency, timezone, locale, created_at, reminder_hour, reminder_minute, payday, confirm_times, confirm_every_days FROM households WHERE id = ?
 `
 
 func (q *Queries) GetHousehold(ctx context.Context, id string) (Household, error) {
@@ -212,6 +214,8 @@ func (q *Queries) GetHousehold(ctx context.Context, id string) (Household, error
 		&i.ReminderHour,
 		&i.ReminderMinute,
 		&i.Payday,
+		&i.ConfirmTimes,
+		&i.ConfirmEveryDays,
 	)
 	return i, err
 }
@@ -438,6 +442,21 @@ func (q *Queries) ReassignPaymentMethod(ctx context.Context, arg ReassignPayment
 		return 0, err
 	}
 	return result.RowsAffected()
+}
+
+const setHouseholdConfirmRepeat = `-- name: SetHouseholdConfirmRepeat :exec
+UPDATE households SET confirm_times = ?, confirm_every_days = ? WHERE id = ?
+`
+
+type SetHouseholdConfirmRepeatParams struct {
+	ConfirmTimes     int64
+	ConfirmEveryDays int64
+	ID               string
+}
+
+func (q *Queries) SetHouseholdConfirmRepeat(ctx context.Context, arg SetHouseholdConfirmRepeatParams) error {
+	_, err := q.db.ExecContext(ctx, setHouseholdConfirmRepeat, arg.ConfirmTimes, arg.ConfirmEveryDays, arg.ID)
+	return err
 }
 
 const updateCategory = `-- name: UpdateCategory :exec
