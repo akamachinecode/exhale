@@ -27,6 +27,8 @@ type CreateSubscriptionInput struct {
 	Interval        int    `json:"interval,omitempty" jsonschema:"number of units between charges, default 1" minimum:"1"`
 	Unit            string `json:"unit,omitempty" jsonschema:"day, week, month (default) or year" enum:"day,week,month,year"`
 	FirstCharge     string `json:"firstCharge,omitempty" jsonschema:"date of the first (or next) charge, YYYY-MM-DD. Required unless trialEndsOn is given"`
+	DayRule         string `json:"dayRule,omitempty" jsonschema:"monthly and yearly cycles. day (default): the same day number as the first charge, the last day in shorter months. weekday: the same weekday and week of the month as the first charge, e.g. the third Wednesday (the first charge must be a 1st to 4th weekday of its month). last-weekday: the last such weekday of the month, e.g. the last Friday (the first charge must be in the last 7 days of its month)" enum:"day,weekday,last-weekday"`
+	WeekendShift    string `json:"weekendShift,omitempty" jsonschema:"charges that fall on a Saturday or Sunday. none (default): kept. next: moved to the next business day (Monday). previous: moved to the previous business day (Friday). Weekends only, no public holidays. Later charges are still counted from the first one, so dates never drift" enum:"none,next,previous"`
 	CategoryID      string `json:"categoryId,omitempty"`
 	PaymentMethodID string `json:"paymentMethodId,omitempty"`
 	PayerID         string `json:"payerId,omitempty" jsonschema:"member who pays; defaults to the caller"`
@@ -122,7 +124,11 @@ func (s *Service) newSubscription(ctx context.Context, q *db.Queries, actor Acto
 	if in.Unit == "" {
 		in.Unit = string(engine.Month)
 	}
-	sched, err := engine.NewSchedule(engine.Rule{Interval: in.Interval, Unit: engine.Unit(in.Unit), Anchor: first})
+	rule, err := newRule(in.Interval, in.Unit, in.DayRule, in.WeekendShift, first)
+	if err != nil {
+		return none, err
+	}
+	sched, err := engine.NewSchedule(rule)
 	if err != nil {
 		return none, fmt.Errorf("%w: %v", domain.ErrValidation, err)
 	}
@@ -205,6 +211,8 @@ type UpdateSubscriptionInput struct {
 	Interval        *int    `json:"interval,omitempty" jsonschema:"new number of units between charges, from the next charge on" minimum:"1"`
 	Unit            *string `json:"unit,omitempty" jsonschema:"new billing unit, from the next charge on" enum:"day,week,month,year"`
 	NextCharge      *string `json:"nextCharge,omitempty" jsonschema:"date of the next charge, YYYY-MM-DD: changes the billing day from now on (to move a single charge use change_charge_date)"`
+	DayRule         *string `json:"dayRule,omitempty" jsonschema:"monthly and yearly cycles. day (default): the same day number as the first charge, the last day in shorter months. weekday: the same weekday and week of the month as the first charge, e.g. the third Wednesday (the first charge must be a 1st to 4th weekday of its month). last-weekday: the last such weekday of the month, e.g. the last Friday (the first charge must be in the last 7 days of its month)" enum:"day,weekday,last-weekday"`
+	WeekendShift    *string `json:"weekendShift,omitempty" jsonschema:"charges that fall on a Saturday or Sunday. none (default): kept. next: moved to the next business day (Monday). previous: moved to the previous business day (Friday). Weekends only, no public holidays. Later charges are still counted from the first one, so dates never drift" enum:"none,next,previous"`
 	EndDate         *string `json:"endDate,omitempty" jsonschema:"last possible charge date, YYYY-MM-DD, for fixed-term contracts; empty string removes it"`
 	PriceFrom       *string `json:"priceFrom,omitempty" jsonschema:"with price: the date the new price starts, YYYY-MM-DD, for a price change announced in advance. Default: from the next open charge"`
 	StartedOn       *string `json:"startedOn,omitempty" jsonschema:"when the member first subscribed, YYYY-MM-DD; empty string clears it"`
@@ -273,30 +281,20 @@ func (s *Service) UpdateSubscription(ctx context.Context, actor Actor, in Update
 		}
 		today := s.today(ctx, q, actor)
 		repriceFrom := engine.Date{}
-		if in.Interval != nil || in.Unit != nil || (in.NextCharge != nil && *in.NextCharge != "") {
+		if in.Interval != nil || in.Unit != nil || (in.NextCharge != nil && *in.NextCharge != "") || in.DayRule != nil || in.WeekendShift != nil {
 			// A new billing cycle or day applies from the next charge on.
 			at, ok := sub.Schedule.NextOnOrAfter(today)
 			if !ok {
 				at = today
 			}
-			rule := sub.Schedule.Current(at)
-			set(&rule.Interval, in.Interval)
-			if in.Unit != nil {
-				rule.Unit = engine.Unit(*in.Unit)
+			rule, err := changedRule(sub.Schedule, at, in)
+			if err != nil {
+				return err
 			}
-			anchor := at
-			if in.NextCharge != nil && *in.NextCharge != "" {
-				if anchor, err = engine.ParseDate(*in.NextCharge); err != nil {
-					return fmt.Errorf("%w: next charge: %v", domain.ErrValidation, err)
-				}
-			}
-			if sub.Schedule, err = sub.Schedule.ChangeFrom(at, anchor, rule.Interval, rule.Unit); err != nil {
+			if sub.Schedule, err = sub.Schedule.ChangeRule(at, rule); err != nil {
 				return fmt.Errorf("%w: %v", domain.ErrValidation, err)
 			}
-			repriceFrom = at
-			if anchor.Before(at) {
-				repriceFrom = anchor
-			}
+			repriceFrom = minDate(at, minDate(rule.Anchor, rule.Occurrence(0)))
 		}
 		if in.EndDate != nil {
 			if sub.Schedule.Until, err = optionalDate(*in.EndDate, "end date"); err != nil {
@@ -595,6 +593,7 @@ func (s *Service) view(ctx context.Context, q *db.Queries, sub domain.Subscripti
 	v := SubscriptionView{Subscription: sub}
 	rule := sub.Schedule.Current(today)
 	v.Cadence = cadence(rule)
+	v.BillingDay = billingDay(rule)
 	if sub.Status == domain.StatusActive {
 		if c, err := q.ListChargesForSubscription(ctx, db.ListChargesForSubscriptionParams{SubscriptionID: sub.ID, Limit: 400}); err == nil {
 			for _, r := range slices.Backward(c) {
@@ -607,6 +606,10 @@ func (s *Service) view(ctx context.Context, q *db.Queries, sub domain.Subscripti
 		}
 		if v.NextCharge.IsZero() {
 			v.NextCharge, _ = sub.Schedule.NextOnOrAfter(today)
+		}
+		v.NextScheduled = v.NextCharge
+		if nominal, ok := sub.Schedule.NominalOf(v.NextCharge); ok {
+			v.NextScheduled = nominal
 		}
 	}
 	if sub.Status == domain.StatusCancelled {

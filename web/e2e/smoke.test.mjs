@@ -220,6 +220,24 @@ test("bulk edit: tag every subscription, then delete one and undo it", async () 
 	await page.getByRole("link", { name: /Netflix/ }).waitFor();
 });
 
+test("a subscription on a weekday of the month, moved off weekends", async () => {
+	await page.goto(`${base}/subscriptions`);
+	await page.getByRole("button", { name: "New subscription" }).click();
+	await page.getByPlaceholder("Netflix, Spotify Family…").fill("Club");
+	await page.getByPlaceholder("12.99").fill("12");
+	await page.getByLabel("Next charge").fill(iso(40));
+	// Every date offers a weekday of the month (the nth or the last).
+	const rule = page.getByLabel("Charged on");
+	await rule.selectOption({ index: 1 });
+	const words = await rule.locator("option:checked").innerText();
+	assert.match(words, /^The (first|second|third|fourth|last) /);
+	await page.getByLabel("On weekends").selectOption("next");
+	await page.getByRole("button", { name: "Add subscription" }).click();
+	await page.getByRole("heading", { name: "Club" }).waitFor();
+	await page.getByText(words, { exact: true }).waitFor();
+	await page.getByText("Moved to the next business day").waitFor();
+});
+
 test("no JavaScript errors along the way", () => {
 	assert.deepEqual(errors, []);
 });

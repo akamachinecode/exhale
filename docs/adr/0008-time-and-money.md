@@ -31,4 +31,24 @@ In RFC 5545, `FREQ=MONTHLY;BYMONTHDAY=31` **skips** months without a 31st. Emula
 
 ## Revisit when
 
-Users need truly calendar-like rules ("second Tuesday of the month"). That would mean adding RRULE as an additional rule type.
+Users need truly calendar-like rules ("second Tuesday of the month"). That would mean adding RRULE as an additional rule type. *(Partly done without RRULE: see the 2026-11-10 notes below.)*
+
+## Implementation notes
+
+### 2026-11-10: weekday of the month and weekend shifts
+
+The [feature scan](../research/2026-11-10-feature-scan.md) found two requests the engine could not express: "the third Wednesday" and "if it falls on a weekend, the next business day". Both are now part of the rule, not a second rule type. RRULE is still not needed.
+
+The rule gains two optional fields (stored in the same schedule JSON, so no migration):
+
+- **`dayRule`** for monthly and yearly rules: `""` (the anchor's day number, as before), `weekday` (the anchor's weekday in the anchor's week of the month: anchored on the third Wednesday, always the third Wednesday) or `last-weekday` (the last such weekday). The weekday and the week are read from the anchor, so there is one source of truth. Only the 1st to 4th and the last exist in every month; a fifth weekday is refused with a hint to use "last".
+- **`weekendShift`**: `""`, `next` or `previous`. A charge that falls on a Saturday or Sunday moves to the next or previous business day.
+
+What stays true:
+
+- **No drift.** The engine computes the *nominal* date from the anchor (`Rule.Nominal`) and only then applies the shift (`Rule.Occurrence`). A charge moved from Saturday to Monday does not move the next one. Property tests check this over 1990–2100, every month length and every weekday.
+- **Strictly increasing charges.** A shift moves a date by at most two days, so it is refused for daily cycles shorter than 3 days, where two charges could land on the same business day.
+- **Due dates everywhere.** Everything outside the engine (charges, reminders, the calendar feed, insights, the preview) sees the shifted date; version boundaries, `Until` and the charge limit compare shifted dates. A new rule version starts at its anchor, or at its first charge when a shift to the previous business day makes that earlier.
+- **Edits keep the billing day.** "From now on" edits anchor on the date the next charge was scheduled for before the shift (`Schedule.NominalOf`), and keep the rule's kind (`Rule.Reanchor`): moving a third-Wednesday charge to a Thursday makes it the third Thursday. Views expose `nextScheduled` so the web and exports can do the same.
+
+**Weekends only.** There are no holiday calendars: they differ per country, region and bank, and the data would have to be shipped and kept up to date. Revisit if people ask for a bank holiday shift with a concrete calendar in mind.

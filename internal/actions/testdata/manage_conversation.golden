@@ -134,6 +134,7 @@ NEW MESSAGE
   [🏷 Category](a|ec|sub_X) [💳 Payment method](a|em|sub_X)
   [🔔 Reminders](a|er|sub_X) [⏰ Notice period](a|ef|sub_X|notice)
   [🔗 Cancel link](a|ef|sub_X|link) [🔑 Account](a|ef|sub_X|account)
+  [📆 Billing day](a|eb|sub_X)
   [🔖 Tags](a|ef|sub_X|tags) [🗑 Delete](a|del|sub_X)
   [‹ Netflix](a|sub|sub_X) [🏠 Home](a|home)
 
@@ -157,6 +158,7 @@ NEW MESSAGE
   [🏷 Category](a|ec|sub_X) [💳 Payment method](a|em|sub_X)
   [🔔 Reminders](a|er|sub_X) [⏰ Notice period](a|ef|sub_X|notice)
   [🔗 Cancel link](a|ef|sub_X|link) [🔑 Account](a|ef|sub_X|account)
+  [📆 Billing day](a|eb|sub_X)
   [🔖 Tags](a|ef|sub_X|tags) [🗑 Delete](a|del|sub_X)
   [‹ Netflix](a|sub|sub_X) [🏠 Home](a|home)
 
@@ -189,6 +191,7 @@ NEW MESSAGE
   [🏷 Category](a|ec|sub_X) [💳 Payment method](a|em|sub_X)
   [🔔 Reminders](a|er|sub_X) [⏰ Notice period](a|ef|sub_X|notice)
   [🔗 Cancel link](a|ef|sub_X|link) [🔑 Account](a|ef|sub_X|account)
+  [📆 Billing day](a|eb|sub_X)
   [🔖 Tags](a|ef|sub_X|tags) [🗑 Delete](a|del|sub_X)
   [‹ Netflix](a|sub|sub_X) [🏠 Home](a|home)
 
@@ -212,6 +215,7 @@ NEW MESSAGE
   [🏷 Category](a|ec|sub_X) [💳 Payment method](a|em|sub_X)
   [🔔 Reminders](a|er|sub_X) [⏰ Notice period](a|ef|sub_X|notice)
   [🔗 Cancel link](a|ef|sub_X|link) [🔑 Account](a|ef|sub_X|account)
+  [📆 Billing day](a|eb|sub_X)
   [🔖 Tags](a|ef|sub_X|tags) [🗑 Delete](a|del|sub_X)
   [‹ Netflix](a|sub|sub_X) [🏠 Home](a|home)
 
@@ -235,6 +239,7 @@ NEW MESSAGE
   [🏷 Category](a|ec|sub_X) [💳 Payment method](a|em|sub_X)
   [🔔 Reminders](a|er|sub_X) [⏰ Notice period](a|ef|sub_X|notice)
   [🔗 Cancel link](a|ef|sub_X|link) [🔑 Account](a|ef|sub_X|account)
+  [📆 Billing day](a|eb|sub_X)
   [🔖 Tags](a|ef|sub_X|tags) [🗑 Delete](a|del|sub_X)
   [‹ Netflix](a|sub|sub_X) [🏠 Home](a|home)
 
@@ -363,6 +368,7 @@ Netflix
   [🏷 Category](a|ec|sub_X) [💳 Payment method](a|em|sub_X)
   [🔔 Reminders](a|er|sub_X) [⏰ Notice period](a|ef|sub_X|notice)
   [🔗 Cancel link](a|ef|sub_X|link) [🔑 Account](a|ef|sub_X|account)
+  [📆 Billing day](a|eb|sub_X)
   [🔖 Tags](a|ef|sub_X|tags) [🗑 Delete](a|del|sub_X)
   [‹ Netflix](a|sub|sub_X) [🏠 Home](a|home)
 

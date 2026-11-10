@@ -75,6 +75,8 @@ type ImportItem struct {
 	Interval      int      `json:"interval,omitempty" jsonschema:"units between charges, default 1"`
 	Unit          string   `json:"unit,omitempty" jsonschema:"day, week, month (default) or year" enum:"day,week,month,year"`
 	NextCharge    string   `json:"nextCharge,omitempty" jsonschema:"next (or first) charge, YYYY-MM-DD. For an ended subscription: when it started"`
+	DayRule       string   `json:"dayRule,omitempty" jsonschema:"monthly and yearly cycles: day (default), weekday (the same weekday and week of the month as nextCharge, e.g. the third Wednesday) or last-weekday (the last such weekday)" enum:"day,weekday,last-weekday"`
+	WeekendShift  string   `json:"weekendShift,omitempty" jsonschema:"charges on a Saturday or Sunday: none (default), next or previous business day. With a shift, nextCharge is the date before the shift" enum:"none,next,previous"`
 	StartedOn     string   `json:"startedOn,omitempty" jsonschema:"when the member first subscribed, YYYY-MM-DD"`
 	EndDate       string   `json:"endDate,omitempty" jsonschema:"last day, for subscriptions that ended, YYYY-MM-DD"`
 	Status        string   `json:"status,omitempty" jsonschema:"active (default), paused or cancelled" enum:"active,paused,cancelled"`
@@ -247,6 +249,7 @@ func (it ImportItem) createInput(h domain.Household, members map[string]string) 
 	ci := CreateSubscriptionInput{
 		Name: it.Name, Price: strings.ReplaceAll(strings.TrimSpace(it.Price), ",", "."), Currency: strings.ToUpper(strings.TrimSpace(it.Currency)),
 		Interval: it.Interval, Unit: it.Unit, FirstCharge: it.NextCharge, EndDate: it.EndDate, Status: it.Status,
+		DayRule: it.DayRule, WeekendShift: it.WeekendShift,
 		URL: normalizeURL(it.URL), Notes: it.Notes, AutoConfirm: it.AutoConfirm, ReminderDays: it.ReminderDays,
 		TermsInput:  TermsInput{StartedOn: it.StartedOn, TrialEndsOn: it.TrialEndsOn, NoticeDays: it.NoticeDays, Renewal: it.Renewal, CancelURL: normalizeURL(it.CancelURL), Account: it.Account},
 		ExtrasInput: ExtrasInput{Tags: it.Tags, AltPrice: it.AltPrice, AltUnit: it.AltUnit},

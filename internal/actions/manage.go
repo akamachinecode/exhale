@@ -43,6 +43,8 @@ const (
 	actEditPM   = "ems"  // ems|sub_id|pm_id or -
 	scrEditRem  = "er"   // er|sub_id
 	actEditRem  = "ert"  // ert|sub_id|days  (toggle)
+	scrEditBill = "eb"   // eb|sub_id           (billing day and weekends)
+	actEditBill = "ebs"  // ebs|sub_id|choice   (day, weekday, last-weekday, none, next, previous)
 	actDelete   = "del"  // del|sub_id       (confirmation)
 	actDeleteOK = "delok"
 	actUndo     = "u" // u|aud_id
@@ -202,6 +204,9 @@ func (e *Engine) manage(ctx context.Context, actor app.Actor, chat ChatRef, p []
 	case scrEditRem:
 		m, err := e.remindersScreen(ctx, actor, arg(2))
 		return view(m, err, "")
+	case scrEditBill, actEditBill:
+		rep, err := e.billingStep(ctx, actor, p, locale)
+		return rep, "", true, err
 	case actEditRem:
 		d, err := e.svc.GetSubscription(ctx, actor, app.GetSubscriptionInput{ID: arg(2)})
 		if err != nil {
@@ -853,7 +858,7 @@ func (e *Engine) editScreen(ctx context.Context, actor app.Actor, id, locale str
 		notice = tr(locale, "%d days", s.NoticeDays)
 	}
 	m := Message{Title: "✏️ " + s.Name, Sections: []Section{{Table: [][]string{
-		{tr(locale, "Price"), s.Price.Format(locale) + " " + cadenceText(s.Cadence, locale)},
+		{tr(locale, "Price"), s.Price.Format(locale) + " " + cadenceText(s.Cadence, locale) + billingText(s, locale)},
 		{tr(locale, "Category"), or(s.CategoryName, none)},
 		{tr(locale, "Paid with"), or(s.PaymentMethod, none)},
 		{tr(locale, "Reminders"), reminderText(s.Reminders.DaysBefore, locale)},
@@ -866,6 +871,7 @@ func (e *Engine) editScreen(ctx context.Context, actor app.Actor, id, locale str
 		{{Label: tr(locale, "🏷 Category"), Data: route(scrEditCat, id)}, {Label: tr(locale, "💳 Payment method"), Data: route(scrEditPM, id)}},
 		{{Label: tr(locale, "🔔 Reminders"), Data: route(scrEditRem, id)}, {Label: tr(locale, "⏰ Notice period"), Data: route(actEditAsk, id, "notice")}},
 		{{Label: tr(locale, "🔗 Cancel link"), Data: route(actEditAsk, id, "link")}, {Label: tr(locale, "🔑 Account"), Data: route(actEditAsk, id, "account")}},
+		{{Label: tr(locale, "📆 Billing day"), Data: route(scrEditBill, id)}},
 		{{Label: tr(locale, "🔖 Tags"), Data: route(actEditAsk, id, "tags")}, {Label: tr(locale, "🗑 Delete"), Data: route(actDelete, id)}},
 		{{Label: "‹ " + truncate(s.Name, 20), Data: route(scrSub, id)}, {Label: tr(locale, "🏠 Home"), Data: RouteHome}},
 	}

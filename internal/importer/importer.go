@@ -23,6 +23,7 @@ import (
 
 	"github.com/akamachinecode/exhale/internal/app"
 	"github.com/akamachinecode/exhale/internal/domain"
+	"github.com/akamachinecode/exhale/internal/engine"
 )
 
 // ErrUnknownFormat is returned when a file is none of the supported kinds.
@@ -343,12 +344,18 @@ func exhaleExport(data []byte) (Result, error) {
 		if !s.TrialEndsOn.IsZero() {
 			it.TrialEndsOn = s.TrialEndsOn.String()
 		}
+		next := s.Schedule.Versions[0].Rule.Anchor
 		switch {
+		case !s.NextScheduled.IsZero():
+			next = s.NextScheduled // before a weekend shift, so the billing day does not move
 		case !s.NextCharge.IsZero():
-			it.NextCharge = s.NextCharge.String()
-		default:
-			it.NextCharge = s.Schedule.First().String()
+			next = s.NextCharge
 		}
+		it.NextCharge = next.String()
+		if rule.DayRule != engine.DayOfMonth {
+			it.DayRule = string(rule.Reanchor(next).DayRule)
+		}
+		it.WeekendShift = string(rule.Shift)
 		if !s.Schedule.Until.IsZero() {
 			it.EndDate = s.Schedule.Until.String()
 		}
@@ -382,6 +389,9 @@ var headers = map[string]string{
 	"trial ends": "trial", "trial end": "trial",
 	"tags": "tags", "tag": "tags", "labels": "tags", "etiquetas": "tags",
 	"other price": "altprice", "other price per": "altunit",
+	"day rule": "dayrule", "billing day": "dayrule",
+	"weekends": "shift", "weekend shift": "shift", "on weekends": "shift",
+	"scheduled date": "scheduled", "next scheduled": "scheduled",
 }
 
 // readCSV reads comma, semicolon or tab separated text, whichever the first
@@ -453,6 +463,10 @@ func fromCSV(data []byte, defaultCurrency string) (Result, error) {
 			if n, u, ok := cadence(get("altunit")); ok && n == 1 && (u == "month" || u == "year") {
 				it.AltUnit = u
 			}
+		}
+		it.DayRule, it.WeekendShift = get("dayrule"), get("shift")
+		if d := AnyDate(get("scheduled")); d != "" {
+			it.NextCharge = d // the next charge before a weekend shift
 		}
 		switch strings.ToLower(get("status")) {
 		case "cancelled", "canceled", "inactive", "disabled", "ended", "cancelada", "cancelado", "inactiva":

@@ -29,10 +29,23 @@ type Schedule struct {
 var ErrInvalidSchedule = errors.New("engine: invalid schedule")
 
 // NewSchedule returns a schedule with a single rule, in effect from its
-// anchor.
+// first charge (or its anchor, when a weekend shift moves the first charge
+// later).
 func NewSchedule(r Rule) (Schedule, error) {
-	s := Schedule{Versions: []Version{{From: r.Anchor, Rule: r}}}
+	if err := r.Validate(); err != nil {
+		return Schedule{Versions: []Version{{From: r.Anchor, Rule: r}}}, fmt.Errorf("version 0: %w", err)
+	}
+	s := Schedule{Versions: []Version{{From: start(r), Rule: r}}}
 	return s, s.Validate()
+}
+
+// start is where a new rule version begins: its anchor, or its first charge
+// when a shift to the previous business day moves that earlier.
+func start(r Rule) Date {
+	if first := r.Occurrence(0); first.Before(r.Anchor) {
+		return first
+	}
+	return r.Anchor
 }
 
 // Validate checks every version and their ordering.
@@ -61,7 +74,7 @@ func (s Schedule) Validate() error {
 }
 
 // First returns the first charge date.
-func (s Schedule) First() Date { return s.Versions[0].Rule.Anchor }
+func (s Schedule) First() Date { return s.Versions[0].Rule.Occurrence(0) }
 
 // Between returns all charge dates d with from <= d <= to, in order.
 func (s Schedule) Between(from, to Date) []Date {
@@ -112,6 +125,7 @@ func (s Schedule) walk(from Date, yield func(Date) bool) {
 		start := 0
 		// With a charge limit every earlier charge must be counted, so the
 		// walk starts at the anchor; otherwise jump straight to `from`.
+		// Dates here are due dates (after any weekend shift).
 		if s.MaxCharges == 0 && from.After(v.Rule.Anchor) {
 			_, start = v.Rule.NextOnOrAfter(from)
 		}
@@ -141,9 +155,19 @@ func (s Schedule) walk(from Date, yield func(Date) bool) {
 // on `at` (and every later one) is replaced by a new rule anchored on
 // newAnchor. Charges before min(at, newAnchor) keep their previous rule.
 func (s Schedule) ChangeFrom(at, newAnchor Date, interval int, unit Unit) (Schedule, error) {
+	return s.ChangeRule(at, Rule{Interval: interval, Unit: unit, Anchor: newAnchor})
+}
+
+// ChangeRule is ChangeFrom with a whole rule (day rule and weekend shift
+// included): the charge due on `at` and every later one follow r. Charges
+// before min(at, r's first charge) keep their previous rule.
+func (s Schedule) ChangeRule(at Date, r Rule) (Schedule, error) {
+	if err := r.Validate(); err != nil {
+		return s, err
+	}
 	from := at
-	if newAnchor.Before(from) {
-		from = newAnchor
+	if b := start(r); b.Before(from) {
+		from = b
 	}
 	out := Schedule{Until: s.Until, MaxCharges: s.MaxCharges}
 	for _, v := range s.Versions {
@@ -151,8 +175,23 @@ func (s Schedule) ChangeFrom(at, newAnchor Date, interval int, unit Unit) (Sched
 			out.Versions = append(out.Versions, v)
 		}
 	}
-	out.Versions = append(out.Versions, Version{From: from, Rule: Rule{Interval: interval, Unit: unit, Anchor: newAnchor}})
+	out.Versions = append(out.Versions, Version{From: from, Rule: r})
 	return out, out.Validate()
+}
+
+// NominalOf returns the date the charge due on d is anchored on, before any
+// weekend shift. It reports false when no charge of the schedule is due on d.
+func (s Schedule) NominalOf(d Date) (Date, bool) {
+	for i, v := range s.Versions {
+		if i+1 < len(s.Versions) && !d.Before(s.Versions[i+1].From) {
+			continue
+		}
+		if next, n := v.Rule.NextOnOrAfter(d); next == d {
+			return v.Rule.Nominal(n), true
+		}
+		return Date{}, false
+	}
+	return Date{}, false
 }
 
 // Current returns the rule in effect on date d.

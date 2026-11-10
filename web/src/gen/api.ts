@@ -760,8 +760,10 @@ export interface ReminderPolicy {
 
 export interface Rule {
   anchor: string;
+  dayRule?: string;
   interval: number;
   unit: string;
+  weekendShift?: string;
 }
 
 export interface Version {
@@ -791,6 +793,7 @@ export interface SubscriptionView {
   altPrice?: AltPrice;
   askUsage: boolean;
   autoConfirm: boolean;
+  billingDay?: string;
   cadence: string;
   cancelBy?: string;
   cancelUrl?: string;
@@ -806,6 +809,7 @@ export interface SubscriptionView {
   name: string;
   nextCharge?: string;
   nextPrice?: PriceChange;
+  nextScheduled?: string;
   notes?: string;
   noticeDays?: number;
   payerId?: string;
@@ -866,6 +870,15 @@ export const CreateSubscriptionInputAltUnit = {
   year: 'year',
 } as const;
 
+export type CreateSubscriptionInputDayRule = typeof CreateSubscriptionInputDayRule[keyof typeof CreateSubscriptionInputDayRule];
+
+
+export const CreateSubscriptionInputDayRule = {
+  day: 'day',
+  weekday: 'weekday',
+  'last-weekday': 'last-weekday',
+} as const;
+
 export type CreateSubscriptionInputRenewal = typeof CreateSubscriptionInputRenewal[keyof typeof CreateSubscriptionInputRenewal];
 
 
@@ -893,6 +906,15 @@ export const CreateSubscriptionInputUnit = {
   year: 'year',
 } as const;
 
+export type CreateSubscriptionInputWeekendShift = typeof CreateSubscriptionInputWeekendShift[keyof typeof CreateSubscriptionInputWeekendShift];
+
+
+export const CreateSubscriptionInputWeekendShift = {
+  none: 'none',
+  next: 'next',
+  previous: 'previous',
+} as const;
+
 export interface CreateSubscriptionInput {
   /** A URL to the JSON Schema for this object. */
   readonly $schema?: string;
@@ -903,6 +925,7 @@ export interface CreateSubscriptionInput {
   cancelUrl?: string;
   categoryId?: string;
   currency: string;
+  dayRule?: CreateSubscriptionInputDayRule;
   dryRun?: boolean;
   endDate?: string;
   firstCharge?: string;
@@ -935,6 +958,7 @@ export interface CreateSubscriptionInput {
   trialEndsOn?: string;
   unit?: CreateSubscriptionInputUnit;
   url?: string;
+  weekendShift?: CreateSubscriptionInputWeekendShift;
 }
 
 /**
@@ -1112,6 +1136,7 @@ export interface ExportedSubscription {
   altPrice?: AltPrice;
   askUsage: boolean;
   autoConfirm: boolean;
+  billingDay?: string;
   cadence: string;
   cancelBy?: string;
   cancelUrl?: string;
@@ -1129,6 +1154,7 @@ export interface ExportedSubscription {
   name: string;
   nextCharge?: string;
   nextPrice?: PriceChange;
+  nextScheduled?: string;
   notes?: string;
   noticeDays?: number;
   payerId?: string;
@@ -1215,6 +1241,15 @@ export const ImportItemAltUnit = {
   year: 'year',
 } as const;
 
+export type ImportItemDayRule = typeof ImportItemDayRule[keyof typeof ImportItemDayRule];
+
+
+export const ImportItemDayRule = {
+  day: 'day',
+  weekday: 'weekday',
+  'last-weekday': 'last-weekday',
+} as const;
+
 export type ImportItemRenewal = typeof ImportItemRenewal[keyof typeof ImportItemRenewal];
 
 
@@ -1242,6 +1277,15 @@ export const ImportItemUnit = {
   year: 'year',
 } as const;
 
+export type ImportItemWeekendShift = typeof ImportItemWeekendShift[keyof typeof ImportItemWeekendShift];
+
+
+export const ImportItemWeekendShift = {
+  none: 'none',
+  next: 'next',
+  previous: 'previous',
+} as const;
+
 export interface ImportItem {
   account?: string;
   altPrice?: string;
@@ -1250,6 +1294,7 @@ export interface ImportItem {
   cancelUrl?: string;
   category?: string;
   currency?: string;
+  dayRule?: ImportItemDayRule;
   endDate?: string;
   interval?: number;
   name: string;
@@ -1270,6 +1315,7 @@ export interface ImportItem {
   trialEndsOn?: string;
   unit?: ImportItemUnit;
   url?: string;
+  weekendShift?: ImportItemWeekendShift;
 }
 
 export interface ImportInput {
@@ -1500,6 +1546,15 @@ export interface PaymentMethodOut {
   paymentMethod: PaymentMethod;
 }
 
+export type PreviewScheduleInputDayRule = typeof PreviewScheduleInputDayRule[keyof typeof PreviewScheduleInputDayRule];
+
+
+export const PreviewScheduleInputDayRule = {
+  day: 'day',
+  weekday: 'weekday',
+  'last-weekday': 'last-weekday',
+} as const;
+
 export type PreviewScheduleInputUnit = typeof PreviewScheduleInputUnit[keyof typeof PreviewScheduleInputUnit];
 
 
@@ -1510,15 +1565,26 @@ export const PreviewScheduleInputUnit = {
   year: 'year',
 } as const;
 
+export type PreviewScheduleInputWeekendShift = typeof PreviewScheduleInputWeekendShift[keyof typeof PreviewScheduleInputWeekendShift];
+
+
+export const PreviewScheduleInputWeekendShift = {
+  none: 'none',
+  next: 'next',
+  previous: 'previous',
+} as const;
+
 export interface PreviewScheduleInput {
   /** A URL to the JSON Schema for this object. */
   readonly $schema?: string;
   /** @maximum 60 */
   count?: number;
+  dayRule?: PreviewScheduleInputDayRule;
   firstCharge: string;
   /** @minimum 1 */
   interval: number;
   unit: PreviewScheduleInputUnit;
+  weekendShift?: PreviewScheduleInputWeekendShift;
 }
 
 export interface PricePoint {
@@ -2032,6 +2098,15 @@ export const UpdateSubscriptionInputAltUnit = {
   year: 'year',
 } as const;
 
+export type UpdateSubscriptionInputDayRule = typeof UpdateSubscriptionInputDayRule[keyof typeof UpdateSubscriptionInputDayRule];
+
+
+export const UpdateSubscriptionInputDayRule = {
+  day: 'day',
+  weekday: 'weekday',
+  'last-weekday': 'last-weekday',
+} as const;
+
 export type UpdateSubscriptionInputRenewal = typeof UpdateSubscriptionInputRenewal[keyof typeof UpdateSubscriptionInputRenewal];
 
 
@@ -2050,6 +2125,15 @@ export const UpdateSubscriptionInputUnit = {
   year: 'year',
 } as const;
 
+export type UpdateSubscriptionInputWeekendShift = typeof UpdateSubscriptionInputWeekendShift[keyof typeof UpdateSubscriptionInputWeekendShift];
+
+
+export const UpdateSubscriptionInputWeekendShift = {
+  none: 'none',
+  next: 'next',
+  previous: 'previous',
+} as const;
+
 export interface UpdateSubscriptionInput {
   /** A URL to the JSON Schema for this object. */
   readonly $schema?: string;
@@ -2059,6 +2143,7 @@ export interface UpdateSubscriptionInput {
   autoConfirm?: boolean;
   cancelUrl?: string;
   categoryId?: string;
+  dayRule?: UpdateSubscriptionInputDayRule;
   dryRun?: boolean;
   endDate?: string;
   id: string;
@@ -2086,6 +2171,7 @@ export interface UpdateSubscriptionInput {
   unit?: UpdateSubscriptionInputUnit;
   url?: string;
   using?: boolean;
+  weekendShift?: UpdateSubscriptionInputWeekendShift;
 }
 
 export type MonthBalancesParams = {

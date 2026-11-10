@@ -445,7 +445,7 @@ func (e *Engine) subScreen(ctx context.Context, actor app.Actor, id, locale stri
 		return Message{}, err
 	}
 	s := d.Subscription
-	m := Message{Title: s.Name, Lines: []string{fmt.Sprintf("💶 %s · %s", s.Price.Format(locale), cadenceText(s.Cadence, locale))}}
+	m := Message{Title: s.Name, Lines: []string{fmt.Sprintf("💶 %s · %s", s.Price.Format(locale), cadenceText(s.Cadence, locale)) + billingText(s, locale)}}
 	switch s.Status {
 	case domain.StatusActive:
 	case domain.StatusPaused:

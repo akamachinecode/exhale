@@ -120,7 +120,7 @@ func exportCSV(svc *app.Service, kind string) http.HandlerFunc {
 		}
 		_ = cw.Write([]string{"name", "price", "currency", "cycle", "interval", "unit", "next charge", "status", "category", "payment method", "paid by",
 			"monthly cost", "yearly cost", "started on", "trial ends", "notice days", "renewal", "end date", "cancel url", "account", "url", "notes",
-			"tags", "other price", "other price per"})
+			"tags", "other price", "other price per", "day rule", "weekends", "scheduled date"})
 		methods := map[string]string{}
 		for _, pm := range data.PaymentMethods {
 			methods[pm.ID] = pm.Name
@@ -139,7 +139,7 @@ func exportCSV(svc *app.Service, kind string) http.HandlerFunc {
 				date(s.NextCharge, s.NextCharge.IsZero()), string(s.Status), s.CategoryName, methods[s.PaymentMethodID], s.PayerName,
 				s.MonthlyCost.Decimal(), s.YearlyCost.Decimal(), date(s.StartedOn, s.StartedOn.IsZero()), date(s.TrialEndsOn, s.TrialEndsOn.IsZero()),
 				strconv.Itoa(s.NoticeDays), renewal, date(s.Schedule.Until, s.Schedule.Until.IsZero()), s.CancelURL, s.Account, s.URL, s.Notes,
-				strings.Join(s.Tags, ", "), altPrice, altUnit})
+				strings.Join(s.Tags, ", "), altPrice, altUnit, app.DayRuleName(rule), app.ShiftName(rule), date(s.NextScheduled, s.NextScheduled.IsZero())})
 		}
 	}
 }
