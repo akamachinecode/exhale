@@ -128,6 +128,10 @@ func (s *Service) undoOne(ctx context.Context, q *db.Queries, c *change, actor A
 		if err := s.undoFile(ctx, q, actor, c, a); err != nil {
 			return UndoResult{}, err
 		}
+	case "setting":
+		if err := s.undoSetting(ctx, q, actor, c, a); err != nil {
+			return UndoResult{}, err
+		}
 	default:
 		return UndoResult{}, domain.Invalid("changes to %s cannot be undone yet", a.Entity)
 	}

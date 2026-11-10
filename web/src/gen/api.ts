@@ -1752,6 +1752,53 @@ export interface JoinInput {
   password: string;
 }
 
+export type KeepAwakeInfoMode = typeof KeepAwakeInfoMode[keyof typeof KeepAwakeInfoMode];
+
+
+export const KeepAwakeInfoMode = {
+  off: 'off',
+  always: 'always',
+  hours: 'hours',
+} as const;
+
+export type KeepAwakeStatusReason = typeof KeepAwakeStatusReason[keyof typeof KeepAwakeStatusReason];
+
+
+export const KeepAwakeStatusReason = {
+  container: 'container',
+  unsupported: 'unsupported',
+  other: 'other',
+} as const;
+
+export type KeepAwakeStatusState = typeof KeepAwakeStatusState[keyof typeof KeepAwakeStatusState];
+
+
+export const KeepAwakeStatusState = {
+  off: 'off',
+  active: 'active',
+  waiting: 'waiting',
+  unavailable: 'unavailable',
+  failed: 'failed',
+  unknown: 'unknown',
+} as const;
+
+export interface KeepAwakeStatus {
+  error?: string;
+  reason?: KeepAwakeStatusReason;
+  state: KeepAwakeStatusState;
+}
+
+export interface KeepAwakeInfo {
+  /** A URL to the JSON Schema for this object. */
+  readonly $schema?: string;
+  from: string;
+  keepDisplayOn: boolean;
+  mode: KeepAwakeInfoMode;
+  status: KeepAwakeStatus;
+  timezone: string;
+  to: string;
+}
+
 export interface LanguageIn {
   /** A URL to the JSON Schema for this object. */
   readonly $schema?: string;
@@ -2233,6 +2280,25 @@ export interface SetChargeStatusInput {
   dryRun?: boolean;
   note?: string;
   status: SetChargeStatusInputStatus;
+}
+
+export type SetKeepAwakeInputMode = typeof SetKeepAwakeInputMode[keyof typeof SetKeepAwakeInputMode];
+
+
+export const SetKeepAwakeInputMode = {
+  off: 'off',
+  always: 'always',
+  hours: 'hours',
+} as const;
+
+export interface SetKeepAwakeInput {
+  /** A URL to the JSON Schema for this object. */
+  readonly $schema?: string;
+  dryRun?: boolean;
+  from?: string;
+  keepDisplayOn?: boolean;
+  mode?: SetKeepAwakeInputMode;
+  to?: string;
 }
 
 export type SetSubscriptionStatusInputAction = typeof SetSubscriptionStatusInputAction[keyof typeof SetSubscriptionStatusInputAction];
@@ -8225,6 +8291,197 @@ export function useImportReview<TData = Awaited<ReturnType<typeof importReview>>
 
 
 
+
+export const getGetKeepAwakeUrl = () => {
+
+
+
+
+  return `/api/v1/keep-awake`
+}
+
+/**
+ * Whether Exhale keeps the computer it runs on from sleeping (so reminders go out and chat buttons answer): off, always, or between two times of day in the household time zone; whether the display may sleep; and the live status (active, waiting outside the hours, unavailable here and why, or the error the system gave).
+ * @summary Is this computer kept awake
+ */
+export const getKeepAwake = async ( options?: Parameters<typeof fetcher>[1]): Promise<KeepAwakeInfo> => {
+
+  return fetcher<KeepAwakeInfo>(getGetKeepAwakeUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetKeepAwakeQueryKey = () => {
+    return [
+    `/api/v1/keep-awake`
+    ] as const;
+    }
+
+
+export const getGetKeepAwakeQueryOptions = <TData = Awaited<ReturnType<typeof getKeepAwake>>, TError = ErrorModel>( options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getKeepAwake>>, TError, TData>>, request?: SecondParameter<typeof fetcher>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetKeepAwakeQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getKeepAwake>>> = ({ signal }) => getKeepAwake({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getKeepAwake>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type GetKeepAwakeQueryResult = NonNullable<Awaited<ReturnType<typeof getKeepAwake>>>
+export type GetKeepAwakeQueryError = ErrorModel
+
+
+export function useGetKeepAwake<TData = Awaited<ReturnType<typeof getKeepAwake>>, TError = ErrorModel>(
+  options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof getKeepAwake>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getKeepAwake>>,
+          TError,
+          Awaited<ReturnType<typeof getKeepAwake>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof fetcher>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useGetKeepAwake<TData = Awaited<ReturnType<typeof getKeepAwake>>, TError = ErrorModel>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getKeepAwake>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getKeepAwake>>,
+          TError,
+          Awaited<ReturnType<typeof getKeepAwake>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof fetcher>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useGetKeepAwake<TData = Awaited<ReturnType<typeof getKeepAwake>>, TError = ErrorModel>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getKeepAwake>>, TError, TData>>, request?: SecondParameter<typeof fetcher>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+/**
+ * @summary Is this computer kept awake
+ */
+
+export function useGetKeepAwake<TData = Awaited<ReturnType<typeof getKeepAwake>>, TError = ErrorModel>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getKeepAwake>>, TError, TData>>, request?: SecondParameter<typeof fetcher>}
+ , queryClient?: QueryClient
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getGetKeepAwakeQueryOptions(options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getSetKeepAwakeUrl = () => {
+
+
+
+
+  return `/api/v1/keep-awake`
+}
+
+/**
+ * Owners only. Keeps the computer Exhale runs on from sleeping: mode off, always, or hours (from and to, HH:MM in the household time zone; to earlier than from crosses midnight). keepDisplayOn keeps the screen on too. A laptop with its lid closed still sleeps. Can be reverted with undo.
+ * @summary Keep this computer awake
+ */
+export const setKeepAwake = async (setKeepAwakeInput: NonReadonly<SetKeepAwakeInput>, options?: Parameters<typeof fetcher>[1]): Promise<KeepAwakeInfo> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return fetcher<KeepAwakeInfo>(getSetKeepAwakeUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(setKeepAwakeInput)
+  }
+);}
+
+
+
+
+
+export const getSetKeepAwakeMutationKey = () => ['setKeepAwake'] as const;
+
+export const getSetKeepAwakeMutationOptions = <TError = ErrorModel,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof setKeepAwake>>, TError,SetKeepAwakeMutationVariables, TContext>, request?: SecondParameter<typeof fetcher>}
+): UseMutationOptions<Awaited<ReturnType<typeof setKeepAwake>>, TError,SetKeepAwakeMutationVariables, TContext> => {
+
+const mutationKey = getSetKeepAwakeMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof setKeepAwake>>, SetKeepAwakeMutationVariables> = (props) => {
+          const {data} = props ?? {};
+
+          return  setKeepAwake(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type SetKeepAwakeMutationResult = NonNullable<Awaited<ReturnType<typeof setKeepAwake>>>
+    export type SetKeepAwakeMutationBody = NonReadonly<SetKeepAwakeInput>
+    export type SetKeepAwakeMutationError = ErrorModel
+    export type SetKeepAwakeMutationVariables = {data: NonReadonly<SetKeepAwakeInput>}
+
+    /**
+ * @summary Keep this computer awake
+ */
+export const useSetKeepAwake = <TError = ErrorModel,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof setKeepAwake>>, TError,SetKeepAwakeMutationVariables, TContext>, request?: SecondParameter<typeof fetcher>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof setKeepAwake>>,
+        TError,
+        SetKeepAwakeMutationVariables,
+        TContext
+      > => {
+      return useMutation(getSetKeepAwakeMutationOptions(options), queryClient);
+    }
 
 export const getMembersRemoveUrl = () => {
 

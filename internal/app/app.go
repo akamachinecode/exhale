@@ -79,6 +79,8 @@ type Service struct {
 	bus *bus.Bus
 	log *slog.Logger
 	now func() time.Time
+	// keepAwake applies the keep-awake setting (nil outside exhale serve).
+	keepAwake *KeepAwake
 }
 
 // New returns a Service. now may be nil (time.Now).

@@ -17,6 +17,8 @@ const (
 	PaymentMethodSaved  = "payment_method.saved"
 	CategorySaved       = "category.saved"
 	HouseholdUpdated    = "household.updated"
+	// KeepAwakeUpdated: the keep-awake setting or its status changed.
+	KeepAwakeUpdated = "keep_awake.updated"
 )
 
 // Event describes something that changed.

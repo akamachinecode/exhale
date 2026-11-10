@@ -272,6 +272,8 @@ func registerAll(api huma.API, svc *app.Service) {
 	register(api, svc, app.OpDeleteDocument)
 	register(api, svc, app.OpRemoveLogo)
 	register(api, svc, app.OpMatchStatement)
+	register(api, svc, app.OpGetKeepAwake)
+	register(api, svc, app.OpSetKeepAwake)
 }
 
 func operation(m app.Meta) huma.Operation {
