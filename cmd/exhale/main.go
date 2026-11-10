@@ -27,6 +27,8 @@ import (
 	"github.com/akamachinecode/exhale/internal/auth"
 	"github.com/akamachinecode/exhale/internal/backup"
 	"github.com/akamachinecode/exhale/internal/bus"
+	"github.com/akamachinecode/exhale/internal/channels/email"
+	"github.com/akamachinecode/exhale/internal/channels/notifiers"
 	"github.com/akamachinecode/exhale/internal/channels/telegram"
 	"github.com/akamachinecode/exhale/internal/fx"
 	"github.com/akamachinecode/exhale/internal/httpapi"
@@ -100,14 +102,28 @@ type serveCmd struct {
 	Listen        string `env:"EXHALE_LISTEN" default:"127.0.0.1:8484" help:"Address to listen on (use 0.0.0.0:8484 in Docker)."`
 	TelegramToken string `name:"telegram-token" env:"EXHALE_TELEGRAM_TOKEN" help:"Bot token from @BotFather. Optional: usually set from the web (Settings → Telegram)."`
 	TelegramAPI   string `name:"telegram-api" env:"EXHALE_TELEGRAM_API" hidden:"" help:"Bot API base URL (tests)."`
+	PublicURL     string `name:"public-url" env:"EXHALE_PUBLIC_URL" help:"Address people open Exhale at, e.g. https://exhale.example.com. Emails, ntfy and webhooks link to it, and single sign-on from another machine needs it."`
 	TrustLocal    bool   `name:"trust-local" env:"EXHALE_TRUST_LOCAL" help:"Let requests from this machine act as the owner without signing in (development, scripts)."`
 	SecureCookies bool   `name:"secure-cookies" env:"EXHALE_SECURE_COOKIES" help:"Mark the session cookie Secure. Set it when Exhale is served over HTTPS."`
 	BackupDir     string `name:"backup-dir" env:"EXHALE_BACKUP_DIR" type:"path" help:"Directory for the daily automatic backups (default: <data dir>/backups)."`
 	BackupKeep    int    `name:"backup-keep" env:"EXHALE_BACKUP_KEEP" default:"14" help:"Automatic backups to keep; older ones are deleted. 0 keeps all."`
 	NoBackups     bool   `name:"no-backups" env:"EXHALE_NO_BACKUPS" help:"Do not back up the database automatically."`
-	PublicURL     string `name:"public-url" env:"EXHALE_PUBLIC_URL" help:"Address people reach Exhale at, e.g. https://exhale.example.com. Needed for single sign-on from another machine."`
 	Dev           bool   `help:"Development mode."`
 	oidcFlags
+
+	// Email, ntfy and webhooks. All optional: owners usually set them in
+	// the web (Settings → Other channels). Set here, they win and the web
+	// shows them as read-only.
+	SMTPHost     string `name:"smtp-host" env:"EXHALE_SMTP_HOST" group:"Other channels" help:"SMTP server for email reminders."`
+	SMTPPort     int    `name:"smtp-port" env:"EXHALE_SMTP_PORT" group:"Other channels" help:"SMTP port (default: 587 with starttls, 465 with tls, 25 with none)."`
+	SMTPUsername string `name:"smtp-username" env:"EXHALE_SMTP_USERNAME" group:"Other channels" help:"SMTP user name."`
+	SMTPPassword string `name:"smtp-password" env:"EXHALE_SMTP_PASSWORD" group:"Other channels" help:"SMTP password (prefer the environment variable)."`
+	SMTPFrom     string `name:"smtp-from" env:"EXHALE_SMTP_FROM" group:"Other channels" help:"Sender address of the emails."`
+	SMTPTLS      string `name:"smtp-tls" env:"EXHALE_SMTP_TLS" group:"Other channels" default:"starttls" enum:"starttls,tls,none" help:"starttls, tls (implicit, port 465) or none (local relays)."`
+	NtfyURL      string `name:"ntfy-url" env:"EXHALE_NTFY_URL" group:"Other channels" help:"ntfy server (default https://ntfy.sh)."`
+	NtfyToken    string `name:"ntfy-token" env:"EXHALE_NTFY_TOKEN" group:"Other channels" help:"ntfy access token, for servers that need one to publish."`
+	// A pointer: unset leaves the choice to the owner in the web.
+	AllowPrivateDestinations *bool `name:"allow-private-destinations" env:"EXHALE_ALLOW_PRIVATE_DESTINATIONS" negatable:"" group:"Other channels" help:"Let webhooks and ntfy reach private-network addresses (a server on your LAN). Loopback and cloud metadata addresses stay blocked."`
 }
 
 func (s *serveCmd) Run(ctx context.Context, g *globals) error {
@@ -134,8 +150,21 @@ func (s *serveCmd) Run(ctx context.Context, g *globals) error {
 		return err
 	}
 	tg := telegram.NewManager(s.TelegramToken, s.TelegramAPI, e.svc, e.log)
+	// Email, ntfy and webhooks only notify; Telegram stays the channel
+	// with buttons (ADR 0007).
+	others, err := notifiers.New(e.st, notifiers.Options{
+		PublicURL:    s.PublicURL,
+		SMTP:         email.Config{Host: s.SMTPHost, Port: s.SMTPPort, Username: s.SMTPUsername, Password: s.SMTPPassword, From: s.SMTPFrom, TLS: s.SMTPTLS},
+		NtfyServer:   s.NtfyURL,
+		NtfyToken:    s.NtfyToken,
+		AllowPrivate: s.AllowPrivateDestinations,
+		Version:      version,
+	}, e.log)
+	if err != nil {
+		return err
+	}
 	handler, _, err := httpapi.New(e.svc, httpapi.Config{
-		Version: version, TrustLocal: s.TrustLocal, SecureCookies: s.SecureCookies, Log: e.log, Telegram: tg,
+		Version: version, TrustLocal: s.TrustLocal, SecureCookies: s.SecureCookies, Log: e.log, Telegram: tg, Channels: others,
 		PublicURL: s.PublicURL, OIDC: sso, DisablePasswordLogin: s.DisablePasswordLogin,
 	})
 	if err != nil {
@@ -163,7 +192,7 @@ func (s *serveCmd) Run(ctx context.Context, g *globals) error {
 	// The bot comes from EXHALE_TELEGRAM_TOKEN or from the web (Settings →
 	// Telegram); the manager starts and swaps it at runtime.
 	services = append(services, tg)
-	eng := actions.New(e.svc, e.log, tg)
+	eng := actions.New(e.svc, e.log, append([]actions.Channel{tg}, others.Channels()...)...)
 	tg.SetEngine(eng)
 	services = append(services,
 		&fx.Updater{St: e.st, Log: e.log},

@@ -461,12 +461,20 @@ func (e *Engine) Deliver(ctx context.Context, item app.OutboxItem) error {
 		if !ok {
 			continue
 		}
+		if e.delivered(ctx, item, l) {
+			delivered++ // sent on an earlier attempt
+			continue
+		}
 		msgID, err := ch.Send(ctx, l.ExternalID, m)
 		if err != nil {
 			errs = append(errs, fmt.Errorf("%s: %w", l.Channel, err))
 			continue
 		}
 		delivered++
+		e.markDelivered(ctx, item, l)
+		if msgID == "" {
+			continue // a notify-only channel: nothing to re-edit later
+		}
 		_ = e.svc.Store().Q.SaveMessage(ctx, db.SaveMessageParams{ID: domain.NewID("msg"), Channel: l.Channel, ChatID: l.ExternalID, MessageID: msgID, ChargeID: store.Ptr(item.ChargeID), MemberID: store.Ptr(item.MemberID), CreatedAt: store.FormatTime(time.Now())})
 	}
 	if delivered == 0 && len(errs) == 0 {

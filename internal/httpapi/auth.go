@@ -348,7 +348,7 @@ func registerAuth(api huma.API, a *authAPI) {
 	type linksOut struct {
 		Links []auth.LinkInfo `json:"links"`
 	}
-	huma.Register(api, authOp("auth_list_links", http.MethodGet, "/links", "Your linked chat accounts"),
+	huma.Register(api, authOp("auth_list_links", http.MethodGet, "/links", "Your linked chat accounts and notification destinations"),
 		func(ctx context.Context, _ *struct{}) (*resp[linksOut], error) {
 			actor, err := a.member(ctx)
 			if err != nil {
@@ -357,6 +357,9 @@ func registerAuth(api huma.API, a *authAPI) {
 			list, err := auth.ListLinks(ctx, a.svc.Store(), actor.MemberID)
 			if err != nil {
 				return nil, httpError(err)
+			}
+			for i := range list {
+				list[i] = a.describe(ctx, list[i])
 			}
 			return &resp[linksOut]{Body: linksOut{Links: list}}, nil
 		})
@@ -386,14 +389,21 @@ func registerAuth(api huma.API, a *authAPI) {
 			return &resp[linkCodeOut]{Body: out}, nil
 		})
 
-	huma.Register(api, authOp("auth_unlink", http.MethodPost, "/links/unlink", "Unlink a chat account"),
+	huma.Register(api, authOp("auth_unlink", http.MethodPost, "/links/unlink", "Unlink a chat account or remove a destination"),
 		func(ctx context.Context, in *struct{ Body idIn }) (*resp[empty], error) {
 			actor, err := a.member(ctx)
 			if err != nil {
 				return nil, err
 			}
+			link, err := auth.Link(ctx, a.svc.Store(), actor.MemberID, in.Body.ID)
+			if err != nil {
+				return nil, httpError(err)
+			}
 			if err := auth.Unlink(ctx, a.svc.Store(), actor.MemberID, in.Body.ID); err != nil {
 				return nil, httpError(err)
+			}
+			if a.cfg.Channels != nil {
+				_ = a.cfg.Channels.Forget(ctx, link.Channel, link.ExternalID)
 			}
 			return &resp[empty]{}, nil
 		})

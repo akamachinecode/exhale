@@ -105,6 +105,7 @@ func chargeMessage(kind string, r app.ChargeResult, today engine.Date, locale st
 	if c.Decision == "keep" && c.Status == domain.ChargePending {
 		m.Footer = tr(locale, "You chose to keep it.")
 	}
+	m.Event = chargeEvent(kind, r, today)
 	return m
 }
 
