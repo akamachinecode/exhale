@@ -97,7 +97,7 @@ func (e *Engine) AppSent(ctx context.Context, actor app.Actor, chat ChatRef, mes
 	}
 	var retired []string
 	for _, m := range old {
-		if m.MessageID == messageID {
+		if m.MessageID == messageID || strings.HasPrefix(m.MessageID, SurfacePrefix) {
 			continue
 		}
 		if err := q.RetireAppMessage(ctx, m.ID); err != nil {
@@ -112,6 +112,21 @@ func (e *Engine) AppSent(ctx context.Context, actor app.Actor, chat ChatRef, mes
 		}
 	}
 	return retired, q.SaveAppMessage(ctx, db.SaveAppMessageParams{
+		ID: domain.NewID("msg"), Channel: chat.Channel, ChatID: chat.ChatID, MessageID: messageID,
+		MemberID: store.Ptr(actor.MemberID), Route: liveRoute(r), CreatedAt: store.FormatTime(time.Now()),
+	})
+}
+
+// SurfacePrefix starts the message id of an app surface that is not a chat
+// message, such as Slack's Home tab ("@home"). A surface is an app message of
+// its chat (same flows, same navigation, kept live through Channel.Edit)
+// that AppSent never retires and that retires nothing itself.
+const SurfacePrefix = "@"
+
+// AppSurface records that the surface messageID of the chat shows route r.
+// The adapter calls it each time it draws the surface from scratch.
+func (e *Engine) AppSurface(ctx context.Context, actor app.Actor, chat ChatRef, messageID, r string) error {
+	return e.svc.Store().Q.SaveAppMessage(ctx, db.SaveAppMessageParams{
 		ID: domain.NewID("msg"), Channel: chat.Channel, ChatID: chat.ChatID, MessageID: messageID,
 		MemberID: store.Ptr(actor.MemberID), Route: liveRoute(r), CreatedAt: store.FormatTime(time.Now()),
 	})
