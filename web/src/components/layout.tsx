@@ -12,11 +12,12 @@ import {
 	Sun,
 } from "lucide-react";
 import { useEffect, useState } from "react";
+import { toast } from "sonner";
 import { AssistantPanel } from "@/components/assistant";
 import { SignOut } from "@/components/sign-out";
-import { useAuthSession } from "@/gen/api";
+import { useAuthSession, useAuthSetLanguage } from "@/gen/api";
 import { useLiveEvents } from "@/lib/events";
-import { lang, languages, setLang, t } from "@/lib/i18n";
+import { lang, languages, setLang, syncLanguage, t } from "@/lib/i18n";
 import { cn } from "@/lib/utils";
 
 // `mobile` marks the five destinations of the phone's bottom bar; the rest
@@ -78,6 +79,9 @@ export function Layout() {
 	useLiveEvents();
 	const [dark, setDark] = useTheme();
 	const session = useAuthSession();
+	// The language is the person's (or their household's), on every device.
+	const language = session.data?.language;
+	useEffect(() => syncLanguage(language), [language]);
 	return (
 		<div className="min-h-dvh md:grid md:grid-cols-[232px_1fr]">
 			<AssistantPanel />
@@ -165,6 +169,16 @@ export function Layout() {
  * speaks two, a list of every language by its own name when it speaks more. */
 function LanguageToggle() {
 	const others = languages.filter((l) => l.code !== lang);
+	const setLanguage = useAuthSetLanguage();
+	// Saved as this person's own language, then shown.
+	const choose = async (code: string) => {
+		try {
+			await setLanguage.mutateAsync({ data: { language: code } });
+			setLang(code);
+		} catch {
+			toast.error(t("Could not save"));
+		}
+	};
 	const style =
 		"rounded-lg px-2 py-2 text-[11px] font-semibold text-muted uppercase transition-colors hover:bg-raised hover:text-fg";
 	if (others.length === 1) {
@@ -172,7 +186,7 @@ function LanguageToggle() {
 		return (
 			<button
 				type="button"
-				onClick={() => setLang(other.code)}
+				onClick={() => choose(other.code)}
 				aria-label={other.name}
 				title={other.name}
 				lang={other.code}
@@ -185,7 +199,7 @@ function LanguageToggle() {
 	return (
 		<select
 			value={lang}
-			onChange={(e) => setLang(e.target.value)}
+			onChange={(e) => choose(e.target.value)}
 			aria-label={t("Language")}
 			className={cn(style, "cursor-pointer appearance-none bg-transparent text-center")}
 		>

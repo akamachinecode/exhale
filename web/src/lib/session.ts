@@ -21,6 +21,7 @@ export function signedOut(qc: QueryClient) {
 		passwordLoginDisabled: false,
 		...prev,
 		user: undefined,
+		language: undefined,
 		assistant: false, // only someone signed in sees Ask Exhale
 	});
 }

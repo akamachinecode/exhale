@@ -702,6 +702,8 @@ export interface SessionUser {
   /** the account has a password (accounts made through single sign-on have none) */
   hasPassword: boolean;
   id: string;
+  /** the language this person chose; empty: the household's */
+  locale?: string;
   name: string;
   role: string;
   /** host of the identity provider this account is linked to, if any */
@@ -715,6 +717,8 @@ export interface AuthSession {
   assistant: boolean;
   /** a household exists (made with exhale init); setup only creates the owner's login */
   hasHousehold: boolean;
+  /** the language to show the signed-in person: their own, else the household's */
+  language?: string;
   /** password sign-in is turned off: only show single sign-on */
   passwordLoginDisabled: boolean;
   /** the wizard must ask for the setup code (request not from the server's machine) */
@@ -1426,6 +1430,7 @@ export interface Member {
   email?: string;
   householdId: string;
   id: string;
+  locale?: string;
   name: string;
   role: string;
 }
@@ -1741,8 +1746,17 @@ export interface JoinInput {
   readonly $schema?: string;
   code: string;
   email: string;
+  /** code of a registered language; kept as the person's own when it differs from the household's */
+  language?: string;
   name: string;
   password: string;
+}
+
+export interface LanguageIn {
+  /** A URL to the JSON Schema for this object. */
+  readonly $schema?: string;
+  /** code of a registered language; empty follows the household's */
+  language: string;
 }
 
 export interface LinkCodeOut {
@@ -3839,6 +3853,94 @@ export const useAuthJoin = <TError = ErrorModel,
         TContext
       > => {
       return useMutation(getAuthJoinMutationOptions(options), queryClient);
+    }
+
+export const getAuthSetLanguageUrl = () => {
+
+
+
+
+  return `/api/v1/auth/language`
+}
+
+/**
+ * @summary Choose your own language (empty: the household's)
+ */
+export const authSetLanguage = async (languageIn: NonReadonly<LanguageIn>, options?: Parameters<typeof fetcher>[1]): Promise<AuthSession> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return fetcher<AuthSession>(getAuthSetLanguageUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(languageIn)
+  }
+);}
+
+
+
+
+
+export const getAuthSetLanguageMutationKey = () => ['authSetLanguage'] as const;
+
+export const getAuthSetLanguageMutationOptions = <TError = ErrorModel,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof authSetLanguage>>, TError,AuthSetLanguageMutationVariables, TContext>, request?: SecondParameter<typeof fetcher>}
+): UseMutationOptions<Awaited<ReturnType<typeof authSetLanguage>>, TError,AuthSetLanguageMutationVariables, TContext> => {
+
+const mutationKey = getAuthSetLanguageMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof authSetLanguage>>, AuthSetLanguageMutationVariables> = (props) => {
+          const {data} = props ?? {};
+
+          return  authSetLanguage(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type AuthSetLanguageMutationResult = NonNullable<Awaited<ReturnType<typeof authSetLanguage>>>
+    export type AuthSetLanguageMutationBody = NonReadonly<LanguageIn>
+    export type AuthSetLanguageMutationError = ErrorModel
+    export type AuthSetLanguageMutationVariables = {data: NonReadonly<LanguageIn>}
+
+    /**
+ * @summary Choose your own language (empty: the household's)
+ */
+export const useAuthSetLanguage = <TError = ErrorModel,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof authSetLanguage>>, TError,AuthSetLanguageMutationVariables, TContext>, request?: SecondParameter<typeof fetcher>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof authSetLanguage>>,
+        TError,
+        AuthSetLanguageMutationVariables,
+        TContext
+      > => {
+      return useMutation(getAuthSetLanguageMutationOptions(options), queryClient);
     }
 
 export const getAuthListLinksUrl = () => {
