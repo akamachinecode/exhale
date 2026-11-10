@@ -6,6 +6,7 @@ import (
 
 	"github.com/akamachinecode/exhale/internal/app"
 	"github.com/akamachinecode/exhale/internal/domain"
+	"github.com/akamachinecode/exhale/internal/i18n"
 )
 
 // Texts written outside this package — the service's errors, the
@@ -14,12 +15,7 @@ import (
 
 // Say renders t in the given language.
 func Say(locale string, t domain.Text) string {
-	return t.Render(func(format string) string {
-		if s, ok := catalogs[locale][format]; ok {
-			return s
-		}
-		return format
-	})
+	return t.Render(func(format string) string { return i18n.Translate(locale, format) })
 }
 
 // ErrorText is what a failure says to a person, in their language: the

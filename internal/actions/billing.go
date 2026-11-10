@@ -12,11 +12,6 @@ import (
 // (day 15, the third Wednesday, the last Friday) and what happens on
 // weekends. Shown next to the price, and editable from the edit screen.
 
-var weekdaysLong = map[string][7]string{
-	"en": {"Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"},
-	"es": {"domingo", "lunes", "martes", "miércoles", "jueves", "viernes", "sábado"},
-}
-
 // currentRule is the rule the subscription follows from now on.
 func currentRule(s app.SubscriptionView) engine.Rule {
 	return s.Schedule.Versions[len(s.Schedule.Versions)-1].Rule
@@ -24,7 +19,7 @@ func currentRule(s app.SubscriptionView) engine.Rule {
 
 // dayRuleText names a billing day: "day 15", "the third Wednesday".
 func dayRuleText(r engine.Rule, locale string) string {
-	wd := weekdaysLong[lang(locale)][r.Anchor.Weekday()]
+	wd := weekdayLong(r.Anchor.Weekday(), locale)
 	switch r.Week() {
 	case 1:
 		return tr(locale, "the first %s", wd)

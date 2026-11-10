@@ -3,7 +3,6 @@ package actions
 import (
 	"bytes"
 	"encoding/json"
-	"flag"
 	"go/ast"
 	"go/constant"
 	"go/importer"
@@ -14,19 +13,19 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
-	"sort"
 	"strings"
 	"sync"
 	"testing"
 
 	"github.com/akamachinecode/exhale/internal/app"
 	"github.com/akamachinecode/exhale/internal/domain"
+	"github.com/akamachinecode/exhale/internal/i18n"
 )
 
 // Texts written outside this package (ADR 0023): the errors of the service
 // and the assistant's cards. They are domain.Text values; chat renders them
-// with the Spanish catalog of this package and the web with es.ts, so both
-// must have every one. This test finds them by type, not by name:
+// with the catalogs of internal/i18n and the web with a copy of them
+// written by TestServerTextsAreTranslated. This test finds them by type, not by name:
 //
 //   - a call to a function with a parameter named format that returns an
 //     error or a domain.Text (domain.Invalid, domain.T, store.NotFound…)
@@ -35,8 +34,8 @@ import (
 //   - fmt.Errorf wrapping domain.ErrValidation, ErrNotFound, ErrConflict or
 //     app.ErrForbidden is refused: it cannot be translated.
 //
-// The web's list of these texts (web/scripts/server-texts.json, read by
-// pnpm i18n) is regenerated with go test ./internal/actions -update.
+// The web's copy of their translations (web/src/locales/server) is
+// regenerated with go test ./internal/actions -update.
 
 // serverPackages are the packages whose texts reach people.
 var serverPackages = []string{"app", "domain", "assistant", "actions", "store", "httpapi"}
@@ -225,49 +224,46 @@ func isSentinel(e ast.Expr, info *types.Info) bool {
 	return false
 }
 
-// TestServerTextsAreTranslated fails when a text of the service or the
-// assistant has no Spanish, or when the web's list of them is stale.
+// TestServerTextsAreTranslated writes the web's copy of the translated
+// server texts, web/src/locales/server/<code>.json: the web renders them
+// with {0} placeholders where Go has verbs (domain.WebKey). It fails when a
+// copy is stale; go test ./internal/actions -update rewrites them. Whether
+// each text is translated is checked with the rest of the catalog
+// (TestEveryMessageIsTranslated).
 func TestServerTextsAreTranslated(t *testing.T) {
 	texts := serverTexts(t)
-	var missing, keys []string
-	for k := range texts {
-		if _, ok := spanish[k]; !ok {
-			missing = append(missing, k)
+	dir := filepath.Join("..", "..", "web", "src", "locales", "server")
+	for _, l := range i18n.Languages() {
+		if l.Code == i18n.Source {
+			continue
 		}
-		keys = append(keys, domain.WebKey(k))
-	}
-	sort.Strings(missing)
-	if len(missing) > 0 {
-		t.Errorf("no Spanish translation in i18n_es.go for:\n  %q", missing)
-	}
-	sort.Strings(keys)
-	keys = compactStrings(keys)
-	var b bytes.Buffer
-	enc := json.NewEncoder(&b)
-	enc.SetEscapeHTML(false)
-	enc.SetIndent("", "\t")
-	if err := enc.Encode(keys); err != nil {
-		t.Fatal(err)
-	}
-	path := filepath.Join("..", "..", "web", "scripts", "server-texts.json")
-	if f := flag.Lookup("update"); f != nil && f.Value.String() == "true" {
-		if err := os.WriteFile(path, b.Bytes(), 0o644); err != nil {
+		cat := i18n.Catalog(l.Code)
+		web := map[string]string{}
+		for k := range texts {
+			if s := i18n.Translate(l.Code, k); s != k || cat[k].Text == k {
+				web[domain.WebKey(k)] = domain.WebKey(s)
+			}
+		}
+		var b bytes.Buffer
+		enc := json.NewEncoder(&b)
+		enc.SetEscapeHTML(false)
+		enc.SetIndent("", "\t")
+		if err := enc.Encode(web); err != nil {
 			t.Fatal(err)
 		}
-		return
-	}
-	cur, _ := os.ReadFile(path)
-	if !bytes.Equal(cur, b.Bytes()) {
-		t.Errorf("%s is stale: run go test ./internal/actions -update, then add the new texts to web/src/lib/es.ts", path)
-	}
-}
-
-func compactStrings(s []string) []string {
-	out := s[:0]
-	for i, v := range s {
-		if i == 0 || v != s[i-1] {
-			out = append(out, v)
+		path := filepath.Join(dir, l.Code+".json")
+		if update() {
+			if err := os.MkdirAll(dir, 0o755); err != nil {
+				t.Fatal(err)
+			}
+			if err := os.WriteFile(path, b.Bytes(), 0o644); err != nil {
+				t.Fatal(err)
+			}
+			continue
+		}
+		cur, _ := os.ReadFile(path)
+		if !bytes.Equal(cur, b.Bytes()) {
+			t.Errorf("web/src/locales/server/%s.json is stale: run go test ./internal/actions -update", l.Code)
 		}
 	}
-	return out
 }
