@@ -129,11 +129,12 @@ NEW MESSAGE
   | Reminders  3 days before, same day
   | Notice                        none
   | Account                       none
+  | Tags                          none
   [✏️ Name](a|ef|sub_X|name) [💶 Price](a|ef|sub_X|price)
   [🏷 Category](a|ec|sub_X) [💳 Payment method](a|em|sub_X)
   [🔔 Reminders](a|er|sub_X) [⏰ Notice period](a|ef|sub_X|notice)
   [🔗 Cancel link](a|ef|sub_X|link) [🔑 Account](a|ef|sub_X|account)
-  [🗑 Delete](a|del|sub_X)
+  [🔖 Tags](a|ef|sub_X|tags) [🗑 Delete](a|del|sub_X)
   [‹ Netflix](a|sub|sub_X) [🏠 Home](a|home)
 
 > press Notice period
@@ -151,11 +152,12 @@ NEW MESSAGE
   | Reminders  3 days before, same day
   | Notice                     30 days
   | Account                       none
+  | Tags                          none
   [✏️ Name](a|ef|sub_X|name) [💶 Price](a|ef|sub_X|price)
   [🏷 Category](a|ec|sub_X) [💳 Payment method](a|em|sub_X)
   [🔔 Reminders](a|er|sub_X) [⏰ Notice period](a|ef|sub_X|notice)
   [🔗 Cancel link](a|ef|sub_X|link) [🔑 Account](a|ef|sub_X|account)
-  [🗑 Delete](a|del|sub_X)
+  [🔖 Tags](a|ef|sub_X|tags) [🗑 Delete](a|del|sub_X)
   [‹ Netflix](a|sub|sub_X) [🏠 Home](a|home)
 
 > press Reminders
@@ -182,11 +184,12 @@ NEW MESSAGE
   | Reminders  7 days before, 3 days before, same day
   | Notice                                    30 days
   | Account                                      none
+  | Tags                                         none
   [✏️ Name](a|ef|sub_X|name) [💶 Price](a|ef|sub_X|price)
   [🏷 Category](a|ec|sub_X) [💳 Payment method](a|em|sub_X)
   [🔔 Reminders](a|er|sub_X) [⏰ Notice period](a|ef|sub_X|notice)
   [🔗 Cancel link](a|ef|sub_X|link) [🔑 Account](a|ef|sub_X|account)
-  [🗑 Delete](a|del|sub_X)
+  [🔖 Tags](a|ef|sub_X|tags) [🗑 Delete](a|del|sub_X)
   [‹ Netflix](a|sub|sub_X) [🏠 Home](a|home)
 
 > press Cancel link
@@ -204,11 +207,35 @@ NEW MESSAGE
   | Reminders  7 days before, 3 days before, same day
   | Notice                                    30 days
   | Account                                      none
+  | Tags                                         none
   [✏️ Name](a|ef|sub_X|name) [💶 Price](a|ef|sub_X|price)
   [🏷 Category](a|ec|sub_X) [💳 Payment method](a|em|sub_X)
   [🔔 Reminders](a|er|sub_X) [⏰ Notice period](a|ef|sub_X|notice)
   [🔗 Cancel link](a|ef|sub_X|link) [🔑 Account](a|ef|sub_X|account)
-  [🗑 Delete](a|del|sub_X)
+  [🔖 Tags](a|ef|sub_X|tags) [🗑 Delete](a|del|sub_X)
+  [‹ Netflix](a|sub|sub_X) [🏠 Home](a|home)
+
+> press Tags
+(toast: Type your answer)
+NEW MESSAGE
+✏️ Edit
+  Type its tags separated by commas, e.g. work, family. Send - to remove them all.
+
+> type family, tv,  Family
+NEW MESSAGE
+✏️ Netflix
+  | Price                              €13.99 monthly
+  | Category                                Streaming
+  | Paid with                             Visa ••4421
+  | Reminders  7 days before, 3 days before, same day
+  | Notice                                    30 days
+  | Account                                      none
+  | Tags                                   family, tv
+  [✏️ Name](a|ef|sub_X|name) [💶 Price](a|ef|sub_X|price)
+  [🏷 Category](a|ec|sub_X) [💳 Payment method](a|em|sub_X)
+  [🔔 Reminders](a|er|sub_X) [⏰ Notice period](a|ef|sub_X|notice)
+  [🔗 Cancel link](a|ef|sub_X|link) [🔑 Account](a|ef|sub_X|account)
+  [🔖 Tags](a|ef|sub_X|tags) [🗑 Delete](a|del|sub_X)
   [‹ Netflix](a|sub|sub_X) [🏠 Home](a|home)
 
 # The bank took more than expected
@@ -329,11 +356,12 @@ Netflix
   | Reminders  7 days before, 3 days before, same day
   | Notice                                    30 days
   | Account                                      none
+  | Tags                                   family, tv
   [✏️ Name](a|ef|sub_X|name) [💶 Price](a|ef|sub_X|price)
   [🏷 Category](a|ec|sub_X) [💳 Payment method](a|em|sub_X)
   [🔔 Reminders](a|er|sub_X) [⏰ Notice period](a|ef|sub_X|notice)
   [🔗 Cancel link](a|ef|sub_X|link) [🔑 Account](a|ef|sub_X|account)
-  [🗑 Delete](a|del|sub_X)
+  [🔖 Tags](a|ef|sub_X|tags) [🗑 Delete](a|del|sub_X)
   [‹ Netflix](a|sub|sub_X) [🏠 Home](a|home)
 
 > press Delete

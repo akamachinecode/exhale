@@ -16,7 +16,8 @@ import (
 // ListSubscriptionsInput filters subscriptions.
 type ListSubscriptionsInput struct {
 	Status string `json:"status,omitempty" query:"status" jsonschema:"active, paused or cancelled; empty for all"`
-	Query  string `json:"query,omitempty" query:"query" jsonschema:"case-insensitive name filter"`
+	Query  string `json:"query,omitempty" query:"query" jsonschema:"case-insensitive search in the name, notes, account, category and tags"`
+	Tag    string `json:"tag,omitempty" query:"tag" jsonschema:"only subscriptions with this tag (case-insensitive)"`
 }
 
 // SubscriptionList is a list of subscriptions.
@@ -27,12 +28,52 @@ type SubscriptionList struct {
 // ListSubscriptions returns the subscriptions visible to the actor.
 func (s *Service) ListSubscriptions(ctx context.Context, actor Actor, in ListSubscriptionsInput) (SubscriptionList, error) {
 	q := s.st.Q
-	rows, err := q.ListSubscriptions(ctx, actor.HouseholdID)
+	subs, err := s.visibleSubscriptions(ctx, q, actor)
 	if err != nil {
 		return SubscriptionList{}, err
 	}
 	today := s.today(ctx, q, actor)
 	out := SubscriptionList{Subscriptions: []SubscriptionView{}}
+	cats := map[string]string{}
+	if in.Query != "" {
+		for _, c := range mustList(q.ListCategories(ctx, actor.HouseholdID)) {
+			cats[c.ID] = c.Name
+		}
+	}
+	for _, sub := range subs {
+		if in.Status != "" && string(sub.Status) != in.Status {
+			continue
+		}
+		if in.Tag != "" && !domain.HasTag(sub.Tags, in.Tag) {
+			continue
+		}
+		if in.Query != "" && !matchesQuery(sub, cats[sub.CategoryID], in.Query) {
+			continue
+		}
+		out.Subscriptions = append(out.Subscriptions, s.view(ctx, q, sub, today))
+	}
+	return out, nil
+}
+
+// matchesQuery reports whether every word of query appears in the name,
+// notes, account, category or tags.
+func matchesQuery(sub domain.Subscription, category, query string) bool {
+	hay := strings.ToLower(strings.Join(append([]string{sub.Name, sub.Notes, sub.Account, category}, sub.Tags...), "\n"))
+	for _, w := range strings.Fields(strings.ToLower(query)) {
+		if !strings.Contains(hay, w) {
+			return false
+		}
+	}
+	return true
+}
+
+// visibleSubscriptions loads every subscription the actor may see.
+func (s *Service) visibleSubscriptions(ctx context.Context, q *db.Queries, actor Actor) ([]domain.Subscription, error) {
+	rows, err := q.ListSubscriptions(ctx, actor.HouseholdID)
+	if err != nil {
+		return nil, err
+	}
+	out := make([]domain.Subscription, 0, len(rows))
 	for _, r := range rows {
 		sub, err := store.SubscriptionFromRow(r)
 		if err != nil {
@@ -41,13 +82,7 @@ func (s *Service) ListSubscriptions(ctx context.Context, actor Actor, in ListSub
 		if !sub.VisibleTo(actor.MemberID) && actor.Kind != ActorSystem {
 			continue
 		}
-		if in.Status != "" && string(sub.Status) != in.Status {
-			continue
-		}
-		if in.Query != "" && !strings.Contains(strings.ToLower(sub.Name), strings.ToLower(in.Query)) {
-			continue
-		}
-		out.Subscriptions = append(out.Subscriptions, s.view(ctx, q, sub, today))
+		out = append(out, sub)
 	}
 	return out, nil
 }

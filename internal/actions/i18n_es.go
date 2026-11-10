@@ -345,4 +345,8 @@ var spanish = map[string]string{
 	"every %d weeks":  "cada %d semanas",
 	"every %d months": "cada %d meses",
 	"every %d years":  "cada %d años",
+	// Tags (tools for many subscriptions)
+	"Tags":   "Etiquetas",
+	"🔖 Tags": "🔖 Etiquetas",
+	"Type its tags separated by commas, e.g. work, family. Send - to remove them all.": "Escribe sus etiquetas separadas por comas, p. ej. trabajo, familia. Envía - para quitarlas todas.",
 }

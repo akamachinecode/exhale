@@ -98,6 +98,12 @@ func termNotes(v SubscriptionView) []string {
 	if v.NextPrice != nil {
 		n = append(n, fmt.Sprintf("price becomes %s on %s", v.NextPrice.Price, v.NextPrice.From))
 	}
+	if len(v.Tags) > 0 {
+		n = append(n, "tags: "+strings.Join(v.Tags, ", "))
+	}
+	if p := v.PlanSwitch; p != nil && v.AltPrice != nil && p.Saving.Minor > 0 {
+		n = append(n, fmt.Sprintf("also offered at %s per %s: switching saves %s a year", v.AltPrice.Price, v.AltPrice.Unit, p.Saving))
+	}
 	return n
 }
 
@@ -113,4 +119,5 @@ const domainRules = `
 - Every write accepts **dryRun: true** to preview the exact result without saving. Prefer previewing, show the user the result, then apply.
 - Every write returns an **auditId**; the undo tool reverts it. The user is told about changes made by agents and can undo them.
 - Never invent ids: read them from this briefing or from the list tools. Ids returned by a dry run are not saved.
+- To change several subscriptions at once use **bulk_update_subscriptions** (dryRun first); pass all the auditIds it returns to undo to revert the whole change. Tags are free labels: search them with list_subscriptions (query or tag). Totals stay by category.
 `

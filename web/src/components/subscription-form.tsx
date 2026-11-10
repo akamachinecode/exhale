@@ -3,6 +3,7 @@ import { useNavigate } from "@tanstack/react-router";
 import { ChevronDown } from "lucide-react";
 import { type FormEvent, type ReactNode, useEffect, useState } from "react";
 import { toast } from "sonner";
+import { TagInput } from "@/components/tags";
 import { Button } from "@/components/ui/button";
 import { Dialog } from "@/components/ui/dialog";
 import { Field, Input, Select } from "@/components/ui/field";
@@ -52,11 +53,17 @@ type Values = {
 	priceFrom: string;
 	private: boolean;
 	autoConfirm: boolean;
+	tags: string[];
+	altPrice: string;
+	altUnit: "month" | "year";
 };
 
 function initial(s: SubscriptionView | undefined, currency: string): Values {
 	const rule = s?.schedule.versions?.at(-1)?.rule;
 	return {
+		tags: s?.tags ?? [],
+		altPrice: s?.altPrice ? decimal(s.altPrice.price) : "",
+		altUnit: s?.altPrice?.unit === "month" ? "month" : "year",
 		name: s?.name ?? "",
 		price: s ? decimal(s.price) : "",
 		currency: s?.price.currency ?? currency,
@@ -85,15 +92,32 @@ function initial(s: SubscriptionView | undefined, currency: string): Values {
 
 const same = (a: unknown, b: unknown) => JSON.stringify(a) === JSON.stringify(b);
 
-/** Creates a subscription, or edits one when `subscription` is given. */
+/** A copy starts from another subscription: same terms, a new name, no charges and no history. */
+function copied(s: SubscriptionView, currency: string): Values {
+	return {
+		...initial(s, currency),
+		name: t("{0} (copy)", s.name),
+		nextCharge: s.nextCharge ?? todayISO(),
+		trial: false,
+		startedOn: "",
+		endDate: "",
+	};
+}
+
+/**
+ * Creates a subscription, or edits one when `subscription` is given. With
+ * `copyOf` it creates a new one prefilled from another (Duplicate).
+ */
 export function SubscriptionDialog({
 	open,
 	onOpenChange,
 	subscription,
+	copyOf,
 }: {
 	open: boolean;
 	onOpenChange: (o: boolean) => void;
 	subscription?: SubscriptionView;
+	copyOf?: SubscriptionView;
 }) {
 	const household = useGetHousehold();
 	const qc = useQueryClient();
@@ -103,6 +127,7 @@ export function SubscriptionDialog({
 	const editing = Boolean(subscription);
 	const base = initial(subscription, household.data?.household.currency ?? "EUR");
 	const [v, setV] = useState<Values>(base);
+	const tagSuggestions = (household.data?.tags ?? []).map((x) => x.name);
 	const [more, setMore] = useState(false);
 	const [error, setError] = useState<string>();
 	const set = <K extends keyof Values>(k: K, value: Values[K]) => setV((old) => ({ ...old, [k]: value }));
@@ -112,11 +137,11 @@ export function SubscriptionDialog({
 	// biome-ignore lint/correctness/useExhaustiveDependencies: only when it opens
 	useEffect(() => {
 		if (open) {
-			setV(initial(subscription, mainCurrency ?? "EUR"));
+			setV(copyOf ? copied(copyOf, mainCurrency ?? "EUR") : initial(subscription, mainCurrency ?? "EUR"));
 			setError(undefined);
-			setMore(false);
+			setMore(Boolean(copyOf));
 		}
-	}, [open, subscription?.id, mainCurrency]);
+	}, [open, subscription?.id, copyOf?.id, mainCurrency]);
 
 	const preview = usePreviewSchedule();
 	const { mutate } = preview;
@@ -143,6 +168,9 @@ export function SubscriptionDialog({
 		if (!v.name.trim()) return setError(t("Give it a name."));
 		if (!/^\d+(\.\d{1,3})?$/.test(price)) return setError(t("The price should look like 12.99."));
 		if (!v.nextCharge && !editing) return setError(t("Choose the date of the next charge."));
+		const altPrice = v.altPrice.trim().replace(",", ".");
+		if (altPrice && !/^\d+(\.\d{1,3})?$/.test(altPrice))
+			return setError(t("The other price should look like 99.00."));
 		try {
 			if (!subscription) {
 				const data: CreateSubscriptionInput = {
@@ -168,6 +196,9 @@ export function SubscriptionDialog({
 					shares: shares.length ? shares : undefined,
 					private: v.private || undefined,
 					autoConfirm: v.autoConfirm || undefined,
+					tags: v.tags.length ? v.tags : undefined,
+					altPrice: altPrice || undefined,
+					altUnit: altPrice ? v.altUnit : undefined,
 				};
 				const res = await create.mutateAsync({ data });
 				await qc.invalidateQueries();
@@ -202,6 +233,11 @@ export function SubscriptionDialog({
 			if (!same(v.shares, base.shares)) data.shares = shares;
 			if (v.private !== base.private) data.private = v.private;
 			if (v.autoConfirm !== base.autoConfirm) data.autoConfirm = v.autoConfirm;
+			if (!same(v.tags, base.tags)) data.tags = v.tags;
+			if (altPrice !== base.altPrice || (altPrice && v.altUnit !== base.altUnit)) {
+				data.altPrice = altPrice;
+				if (altPrice) data.altUnit = v.altUnit;
+			}
 			await update.mutateAsync({ data });
 			await qc.invalidateQueries();
 			toast.success(t("Saved"));
@@ -216,8 +252,20 @@ export function SubscriptionDialog({
 		<Dialog
 			open={open}
 			onOpenChange={onOpenChange}
-			title={editing ? t("Edit {0}", subscription?.name) : t("New subscription")}
-			description={editing ? undefined : t("Exhale computes every charge from the first one.")}
+			title={
+				editing
+					? t("Edit {0}", subscription?.name)
+					: copyOf
+						? t("Duplicate {0}", copyOf.name)
+						: t("New subscription")
+			}
+			description={
+				editing
+					? undefined
+					: copyOf
+						? t("A new subscription with the same terms. It starts with no charges and no history.")
+						: t("Exhale computes every charge from the first one.")
+			}
 		>
 			<form className="grid gap-4" onSubmit={onSubmit}>
 				<Field label={t("Service")}>
@@ -305,6 +353,12 @@ export function SubscriptionDialog({
 						</Select>
 					</Field>
 				</div>
+				<Field
+					label={t("Tags")}
+					hint={t("Free labels to find and group subscriptions. Totals stay by category.")}
+				>
+					<TagInput value={v.tags} onChange={(x) => set("tags", x)} suggestions={tagSuggestions} />
+				</Field>
 				<div className="flex flex-wrap gap-2">
 					<Chip on={v.trial} onClick={() => set("trial", !v.trial)}>
 						{t("Free trial")}
@@ -371,6 +425,29 @@ export function SubscriptionDialog({
 								<Input type="date" value={v.endDate} onChange={(e) => set("endDate", e.target.value)} />
 							</Field>
 						</div>
+						<Field
+							label={t("Also offered at")}
+							hint={t("Another price the provider offers, e.g. yearly. Exhale shows what switching saves.")}
+						>
+							<div className="grid grid-cols-[1fr_140px] gap-3">
+								<Input
+									inputMode="decimal"
+									placeholder="99.00"
+									className="tnum"
+									aria-label={t("Other price")}
+									value={v.altPrice}
+									onChange={(e) => set("altPrice", e.target.value)}
+								/>
+								<Select
+									aria-label={t("Other price period")}
+									value={v.altUnit}
+									onChange={(e) => set("altUnit", e.target.value as "month" | "year")}
+								>
+									<option value="year">{t("per year")}</option>
+									<option value="month">{t("per month")}</option>
+								</Select>
+							</div>
+						</Field>
 						<div className="grid grid-cols-2 gap-3">
 							<Field label={t("Cancel or manage page")}>
 								<Input

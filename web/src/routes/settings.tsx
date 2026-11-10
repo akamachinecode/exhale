@@ -9,6 +9,7 @@ import { PageHeader } from "@/components/layout";
 import { Categories, Payday, PaymentMethods } from "@/components/manage";
 import { SignOut } from "@/components/sign-out";
 import { SlackSetup } from "@/components/slack";
+import { Tags } from "@/components/tags";
 import { TwoFactorSettings } from "@/components/two-factor";
 import { Button } from "@/components/ui/button";
 import { Card, CardHeader } from "@/components/ui/card";
@@ -106,6 +107,9 @@ export function SettingsPage() {
 						</Section>
 						<Section title={t("Categories")}>
 							<Categories />
+						</Section>
+						<Section title={t("Tags")}>
+							<Tags />
 						</Section>
 					</>
 				)}

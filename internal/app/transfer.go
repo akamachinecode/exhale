@@ -69,27 +69,30 @@ func (s *Service) Export(ctx context.Context, actor Actor, _ struct{}) (ExportDa
 // and payers are given by name, so a spreadsheet, another app's export or an
 // AI agent reading a bank statement can fill it without knowing ids.
 type ImportItem struct {
-	Name          string `json:"name"`
-	Price         string `json:"price" jsonschema:"decimal string, e.g. 12.99"`
-	Currency      string `json:"currency,omitempty" jsonschema:"ISO 4217 code; default: the household's display currency"`
-	Interval      int    `json:"interval,omitempty" jsonschema:"units between charges, default 1"`
-	Unit          string `json:"unit,omitempty" jsonschema:"day, week, month (default) or year" enum:"day,week,month,year"`
-	NextCharge    string `json:"nextCharge,omitempty" jsonschema:"next (or first) charge, YYYY-MM-DD. For an ended subscription: when it started"`
-	StartedOn     string `json:"startedOn,omitempty" jsonschema:"when the member first subscribed, YYYY-MM-DD"`
-	EndDate       string `json:"endDate,omitempty" jsonschema:"last day, for subscriptions that ended, YYYY-MM-DD"`
-	Status        string `json:"status,omitempty" jsonschema:"active (default), paused or cancelled" enum:"active,paused,cancelled"`
-	Category      string `json:"category,omitempty" jsonschema:"category name; created if it does not exist"`
-	PaymentMethod string `json:"paymentMethod,omitempty" jsonschema:"payment method name; created if it does not exist"`
-	Payer         string `json:"payer,omitempty" jsonschema:"member name; default: the caller"`
-	URL           string `json:"url,omitempty"`
-	Notes         string `json:"notes,omitempty"`
-	CancelURL     string `json:"cancelUrl,omitempty"`
-	Account       string `json:"account,omitempty"`
-	Renewal       string `json:"renewal,omitempty" jsonschema:"auto (default) or manual" enum:"auto,manual"`
-	NoticeDays    int    `json:"noticeDays,omitempty"`
-	TrialEndsOn   string `json:"trialEndsOn,omitempty"`
-	ReminderDays  []int  `json:"reminderDays,omitempty" jsonschema:"days before each charge to remind; default [3, 0]"`
-	AutoConfirm   bool   `json:"autoConfirm,omitempty"`
+	Name          string   `json:"name"`
+	Price         string   `json:"price" jsonschema:"decimal string, e.g. 12.99"`
+	Currency      string   `json:"currency,omitempty" jsonschema:"ISO 4217 code; default: the household's display currency"`
+	Interval      int      `json:"interval,omitempty" jsonschema:"units between charges, default 1"`
+	Unit          string   `json:"unit,omitempty" jsonschema:"day, week, month (default) or year" enum:"day,week,month,year"`
+	NextCharge    string   `json:"nextCharge,omitempty" jsonschema:"next (or first) charge, YYYY-MM-DD. For an ended subscription: when it started"`
+	StartedOn     string   `json:"startedOn,omitempty" jsonschema:"when the member first subscribed, YYYY-MM-DD"`
+	EndDate       string   `json:"endDate,omitempty" jsonschema:"last day, for subscriptions that ended, YYYY-MM-DD"`
+	Status        string   `json:"status,omitempty" jsonschema:"active (default), paused or cancelled" enum:"active,paused,cancelled"`
+	Category      string   `json:"category,omitempty" jsonschema:"category name; created if it does not exist"`
+	PaymentMethod string   `json:"paymentMethod,omitempty" jsonschema:"payment method name; created if it does not exist"`
+	Payer         string   `json:"payer,omitempty" jsonschema:"member name; default: the caller"`
+	URL           string   `json:"url,omitempty"`
+	Notes         string   `json:"notes,omitempty"`
+	CancelURL     string   `json:"cancelUrl,omitempty"`
+	Account       string   `json:"account,omitempty"`
+	Renewal       string   `json:"renewal,omitempty" jsonschema:"auto (default) or manual" enum:"auto,manual"`
+	NoticeDays    int      `json:"noticeDays,omitempty"`
+	TrialEndsOn   string   `json:"trialEndsOn,omitempty"`
+	ReminderDays  []int    `json:"reminderDays,omitempty" jsonschema:"days before each charge to remind; default [3, 0]"`
+	AutoConfirm   bool     `json:"autoConfirm,omitempty"`
+	Tags          []string `json:"tags,omitempty" jsonschema:"free labels"`
+	AltPrice      string   `json:"altPrice,omitempty" jsonschema:"another price the provider offers, decimal string, e.g. 99.00"`
+	AltUnit       string   `json:"altUnit,omitempty" jsonschema:"the period altPrice covers: month or year" enum:"month,year"`
 	// Remark is a note from whoever prepared the item (a file parser or an
 	// agent) for the person reviewing it. It is not saved.
 	Remark string `json:"remark,omitempty" jsonschema:"note for the person reviewing the import; not saved"`
@@ -245,7 +248,8 @@ func (it ImportItem) createInput(h domain.Household, members map[string]string) 
 		Name: it.Name, Price: strings.ReplaceAll(strings.TrimSpace(it.Price), ",", "."), Currency: strings.ToUpper(strings.TrimSpace(it.Currency)),
 		Interval: it.Interval, Unit: it.Unit, FirstCharge: it.NextCharge, EndDate: it.EndDate, Status: it.Status,
 		URL: normalizeURL(it.URL), Notes: it.Notes, AutoConfirm: it.AutoConfirm, ReminderDays: it.ReminderDays,
-		TermsInput: TermsInput{StartedOn: it.StartedOn, TrialEndsOn: it.TrialEndsOn, NoticeDays: it.NoticeDays, Renewal: it.Renewal, CancelURL: normalizeURL(it.CancelURL), Account: it.Account},
+		TermsInput:  TermsInput{StartedOn: it.StartedOn, TrialEndsOn: it.TrialEndsOn, NoticeDays: it.NoticeDays, Renewal: it.Renewal, CancelURL: normalizeURL(it.CancelURL), Account: it.Account},
+		ExtrasInput: ExtrasInput{Tags: it.Tags, AltPrice: it.AltPrice, AltUnit: it.AltUnit},
 	}
 	if ci.Currency == "" {
 		ci.Currency = h.Currency

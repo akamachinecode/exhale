@@ -450,6 +450,14 @@ type AuditReport struct {
 	Unconfirmed     []ChargeView         `json:"unconfirmed" jsonschema:"charges whose date passed without being confirmed"`
 	NotUsed         []UnusedSubscription `json:"notUsed" jsonschema:"subscriptions the member said they no longer use"`
 	Findings        int                  `json:"findings" jsonschema:"total number of findings"`
+	CheaperPlans    []CheaperPlan        `json:"cheaperPlans" jsonschema:"subscriptions where the member recorded another price (e.g. yearly) that costs less per year"`
+}
+
+// CheaperPlan is another price the member recorded that would cost less.
+type CheaperPlan struct {
+	Subscription SubscriptionRef `json:"subscription"`
+	Other        domain.AltPrice `json:"other" jsonschema:"the other price and the period it covers"`
+	PlanSwitch
 }
 
 // serviceKey normalises a name so "Spotify Family" and "spotify" match.
@@ -480,7 +488,7 @@ func (s *Service) Audit(ctx context.Context, actor Actor, _ struct{}) (AuditRepo
 	q := s.st.Q
 	today := s.today(ctx, q, actor)
 	out := AuditReport{Duplicates: []DuplicateGroup{}, PriceIncreases: []PriceIncrease{}, TrialsEnding: []ChargeView{}, CancelDeadlines: []ChargeView{},
-		Expiring: []ChargeView{}, BigCharges: []ChargeView{}, CardsExpiring: []CardImpact{}, Unconfirmed: []ChargeView{}, NotUsed: []UnusedSubscription{}}
+		Expiring: []ChargeView{}, BigCharges: []ChargeView{}, CardsExpiring: []CardImpact{}, Unconfirmed: []ChargeView{}, NotUsed: []UnusedSubscription{}, CheaperPlans: []CheaperPlan{}}
 	list, err := s.ListSubscriptions(ctx, actor, ListSubscriptionsInput{Status: string(domain.StatusActive)})
 	if err != nil {
 		return out, err
@@ -493,6 +501,9 @@ func (s *Service) Audit(ctx context.Context, actor Actor, _ struct{}) (AuditRepo
 		groups[key] = append(groups[key], ref(v))
 		if v.PaymentMethodID != "" {
 			byMethod[v.PaymentMethodID] = append(byMethod[v.PaymentMethodID], ref(v))
+		}
+		if p := v.PlanSwitch; p != nil && p.Saving.Minor > 0 {
+			out.CheaperPlans = append(out.CheaperPlans, CheaperPlan{Subscription: ref(v), Other: *v.AltPrice, PlanSwitch: *p})
 		}
 		if v.Usage != nil && !v.Usage.Using {
 			out.NotUsed = append(out.NotUsed, UnusedSubscription{Subscription: ref(v), Yearly: v.YearlyCost, AnsweredOn: engine.DateOf(v.Usage.At)})
@@ -560,6 +571,7 @@ func (s *Service) Audit(ctx context.Context, actor Actor, _ struct{}) (AuditRepo
 	slices.SortFunc(out.BigCharges, byDue)
 	out.Findings = len(out.Duplicates) + len(out.PriceIncreases) + len(out.TrialsEnding) + len(out.CancelDeadlines) + len(out.Expiring) +
 		len(out.BigCharges) + len(out.CardsExpiring) + len(out.Unconfirmed) + len(out.NotUsed)
+	out.Findings += len(out.CheaperPlans)
 	return out, nil
 }
 

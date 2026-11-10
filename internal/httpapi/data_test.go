@@ -1,6 +1,8 @@
 package httpapi
 
 import (
+	"encoding/json"
+	"fmt"
 	"io"
 	"net/http"
 	"strings"
@@ -96,5 +98,40 @@ func TestCalendarFeed(t *testing.T) {
 	do(t, "DELETE", srv.URL+"/api/v1/calendar/feed", nil, nil)
 	if code, _ := get(t, srv.URL+replaced["path"].(string)); code != 404 {
 		t.Fatalf("a removed link must stop working: %d", code)
+	}
+}
+
+// TestTagsAndOtherPriceRoundTrip: tags and the other price leave in the
+// JSON and CSV exports and come back in when those files are imported.
+func TestTagsAndOtherPriceRoundTrip(t *testing.T) {
+	srv, _, _ := setup(t, true)
+	code, _ := do(t, "POST", srv.URL+"/api/v1/subscriptions", map[string]any{"name": "Spotify", "price": "10.99", "currency": "EUR",
+		"firstCharge": "2026-11-20", "tags": []string{"family", "music"}, "altPrice": "109", "altUnit": "year"}, nil)
+	if code != 200 {
+		t.Fatalf("create: %d", code)
+	}
+	parse := func(file string) []any {
+		t.Helper()
+		res, err := http.Post(srv.URL+"/api/v1/import/parse", "text/plain", strings.NewReader(file))
+		if err != nil {
+			t.Fatal(err)
+		}
+		defer res.Body.Close()
+		var out struct{ Items []any }
+		if err := json.NewDecoder(res.Body).Decode(&out); err != nil || len(out.Items) != 1 {
+			t.Fatalf("parse: %d %v %v", res.StatusCode, out, err)
+		}
+		return out.Items
+	}
+	_, csv := get(t, srv.URL+"/api/v1/export/subscriptions.csv")
+	if !strings.Contains(csv, `"family, music",109.00,year`) {
+		t.Fatalf("subscriptions.csv:\n%s", csv)
+	}
+	_, js := get(t, srv.URL+"/api/v1/export")
+	for name, file := range map[string]string{"csv": csv, "json": js} {
+		it := parse(file)[0].(map[string]any)
+		if fmt.Sprint(it["tags"]) != "[family music]" || it["altPrice"] != "109.00" || it["altUnit"] != "year" {
+			t.Errorf("%s import item = %v", name, it)
+		}
 	}
 }

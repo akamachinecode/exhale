@@ -22,6 +22,26 @@
         ],
         "type": "object"
       },
+      "AltPrice": {
+        "additionalProperties": false,
+        "properties": {
+          "price": {
+            "$ref": "#/components/schemas/Money"
+          },
+          "unit": {
+            "enum": [
+              "month",
+              "year"
+            ],
+            "type": "string"
+          }
+        },
+        "required": [
+          "price",
+          "unit"
+        ],
+        "type": "object"
+      },
       "AskIn": {
         "additionalProperties": false,
         "properties": {
@@ -443,6 +463,15 @@
               "null"
             ]
           },
+          "cheaperPlans": {
+            "items": {
+              "$ref": "#/components/schemas/CheaperPlan"
+            },
+            "type": [
+              "array",
+              "null"
+            ]
+          },
           "duplicates": {
             "items": {
               "$ref": "#/components/schemas/DuplicateGroup"
@@ -512,7 +541,8 @@
           "cardsExpiring",
           "unconfirmed",
           "notUsed",
-          "findings"
+          "findings",
+          "cheaperPlans"
         ],
         "type": "object"
       },
@@ -716,6 +746,144 @@
         },
         "required": [
           "token"
+        ],
+        "type": "object"
+      },
+      "BulkItem": {
+        "additionalProperties": false,
+        "properties": {
+          "changes": {
+            "items": {
+              "$ref": "#/components/schemas/FieldChange"
+            },
+            "type": [
+              "array",
+              "null"
+            ]
+          },
+          "id": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "changes"
+        ],
+        "type": "object"
+      },
+      "BulkResult": {
+        "additionalProperties": false,
+        "properties": {
+          "$schema": {
+            "description": "A URL to the JSON Schema for this object.",
+            "examples": [
+              "https://example.com/api/schemas/BulkResult.json"
+            ],
+            "format": "uri",
+            "readOnly": true,
+            "type": "string"
+          },
+          "auditIds": {
+            "items": {
+              "type": "string"
+            },
+            "type": [
+              "array",
+              "null"
+            ]
+          },
+          "changed": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "dryRun": {
+            "type": "boolean"
+          },
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/BulkItem"
+            },
+            "type": [
+              "array",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "items",
+          "changed",
+          "auditIds"
+        ],
+        "type": "object"
+      },
+      "BulkUpdateInput": {
+        "additionalProperties": false,
+        "properties": {
+          "$schema": {
+            "description": "A URL to the JSON Schema for this object.",
+            "examples": [
+              "https://example.com/api/schemas/BulkUpdateInput.json"
+            ],
+            "format": "uri",
+            "readOnly": true,
+            "type": "string"
+          },
+          "action": {
+            "enum": [
+              "update",
+              "pause",
+              "resume",
+              "cancel_at_period_end",
+              "cancel_now",
+              "delete"
+            ],
+            "type": "string"
+          },
+          "addTags": {
+            "items": {
+              "type": "string"
+            },
+            "type": [
+              "array",
+              "null"
+            ]
+          },
+          "categoryId": {
+            "type": "string"
+          },
+          "dryRun": {
+            "type": "boolean"
+          },
+          "ids": {
+            "items": {
+              "type": "string"
+            },
+            "maxItems": 500,
+            "minItems": 1,
+            "type": [
+              "array",
+              "null"
+            ]
+          },
+          "paymentMethodId": {
+            "type": "string"
+          },
+          "removeTags": {
+            "items": {
+              "type": "string"
+            },
+            "type": [
+              "array",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "ids"
         ],
         "type": "object"
       },
@@ -1211,6 +1379,30 @@
         ],
         "type": "object"
       },
+      "CheaperPlan": {
+        "additionalProperties": false,
+        "properties": {
+          "currentYearly": {
+            "$ref": "#/components/schemas/Money"
+          },
+          "other": {
+            "$ref": "#/components/schemas/AltPrice"
+          },
+          "subscription": {
+            "$ref": "#/components/schemas/SubscriptionRef"
+          },
+          "yearlySaving": {
+            "$ref": "#/components/schemas/Money"
+          }
+        },
+        "required": [
+          "subscription",
+          "other",
+          "currentYearly",
+          "yearlySaving"
+        ],
+        "type": "object"
+      },
       "CodeOnly": {
         "additionalProperties": false,
         "properties": {
@@ -1273,6 +1465,16 @@
             "type": "string"
           },
           "account": {
+            "type": "string"
+          },
+          "altPrice": {
+            "type": "string"
+          },
+          "altUnit": {
+            "enum": [
+              "month",
+              "year"
+            ],
             "type": "string"
           },
           "autoConfirm": {
@@ -1363,6 +1565,15 @@
               "cancelled"
             ],
             "type": "string"
+          },
+          "tags": {
+            "items": {
+              "type": "string"
+            },
+            "type": [
+              "array",
+              "null"
+            ]
           },
           "trialEndsOn": {
             "type": "string"
@@ -1543,6 +1754,30 @@
         },
         "required": [
           "id"
+        ],
+        "type": "object"
+      },
+      "DeleteTagInput": {
+        "additionalProperties": false,
+        "properties": {
+          "$schema": {
+            "description": "A URL to the JSON Schema for this object.",
+            "examples": [
+              "https://example.com/api/schemas/DeleteTagInput.json"
+            ],
+            "format": "uri",
+            "readOnly": true,
+            "type": "string"
+          },
+          "dryRun": {
+            "type": "boolean"
+          },
+          "tag": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "tag"
         ],
         "type": "object"
       },
@@ -1823,6 +2058,9 @@
           "account": {
             "type": "string"
           },
+          "altPrice": {
+            "$ref": "#/components/schemas/AltPrice"
+          },
           "askUsage": {
             "type": "boolean"
           },
@@ -1903,6 +2141,9 @@
           "paymentMethodId": {
             "type": "string"
           },
+          "planSwitch": {
+            "$ref": "#/components/schemas/PlanSwitch"
+          },
           "price": {
             "$ref": "#/components/schemas/Money"
           },
@@ -1932,6 +2173,15 @@
           },
           "status": {
             "type": "string"
+          },
+          "tags": {
+            "items": {
+              "type": "string"
+            },
+            "type": [
+              "array",
+              "null"
+            ]
           },
           "trialEndsOn": {
             "type": "string"
@@ -2005,6 +2255,33 @@
         },
         "required": [
           "enabled"
+        ],
+        "type": "object"
+      },
+      "FieldChange": {
+        "additionalProperties": false,
+        "properties": {
+          "field": {
+            "enum": [
+              "category",
+              "paymentMethod",
+              "tags",
+              "status",
+              "deleted"
+            ],
+            "type": "string"
+          },
+          "from": {
+            "type": "string"
+          },
+          "to": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "field",
+          "from",
+          "to"
         ],
         "type": "object"
       },
@@ -2092,6 +2369,15 @@
               "null"
             ]
           },
+          "tags": {
+            "items": {
+              "$ref": "#/components/schemas/TagCount"
+            },
+            "type": [
+              "array",
+              "null"
+            ]
+          },
           "today": {
             "type": "string"
           }
@@ -2101,7 +2387,8 @@
           "members",
           "categories",
           "paymentMethods",
-          "today"
+          "today",
+          "tags"
         ],
         "type": "object"
       },
@@ -2163,6 +2450,16 @@
         "additionalProperties": false,
         "properties": {
           "account": {
+            "type": "string"
+          },
+          "altPrice": {
+            "type": "string"
+          },
+          "altUnit": {
+            "enum": [
+              "month",
+              "year"
+            ],
             "type": "string"
           },
           "autoConfirm": {
@@ -2236,6 +2533,15 @@
               "cancelled"
             ],
             "type": "string"
+          },
+          "tags": {
+            "items": {
+              "type": "string"
+            },
+            "type": [
+              "array",
+              "null"
+            ]
           },
           "trialEndsOn": {
             "type": "string"
@@ -3061,6 +3367,26 @@
         ],
         "type": "object"
       },
+      "PlanSwitch": {
+        "additionalProperties": false,
+        "properties": {
+          "currentYearly": {
+            "$ref": "#/components/schemas/Money"
+          },
+          "otherYearly": {
+            "$ref": "#/components/schemas/Money"
+          },
+          "yearlySaving": {
+            "$ref": "#/components/schemas/Money"
+          }
+        },
+        "required": [
+          "currentYearly",
+          "otherYearly",
+          "yearlySaving"
+        ],
+        "type": "object"
+      },
       "PreviewScheduleInput": {
         "additionalProperties": false,
         "properties": {
@@ -3429,6 +3755,34 @@
           "hour",
           "minute",
           "confirmAfterDays"
+        ],
+        "type": "object"
+      },
+      "RenameTagInput": {
+        "additionalProperties": false,
+        "properties": {
+          "$schema": {
+            "description": "A URL to the JSON Schema for this object.",
+            "examples": [
+              "https://example.com/api/schemas/RenameTagInput.json"
+            ],
+            "format": "uri",
+            "readOnly": true,
+            "type": "string"
+          },
+          "dryRun": {
+            "type": "boolean"
+          },
+          "tag": {
+            "type": "string"
+          },
+          "to": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "tag",
+          "to"
         ],
         "type": "object"
       },
@@ -4319,6 +4673,9 @@
           "account": {
             "type": "string"
           },
+          "altPrice": {
+            "$ref": "#/components/schemas/AltPrice"
+          },
           "askUsage": {
             "type": "boolean"
           },
@@ -4390,6 +4747,9 @@
           "paymentMethodId": {
             "type": "string"
           },
+          "planSwitch": {
+            "$ref": "#/components/schemas/PlanSwitch"
+          },
           "price": {
             "$ref": "#/components/schemas/Money"
           },
@@ -4419,6 +4779,15 @@
           },
           "status": {
             "type": "string"
+          },
+          "tags": {
+            "items": {
+              "type": "string"
+            },
+            "type": [
+              "array",
+              "null"
+            ]
           },
           "trialEndsOn": {
             "type": "string"
@@ -4463,6 +4832,23 @@
           "createdAt",
           "updatedAt",
           "version"
+        ],
+        "type": "object"
+      },
+      "TagCount": {
+        "additionalProperties": false,
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "subscriptions": {
+            "format": "int64",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "name",
+          "subscriptions"
         ],
         "type": "object"
       },
@@ -4757,13 +5143,19 @@
           "auditId": {
             "type": "string"
           },
+          "auditIds": {
+            "items": {
+              "type": "string"
+            },
+            "type": [
+              "array",
+              "null"
+            ]
+          },
           "dryRun": {
             "type": "boolean"
           }
         },
-        "required": [
-          "auditId"
-        ],
         "type": "object"
       },
       "UndoResult": {
@@ -4783,11 +5175,16 @@
           },
           "restored": {
             "type": "string"
+          },
+          "undone": {
+            "format": "int64",
+            "type": "integer"
           }
         },
         "required": [
           "restored",
-          "auditId"
+          "auditId",
+          "undone"
         ],
         "type": "object"
       },
@@ -4896,6 +5293,16 @@
           "account": {
             "type": "string"
           },
+          "altPrice": {
+            "type": "string"
+          },
+          "altUnit": {
+            "enum": [
+              "month",
+              "year"
+            ],
+            "type": "string"
+          },
           "autoConfirm": {
             "type": "boolean"
           },
@@ -4979,6 +5386,15 @@
           },
           "startedOn": {
             "type": "string"
+          },
+          "tags": {
+            "items": {
+              "type": "string"
+            },
+            "type": [
+              "array",
+              "null"
+            ]
           },
           "trialEndsOn": {
             "type": "string"
@@ -8045,6 +8461,14 @@
             "schema": {
               "type": "string"
             }
+          },
+          {
+            "explode": false,
+            "in": "query",
+            "name": "tag",
+            "schema": {
+              "type": "string"
+            }
           }
         ],
         "responses": {
@@ -8120,6 +8544,53 @@
           }
         ],
         "summary": "Create a subscription",
+        "tags": [
+          "Subscriptions"
+        ]
+      }
+    },
+    "/api/v1/subscriptions/bulk": {
+      "post": {
+        "description": "Changes several subscriptions in one step, all or none: set the category or payment method, add or remove tags (action update), or pause, resume, cancel or delete them. Call it first with dryRun to show what changes for each. The auditIds it returns can all be passed to undo to revert the whole change.",
+        "operationId": "bulk_update_subscriptions",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/BulkUpdateInput"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BulkResult"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorModel"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Change several subscriptions",
         "tags": [
           "Subscriptions"
         ]
@@ -8347,6 +8818,100 @@
         "summary": "Spending summary",
         "tags": [
           "Insights"
+        ]
+      }
+    },
+    "/api/v1/tags/delete": {
+      "post": {
+        "description": "Removes a tag from every subscription. The subscriptions stay. Can be reverted with undo (auditIds).",
+        "operationId": "delete_tag",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DeleteTagInput"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BulkResult"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorModel"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Delete a tag",
+        "tags": [
+          "Subscriptions"
+        ]
+      }
+    },
+    "/api/v1/tags/rename": {
+      "post": {
+        "description": "Renames a tag on every subscription that has it; if one already has the new name, they merge. The tags in use are in get_household.",
+        "operationId": "rename_tag",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RenameTagInput"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BulkResult"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorModel"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Rename a tag",
+        "tags": [
+          "Subscriptions"
         ]
       }
     }

@@ -29,11 +29,12 @@ const routeTree = root.addChildren([
 		component: Subscriptions,
 		validateSearch: (
 			s: Record<string, unknown>,
-		): { status?: string; q?: string; cat?: string; pm?: string } => ({
+		): { status?: string; q?: string; cat?: string; pm?: string; tag?: string } => ({
 			status: str(s.status),
 			q: str(s.q),
 			cat: str(s.cat),
 			pm: str(s.pm),
+			tag: str(s.tag),
 		}),
 	}),
 	createRoute({ getParentRoute: () => root, path: "/subscriptions/$id", component: SubscriptionDetail }),

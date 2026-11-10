@@ -185,6 +185,22 @@ var (
 	}, (*Service).Undo}
 )
 
+// Tools for many subscriptions: bulk changes and tags (bulk.go).
+var (
+	OpBulkUpdate = Op[BulkUpdateInput, BulkResult]{Meta{
+		Name: "bulk_update_subscriptions", Title: "Change several subscriptions", Tag: "Subscriptions", Method: "POST", Path: "/subscriptions/bulk", Write: true, Destructive: true,
+		Description: "Changes several subscriptions in one step, all or none: set the category or payment method, add or remove tags (action update), or pause, resume, cancel or delete them. Call it first with dryRun to show what changes for each. The auditIds it returns can all be passed to undo to revert the whole change.",
+	}, (*Service).BulkUpdate}
+	OpRenameTag = Op[RenameTagInput, BulkResult]{Meta{
+		Name: "rename_tag", Title: "Rename a tag", Tag: "Subscriptions", Method: "POST", Path: "/tags/rename", Write: true, Idempotent: true,
+		Description: "Renames a tag on every subscription that has it; if one already has the new name, they merge. The tags in use are in get_household.",
+	}, (*Service).RenameTag}
+	OpDeleteTag = Op[DeleteTagInput, BulkResult]{Meta{
+		Name: "delete_tag", Title: "Delete a tag", Tag: "Subscriptions", Method: "POST", Path: "/tags/delete", Write: true, Destructive: true,
+		Description: "Removes a tag from every subscription. The subscriptions stay. Can be reverted with undo (auditIds).",
+	}, (*Service).DeleteTag}
+)
+
 // Catalog lists every use case exposed to adapters.
 func Catalog() []Binding {
 	return []Binding{
@@ -195,6 +211,7 @@ func Catalog() []Binding {
 		OpSpendHistory.Binding(), OpBalances.Binding(), OpAudit.Binding(),
 		OpSavePaymentMethod.Binding(), OpReassignPaymentMethod.Binding(), OpDeletePaymentMethod.Binding(),
 		OpCreateCategory.Binding(), OpUpdateCategory.Binding(), OpDeleteCategory.Binding(), OpExport.Binding(), OpImport.Binding(), OpReminders.Binding(), OpListAudit.Binding(), OpUndo.Binding(),
+		OpBulkUpdate.Binding(), OpRenameTag.Binding(), OpDeleteTag.Binding(),
 	}
 }
 
