@@ -52,6 +52,16 @@ type NonReadonly<T> = [T] extends [UnionToIntersection<T>] ? {
     : T[P];
 } : DistributeReadOnlyOverUnions<T>;
 
+export interface ActionIn {
+  /** A URL to the JSON Schema for this object. */
+  readonly $schema?: string;
+  /**
+     * the token of the button, from the notification
+     * @maxLength 1024
+     */
+  token: string;
+}
+
 export interface AgentContext {
   /** A URL to the JSON Schema for this object. */
   readonly $schema?: string;
@@ -882,9 +892,23 @@ export interface DestinationIn {
   template?: string;
 }
 
+export interface DeviceOut {
+  /** A URL to the JSON Schema for this object. */
+  readonly $schema?: string;
+  /** link id of this browser; empty when push is not on for you here */
+  id?: string;
+}
+
 export interface Empty {
   /** A URL to the JSON Schema for this object. */
   readonly $schema?: string;
+}
+
+export interface EndpointIn {
+  /** A URL to the JSON Schema for this object. */
+  readonly $schema?: string;
+  /** PushSubscription.endpoint of this browser */
+  endpoint: string;
 }
 
 export interface ErrorDetail {
@@ -1321,6 +1345,35 @@ export interface PrivateDestinationsIn {
   readonly $schema?: string;
   /** let webhooks and ntfy reach private-network addresses (a server on your LAN); loopback and cloud metadata addresses stay blocked */
   allowPrivate: boolean;
+}
+
+export interface PushDevice {
+  /** A URL to the JSON Schema for this object. */
+  readonly $schema?: string;
+  /** keys.auth, base64url */
+  auth: string;
+  /** how to show it, e.g. Chrome on Android */
+  device?: string;
+  /** the push service address from PushSubscription.endpoint */
+  endpoint: string;
+  /** keys.p256dh, base64url */
+  p256dh: string;
+}
+
+export interface PushResult {
+  /** A URL to the JSON Schema for this object. */
+  readonly $schema?: string;
+  /** what happened, e.g. "Marked as paid ✅" */
+  message: string;
+  /** the charge as it is now, e.g. "✅ Netflix paid" */
+  title?: string;
+}
+
+export interface PushStatus {
+  /** A URL to the JSON Schema for this object. */
+  readonly $schema?: string;
+  /** VAPID public key, base64url: the applicationServerKey to subscribe with */
+  publicKey: string;
 }
 
 export interface ReassignPaymentMethodInput {
@@ -6116,6 +6169,459 @@ export const useReassignPaymentMethod = <TError = ErrorModel,
         TContext
       > => {
       return useMutation(getReassignPaymentMethodMutationOptions(options), queryClient);
+    }
+
+export const getPushStatusUrl = () => {
+
+
+
+
+  return `/api/v1/push`
+}
+
+/**
+ * @summary The key browsers subscribe to push notifications with
+ */
+export const pushStatus = async ( options?: Parameters<typeof fetcher>[1]): Promise<PushStatus> => {
+
+  return fetcher<PushStatus>(getPushStatusUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getPushStatusQueryKey = () => {
+    return [
+    `/api/v1/push`
+    ] as const;
+    }
+
+
+export const getPushStatusQueryOptions = <TData = Awaited<ReturnType<typeof pushStatus>>, TError = ErrorModel>( options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof pushStatus>>, TError, TData>>, request?: SecondParameter<typeof fetcher>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getPushStatusQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof pushStatus>>> = ({ signal }) => pushStatus({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof pushStatus>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type PushStatusQueryResult = NonNullable<Awaited<ReturnType<typeof pushStatus>>>
+export type PushStatusQueryError = ErrorModel
+
+
+export function usePushStatus<TData = Awaited<ReturnType<typeof pushStatus>>, TError = ErrorModel>(
+  options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof pushStatus>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof pushStatus>>,
+          TError,
+          Awaited<ReturnType<typeof pushStatus>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof fetcher>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function usePushStatus<TData = Awaited<ReturnType<typeof pushStatus>>, TError = ErrorModel>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof pushStatus>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof pushStatus>>,
+          TError,
+          Awaited<ReturnType<typeof pushStatus>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof fetcher>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function usePushStatus<TData = Awaited<ReturnType<typeof pushStatus>>, TError = ErrorModel>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof pushStatus>>, TError, TData>>, request?: SecondParameter<typeof fetcher>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+/**
+ * @summary The key browsers subscribe to push notifications with
+ */
+
+export function usePushStatus<TData = Awaited<ReturnType<typeof pushStatus>>, TError = ErrorModel>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof pushStatus>>, TError, TData>>, request?: SecondParameter<typeof fetcher>}
+ , queryClient?: QueryClient
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getPushStatusQueryOptions(options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getPushActionUrl = () => {
+
+
+
+
+  return `/api/v1/push/action`
+}
+
+/**
+ * @summary Run a notification's button (no session: the token is the credential)
+ */
+export const pushAction = async (actionIn: NonReadonly<ActionIn>, options?: Parameters<typeof fetcher>[1]): Promise<PushResult> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return fetcher<PushResult>(getPushActionUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(actionIn)
+  }
+);}
+
+
+
+
+
+export const getPushActionMutationKey = () => ['pushAction'] as const;
+
+export const getPushActionMutationOptions = <TError = ErrorModel,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof pushAction>>, TError,PushActionMutationVariables, TContext>, request?: SecondParameter<typeof fetcher>}
+): UseMutationOptions<Awaited<ReturnType<typeof pushAction>>, TError,PushActionMutationVariables, TContext> => {
+
+const mutationKey = getPushActionMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof pushAction>>, PushActionMutationVariables> = (props) => {
+          const {data} = props ?? {};
+
+          return  pushAction(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type PushActionMutationResult = NonNullable<Awaited<ReturnType<typeof pushAction>>>
+    export type PushActionMutationBody = NonReadonly<ActionIn>
+    export type PushActionMutationError = ErrorModel
+    export type PushActionMutationVariables = {data: NonReadonly<ActionIn>}
+
+    /**
+ * @summary Run a notification's button (no session: the token is the credential)
+ */
+export const usePushAction = <TError = ErrorModel,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof pushAction>>, TError,PushActionMutationVariables, TContext>, request?: SecondParameter<typeof fetcher>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof pushAction>>,
+        TError,
+        PushActionMutationVariables,
+        TContext
+      > => {
+      return useMutation(getPushActionMutationOptions(options), queryClient);
+    }
+
+export const getPushAddDeviceUrl = () => {
+
+
+
+
+  return `/api/v1/push/devices`
+}
+
+/**
+ * @summary Turn on push notifications in this browser
+ */
+export const pushAddDevice = async (pushDevice: NonReadonly<PushDevice>, options?: Parameters<typeof fetcher>[1]): Promise<LinkInfo> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return fetcher<LinkInfo>(getPushAddDeviceUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(pushDevice)
+  }
+);}
+
+
+
+
+
+export const getPushAddDeviceMutationKey = () => ['pushAddDevice'] as const;
+
+export const getPushAddDeviceMutationOptions = <TError = ErrorModel,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof pushAddDevice>>, TError,PushAddDeviceMutationVariables, TContext>, request?: SecondParameter<typeof fetcher>}
+): UseMutationOptions<Awaited<ReturnType<typeof pushAddDevice>>, TError,PushAddDeviceMutationVariables, TContext> => {
+
+const mutationKey = getPushAddDeviceMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof pushAddDevice>>, PushAddDeviceMutationVariables> = (props) => {
+          const {data} = props ?? {};
+
+          return  pushAddDevice(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type PushAddDeviceMutationResult = NonNullable<Awaited<ReturnType<typeof pushAddDevice>>>
+    export type PushAddDeviceMutationBody = NonReadonly<PushDevice>
+    export type PushAddDeviceMutationError = ErrorModel
+    export type PushAddDeviceMutationVariables = {data: NonReadonly<PushDevice>}
+
+    /**
+ * @summary Turn on push notifications in this browser
+ */
+export const usePushAddDevice = <TError = ErrorModel,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof pushAddDevice>>, TError,PushAddDeviceMutationVariables, TContext>, request?: SecondParameter<typeof fetcher>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof pushAddDevice>>,
+        TError,
+        PushAddDeviceMutationVariables,
+        TContext
+      > => {
+      return useMutation(getPushAddDeviceMutationOptions(options), queryClient);
+    }
+
+export const getPushFindDeviceUrl = () => {
+
+
+
+
+  return `/api/v1/push/devices/find`
+}
+
+/**
+ * @summary Is push on for you in this browser?
+ */
+export const pushFindDevice = async (endpointIn: NonReadonly<EndpointIn>, options?: Parameters<typeof fetcher>[1]): Promise<DeviceOut> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return fetcher<DeviceOut>(getPushFindDeviceUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(endpointIn)
+  }
+);}
+
+
+
+
+
+export const getPushFindDeviceMutationKey = () => ['pushFindDevice'] as const;
+
+export const getPushFindDeviceMutationOptions = <TError = ErrorModel,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof pushFindDevice>>, TError,PushFindDeviceMutationVariables, TContext>, request?: SecondParameter<typeof fetcher>}
+): UseMutationOptions<Awaited<ReturnType<typeof pushFindDevice>>, TError,PushFindDeviceMutationVariables, TContext> => {
+
+const mutationKey = getPushFindDeviceMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof pushFindDevice>>, PushFindDeviceMutationVariables> = (props) => {
+          const {data} = props ?? {};
+
+          return  pushFindDevice(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type PushFindDeviceMutationResult = NonNullable<Awaited<ReturnType<typeof pushFindDevice>>>
+    export type PushFindDeviceMutationBody = NonReadonly<EndpointIn>
+    export type PushFindDeviceMutationError = ErrorModel
+    export type PushFindDeviceMutationVariables = {data: NonReadonly<EndpointIn>}
+
+    /**
+ * @summary Is push on for you in this browser?
+ */
+export const usePushFindDevice = <TError = ErrorModel,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof pushFindDevice>>, TError,PushFindDeviceMutationVariables, TContext>, request?: SecondParameter<typeof fetcher>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof pushFindDevice>>,
+        TError,
+        PushFindDeviceMutationVariables,
+        TContext
+      > => {
+      return useMutation(getPushFindDeviceMutationOptions(options), queryClient);
+    }
+
+export const getPushRemoveDeviceUrl = () => {
+
+
+
+
+  return `/api/v1/push/devices/remove`
+}
+
+/**
+ * @summary Turn off push notifications in this browser
+ */
+export const pushRemoveDevice = async (endpointIn: NonReadonly<EndpointIn>, options?: Parameters<typeof fetcher>[1]): Promise<Empty> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return fetcher<Empty>(getPushRemoveDeviceUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(endpointIn)
+  }
+);}
+
+
+
+
+
+export const getPushRemoveDeviceMutationKey = () => ['pushRemoveDevice'] as const;
+
+export const getPushRemoveDeviceMutationOptions = <TError = ErrorModel,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof pushRemoveDevice>>, TError,PushRemoveDeviceMutationVariables, TContext>, request?: SecondParameter<typeof fetcher>}
+): UseMutationOptions<Awaited<ReturnType<typeof pushRemoveDevice>>, TError,PushRemoveDeviceMutationVariables, TContext> => {
+
+const mutationKey = getPushRemoveDeviceMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof pushRemoveDevice>>, PushRemoveDeviceMutationVariables> = (props) => {
+          const {data} = props ?? {};
+
+          return  pushRemoveDevice(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type PushRemoveDeviceMutationResult = NonNullable<Awaited<ReturnType<typeof pushRemoveDevice>>>
+    export type PushRemoveDeviceMutationBody = NonReadonly<EndpointIn>
+    export type PushRemoveDeviceMutationError = ErrorModel
+    export type PushRemoveDeviceMutationVariables = {data: NonReadonly<EndpointIn>}
+
+    /**
+ * @summary Turn off push notifications in this browser
+ */
+export const usePushRemoveDevice = <TError = ErrorModel,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof pushRemoveDevice>>, TError,PushRemoveDeviceMutationVariables, TContext>, request?: SecondParameter<typeof fetcher>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof pushRemoveDevice>>,
+        TError,
+        PushRemoveDeviceMutationVariables,
+        TContext
+      > => {
+      return useMutation(getPushRemoveDeviceMutationOptions(options), queryClient);
     }
 
 export const getListRemindersUrl = (params?: ListRemindersParams,) => {

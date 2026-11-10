@@ -1,6 +1,29 @@
 {
   "components": {
     "schemas": {
+      "ActionIn": {
+        "additionalProperties": false,
+        "properties": {
+          "$schema": {
+            "description": "A URL to the JSON Schema for this object.",
+            "examples": [
+              "https://example.com/api/schemas/ActionIn.json"
+            ],
+            "format": "uri",
+            "readOnly": true,
+            "type": "string"
+          },
+          "token": {
+            "description": "the token of the button, from the notification",
+            "maxLength": 1024,
+            "type": "string"
+          }
+        },
+        "required": [
+          "token"
+        ],
+        "type": "object"
+      },
       "AgentContext": {
         "additionalProperties": false,
         "properties": {
@@ -1548,6 +1571,25 @@
         ],
         "type": "object"
       },
+      "DeviceOut": {
+        "additionalProperties": false,
+        "properties": {
+          "$schema": {
+            "description": "A URL to the JSON Schema for this object.",
+            "examples": [
+              "https://example.com/api/schemas/DeviceOut.json"
+            ],
+            "format": "uri",
+            "readOnly": true,
+            "type": "string"
+          },
+          "id": {
+            "description": "link id of this browser; empty when push is not on for you here",
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
       "DuplicateGroup": {
         "additionalProperties": false,
         "properties": {
@@ -1583,6 +1625,28 @@
             "type": "string"
           }
         },
+        "type": "object"
+      },
+      "EndpointIn": {
+        "additionalProperties": false,
+        "properties": {
+          "$schema": {
+            "description": "A URL to the JSON Schema for this object.",
+            "examples": [
+              "https://example.com/api/schemas/EndpointIn.json"
+            ],
+            "format": "uri",
+            "readOnly": true,
+            "type": "string"
+          },
+          "endpoint": {
+            "description": "PushSubscription.endpoint of this browser",
+            "type": "string"
+          }
+        },
+        "required": [
+          "endpoint"
+        ],
         "type": "object"
       },
       "ErrorDetail": {
@@ -3125,6 +3189,90 @@
           "title",
           "lines",
           "destructive"
+        ],
+        "type": "object"
+      },
+      "PushDevice": {
+        "additionalProperties": false,
+        "properties": {
+          "$schema": {
+            "description": "A URL to the JSON Schema for this object.",
+            "examples": [
+              "https://example.com/api/schemas/PushDevice.json"
+            ],
+            "format": "uri",
+            "readOnly": true,
+            "type": "string"
+          },
+          "auth": {
+            "description": "keys.auth, base64url",
+            "type": "string"
+          },
+          "device": {
+            "description": "how to show it, e.g. Chrome on Android",
+            "type": "string"
+          },
+          "endpoint": {
+            "description": "the push service address from PushSubscription.endpoint",
+            "type": "string"
+          },
+          "p256dh": {
+            "description": "keys.p256dh, base64url",
+            "type": "string"
+          }
+        },
+        "required": [
+          "endpoint",
+          "p256dh",
+          "auth"
+        ],
+        "type": "object"
+      },
+      "PushResult": {
+        "additionalProperties": false,
+        "properties": {
+          "$schema": {
+            "description": "A URL to the JSON Schema for this object.",
+            "examples": [
+              "https://example.com/api/schemas/PushResult.json"
+            ],
+            "format": "uri",
+            "readOnly": true,
+            "type": "string"
+          },
+          "message": {
+            "description": "what happened, e.g. \"Marked as paid ✅\"",
+            "type": "string"
+          },
+          "title": {
+            "description": "the charge as it is now, e.g. \"✅ Netflix paid\"",
+            "type": "string"
+          }
+        },
+        "required": [
+          "message"
+        ],
+        "type": "object"
+      },
+      "PushStatus": {
+        "additionalProperties": false,
+        "properties": {
+          "$schema": {
+            "description": "A URL to the JSON Schema for this object.",
+            "examples": [
+              "https://example.com/api/schemas/PushStatus.json"
+            ],
+            "format": "uri",
+            "readOnly": true,
+            "type": "string"
+          },
+          "publicKey": {
+            "description": "VAPID public key, base64url: the applicationServerKey to subscribe with",
+            "type": "string"
+          }
+        },
+        "required": [
+          "publicKey"
         ],
         "type": "object"
       },
@@ -6738,6 +6886,201 @@
         "summary": "Move subscriptions to another payment method",
         "tags": [
           "Household"
+        ]
+      }
+    },
+    "/api/v1/push": {
+      "get": {
+        "operationId": "push_status",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PushStatus"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorModel"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "summary": "The key browsers subscribe to push notifications with",
+        "tags": [
+          "Push"
+        ]
+      }
+    },
+    "/api/v1/push/action": {
+      "post": {
+        "operationId": "push_action",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ActionIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PushResult"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorModel"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "summary": "Run a notification's button (no session: the token is the credential)",
+        "tags": [
+          "Push"
+        ]
+      }
+    },
+    "/api/v1/push/devices": {
+      "post": {
+        "operationId": "push_add_device",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PushDevice"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LinkInfo"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorModel"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "summary": "Turn on push notifications in this browser",
+        "tags": [
+          "Push"
+        ]
+      }
+    },
+    "/api/v1/push/devices/find": {
+      "post": {
+        "operationId": "push_find_device",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/EndpointIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DeviceOut"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorModel"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "summary": "Is push on for you in this browser?",
+        "tags": [
+          "Push"
+        ]
+      }
+    },
+    "/api/v1/push/devices/remove": {
+      "post": {
+        "operationId": "push_remove_device",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/EndpointIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Empty"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorModel"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "summary": "Turn off push notifications in this browser",
+        "tags": [
+          "Push"
         ]
       }
     },

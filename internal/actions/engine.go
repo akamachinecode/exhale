@@ -481,6 +481,10 @@ func (e *Engine) Deliver(ctx context.Context, item app.OutboxItem) error {
 			continue
 		}
 		msgID, err := ch.Send(ctx, l.ExternalID, m)
+		if errors.Is(err, ErrGone) {
+			e.log.Info("destination gone, removed", "channel", l.Channel, "member", item.MemberID)
+			continue
+		}
 		if err != nil {
 			errs = append(errs, fmt.Errorf("%s: %w", l.Channel, err))
 			continue

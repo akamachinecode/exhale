@@ -97,6 +97,7 @@ func New(svc *app.Service, cfg Config) (http.Handler, huma.API, error) {
 		return nil, nil, err
 	}
 	registerChannels(api, aa)
+	registerPush(api, aa)
 
 	mux.HandleFunc("GET /healthz", func(w http.ResponseWriter, _ *http.Request) { w.Write([]byte("ok")) })
 	mux.HandleFunc("GET /api/v1/events", events(svc))
@@ -327,6 +328,10 @@ func spa() http.Handler {
 				_ = f.Close()
 				if strings.HasPrefix(p, "assets/") {
 					w.Header().Set("Cache-Control", "public, max-age=31536000, immutable")
+				}
+				if p == "sw.js" {
+					// The service worker updates as soon as a new binary ships.
+					w.Header().Set("Cache-Control", "no-cache")
 				}
 				files.ServeHTTP(w, r)
 				return

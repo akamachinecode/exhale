@@ -213,6 +213,7 @@ func (s *serveCmd) Run(ctx context.Context, g *globals) error {
 	eng := actions.New(e.svc, e.log, append([]actions.Channel{tg, sl}, others.Channels()...)...)
 	eng.SetAssistant(asst) // free text in chat (ADR 0018, part B)
 	tg.SetEngine(eng)
+	others.SetPushActions(eng) // buttons of push notifications (ADR 0026)
 	sl.SetEngine(eng)
 	services = append(services,
 		&fx.Updater{St: e.st, Log: e.log},

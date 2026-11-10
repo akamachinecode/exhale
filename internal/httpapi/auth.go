@@ -31,7 +31,8 @@ func isLocal(ctx context.Context) bool { v, _ := ctx.Value(localKey{}).(bool); r
 func publicPath(p string) bool {
 	switch p {
 	case "/api/v1/auth/session", "/api/v1/auth/setup", "/api/v1/auth/login", "/api/v1/auth/join", "/api/v1/auth/logout",
-		oidcStart, oidcCallback:
+		oidcStart, oidcCallback,
+		pushActionPath: // web push buttons carry their own signed token
 		return true
 	}
 	return strings.HasPrefix(p, "/api/v1/auth/invites/")

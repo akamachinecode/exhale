@@ -1,5 +1,5 @@
-// Package notifiers runs the notify-only channels (email, ntfy, webhooks):
-// it owns their instance settings and hands the three channels to the
+// Package notifiers runs the notify-only channels (email, ntfy, webhooks,
+// Web Push): it owns their instance settings and hands the channels to the
 // action layer.
 //
 // Settings come from the environment (EXHALE_SMTP_*, EXHALE_NTFY_*,
@@ -21,6 +21,7 @@ import (
 	"log/slog"
 	"net/url"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/akamachinecode/exhale/internal/actions"
@@ -28,6 +29,7 @@ import (
 	"github.com/akamachinecode/exhale/internal/channels/notify"
 	"github.com/akamachinecode/exhale/internal/channels/ntfy"
 	"github.com/akamachinecode/exhale/internal/channels/webhook"
+	"github.com/akamachinecode/exhale/internal/channels/webpush"
 	"github.com/akamachinecode/exhale/internal/domain"
 	"github.com/akamachinecode/exhale/internal/netguard"
 	"github.com/akamachinecode/exhale/internal/store"
@@ -67,6 +69,8 @@ type Options struct {
 	Guard *netguard.Guard
 	// SMTPRoots replaces the system certificates for SMTP (tests).
 	SMTPRoots *x509.CertPool
+	// PushRoots replaces the system certificates for push services (tests).
+	PushRoots *x509.CertPool
 }
 
 // Manager configures the channels and sends through them.
@@ -78,6 +82,12 @@ type Manager struct {
 	guard     *netguard.Guard
 	channels  map[string]actions.Channel
 	order     []actions.Channel
+
+	// Web Push (webpush.go).
+	pushMu      sync.Mutex
+	vapid       *webpush.VAPID
+	actionKey   []byte
+	pushActions PushActions
 }
 
 // New checks the options and returns a manager.
@@ -122,6 +132,7 @@ func New(st *store.Store, opts Options, log *slog.Logger) (*Manager, error) {
 			PublicURL: m.publicURL,
 			UserAgent: "Exhale/" + opts.Version,
 		},
+		m.newPush(),
 	}
 	m.channels = map[string]actions.Channel{}
 	for _, c := range m.order {
@@ -130,8 +141,8 @@ func New(st *store.Store, opts Options, log *slog.Logger) (*Manager, error) {
 	return m, nil
 }
 
-// Channels returns the email, ntfy and webhook channels for the action
-// layer.
+// Channels returns the email, ntfy, webhook and Web Push channels for the
+// action layer.
 func (m *Manager) Channels() []actions.Channel { return m.order }
 
 // Notifies reports whether channel is one of the notify-only channels.
@@ -438,6 +449,9 @@ func (m *Manager) Describe(ctx context.Context, channel, destination string) (te
 	if channel == webhook.Name {
 		return netguard.Host(destination), m.template(ctx, destination) != ""
 	}
+	if channel == webpush.Name {
+		return m.deviceName(ctx, destination), false // the endpoint is a secret
+	}
 	return destination, false
 }
 
@@ -446,11 +460,14 @@ func (m *Manager) Describe(ctx context.Context, channel, destination string) (te
 func (m *Manager) Test(ctx context.Context, channel, destination string) error {
 	ch, ok := m.channels[channel]
 	if !ok {
-		return fmt.Errorf("%w: test messages are for email, ntfy and webhooks", domain.ErrValidation)
+		return fmt.Errorf("%w: test messages are for email, ntfy, webhooks and devices", domain.ErrValidation)
 	}
 	ctx, cancel := context.WithTimeout(ctx, 25*time.Second)
 	defer cancel()
 	due := time.Now().AddDate(0, 0, 3).Format("2006-01-02")
 	_, err := ch.Send(ctx, destination, notify.Test(due))
+	if errors.Is(err, actions.ErrGone) {
+		return fmt.Errorf("%w: this device stopped accepting notifications and was removed; turn them on again there", domain.ErrNotFound)
+	}
 	return err
 }
