@@ -22,6 +22,272 @@
         ],
         "type": "object"
       },
+      "AskIn": {
+        "additionalProperties": false,
+        "properties": {
+          "$schema": {
+            "description": "A URL to the JSON Schema for this object.",
+            "examples": [
+              "https://example.com/api/schemas/AskIn.json"
+            ],
+            "format": "uri",
+            "readOnly": true,
+            "type": "string"
+          },
+          "reset": {
+            "description": "forget the conversation first; with an empty text it only forgets",
+            "type": "boolean"
+          },
+          "text": {
+            "description": "what the person typed",
+            "maxLength": 4000,
+            "type": "string"
+          }
+        },
+        "required": [
+          "text"
+        ],
+        "type": "object"
+      },
+      "AssistantOutcome": {
+        "additionalProperties": false,
+        "properties": {
+          "$schema": {
+            "description": "A URL to the JSON Schema for this object.",
+            "examples": [
+              "https://example.com/api/schemas/AssistantOutcome.json"
+            ],
+            "format": "uri",
+            "readOnly": true,
+            "type": "string"
+          },
+          "canUndo": {
+            "description": "an applied change that Undo can revert",
+            "type": "boolean"
+          },
+          "id": {
+            "type": "string"
+          },
+          "lines": {
+            "items": {
+              "type": "string"
+            },
+            "type": [
+              "array",
+              "null"
+            ]
+          },
+          "status": {
+            "enum": [
+              "pending",
+              "applied",
+              "discarded",
+              "failed",
+              "undone"
+            ],
+            "type": "string"
+          },
+          "subscriptionId": {
+            "type": "string"
+          },
+          "title": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "status",
+          "title",
+          "lines",
+          "canUndo"
+        ],
+        "type": "object"
+      },
+      "AssistantSettings": {
+        "additionalProperties": false,
+        "properties": {
+          "$schema": {
+            "description": "A URL to the JSON Schema for this object.",
+            "examples": [
+              "https://example.com/api/schemas/AssistantSettings.json"
+            ],
+            "format": "uri",
+            "readOnly": true,
+            "type": "string"
+          },
+          "apiKey": {
+            "description": "leave empty to keep the saved key",
+            "type": "string"
+          },
+          "baseUrl": {
+            "description": "address of the endpoint, e.g. http://localhost:11434/v1 for Ollama; empty for the provider's own API",
+            "type": "string"
+          },
+          "enabled": {
+            "description": "on/off switch; on when omitted",
+            "type": "boolean"
+          },
+          "model": {
+            "description": "model id; required for openai, optional for anthropic",
+            "type": "string"
+          },
+          "provider": {
+            "description": "anthropic for Claude; openai for any OpenAI-compatible endpoint (OpenAI, OpenRouter, Ollama, LM Studio…)",
+            "enum": [
+              "anthropic",
+              "openai"
+            ],
+            "type": "string"
+          }
+        },
+        "required": [
+          "provider"
+        ],
+        "type": "object"
+      },
+      "AssistantStatus": {
+        "additionalProperties": false,
+        "properties": {
+          "$schema": {
+            "description": "A URL to the JSON Schema for this object.",
+            "examples": [
+              "https://example.com/api/schemas/AssistantStatus.json"
+            ],
+            "format": "uri",
+            "readOnly": true,
+            "type": "string"
+          },
+          "baseUrl": {
+            "type": "string"
+          },
+          "configured": {
+            "description": "a provider, and what it needs, is set",
+            "type": "boolean"
+          },
+          "defaultModel": {
+            "description": "the model used with Anthropic when none is given",
+            "type": "string"
+          },
+          "enabled": {
+            "description": "the assistant answers: it is configured and switched on",
+            "type": "boolean"
+          },
+          "hasKey": {
+            "description": "an API key is saved; it is never returned",
+            "type": "boolean"
+          },
+          "locked": {
+            "description": "fields set by environment variables on the server, not editable here: provider, apiKey, model, baseUrl",
+            "items": {
+              "type": "string"
+            },
+            "type": [
+              "array",
+              "null"
+            ]
+          },
+          "model": {
+            "type": "string"
+          },
+          "on": {
+            "description": "the on/off switch, whatever the configuration",
+            "type": "boolean"
+          },
+          "provider": {
+            "enum": [
+              "anthropic",
+              "openai"
+            ],
+            "type": "string"
+          }
+        },
+        "required": [
+          "enabled",
+          "configured",
+          "on",
+          "hasKey",
+          "locked",
+          "defaultModel"
+        ],
+        "type": "object"
+      },
+      "AssistantTest": {
+        "additionalProperties": false,
+        "properties": {
+          "$schema": {
+            "description": "A URL to the JSON Schema for this object.",
+            "examples": [
+              "https://example.com/api/schemas/AssistantTest.json"
+            ],
+            "format": "uri",
+            "readOnly": true,
+            "type": "string"
+          },
+          "message": {
+            "type": "string"
+          },
+          "model": {
+            "description": "the model that answered",
+            "type": "string"
+          },
+          "ok": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "ok",
+          "message"
+        ],
+        "type": "object"
+      },
+      "AssistantTurn": {
+        "additionalProperties": false,
+        "properties": {
+          "$schema": {
+            "description": "A URL to the JSON Schema for this object.",
+            "examples": [
+              "https://example.com/api/schemas/AssistantTurn.json"
+            ],
+            "format": "uri",
+            "readOnly": true,
+            "type": "string"
+          },
+          "mentions": {
+            "description": "subscriptions the answer talks about, for links",
+            "items": {
+              "$ref": "#/components/schemas/Mention"
+            },
+            "type": [
+              "array",
+              "null"
+            ]
+          },
+          "note": {
+            "description": "why the answer may be incomplete, e.g. the step limit was reached",
+            "type": "string"
+          },
+          "proposals": {
+            "description": "changes prepared for the person to confirm or discard; nothing is applied until they confirm",
+            "items": {
+              "$ref": "#/components/schemas/Proposal"
+            },
+            "type": [
+              "array",
+              "null"
+            ]
+          },
+          "text": {
+            "description": "the answer, plain text",
+            "type": "string"
+          }
+        },
+        "required": [
+          "text",
+          "proposals",
+          "mentions"
+        ],
+        "type": "object"
+      },
       "AttentionList": {
         "additionalProperties": false,
         "properties": {
@@ -259,6 +525,10 @@
             "readOnly": true,
             "type": "string"
           },
+          "assistant": {
+            "description": "the built-in assistant is on: show Ask Exhale",
+            "type": "boolean"
+          },
           "hasHousehold": {
             "description": "a household exists (made with exhale init); setup only creates the owner's login",
             "type": "boolean"
@@ -282,7 +552,8 @@
         "required": [
           "setupRequired",
           "setupNeedsCode",
-          "hasHousehold"
+          "hasHousehold",
+          "assistant"
         ],
         "type": "object"
       },
@@ -1006,6 +1277,33 @@
           "name",
           "price",
           "currency"
+        ],
+        "type": "object"
+      },
+      "DecideIn": {
+        "additionalProperties": false,
+        "properties": {
+          "$schema": {
+            "description": "A URL to the JSON Schema for this object.",
+            "examples": [
+              "https://example.com/api/schemas/DecideIn.json"
+            ],
+            "format": "uri",
+            "readOnly": true,
+            "type": "string"
+          },
+          "action": {
+            "description": "confirm applies the change, discard drops it, undo reverts one already applied",
+            "enum": [
+              "confirm",
+              "discard",
+              "undo"
+            ],
+            "type": "string"
+          }
+        },
+        "required": [
+          "action"
         ],
         "type": "object"
       },
@@ -2147,6 +2445,22 @@
         ],
         "type": "object"
       },
+      "Mention": {
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "name"
+        ],
+        "type": "object"
+      },
       "MethodSpend": {
         "additionalProperties": false,
         "properties": {
@@ -2468,6 +2782,44 @@
         "required": [
           "from",
           "price"
+        ],
+        "type": "object"
+      },
+      "Proposal": {
+        "additionalProperties": false,
+        "properties": {
+          "destructive": {
+            "description": "it deletes or cancels",
+            "type": "boolean"
+          },
+          "id": {
+            "type": "string"
+          },
+          "lines": {
+            "description": "the details of the change",
+            "items": {
+              "type": "string"
+            },
+            "type": [
+              "array",
+              "null"
+            ]
+          },
+          "title": {
+            "description": "what would happen, e.g. Add Netflix",
+            "type": "string"
+          },
+          "tool": {
+            "description": "the use case that would run, e.g. create_subscription",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "tool",
+          "title",
+          "lines",
+          "destructive"
         ],
         "type": "object"
       },
@@ -3771,6 +4123,98 @@
   },
   "openapi": "3.1.0",
   "paths": {
+    "/api/v1/assistant/messages": {
+      "post": {
+        "operationId": "assistant_message",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AskIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AssistantTurn"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorModel"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "summary": "Ask Exhale in plain language",
+        "tags": [
+          "Assistant"
+        ]
+      }
+    },
+    "/api/v1/assistant/proposals/{id}": {
+      "post": {
+        "operationId": "assistant_decide",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DecideIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AssistantOutcome"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorModel"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "summary": "Confirm, discard or undo a change the assistant prepared",
+        "tags": [
+          "Assistant"
+        ]
+      }
+    },
     "/api/v1/attention": {
       "get": {
         "description": "Charges whose date passed without confirmation, payment methods about to expire, last days to cancel and free trials about to charge.",
@@ -5426,6 +5870,138 @@
         "summary": "Preview charge dates",
         "tags": [
           "Charges"
+        ]
+      }
+    },
+    "/api/v1/settings/assistant": {
+      "get": {
+        "operationId": "settings_assistant",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AssistantStatus"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorModel"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "summary": "Built-in assistant status",
+        "tags": [
+          "Settings"
+        ]
+      },
+      "post": {
+        "operationId": "settings_set_assistant",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AssistantSettings"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AssistantStatus"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorModel"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "summary": "Set up the built-in assistant (owners only)",
+        "tags": [
+          "Settings"
+        ]
+      }
+    },
+    "/api/v1/settings/assistant/remove": {
+      "post": {
+        "operationId": "settings_remove_assistant",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AssistantStatus"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorModel"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "summary": "Forget the assistant's settings and key (owners only)",
+        "tags": [
+          "Settings"
+        ]
+      }
+    },
+    "/api/v1/settings/assistant/test": {
+      "post": {
+        "operationId": "settings_test_assistant",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AssistantTest"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorModel"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "summary": "Make one small call to the configured model (owners only)",
+        "tags": [
+          "Settings"
         ]
       }
     },

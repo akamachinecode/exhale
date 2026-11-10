@@ -77,6 +77,7 @@ type AuthSession struct {
 	HasHousehold   bool         `json:"hasHousehold" doc:"a household exists (made with exhale init); setup only creates the owner's login"`
 	User           *SessionUser `json:"user,omitempty"`
 	TelegramBot    string       `json:"telegramBot,omitempty" doc:"username of the Telegram bot, when Telegram is enabled"`
+	Assistant      bool         `json:"assistant" doc:"the built-in assistant is on: show Ask Exhale"`
 }
 
 type authAPI struct {
@@ -106,6 +107,8 @@ func (a *authAPI) session(ctx context.Context) (AuthSession, error) {
 			out.User = &SessionUser{ID: m.ID, Name: m.Name, Email: m.Email, Role: domain.Role(m.Role)}
 		}
 	}
+	// Only someone signed in learns whether the assistant is on.
+	out.Assistant = out.User != nil && a.cfg.Assistant != nil && a.cfg.Assistant.Enabled(ctx)
 	return out, nil
 }
 

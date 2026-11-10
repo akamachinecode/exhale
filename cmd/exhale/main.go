@@ -23,6 +23,7 @@ import (
 	"github.com/akamachinecode/exhale/internal/actions"
 	"github.com/akamachinecode/exhale/internal/agents"
 	"github.com/akamachinecode/exhale/internal/app"
+	"github.com/akamachinecode/exhale/internal/assistant"
 	"github.com/akamachinecode/exhale/internal/auth"
 	"github.com/akamachinecode/exhale/internal/bus"
 	"github.com/akamachinecode/exhale/internal/channels/telegram"
@@ -99,7 +100,13 @@ type serveCmd struct {
 	TelegramAPI   string `name:"telegram-api" env:"EXHALE_TELEGRAM_API" hidden:"" help:"Bot API base URL (tests)."`
 	TrustLocal    bool   `name:"trust-local" env:"EXHALE_TRUST_LOCAL" help:"Let requests from this machine act as the owner without signing in (development, scripts)."`
 	SecureCookies bool   `name:"secure-cookies" env:"EXHALE_SECURE_COOKIES" help:"Mark the session cookie Secure. Set it when Exhale is served over HTTPS."`
-	Dev           bool   `help:"Development mode."`
+	// The built-in assistant is off unless a provider is set here or in the
+	// web (Settings → Built-in assistant). Values set here win.
+	AssistantProvider string `name:"assistant-provider" env:"EXHALE_ASSISTANT_PROVIDER" enum:",anthropic,openai" default:"" help:"Model provider of the built-in assistant, anthropic or openai (any OpenAI-compatible endpoint). Optional, usually set from the web."`
+	AssistantAPIKey   string `name:"assistant-api-key" env:"EXHALE_ASSISTANT_API_KEY" help:"API key for the assistant's provider."`
+	AssistantModel    string `name:"assistant-model" env:"EXHALE_ASSISTANT_MODEL" help:"Model id for the assistant."`
+	AssistantBaseURL  string `name:"assistant-base-url" env:"EXHALE_ASSISTANT_BASE_URL" help:"Address of the assistant's endpoint, for example http://localhost:11434/v1 for Ollama."`
+	Dev               bool   `help:"Development mode."`
 }
 
 func (s *serveCmd) Run(ctx context.Context, g *globals) error {
@@ -122,8 +129,12 @@ func (s *serveCmd) Run(ctx context.Context, g *globals) error {
 		}
 	}
 	tg := telegram.NewManager(s.TelegramToken, s.TelegramAPI, e.svc, e.log)
+	asst, err := assistant.New(e.svc, e.log, assistant.Env{Provider: s.AssistantProvider, APIKey: s.AssistantAPIKey, Model: s.AssistantModel, BaseURL: s.AssistantBaseURL})
+	if err != nil {
+		return err
+	}
 	handler, _, err := httpapi.New(e.svc, httpapi.Config{
-		Version: version, TrustLocal: s.TrustLocal, SecureCookies: s.SecureCookies, Log: e.log, Telegram: tg,
+		Version: version, TrustLocal: s.TrustLocal, SecureCookies: s.SecureCookies, Log: e.log, Telegram: tg, Assistant: asst,
 	})
 	if err != nil {
 		return err
@@ -151,6 +162,7 @@ func (s *serveCmd) Run(ctx context.Context, g *globals) error {
 	// Telegram); the manager starts and swaps it at runtime.
 	services = append(services, tg)
 	eng := actions.New(e.svc, e.log, tg)
+	eng.SetAssistant(asst) // free text in chat (ADR 0018, part B)
 	tg.SetEngine(eng)
 	services = append(services,
 		&fx.Updater{St: e.st, Log: e.log},
