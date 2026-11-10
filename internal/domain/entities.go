@@ -36,6 +36,10 @@ type Household struct {
 	// Payday is the day of the month the household gets paid (0: not set;
 	// 31 means the last day of shorter months).
 	Payday int `json:"payday,omitempty"`
+	// An unanswered "was it charged?" is asked ConfirmTimes times in all,
+	// every ConfirmEveryDays days. New subscriptions copy it.
+	ConfirmTimes     int `json:"confirmTimes"`
+	ConfirmEveryDays int `json:"confirmEveryDays"`
 }
 
 // NextPayday returns the next payday strictly after day d, if one is set.
@@ -146,12 +150,50 @@ type ReminderPolicy struct {
 	// ConfirmAfterDays asks "was it charged?" this many days after the due
 	// date; < 0 disables the question.
 	ConfirmAfterDays int `json:"confirmAfterDays"`
+	// ConfirmTimes is how many times "was it charged?" is asked while nobody
+	// answers (1: once), ConfirmEveryDays the days between two asks.
+	ConfirmTimes     int `json:"confirmTimes"`
+	ConfirmEveryDays int `json:"confirmEveryDays"`
 }
 
 // DefaultReminderPolicy: three days before and on the day at 09:00, then ask
 // for confirmation one day after.
 func DefaultReminderPolicy() ReminderPolicy {
-	return ReminderPolicy{DaysBefore: []int{3, 0}, Hour: 9, Minute: 0, ConfirmAfterDays: 1}
+	return ReminderPolicy{DaysBefore: []int{3, 0}, Hour: 9, Minute: 0, ConfirmAfterDays: 1, ConfirmTimes: DefaultConfirmTimes, ConfirmEveryDays: DefaultConfirmEveryDays}
+}
+
+// The unanswered "was it charged?" question is asked again every day, up to
+// three times in all, unless the household chooses otherwise.
+const (
+	DefaultConfirmTimes     = 3
+	DefaultConfirmEveryDays = 1
+	MaxConfirmTimes         = 10
+	MaxConfirmEveryDays     = 30
+)
+
+// ValidateConfirmRepeat checks how often an unanswered question repeats.
+func ValidateConfirmRepeat(times, everyDays int) error {
+	if times < 1 || times > MaxConfirmTimes {
+		return invalid("the question can be asked 1 to %d times, got %d", MaxConfirmTimes, times)
+	}
+	if everyDays < 1 || everyDays > MaxConfirmEveryDays {
+		return invalid("days between questions must be between 1 and %d, got %d", MaxConfirmEveryDays, everyDays)
+	}
+	return nil
+}
+
+// ConfirmAsks returns the dates "was it charged?" is asked for a charge due
+// on due: the first ask and its repeats.
+func (p ReminderPolicy) ConfirmAsks(due engine.Date) []engine.Date {
+	if p.ConfirmAfterDays < 0 {
+		return nil
+	}
+	times, every := max(p.ConfirmTimes, 1), max(p.ConfirmEveryDays, 1)
+	out := make([]engine.Date, 0, times)
+	for i := range times {
+		out = append(out, due.AddDays(p.ConfirmAfterDays+i*every))
+	}
+	return out
 }
 
 // Validate checks the policy.
@@ -166,6 +208,9 @@ func (p ReminderPolicy) Validate() error {
 	}
 	if p.ConfirmAfterDays > 30 {
 		return invalid("confirmation delay must be at most 30 days")
+	}
+	if p.ConfirmTimes != 0 || p.ConfirmEveryDays != 0 {
+		return ValidateConfirmRepeat(p.ConfirmTimes, p.ConfirmEveryDays)
 	}
 	return nil
 }

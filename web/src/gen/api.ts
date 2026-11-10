@@ -295,6 +295,7 @@ export interface CardImpact {
 }
 
 export interface DuplicateGroup {
+  key: string;
   service: string;
   /** @nullable */
   subscriptions: SubscriptionRef[] | null;
@@ -637,6 +638,8 @@ export interface PriceChange {
 
 export interface ReminderPolicy {
   confirmAfterDays: number;
+  confirmEveryDays: number;
+  confirmTimes: number;
   /** @nullable */
   daysBefore: number[] | null;
   hour: number;
@@ -882,6 +885,20 @@ export interface DestinationIn {
   template?: string;
 }
 
+export interface DismissDuplicateInput {
+  /** A URL to the JSON Schema for this object. */
+  readonly $schema?: string;
+  dryRun?: boolean;
+  key: string;
+}
+
+export interface DismissResult {
+  /** A URL to the JSON Schema for this object. */
+  readonly $schema?: string;
+  dryRun?: boolean;
+  key: string;
+}
+
 export interface Empty {
   /** A URL to the JSON Schema for this object. */
   readonly $schema?: string;
@@ -917,6 +934,8 @@ export interface ErrorModel {
 }
 
 export interface Household {
+  confirmEveryDays: number;
+  confirmTimes: number;
   currency: string;
   id: string;
   locale: string;
@@ -1538,6 +1557,40 @@ export interface SlackStatus {
   team?: string;
 }
 
+export type SnoozeInputKind = typeof SnoozeInputKind[keyof typeof SnoozeInputKind];
+
+
+export const SnoozeInputKind = {
+  reminder: 'reminder',
+  decision: 'decision',
+  confirm: 'confirm',
+} as const;
+
+export interface SnoozeInput {
+  /** A URL to the JSON Schema for this object. */
+  readonly $schema?: string;
+  chargeId: string;
+  /**
+     * @minimum 1
+     * @maximum 30
+     */
+  days: number;
+  dryRun?: boolean;
+  kind: SnoozeInputKind;
+}
+
+export interface SnoozeResult {
+  /** A URL to the JSON Schema for this object. */
+  readonly $schema?: string;
+  alreadyPlanned: boolean;
+  at: string;
+  chargeId: string;
+  clamped: boolean;
+  dryRun?: boolean;
+  kind: string;
+  on: string;
+}
+
 export interface SubscriptionSpend {
   count: number;
   id: string;
@@ -1562,6 +1615,20 @@ export interface SpendingHistory {
 
 export type SpendingSummaryRates = {[key: string]: string};
 
+export interface StoppedSubscription {
+  id: string;
+  name: string;
+  until?: string;
+  yearly: Money;
+}
+
+export interface StoppedSpend {
+  count: number;
+  /** @nullable */
+  subscriptions: StoppedSubscription[] | null;
+  yearly: Money;
+}
+
 export interface SpendingSummary {
   /** A URL to the JSON Schema for this object. */
   readonly $schema?: string;
@@ -1581,6 +1648,7 @@ export interface SpendingSummary {
   rates: SpendingSummaryRates;
   ratesDate?: string;
   setAsideMonthly: Money;
+  stopped: StoppedSpend;
   /** @nullable */
   unconverted: string[] | null;
   /** @nullable */
@@ -1693,6 +1761,16 @@ export interface UpdateCategoryInput {
 export interface UpdateHouseholdInput {
   /** A URL to the JSON Schema for this object. */
   readonly $schema?: string;
+  /**
+     * @minimum 1
+     * @maximum 30
+     */
+  confirmEveryDays?: number;
+  /**
+     * @minimum 1
+     * @maximum 10
+     */
+  confirmTimes?: number;
   currency?: string;
   dryRun?: boolean;
   locale?: string;
@@ -2199,6 +2277,95 @@ export function useAudit<TData = Awaited<ReturnType<typeof audit>>, TError = Err
 
 
 
+
+export const getDismissDuplicateUrl = () => {
+
+
+
+
+  return `/api/v1/audit/duplicates/dismiss`
+}
+
+/**
+ * Records that a service paid more than once (a group from audit's duplicates, by its key) is on purpose: audit stops reporting it and nobody is messaged about it again.
+ * @summary A duplicate is fine
+ */
+export const dismissDuplicate = async (dismissDuplicateInput: NonReadonly<DismissDuplicateInput>, options?: Parameters<typeof fetcher>[1]): Promise<DismissResult> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return fetcher<DismissResult>(getDismissDuplicateUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(dismissDuplicateInput)
+  }
+);}
+
+
+
+
+
+export const getDismissDuplicateMutationKey = () => ['dismissDuplicate'] as const;
+
+export const getDismissDuplicateMutationOptions = <TError = ErrorModel,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof dismissDuplicate>>, TError,DismissDuplicateMutationVariables, TContext>, request?: SecondParameter<typeof fetcher>}
+): UseMutationOptions<Awaited<ReturnType<typeof dismissDuplicate>>, TError,DismissDuplicateMutationVariables, TContext> => {
+
+const mutationKey = getDismissDuplicateMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof dismissDuplicate>>, DismissDuplicateMutationVariables> = (props) => {
+          const {data} = props ?? {};
+
+          return  dismissDuplicate(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type DismissDuplicateMutationResult = NonNullable<Awaited<ReturnType<typeof dismissDuplicate>>>
+    export type DismissDuplicateMutationBody = NonReadonly<DismissDuplicateInput>
+    export type DismissDuplicateMutationError = ErrorModel
+    export type DismissDuplicateMutationVariables = {data: NonReadonly<DismissDuplicateInput>}
+
+    /**
+ * @summary A duplicate is fine
+ */
+export const useDismissDuplicate = <TError = ErrorModel,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof dismissDuplicate>>, TError,DismissDuplicateMutationVariables, TContext>, request?: SecondParameter<typeof fetcher>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof dismissDuplicate>>,
+        TError,
+        DismissDuplicateMutationVariables,
+        TContext
+      > => {
+      return useMutation(getDismissDuplicateMutationOptions(options), queryClient);
+    }
 
 export const getAuthCreateInviteUrl = () => {
 
@@ -5014,6 +5181,95 @@ export const useChangeChargeDate = <TError = ErrorModel,
       return useMutation(getChangeChargeDateMutationOptions(options), queryClient);
     }
 
+export const getSnoozeReminderUrl = () => {
+
+
+
+
+  return `/api/v1/charges/snooze`
+}
+
+/**
+ * Brings a reminder, a keep-or-cancel question or a was-it-charged question about a charge back in a few days at the reminder time. It never comes back too late: a reminder at the latest on the charge date, a keep-or-cancel question on the last day to cancel.
+ * @summary Remind me later
+ */
+export const snoozeReminder = async (snoozeInput: NonReadonly<SnoozeInput>, options?: Parameters<typeof fetcher>[1]): Promise<SnoozeResult> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return fetcher<SnoozeResult>(getSnoozeReminderUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(snoozeInput)
+  }
+);}
+
+
+
+
+
+export const getSnoozeReminderMutationKey = () => ['snoozeReminder'] as const;
+
+export const getSnoozeReminderMutationOptions = <TError = ErrorModel,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof snoozeReminder>>, TError,SnoozeReminderMutationVariables, TContext>, request?: SecondParameter<typeof fetcher>}
+): UseMutationOptions<Awaited<ReturnType<typeof snoozeReminder>>, TError,SnoozeReminderMutationVariables, TContext> => {
+
+const mutationKey = getSnoozeReminderMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof snoozeReminder>>, SnoozeReminderMutationVariables> = (props) => {
+          const {data} = props ?? {};
+
+          return  snoozeReminder(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type SnoozeReminderMutationResult = NonNullable<Awaited<ReturnType<typeof snoozeReminder>>>
+    export type SnoozeReminderMutationBody = NonReadonly<SnoozeInput>
+    export type SnoozeReminderMutationError = ErrorModel
+    export type SnoozeReminderMutationVariables = {data: NonReadonly<SnoozeInput>}
+
+    /**
+ * @summary Remind me later
+ */
+export const useSnoozeReminder = <TError = ErrorModel,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof snoozeReminder>>, TError,SnoozeReminderMutationVariables, TContext>, request?: SecondParameter<typeof fetcher>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof snoozeReminder>>,
+        TError,
+        SnoozeReminderMutationVariables,
+        TContext
+      > => {
+      return useMutation(getSnoozeReminderMutationOptions(options), queryClient);
+    }
+
 export const getSetChargeStatusUrl = () => {
 
 
@@ -5418,7 +5674,7 @@ export const getUpdateHouseholdUrl = () => {
 }
 
 /**
- * Changes the display currency (totals convert into it), time zone, reminder language, name, or default reminder time (HH:MM). Owners only.
+ * Changes the display currency (totals convert into it), time zone, reminder language, name, or default reminder time (HH:MM). Owners only. Also how often an unanswered "was it charged?" is asked again (confirmTimes, confirmEveryDays).
  * @summary Change household preferences
  */
 export const updateHousehold = async (updateHouseholdInput: NonReadonly<UpdateHouseholdInput>, options?: Parameters<typeof fetcher>[1]): Promise<HouseholdInfo> => {
@@ -8451,7 +8707,7 @@ export const getSpendingSummaryUrl = () => {
 }
 
 /**
- * Monthly and yearly recurring spend per currency, spend per category and payment method, how much to set aside each month for yearly bills, what is due before the next payday, and the charges of the next 7 days.
+ * Monthly and yearly recurring spend per currency, spend per category and payment method, how much to set aside each month for yearly bills, what is due before the next payday, the charges of the next 7 days, and what cancelled subscriptions no longer cost per year (stopped).
  * @summary Spending summary
  */
 export const spendingSummary = async ( options?: Parameters<typeof fetcher>[1]): Promise<SpendingSummary> => {

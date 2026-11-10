@@ -141,6 +141,9 @@ type UpdateHouseholdInput struct {
 	Locale       *string `json:"locale,omitempty" jsonschema:"language of reminders: en or es"`
 	ReminderTime *string `json:"reminderTime,omitempty" jsonschema:"default time of day for reminders, HH:MM; subscriptions still on the previous default move with it"`
 	Payday       *int    `json:"payday,omitempty" jsonschema:"day of the month the household gets paid, 1-31 (31 = last day); 0 clears it. Used to show what is due before the next payday" minimum:"0" maximum:"31"`
+	// Repeat until handled: how often an unanswered "was it charged?" comes back.
+	ConfirmTimes     *int `json:"confirmTimes,omitempty" jsonschema:"how many times in all to ask whether a charge went through while nobody answers (1: once, no repeats); subscriptions still on the previous setting follow" minimum:"1" maximum:"10"`
+	ConfirmEveryDays *int `json:"confirmEveryDays,omitempty" jsonschema:"days between two of those questions" minimum:"1" maximum:"30"`
 	DryRun       bool    `json:"dryRun,omitempty"`
 }
 
@@ -197,13 +200,28 @@ func (s *Service) UpdateHousehold(ctx context.Context, actor Actor, in UpdateHou
 			}
 			h.Payday = *in.Payday
 		}
+		if in.ConfirmTimes != nil {
+			h.ConfirmTimes = *in.ConfirmTimes
+		}
+		if in.ConfirmEveryDays != nil {
+			h.ConfirmEveryDays = *in.ConfirmEveryDays
+		}
+		if err := domain.ValidateConfirmRepeat(h.ConfirmTimes, h.ConfirmEveryDays); err != nil {
+			return err
+		}
 		if err := q.UpdateHousehold(ctx, db.UpdateHouseholdParams{
 			Name: h.Name, Currency: h.Currency, Timezone: h.Timezone, Locale: h.Locale,
 			ReminderHour: int64(h.ReminderHour), ReminderMinute: int64(h.ReminderMinute), Payday: int64(h.Payday), ID: h.ID,
 		}); err != nil {
 			return err
 		}
-		if h.ReminderHour != before.ReminderHour || h.ReminderMinute != before.ReminderMinute {
+		repeat := h.ConfirmTimes != before.ConfirmTimes || h.ConfirmEveryDays != before.ConfirmEveryDays
+		if repeat {
+			if err := q.SetHouseholdConfirmRepeat(ctx, db.SetHouseholdConfirmRepeatParams{ConfirmTimes: int64(h.ConfirmTimes), ConfirmEveryDays: int64(h.ConfirmEveryDays), ID: h.ID}); err != nil {
+				return err
+			}
+		}
+		if repeat || h.ReminderHour != before.ReminderHour || h.ReminderMinute != before.ReminderMinute {
 			rows, err := q.ListSubscriptions(ctx, h.ID)
 			if err != nil {
 				return err
@@ -213,8 +231,17 @@ func (s *Service) UpdateHousehold(ctx context.Context, actor Actor, in UpdateHou
 				if err != nil {
 					return err
 				}
-				if sub.Reminders.Hour == before.ReminderHour && sub.Reminders.Minute == before.ReminderMinute {
+				changed := false
+				if sub.Reminders.Hour == before.ReminderHour && sub.Reminders.Minute == before.ReminderMinute &&
+					(sub.Reminders.Hour != h.ReminderHour || sub.Reminders.Minute != h.ReminderMinute) {
 					sub.Reminders.Hour, sub.Reminders.Minute = h.ReminderHour, h.ReminderMinute
+					changed = true
+				}
+				if repeat && sub.Reminders.ConfirmTimes == before.ConfirmTimes && sub.Reminders.ConfirmEveryDays == before.ConfirmEveryDays {
+					sub.Reminders.ConfirmTimes, sub.Reminders.ConfirmEveryDays = h.ConfirmTimes, h.ConfirmEveryDays
+					changed = true
+				}
+				if changed {
 					if err := s.saveSubscription(ctx, q, sub); err != nil {
 						return err
 					}

@@ -86,6 +86,10 @@ func (s *Scheduler) Tick(ctx context.Context) {
 			_ = s.svc.MarkUndeliverable(ctx, it, err)
 			continue
 		}
+		if errors.Is(err, app.ErrObsolete) {
+			_ = s.svc.MarkObsolete(ctx, it)
+			continue
+		}
 		if err != nil {
 			s.log.Warn("delivery failed, will retry", "kind", it.Kind, "charge", it.ChargeID, "attempt", it.Attempts+1, "err", err)
 			_ = s.svc.MarkFailed(ctx, it, err)

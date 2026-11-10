@@ -435,6 +435,9 @@ func recent(seen map[string]time.Time, key string, within time.Duration) bool {
 // shared. Every member gets their own outbox item for the same reminder;
 // the channel gets it once.
 func (m *Manager) share(ctx context.Context, item app.OutboxItem) {
+	if item.Personal || item.ChargeID == "" {
+		return // a snooze is for whoever asked; notices without a charge are personal too
+	}
 	channel := m.setting(ctx, settingChannel)
 	a, err := m.adapter()
 	if channel == "" || err != nil {
