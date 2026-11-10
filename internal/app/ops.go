@@ -65,7 +65,7 @@ var (
 	}, (*Service).GetHousehold}
 	OpUpdateHousehold = Op[UpdateHouseholdInput, HouseholdInfo]{Meta{
 		Name: "update_household", Title: "Change household preferences", Tag: "Household", Method: "POST", Path: "/household", Write: true, Idempotent: true,
-		Description: "Changes the display currency (totals convert into it), time zone, reminder language, name, or default reminder time (HH:MM). Owners only.",
+		Description: "Changes the display currency (totals convert into it), time zone, reminder language, name, or default reminder time (HH:MM). Owners only. Also how often an unanswered \"was it charged?\" is asked again (confirmTimes, confirmEveryDays).",
 	}, (*Service).UpdateHousehold}
 	OpListSubscriptions = Op[ListSubscriptionsInput, SubscriptionList]{Meta{
 		Name: "list_subscriptions", Title: "List subscriptions", Tag: "Subscriptions", Method: "GET", Path: "/subscriptions",
@@ -125,7 +125,7 @@ var (
 	}, (*Service).PreviewSchedule}
 	OpSummary = Op[struct{}, SpendingSummary]{Meta{
 		Name: "spending_summary", Title: "Spending summary", Tag: "Insights", Method: "GET", Path: "/summary",
-		Description: "Monthly and yearly recurring spend per currency, spend per category and payment method, how much to set aside each month for yearly bills, what is due before the next payday, and the charges of the next 7 days.",
+		Description: "Monthly and yearly recurring spend per currency, spend per category and payment method, how much to set aside each month for yearly bills, what is due before the next payday, the charges of the next 7 days, and what cancelled subscriptions no longer cost per year (stopped).",
 	}, (*Service).Summary}
 	OpSpendHistory = Op[SpendingHistoryInput, SpendingHistory]{Meta{
 		Name: "spending_history", Title: "Real spend per month", Tag: "Insights", Method: "GET", Path: "/spending/history",
@@ -183,6 +183,16 @@ var (
 		Name: "undo", Title: "Undo a change", Tag: "Audit", Method: "POST", Path: "/changes/undo", Write: true,
 		Description: "Reverts a change by its auditId, restoring the previous state.",
 	}, (*Service).Undo}
+
+	// Reminders that end in an answer.
+	OpSnooze = Op[SnoozeInput, SnoozeResult]{Meta{
+		Name: "snooze_reminder", Title: "Remind me later", Tag: "Charges", Method: "POST", Path: "/charges/snooze", Write: true, Idempotent: true,
+		Description: "Brings a reminder, a keep-or-cancel question or a was-it-charged question about a charge back in a few days at the reminder time. It never comes back too late: a reminder at the latest on the charge date, a keep-or-cancel question on the last day to cancel.",
+	}, (*Service).Snooze}
+	OpDismissDuplicate = Op[DismissDuplicateInput, DismissResult]{Meta{
+		Name: "dismiss_duplicate", Title: "A duplicate is fine", Tag: "Insights", Method: "POST", Path: "/audit/duplicates/dismiss", Write: true, Idempotent: true,
+		Description: "Records that a service paid more than once (a group from audit's duplicates, by its key) is on purpose: audit stops reporting it and nobody is messaged about it again.",
+	}, (*Service).DismissDuplicate}
 )
 
 // Tools for many subscriptions: bulk changes and tags (bulk.go).
@@ -212,6 +222,7 @@ func Catalog() []Binding {
 		OpSavePaymentMethod.Binding(), OpReassignPaymentMethod.Binding(), OpDeletePaymentMethod.Binding(),
 		OpCreateCategory.Binding(), OpUpdateCategory.Binding(), OpDeleteCategory.Binding(), OpExport.Binding(), OpImport.Binding(), OpReminders.Binding(), OpListAudit.Binding(), OpUndo.Binding(),
 		OpBulkUpdate.Binding(), OpRenameTag.Binding(), OpDeleteTag.Binding(),
+		OpSnooze.Binding(), OpDismissDuplicate.Binding(),
 	}
 }
 

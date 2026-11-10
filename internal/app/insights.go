@@ -410,6 +410,7 @@ type SubscriptionRef struct {
 
 // DuplicateGroup is the same service paid more than once.
 type DuplicateGroup struct {
+	Key           string            `json:"key" jsonschema:"stable id of the group; pass it to dismiss_duplicate when paying twice is on purpose"`
 	Service       string            `json:"service"`
 	Subscriptions []SubscriptionRef `json:"subscriptions"`
 }
@@ -440,7 +441,7 @@ type UnusedSubscription struct {
 // AuditReport lists facts worth acting on. Everything here is computed, not
 // guessed: an agent can turn it into advice.
 type AuditReport struct {
-	Duplicates      []DuplicateGroup     `json:"duplicates" jsonschema:"the same service in more than one active subscription"`
+	Duplicates      []DuplicateGroup     `json:"duplicates" jsonschema:"the same service in more than one active subscription (groups someone said are fine are left out)"`
 	PriceIncreases  []PriceIncrease      `json:"priceIncreases" jsonschema:"prices that went up in the last 12 months"`
 	TrialsEnding    []ChargeView         `json:"trialsEnding" jsonschema:"free trials that turn into a charge within 14 days"`
 	CancelDeadlines []ChargeView         `json:"cancelDeadlines" jsonschema:"last days to cancel within 30 days that have no decision yet"`
@@ -493,12 +494,9 @@ func (s *Service) Audit(ctx context.Context, actor Actor, _ struct{}) (AuditRepo
 	if err != nil {
 		return out, err
 	}
-	groups := map[string][]SubscriptionRef{}
 	byMethod := map[string][]SubscriptionRef{}
 	yearAgo := today.AddDays(-365)
 	for _, v := range list.Subscriptions {
-		key := serviceKey(v.Name)
-		groups[key] = append(groups[key], ref(v))
 		if v.PaymentMethodID != "" {
 			byMethod[v.PaymentMethodID] = append(byMethod[v.PaymentMethodID], ref(v))
 		}
@@ -547,9 +545,10 @@ func (s *Service) Audit(ctx context.Context, actor Actor, _ struct{}) (AuditRepo
 			}
 		}
 	}
-	for _, key := range sortedKeys(groups) {
-		if g := groups[key]; len(g) > 1 && key != "" {
-			out.Duplicates = append(out.Duplicates, DuplicateGroup{Service: g[0].Name, Subscriptions: g})
+	fine := s.dismissed(ctx, actor.HouseholdID, KindDuplicate)
+	for _, g := range groupDuplicates(list.Subscriptions) {
+		if !fine[g.Key] {
+			out.Duplicates = append(out.Duplicates, g.view())
 		}
 	}
 	att, err := s.NeedsAttention(ctx, actor, struct{}{})

@@ -114,3 +114,31 @@ LIMIT ?;
 
 -- name: MarkOutboxUndeliverable :exec
 UPDATE outbox SET status = 'failed', last_error = ?, attempts = attempts + 1 WHERE id = ?;
+
+-- Reminders that end in an answer: snoozes, repeats, notices that are not
+-- about a charge.
+
+-- name: EnqueueNotice :exec
+INSERT INTO outbox (id, kind, dedupe_key, member_id, ref, due_at, status, created_at)
+VALUES (?, ?, ?, ?, ?, ?, 'pending', ?)
+ON CONFLICT (dedupe_key) DO NOTHING;
+
+-- name: ListOutboxForChargeKind :many
+SELECT dedupe_key, due_at, status, member_id FROM outbox
+WHERE charge_id = ? AND kind = ? AND status IN ('pending', 'sent');
+
+-- name: CancelOutboxKey :exec
+UPDATE outbox SET status = 'cancelled' WHERE dedupe_key = ? AND status = 'pending';
+
+-- name: CancelOutboxRef :exec
+UPDATE outbox SET status = 'cancelled' WHERE kind = ? AND ref = ? AND status = 'pending';
+
+-- name: DismissFinding :exec
+INSERT INTO dismissed_findings (household_id, kind, key, member_id, created_at) VALUES (?, ?, ?, ?, ?)
+ON CONFLICT (household_id, kind, key) DO NOTHING;
+
+-- name: ListDismissedFindings :many
+SELECT key FROM dismissed_findings WHERE household_id = ? AND kind = ?;
+
+-- name: MarkOutboxObsolete :exec
+UPDATE outbox SET status = 'cancelled', last_error = ? WHERE id = ? AND status = 'pending';

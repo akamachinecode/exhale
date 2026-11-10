@@ -1864,9 +1864,60 @@
         ],
         "type": "object"
       },
+      "DismissDuplicateInput": {
+        "additionalProperties": false,
+        "properties": {
+          "$schema": {
+            "description": "A URL to the JSON Schema for this object.",
+            "examples": [
+              "https://example.com/api/schemas/DismissDuplicateInput.json"
+            ],
+            "format": "uri",
+            "readOnly": true,
+            "type": "string"
+          },
+          "dryRun": {
+            "type": "boolean"
+          },
+          "key": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "key"
+        ],
+        "type": "object"
+      },
+      "DismissResult": {
+        "additionalProperties": false,
+        "properties": {
+          "$schema": {
+            "description": "A URL to the JSON Schema for this object.",
+            "examples": [
+              "https://example.com/api/schemas/DismissResult.json"
+            ],
+            "format": "uri",
+            "readOnly": true,
+            "type": "string"
+          },
+          "dryRun": {
+            "type": "boolean"
+          },
+          "key": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "key"
+        ],
+        "type": "object"
+      },
       "DuplicateGroup": {
         "additionalProperties": false,
         "properties": {
+          "key": {
+            "type": "string"
+          },
           "service": {
             "type": "string"
           },
@@ -1881,6 +1932,7 @@
           }
         },
         "required": [
+          "key",
           "service",
           "subscriptions"
         ],
@@ -2288,6 +2340,14 @@
       "Household": {
         "additionalProperties": false,
         "properties": {
+          "confirmEveryDays": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "confirmTimes": {
+            "format": "int64",
+            "type": "integer"
+          },
           "currency": {
             "type": "string"
           },
@@ -2323,7 +2383,9 @@
           "timezone",
           "locale",
           "reminderHour",
-          "reminderMinute"
+          "reminderMinute",
+          "confirmTimes",
+          "confirmEveryDays"
         ],
         "type": "object"
       },
@@ -3731,6 +3793,14 @@
             "format": "int64",
             "type": "integer"
           },
+          "confirmEveryDays": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "confirmTimes": {
+            "format": "int64",
+            "type": "integer"
+          },
           "daysBefore": {
             "items": {
               "format": "int64",
@@ -3754,7 +3824,9 @@
           "daysBefore",
           "hour",
           "minute",
-          "confirmAfterDays"
+          "confirmAfterDays",
+          "confirmTimes",
+          "confirmEveryDays"
         ],
         "type": "object"
       },
@@ -4361,6 +4433,91 @@
         ],
         "type": "object"
       },
+      "SnoozeInput": {
+        "additionalProperties": false,
+        "properties": {
+          "$schema": {
+            "description": "A URL to the JSON Schema for this object.",
+            "examples": [
+              "https://example.com/api/schemas/SnoozeInput.json"
+            ],
+            "format": "uri",
+            "readOnly": true,
+            "type": "string"
+          },
+          "chargeId": {
+            "type": "string"
+          },
+          "days": {
+            "format": "int64",
+            "maximum": 30,
+            "minimum": 1,
+            "type": "integer"
+          },
+          "dryRun": {
+            "type": "boolean"
+          },
+          "kind": {
+            "enum": [
+              "reminder",
+              "decision",
+              "confirm"
+            ],
+            "type": "string"
+          }
+        },
+        "required": [
+          "chargeId",
+          "kind",
+          "days"
+        ],
+        "type": "object"
+      },
+      "SnoozeResult": {
+        "additionalProperties": false,
+        "properties": {
+          "$schema": {
+            "description": "A URL to the JSON Schema for this object.",
+            "examples": [
+              "https://example.com/api/schemas/SnoozeResult.json"
+            ],
+            "format": "uri",
+            "readOnly": true,
+            "type": "string"
+          },
+          "alreadyPlanned": {
+            "type": "boolean"
+          },
+          "at": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "chargeId": {
+            "type": "string"
+          },
+          "clamped": {
+            "type": "boolean"
+          },
+          "dryRun": {
+            "type": "boolean"
+          },
+          "kind": {
+            "type": "string"
+          },
+          "on": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "chargeId",
+          "kind",
+          "on",
+          "at",
+          "clamped",
+          "alreadyPlanned"
+        ],
+        "type": "object"
+      },
       "SpendingHistory": {
         "additionalProperties": false,
         "properties": {
@@ -4495,6 +4652,9 @@
           "setAsideMonthly": {
             "$ref": "#/components/schemas/Money"
           },
+          "stopped": {
+            "$ref": "#/components/schemas/StoppedSpend"
+          },
           "unconverted": {
             "items": {
               "type": "string"
@@ -4530,7 +4690,62 @@
           "byPaymentMethod",
           "activeSubscriptions",
           "next7Days",
-          "setAsideMonthly"
+          "setAsideMonthly",
+          "stopped"
+        ],
+        "type": "object"
+      },
+      "StoppedSpend": {
+        "additionalProperties": false,
+        "properties": {
+          "count": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "subscriptions": {
+            "items": {
+              "$ref": "#/components/schemas/StoppedSubscription"
+            },
+            "type": [
+              "array",
+              "null"
+            ]
+          },
+          "yearly": {
+            "$ref": "#/components/schemas/Money"
+          }
+        },
+        "required": [
+          "yearly",
+          "count",
+          "subscriptions"
+        ],
+        "type": "object"
+      },
+      "StoppedSubscription": {
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "until": {
+            "type": "string"
+          },
+          "yearly": {
+            "$ref": "#/components/schemas/Money"
+          },
+          "yearlyMain": {
+            "$ref": "#/components/schemas/Money"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "yearly",
+          "yearlyMain"
         ],
         "type": "object"
       },
@@ -5250,6 +5465,18 @@
             "readOnly": true,
             "type": "string"
           },
+          "confirmEveryDays": {
+            "format": "int64",
+            "maximum": 30,
+            "minimum": 1,
+            "type": "integer"
+          },
+          "confirmTimes": {
+            "format": "int64",
+            "maximum": 10,
+            "minimum": 1,
+            "type": "integer"
+          },
           "currency": {
             "type": "string"
           },
@@ -5630,6 +5857,53 @@
           }
         ],
         "summary": "Audit the subscriptions",
+        "tags": [
+          "Insights"
+        ]
+      }
+    },
+    "/api/v1/audit/duplicates/dismiss": {
+      "post": {
+        "description": "Records that a service paid more than once (a group from audit's duplicates, by its key) is on purpose: audit stops reporting it and nobody is messaged about it again.",
+        "operationId": "dismiss_duplicate",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DismissDuplicateInput"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DismissResult"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorModel"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "A duplicate is fine",
         "tags": [
           "Insights"
         ]
@@ -7130,6 +7404,53 @@
         ]
       }
     },
+    "/api/v1/charges/snooze": {
+      "post": {
+        "description": "Brings a reminder, a keep-or-cancel question or a was-it-charged question about a charge back in a few days at the reminder time. It never comes back too late: a reminder at the latest on the charge date, a keep-or-cancel question on the last day to cancel.",
+        "operationId": "snooze_reminder",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SnoozeInput"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SnoozeResult"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorModel"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Remind me later",
+        "tags": [
+          "Charges"
+        ]
+      }
+    },
     "/api/v1/charges/status": {
       "post": {
         "description": "Resolves a charge: paid (optionally with the amount the bank actually took, in any currency), failed, skipped, or pending to reopen it.",
@@ -7288,7 +7609,7 @@
         ]
       },
       "post": {
-        "description": "Changes the display currency (totals convert into it), time zone, reminder language, name, or default reminder time (HH:MM). Owners only.",
+        "description": "Changes the display currency (totals convert into it), time zone, reminder language, name, or default reminder time (HH:MM). Owners only. Also how often an unanswered \"was it charged?\" is asked again (confirmTimes, confirmEveryDays).",
         "operationId": "update_household",
         "requestBody": {
           "content": {
@@ -8786,7 +9107,7 @@
     },
     "/api/v1/summary": {
       "get": {
-        "description": "Monthly and yearly recurring spend per currency, spend per category and payment method, how much to set aside each month for yearly bills, what is due before the next payday, and the charges of the next 7 days.",
+        "description": "Monthly and yearly recurring spend per currency, spend per category and payment method, how much to set aside each month for yearly bills, what is due before the next payday, the charges of the next 7 days, and what cancelled subscriptions no longer cost per year (stopped).",
         "operationId": "spending_summary",
         "responses": {
           "200": {

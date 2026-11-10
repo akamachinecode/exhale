@@ -3,6 +3,7 @@ package app
 import (
 	"context"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/akamachinecode/exhale/internal/domain"
@@ -37,6 +38,12 @@ func (s *Service) Plan(ctx context.Context) error {
 		return err
 	}
 	now := s.now()
+	households := map[string]bool{}
+	defer func() {
+		for _, id := range sortedKeys(households) {
+			s.planNotices(ctx, id, now)
+		}
+	}()
 	for _, r := range subs {
 		sub, err := store.SubscriptionFromRow(r)
 		if err != nil {
@@ -47,6 +54,7 @@ func (s *Service) Plan(ctx context.Context) error {
 		if err != nil {
 			return err
 		}
+		households[h.ID] = true
 		loc := h.Location()
 		today := engine.DateOf(now.In(loc))
 		if sub.NextPrice != nil && !today.Before(sub.NextPrice.From) {
@@ -129,12 +137,39 @@ func (s *Service) enqueue(ctx context.Context, sub domain.Subscription, ch domai
 		}
 	}
 	if p.ConfirmAfterDays >= 0 && ch.Status == domain.ChargePending {
-		at := ch.DueDate.AddDays(p.ConfirmAfterDays).At(p.Hour, p.Minute, loc)
-		if err := add(KindConfirm, fmt.Sprintf("%s:%s:%s", KindConfirm, ch.ID, ch.DueDate), at); err != nil {
-			return err
+		// "Was it charged?" repeats until someone answers (ReminderPolicy).
+		asks := p.ConfirmAsks(ch.DueDate)
+		for i, d := range asks {
+			key := confirmKey(ch, i)
+			if i > 0 {
+				if d.Before(today) {
+					continue // a repeat missed while the server was down is not worth sending late
+				}
+				if s.askedOn(ctx, ch.ID, KindConfirm, d, loc, key) {
+					continue // a snoozed question already comes back that day
+				}
+			}
+			if err := add(KindConfirm, key, d.At(p.Hour, p.Minute, loc)); err != nil {
+				return err
+			}
+		}
+		for i := max(len(asks), 1); i < domain.MaxConfirmTimes; i++ {
+			// Fewer repeats than before: drop the ones no longer wanted.
+			if err := s.st.Q.CancelOutboxKey(ctx, confirmKey(ch, i)); err != nil {
+				return err
+			}
 		}
 	}
 	return nil
+}
+
+// confirmKey is the dedupe key of the n-th "was it charged?" for a charge
+// (n = 0 is the first ask and keeps the key it always had).
+func confirmKey(ch domain.Charge, n int) string {
+	if n == 0 {
+		return fmt.Sprintf("%s:%s:%s", KindConfirm, ch.ID, ch.DueDate)
+	}
+	return fmt.Sprintf("%s:%s:%s:r%d", KindConfirm, ch.ID, ch.DueDate, n)
 }
 
 // OutboxItem is something the scheduler must deliver now.
@@ -145,6 +180,12 @@ type OutboxItem struct {
 	MemberID string
 	DueAt    time.Time
 	Attempts int
+	// Ref is what an item that is not about a charge is about: a payment
+	// method (KindCardExpiry) or a duplicate group (KindDuplicate).
+	Ref string
+	// Personal is set for an item one member asked for (a snooze): it goes
+	// to them only, never to a shared team channel.
+	Personal bool
 }
 
 // DueOutbox returns up to limit items due at or before now.
@@ -155,7 +196,8 @@ func (s *Service) DueOutbox(ctx context.Context, limit int) ([]OutboxItem, error
 	}
 	out := make([]OutboxItem, 0, len(rows))
 	for _, r := range rows {
-		out = append(out, OutboxItem{ID: r.ID, Kind: r.Kind, ChargeID: store.Str(r.ChargeID), MemberID: store.Str(r.MemberID), DueAt: store.ParseTime(r.DueAt), Attempts: int(r.Attempts)})
+		out = append(out, OutboxItem{ID: r.ID, Kind: r.Kind, ChargeID: store.Str(r.ChargeID), MemberID: store.Str(r.MemberID), DueAt: store.ParseTime(r.DueAt), Attempts: int(r.Attempts),
+			Ref: r.Ref, Personal: strings.HasPrefix(r.DedupeKey, snoozePrefix)})
 	}
 	return out, nil
 }

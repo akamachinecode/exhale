@@ -1,6 +1,7 @@
 import { Link, useNavigate, useSearch } from "@tanstack/react-router";
 import { type FormEvent, type ReactNode, useState } from "react";
 import { toast } from "sonner";
+import { AskAgain } from "@/components/answers";
 import { AssistantSettings } from "@/components/assistant";
 import { OtherChannels } from "@/components/channels";
 import { PreferencesForm, ReminderTime, Sharing, TelegramSetup, TokensManager } from "@/components/connect";
@@ -96,6 +97,7 @@ export function SettingsPage() {
 							<div className="grid gap-5">
 								<PreferencesForm />
 								<ReminderTime withTimezone={false} />
+								<AskAgain />
 								<Payday />
 							</div>
 						</Section>

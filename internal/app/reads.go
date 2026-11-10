@@ -286,6 +286,8 @@ type SpendingSummary struct {
 	SetAside money.Money `json:"setAsideMonthly" jsonschema:"monthly equivalent of the subscriptions billed less often than monthly (yearly, quarterly…), in the display currency: what to put away each month"`
 	// BeforePayday is set when the household has a payday.
 	BeforePayday *PaydayOutlook `json:"beforePayday,omitempty" jsonschema:"what is due before the next payday, when the household has one"`
+	// Stopped is what cancelling saved: "you stopped paying X per year".
+	Stopped StoppedSpend `json:"stopped" jsonschema:"subscriptions cancelled in Exhale (not paused) and what they would cost per year, converted into the display currency; a cancelled one whose service is still paid by an active subscription is a replacement and is left out"`
 }
 
 // PaydayOutlook is what must be paid before the next payday.
@@ -378,6 +380,9 @@ func (s *Service) Summary(ctx context.Context, actor Actor, _ struct{}) (Spendin
 		out.ByMethod = append(out.ByMethod, *m)
 	}
 	slices.SortFunc(out.ByMethod, func(a, b MethodSpend) int { return int(b.Monthly.Minor - a.Monthly.Minor) })
+	if out.Stopped, err = s.stopped(ctx, actor, list.Subscriptions, conv, h.Currency, missing); err != nil {
+		return out, err
+	}
 	out.Unconverted = sortedKeys(missing)
 	out.Rates, out.RatesDate = conv.describe()
 	next, err := s.ListCharges(ctx, actor, ListChargesInput{From: today.String(), To: today.AddDays(7).String()})

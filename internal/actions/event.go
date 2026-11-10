@@ -15,6 +15,9 @@ const (
 	EventPaid     = "paid"
 	EventSkipped  = "skipped"
 	EventTest     = "test" // a test message sent from Settings
+	// Reminders that end in an answer.
+	EventDuplicate    = "duplicate"     // the same service paid more than once
+	EventCardExpiring = "card_expiring" // a card that pays subscriptions is about to expire
 )
 
 // Event is the data behind a message, for channels that cannot show a

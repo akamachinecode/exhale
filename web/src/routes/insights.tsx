@@ -1,6 +1,7 @@
 import { Link } from "@tanstack/react-router";
 import { ArrowRight } from "lucide-react";
 import { useState } from "react";
+import { StoppedCard } from "@/components/answers";
 import { PageHeader } from "@/components/layout";
 import { ServiceTile } from "@/components/service-tile";
 import { Card, CardHeader } from "@/components/ui/card";
@@ -135,6 +136,7 @@ export function Insights() {
 				<BalancesCard />
 			</div>
 			<CheaperPlans />
+			<StoppedCard stopped={s?.stopped} />
 			{(h?.unconverted ?? []).length > 0 && (
 				<p className="mt-4 text-xs text-muted">
 					{t("Not included (no exchange rate):")} {(h?.unconverted ?? []).join(", ")}.

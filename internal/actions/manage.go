@@ -102,6 +102,9 @@ func (e *Engine) manage(ctx context.Context, actor app.Actor, chat ChatRef, p []
 		m := Message{Title: title, Lines: []string{hint}}
 		return Reply{Send: &m, Toast: tr(locale, "Type your answer")}, "", true, nil
 	}
+	if rep, live, ok, err := e.answers(ctx, actor, p, today, locale); ok {
+		return rep, live, ok, err
+	}
 	switch arg(1) {
 	// --- add wizard
 	case actAdd:
@@ -764,7 +767,7 @@ func (e *Engine) method(ctx context.Context, actor app.Actor, id string) (domain
 
 func (e *Engine) methodScreen(ctx context.Context, actor app.Actor, id string, today engine.Date) (Message, error) {
 	_, locale := e.context(ctx, actor)
-	pm, _, err := e.method(ctx, actor, id)
+	pm, others, err := e.method(ctx, actor, id)
 	if err != nil {
 		return Message{}, err
 	}
@@ -799,6 +802,9 @@ func (e *Engine) methodScreen(ctx context.Context, actor app.Actor, id string, t
 		{{Label: tr(locale, "✏️ Name"), Data: route(actPMEdit, id, "name")}, {Label: tr(locale, "🔢 Last 4 digits"), Data: route(actPMEdit, id, "last4")}},
 		{{Label: tr(locale, "📅 Expiry"), Data: route(actPMEdit, id, "exp")}, {Label: tr(locale, "🗑 Delete"), Data: route(actPMDelete, id)}},
 		{{Label: tr(locale, "‹ Payment methods"), Data: route(scrMethods)}, {Label: tr(locale, "🏠 Home"), Data: RouteHome}},
+	}
+	if row := methodMoveRow(pm, len(use[pm.ID]), len(others), locale); row != nil {
+		m.Rows = append([][]Button{row}, m.Rows...)
 	}
 	return m, nil
 }
@@ -973,6 +979,7 @@ func (e *Engine) settingsScreen(ctx context.Context, actor app.Actor) (Message, 
 		{tr(locale, "Totals in"), h.Currency},
 		{tr(locale, "Payday"), payday},
 		{tr(locale, "Language"), lang},
+		{tr(locale, "Ask again"), repeatText(h.ConfirmTimes, h.ConfirmEveryDays, locale)},
 	}}}, Lines: []string{tr(locale, "They apply to everyone you share Exhale with.")}}
 	other, otherLabel := "es", "Español"
 	if h.Locale == "es" {
@@ -981,7 +988,7 @@ func (e *Engine) settingsScreen(ctx context.Context, actor app.Actor) (Message, 
 	m.Rows = [][]Button{
 		{{Label: tr(locale, "🕘 Reminder time"), Data: route(actSetAsk, "time")}, {Label: tr(locale, "💰 Payday"), Data: route(actSetAsk, "payday")}},
 		{{Label: tr(locale, "💱 Currency"), Data: route(actSetAsk, "currency")}, {Label: "🌐 " + otherLabel, Data: route(actSetLang, other)}},
-		{{Label: tr(locale, "💳 Payment methods"), Data: route(scrMethods)}},
+		{{Label: tr(locale, "💳 Payment methods"), Data: route(scrMethods)}, {Label: tr(locale, "🔁 Ask again"), Data: route(scrRepeat)}},
 		homeRow(locale),
 	}
 	return m, nil

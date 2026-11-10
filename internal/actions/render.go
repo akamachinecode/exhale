@@ -32,7 +32,62 @@ const (
 	vPaidAmount = "pa"     // pa|chg       (paid, but another amount: type it)
 	vNewPrice   = "np"     // np|chg|12.99 (that amount is the new price)
 	vUse        = "use"    // use|chg|1|0  (still using it?)
+	// vSnooze brings the message back later: snz|chg|days|r|d|c, where the
+	// last part is the message (r reminder, d keep-or-cancel decision, c
+	// was-it-charged). It never comes back past its last useful day
+	// (app.SnoozeDay). Any channel with buttons can send it, e.g. web push.
+	vSnooze = "snz"
 )
+
+// snoozeKinds maps the last part of a snooze button to the outbox kind.
+var snoozeKinds = map[string]string{"r": app.KindReminder, "d": app.KindDecision, "c": app.KindConfirm}
+
+// SnoozeData is the button data that snoozes the message of kind (an
+// outbox kind) about chargeID for days.
+func SnoozeData(chargeID, kind string, days int) string {
+	for k, v := range snoozeKinds {
+		if v == kind {
+			return data(vSnooze, chargeID, fmt.Sprint(days), k)
+		}
+	}
+	return ""
+}
+
+// snoozeRow offers "remind me tomorrow" and "in 3 days" on a reminder or a
+// keep-or-cancel question, without the buttons that could only come back
+// too late.
+func snoozeRow(kind string, c app.ChargeView, today engine.Date, locale string) []Button {
+	row := []Button{}
+	tomorrow, _, ok := app.SnoozeDay(kind, c, today, 1)
+	if !ok {
+		return nil
+	}
+	row = append(row, Button{Label: tr(locale, "💤 Remind me tomorrow"), Data: SnoozeData(c.ID, kind, 1)})
+	later, clamped, ok := app.SnoozeDay(kind, c, today, 3)
+	switch {
+	case !ok || later == tomorrow:
+	case !clamped:
+		row = append(row, Button{Label: tr(locale, "💤 In 3 days"), Data: SnoozeData(c.ID, kind, 3)})
+	case kind == app.KindDecision:
+		row = append(row, Button{Label: tr(locale, "💤 On the last day"), Data: SnoozeData(c.ID, kind, 3)})
+	default:
+		row = append(row, Button{Label: tr(locale, "💤 On the day"), Data: SnoozeData(c.ID, kind, 3)})
+	}
+	return row
+}
+
+// withoutSnooze drops the snooze buttons of a message.
+func withoutSnooze(m Message) Message {
+	rows := [][]Button{}
+	for _, row := range m.Rows {
+		if len(row) > 0 && strings.HasPrefix(row[0].Data, vSnooze+"|") {
+			continue
+		}
+		rows = append(rows, row)
+	}
+	m.Rows = rows
+	return m
+}
 
 func data(parts ...string) string { return strings.Join(parts, "|") }
 
@@ -106,6 +161,11 @@ func chargeMessage(kind string, r app.ChargeResult, today engine.Date, locale st
 		m.Footer = tr(locale, "You chose to keep it.")
 	}
 	m.Event = chargeEvent(kind, r, today)
+	if snoozable := (kind == app.KindReminder && m.Event.Kind == EventReminder) || (kind == app.KindDecision && m.Event.Kind == EventDecision); snoozable {
+		if row := snoozeRow(kind, c, today, locale); row != nil {
+			m.Rows = append(m.Rows, row)
+		}
+	}
 	return m
 }
 

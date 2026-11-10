@@ -1,0 +1,171 @@
+
+=== 2026-11-05 09:00
+SEND #1
+🔔 iCloud renews in 3 days
+  💶 €2.99 · Sun, 8 Nov 2026
+  💳 Visa ••4421
+  [✅ Already paid](paid|chg_X) [📅 Change date](date|chg_X|2026-11)
+  [💳 Payment method](pm|chg_X) [✏️ Amount](amount|chg_X)
+  [⏭ Skip this one](skip|chg_X) [❌ Cancel subscription](cancel|chg_X)
+  [💤 Remind me tomorrow](snz|chg_X|1|r) [💤 In 3 days](snz|chg_X|3|r)
+
+SEND #2
+⏰ 7 days left to cancel Gym
+  💶 €39.00 · Thu, 19 Nov 2026
+  ⏰ Cancel by Thu, 12 Nov 2026
+  After that it renews for €39.00.
+  [👍 Keep it](keep|chg_X) [❌ Cancel](cancel|chg_X)
+  [💤 Remind me tomorrow](snz|chg_X|1|d) [💤 In 3 days](snz|chg_X|3|d)
+
+SEND #3
+👯 You and Ana both pay for Spotify
+  💶 2 × €10.99 a month
+  If it is on purpose, say so and I won't mention it again.
+  [🔎 Spotify · Alex](a|sub|sub_X) [🔎 Spotify Premium · Ana](a|sub|sub_X)
+  [👍 That's fine](a|dupok|KEY)
+
+SEND #4
+👯 You and Alex both pay for Spotify
+  💶 2 × €10.99 a month
+  If it is on purpose, say so and I won't mention it again.
+  [🔎 Spotify · Alex](a|sub|sub_X) [🔎 Spotify Premium · Ana](a|sub|sub_X)
+  [👍 That's fine](a|dupok|KEY)
+
+SEND #5
+💳 Visa ••4421 expires in 25 days
+  Move what it pays to another card before the charges fail.
+  ## It pays 2 subscriptions
+  iCloud · €2.99
+  Spotify · €10.99
+  [🔀 Move them to another card](a|mv|pm_X)
+  [📅 It was renewed: new expiry](a|pme|pm_X|exp)
+
+> alex presses In 3 days
+(toast: 💤 Snoozed)
+⏰ 7 days left to cancel Gym
+  💶 €39.00 · Thu, 19 Nov 2026
+  ⏰ Cancel by Thu, 12 Nov 2026
+  After that it renews for €39.00.
+  [👍 Keep it](keep|chg_X) [❌ Cancel](cancel|chg_X)
+  — 💤 OK — I'll remind you on Sun, 8 Nov 2026.
+
+> ana presses That's fine
+(toast: Noted)
+👍 Fine, I won't mention it again.
+  [🏠 Home](a|home)
+
+> alex presses Move them to another card
+🔀 Move 2 subscriptions from Visa ••4421
+  To which one? They all move in one step.
+  [Revolut ••0937](a|mvo|pm_X|pm_X)
+  [‹ Visa ••4421](a|pm|pm_X) [🏠 Home](a|home)
+
+> alex presses Revolut ••0937
+(toast: Moved 2 subscriptions 💳)
+💳 Revolut ••0937
+  Card
+  ## Pays 2 subscriptions
+  iCloud
+  Spotify
+  [🔀 Move its subscriptions](a|mv|pm_X)
+  [✏️ Name](a|pme|pm_X|name) [🔢 Last 4 digits](a|pme|pm_X|last4)
+  [📅 Expiry](a|pme|pm_X|exp) [🗑 Delete](a|pmd|pm_X)
+  [‹ Payment methods](a|pms) [🏠 Home](a|home)
+
+> alex presses Remind me tomorrow
+(toast: 💤 Snoozed)
+🔔 iCloud renews in 3 days
+  💶 €2.99 · Sun, 8 Nov 2026
+  💳 Revolut ••0937
+  [✅ Already paid](paid|chg_X) [📅 Change date](date|chg_X|2026-11)
+  [💳 Payment method](pm|chg_X) [✏️ Amount](amount|chg_X)
+  [⏭ Skip this one](skip|chg_X) [❌ Cancel subscription](cancel|chg_X)
+  — 💤 OK — I'll remind you tomorrow.
+
+=== 2026-11-06 09:00
+SEND #6
+🔔 iCloud renews in 2 days
+  💶 €2.99 · Sun, 8 Nov 2026
+  💳 Revolut ••0937
+  [✅ Already paid](paid|chg_X) [📅 Change date](date|chg_X|2026-11)
+  [💳 Payment method](pm|chg_X) [✏️ Amount](amount|chg_X)
+  [⏭ Skip this one](skip|chg_X) [❌ Cancel subscription](cancel|chg_X)
+  [💤 Remind me tomorrow](snz|chg_X|1|r) [💤 On the day](snz|chg_X|3|r)
+
+=== 2026-11-08 09:00
+SEND #7
+🔔 iCloud renews today
+  💶 €2.99 · Sun, 8 Nov 2026
+  💳 Revolut ••0937
+  [✅ Already paid](paid|chg_X) [📅 Change date](date|chg_X|2026-11)
+  [💳 Payment method](pm|chg_X) [✏️ Amount](amount|chg_X)
+  [⏭ Skip this one](skip|chg_X) [❌ Cancel subscription](cancel|chg_X)
+
+SEND #8
+⏰ 4 days left to cancel Gym
+  💶 €39.00 · Thu, 19 Nov 2026
+  ⏰ Cancel by Thu, 12 Nov 2026
+  After that it renews for €39.00.
+  [👍 Keep it](keep|chg_X) [❌ Cancel](cancel|chg_X)
+  [💤 Remind me tomorrow](snz|chg_X|1|d) [💤 In 3 days](snz|chg_X|3|d)
+
+> alex presses Already paid
+(toast: Marked as paid ✅)
+✅ iCloud paid
+  💶 €2.99 · Sun, 8 Nov 2026
+  💳 Revolut ••0937
+  [↩︎ Reopen](reopen|chg_X)
+  [↩︎ Undo](undo|chg_X|aud_X)
+
+> alex presses Remind me tomorrow
+(toast: 💤 Snoozed)
+⏰ 4 days left to cancel Gym
+  💶 €39.00 · Thu, 19 Nov 2026
+  ⏰ Cancel by Thu, 12 Nov 2026
+  After that it renews for €39.00.
+  [👍 Keep it](keep|chg_X) [❌ Cancel](cancel|chg_X)
+  — 💤 OK — I'll remind you tomorrow.
+
+=== 2026-11-09 09:00
+SEND #9
+⏰ 3 days left to cancel Gym
+  💶 €39.00 · Thu, 19 Nov 2026
+  ⏰ Cancel by Thu, 12 Nov 2026
+  After that it renews for €39.00.
+  [👍 Keep it](keep|chg_X) [❌ Cancel](cancel|chg_X)
+  [💤 Remind me tomorrow](snz|chg_X|1|d) [💤 In 3 days](snz|chg_X|3|d)
+
+> alex presses Remind me tomorrow
+(toast: 💤 Snoozed)
+⏰ 3 days left to cancel Gym
+  💶 €39.00 · Thu, 19 Nov 2026
+  ⏰ Cancel by Thu, 12 Nov 2026
+  After that it renews for €39.00.
+  [👍 Keep it](keep|chg_X) [❌ Cancel](cancel|chg_X)
+  — 💤 OK — I'll remind you tomorrow.
+
+=== 2026-11-10 09:00
+SEND #10
+⏰ 2 days left to cancel Gym
+  💶 €39.00 · Thu, 19 Nov 2026
+  ⏰ Cancel by Thu, 12 Nov 2026
+  After that it renews for €39.00.
+  [👍 Keep it](keep|chg_X) [❌ Cancel](cancel|chg_X)
+  [💤 Remind me tomorrow](snz|chg_X|1|d) [💤 On the last day](snz|chg_X|3|d)
+
+> alex presses On the last day
+(toast: 💤 Snoozed)
+⏰ 2 days left to cancel Gym
+  💶 €39.00 · Thu, 19 Nov 2026
+  ⏰ Cancel by Thu, 12 Nov 2026
+  After that it renews for €39.00.
+  [👍 Keep it](keep|chg_X) [❌ Cancel](cancel|chg_X)
+  — 💤 OK — I'll remind you on Thu, 12 Nov 2026, the last day to cancel.
+
+=== 2026-11-12 09:00
+SEND #11
+⏰ Last day to cancel Gym: today
+  💶 €39.00 · Thu, 19 Nov 2026
+  ⏰ Cancel by Thu, 12 Nov 2026
+  After that it renews for €39.00.
+  [👍 Keep it](keep|chg_X) [❌ Cancel](cancel|chg_X)

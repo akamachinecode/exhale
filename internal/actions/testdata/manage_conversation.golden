@@ -293,14 +293,15 @@ NEW MESSAGE
 NEW MESSAGE
 ⚙️ Settings
   They apply to everyone you share Exhale with.
-  | Reminders at          09:00
-  | Time zone     Europe/Madrid
-  | Totals in               EUR
-  | Payday              not set
-  | Language            English
+  | Reminders at                 09:00
+  | Time zone            Europe/Madrid
+  | Totals in                      EUR
+  | Payday                     not set
+  | Language                   English
+  | Ask again     daily, up to 3 times
   [🕘 Reminder time](a|sf|time) [💰 Payday](a|sf|payday)
   [💱 Currency](a|sf|currency) [🌐 Español](a|sl|es)
-  [💳 Payment methods](a|pms)
+  [💳 Payment methods](a|pms) [🔁 Ask again](a|rep)
   [🏠 Home](a|home)
 
 > press Payday
@@ -313,14 +314,15 @@ NEW MESSAGE
 NEW MESSAGE
 ⚙️ Settings
   They apply to everyone you share Exhale with.
-  | Reminders at          09:00
-  | Time zone     Europe/Madrid
-  | Totals in               EUR
-  | Payday               day 28
-  | Language            English
+  | Reminders at                 09:00
+  | Time zone            Europe/Madrid
+  | Totals in                      EUR
+  | Payday                      day 28
+  | Language                   English
+  | Ask again     daily, up to 3 times
   [🕘 Reminder time](a|sf|time) [💰 Payday](a|sf|payday)
   [💱 Currency](a|sf|currency) [🌐 Español](a|sl|es)
-  [💳 Payment methods](a|pms)
+  [💳 Payment methods](a|pms) [🔁 Ask again](a|rep)
   [🏠 Home](a|home)
 
 # Delete, and take it back

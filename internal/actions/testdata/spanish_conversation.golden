@@ -6,6 +6,7 @@ SEND #1
   [✅ Ya pagado](paid|chg_X) [📅 Cambiar fecha](date|chg_X|2026-11)
   [💳 Método de pago](pm|chg_X) [✏️ Importe](amount|chg_X)
   [⏭ Saltar este](skip|chg_X) [❌ Cancelar suscripción](cancel|chg_X)
+  [💤 Recuérdamelo mañana](snz|chg_X|1|r) [💤 En 3 días](snz|chg_X|3|r)
 
 SEND #2
 ⏰ Quedan 7 días para cancelar Gimnasio
@@ -13,6 +14,7 @@ SEND #2
   ⏰ Cancelar antes del jue, 12 nov 2026
   Después se renueva por 39,00 €.
   [👍 La mantengo](keep|chg_X) [❌ Cancelar](cancel|chg_X)
+  [💤 Recuérdamelo mañana](snz|chg_X|1|d) [💤 En 3 días](snz|chg_X|3|d)
 
 SEND #3
 ⏳ La prueba gratis de Notion AI termina en 3 días
@@ -20,6 +22,7 @@ SEND #3
   [👍 La mantengo](keep|chg_X) [❌ Cancelar antes del cobro](cancel|chg_X)
   [📅 Cambiar fecha](date|chg_X|2026-11) [✏️ Importe](amount|chg_X)
   [💳 Método de pago](pm|chg_X) [⏭ Saltar este](skip|chg_X)
+  [💤 Recuérdamelo mañana](snz|chg_X|1|r) [💤 En 3 días](snz|chg_X|3|r)
 
 # Inicio
 🏠 Casa

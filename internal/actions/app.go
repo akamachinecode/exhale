@@ -555,6 +555,9 @@ func (e *Engine) summaryScreen(ctx context.Context, actor app.Actor, locale stri
 	if sum.SetAside.Minor > 0 {
 		m.Lines = append(m.Lines, tr(locale, "🐖 Put away %s a month for the yearly ones", sum.SetAside.Format(locale)))
 	}
+	if sum.Stopped.Count > 0 {
+		m.Lines = append(m.Lines, tr(locale, "🌱 You stopped paying %s a year (%d cancelled)", sum.Stopped.Yearly.Format(locale), sum.Stopped.Count))
+	}
 	if len(sum.ByCategory) > 0 {
 		s := Section{Heading: tr(locale, "Per month by category")}
 		for _, c := range sum.ByCategory {

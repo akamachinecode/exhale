@@ -145,6 +145,9 @@ func (s *Service) newSubscription(ctx context.Context, q *db.Queries, actor Acto
 	}
 	if h, err := s.household(ctx, q, actor.HouseholdID); err == nil {
 		sub.Reminders.Hour, sub.Reminders.Minute = h.ReminderHour, h.ReminderMinute
+		if h.ConfirmTimes > 0 && h.ConfirmEveryDays > 0 {
+			sub.Reminders.ConfirmTimes, sub.Reminders.ConfirmEveryDays = h.ConfirmTimes, h.ConfirmEveryDays
+		}
 	}
 	if sub.PayerID == "" {
 		sub.PayerID = actor.MemberID

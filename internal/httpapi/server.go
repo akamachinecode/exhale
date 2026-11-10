@@ -220,6 +220,8 @@ func registerAll(api huma.API, svc *app.Service) {
 	register(api, svc, app.OpBulkUpdate)
 	register(api, svc, app.OpRenameTag)
 	register(api, svc, app.OpDeleteTag)
+	register(api, svc, app.OpSnooze)
+	register(api, svc, app.OpDismissDuplicate)
 }
 
 func operation(m app.Meta) huma.Operation {
