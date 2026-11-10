@@ -43,6 +43,9 @@
               "null"
             ]
           },
+          "delivery": {
+            "$ref": "#/components/schemas/DeliveryProblem"
+          },
           "expiringPaymentMethods": {
             "items": {
               "$ref": "#/components/schemas/PaymentMethod"
@@ -1188,6 +1191,27 @@
         },
         "required": [
           "id"
+        ],
+        "type": "object"
+      },
+      "DeliveryProblem": {
+        "additionalProperties": false,
+        "properties": {
+          "failed": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "lastError": {
+            "type": "string"
+          },
+          "noChannel": {
+            "format": "int64",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "failed",
+          "noChannel"
         ],
         "type": "object"
       },

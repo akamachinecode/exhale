@@ -94,6 +94,12 @@ export interface ChargeView {
   version: number;
 }
 
+export interface DeliveryProblem {
+  failed: number;
+  lastError?: string;
+  noChannel: number;
+}
+
 export interface PaymentMethod {
   expiresOn?: string;
   householdId: string;
@@ -109,6 +115,7 @@ export interface AttentionList {
   readonly $schema?: string;
   /** @nullable */
   deadlines: ChargeView[] | null;
+  delivery?: DeliveryProblem;
   /** @nullable */
   expiringPaymentMethods: PaymentMethod[] | null;
   /** @nullable */

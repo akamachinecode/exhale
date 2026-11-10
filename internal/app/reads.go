@@ -103,6 +103,16 @@ type AttentionList struct {
 	Unconfirmed            []ChargeView           `json:"unconfirmed" jsonschema:"charges whose due date passed and that are not marked paid, failed or skipped"`
 	ExpiringPaymentMethods []domain.PaymentMethod `json:"expiringPaymentMethods" jsonschema:"payment methods expiring within 45 days"`
 	Deadlines              []ChargeView           `json:"deadlines" jsonschema:"last days to cancel within 14 days that have no decision yet, and free trials ending within 7 days"`
+	// Delivery reports reminders that could not be delivered lately, so a
+	// broken channel does not go unnoticed.
+	Delivery *DeliveryProblem `json:"delivery,omitempty" jsonschema:"set when reminders failed to be delivered in the last 7 days"`
+}
+
+// DeliveryProblem says reminders are not arriving.
+type DeliveryProblem struct {
+	Failed    int    `json:"failed" jsonschema:"reminders not delivered in the last 7 days"`
+	NoChannel int    `json:"noChannel" jsonschema:"of those, how many had nowhere to go (no chat or channel linked)"`
+	LastError string `json:"lastError,omitempty" jsonschema:"most recent delivery error"`
 }
 
 // NeedsAttention lists unconfirmed past charges and expiring payment methods.
@@ -126,6 +136,26 @@ func (s *Service) NeedsAttention(ctx context.Context, actor Actor, _ struct{}) (
 		deadline := !c.CancelBy.IsZero() && c.Decision == "" && !c.CancelBy.Before(today) && today.DaysUntil(c.CancelBy) <= 14
 		if trial || deadline {
 			out.Deadlines = append(out.Deadlines, c)
+		}
+	}
+	if log, err := s.Reminders(ctx, actor, ReminderLogInput{Limit: 300}); err == nil {
+		since := s.now().AddDate(0, 0, -7)
+		p := DeliveryProblem{}
+		for _, e := range log.Entries {
+			retrying := e.Status == "pending" && e.Attempts > 0
+			if (e.Status != "failed" && !retrying) || e.DueAt.Before(since) {
+				continue
+			}
+			p.Failed++
+			switch {
+			case e.Error == ErrNoDestination.Error():
+				p.NoChannel++
+			case p.LastError == "":
+				p.LastError = e.Error
+			}
+		}
+		if p.Failed > 0 {
+			out.Delivery = &p
 		}
 	}
 	pms, err := q.ListPaymentMethods(ctx, actor.HouseholdID)

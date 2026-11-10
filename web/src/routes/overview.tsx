@@ -27,6 +27,7 @@ export function Overview() {
 	const expiring = attention.data?.expiringPaymentMethods ?? [];
 	const deadlines = attention.data?.deadlines ?? [];
 	const payday = s?.beforePayday;
+	const delivery = attention.data?.delivery;
 	const charges = upcoming.data?.charges ?? [];
 	const byCat = s?.byCategory ?? [];
 	const methods = s?.byPaymentMethod ?? [];
@@ -43,7 +44,7 @@ export function Overview() {
 			),
 		);
 	const fxNote = s?.converted ? `other currencies at ECB rates of ${date(s.ratesDate)}` : undefined;
-	const attentionCount = unconfirmed.length + expiring.length + deadlines.length;
+	const attentionCount = unconfirmed.length + expiring.length + deadlines.length + (delivery ? 1 : 0);
 	const empty = s && s.activeSubscriptions === 0;
 
 	return (
@@ -87,13 +88,15 @@ export function Overview() {
 					label="Needs attention"
 					value={String(attentionCount)}
 					hint={
-						unconfirmed.length
-							? "unconfirmed charges"
-							: deadlines.length
-								? "deadlines close"
-								: expiring.length
-									? "a card expires soon"
-									: "all clear"
+						delivery
+							? "reminders are not arriving"
+							: unconfirmed.length
+								? "unconfirmed charges"
+								: deadlines.length
+									? "deadlines close"
+									: expiring.length
+										? "a card expires soon"
+										: "all clear"
 					}
 					tone={attentionCount > 0 ? "warn" : undefined}
 				/>
@@ -132,6 +135,24 @@ export function Overview() {
 									}
 								/>
 								<ul className="divide-y divide-line border-t border-line">
+									{delivery && (
+										<li className="flex items-center gap-3 px-5 py-3 text-sm">
+											<AlertTriangle className="size-4 shrink-0 text-warn" />
+											<span className="min-w-0 flex-1">
+												<span className="font-medium">
+													{delivery.failed} reminder{delivery.failed === 1 ? "" : "s"} did not arrive
+												</span>{" "}
+												<span className="text-muted">
+													{delivery.noChannel === delivery.failed
+														? "because nobody had a chat or channel linked."
+														: (delivery.lastError ?? "in the last 7 days.")}
+												</span>
+											</span>
+											<Link to="/activity" className="shrink-0 text-[13px] font-medium hover:underline">
+												See why
+											</Link>
+										</li>
+									)}
 									{deadlines.map((c) => (
 										<li key={`d-${c.id}`} className="flex items-center gap-3 px-5 py-3 text-sm">
 											<Clock className="size-4 shrink-0 text-warn" />

@@ -350,6 +350,13 @@ func (e *Engine) homeScreen(ctx context.Context, actor app.Actor, today engine.D
 	if n := len(attn.Unconfirmed); n > 0 {
 		m.Rows = append([][]Button{{{Label: tr(locale, "⚠️ %d %s to confirm", n, plural(locale, n, "charge", "charges")), Data: route(scrAttn)}}}, m.Rows...)
 	}
+	if d := attn.Delivery; d != nil {
+		if d.NoChannel == d.Failed {
+			m.Lines = append(m.Lines, tr(locale, "⚠️ %d %s had nowhere to go", d.Failed, plural(locale, d.Failed, "reminder", "reminders")))
+		} else {
+			m.Lines = append(m.Lines, tr(locale, "⚠️ %d %s could not be delivered", d.Failed, plural(locale, d.Failed, "reminder", "reminders")))
+		}
+	}
 	if n := len(attn.Deadlines); n > 0 {
 		m.Rows = append([][]Button{{{Label: tr(locale, "⏰ %d %s close", n, plural(locale, n, "deadline", "deadlines")), Data: route(scrCheckup)}}}, m.Rows...)
 	}
