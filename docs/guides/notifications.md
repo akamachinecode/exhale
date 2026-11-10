@@ -1,8 +1,8 @@
-# Reminders by email, ntfy and webhook
+# Reminders by push, email, ntfy and webhook
 
-Telegram (and Slack) are the channels where a reminder can be answered in place. Email, ntfy and webhooks are **one-way**: the message says what is due and links back to Exhale, where it can be fixed. Use them next to a chat, or alone if you only want to be told.
+Telegram (and Slack) are the channels where a reminder can be answered in place. Email, ntfy and webhooks are **one-way**: the message says what is due and links back to Exhale, where it can be fixed. Push notifications sit in between: one button works from the notification itself. Use them next to a chat, or alone if you only want to be told.
 
-Everything is set up in the web: **Settings → Other channels**. Owners configure the instance (the mail server, the ntfy server); each person adds their own destinations and can send a test message.
+Email, ntfy and webhooks are set up in the web: **Settings → Channels → Other channels**. Owners configure the instance (the mail server, the ntfy server); each person adds their own destinations and can send a test message. Push notifications have their own section, below.
 
 ## The link back to Exhale
 
@@ -13,6 +13,22 @@ EXHALE_PUBLIC_URL=https://exhale.example.com
 ```
 
 Without it the messages are sent without a link.
+
+## Push notifications
+
+Exhale can send reminders as notifications of the browser or of the installed app, on a phone or a computer. No other app is needed.
+
+Turn them on in **Settings → Channels → Push notifications → Turn on for this device**, on each device you want them on. The browser asks for permission. The same section lists your devices; each has **Send test** and a remove button.
+
+A reminder about a charge carries a button to mark it paid ("Already paid", or "Paid" when Exhale asks whether it was charged). It works without opening Exhale; the notification then says what changed. Tapping the notification opens the subscription. The button stops working after 3 days, or when the device is removed; then it opens Exhale instead.
+
+What it needs:
+
+- **HTTPS.** Browsers only offer push on `https://` addresses, and on `localhost` for testing. Put Exhale behind a reverse proxy with a certificate.
+- **iPhone and iPad:** add Exhale to the Home Screen first (Share → Add to Home Screen), open it from there and turn notifications on inside it. iOS 16.4 or later. iOS does not show notification buttons: a tap opens the charge.
+- Nothing to set up on the server: the keys are made the first time someone turns push on, and kept in the database. Do not lose them: a new key would turn push off on every device. They are in your backups like everything else.
+
+The notification travels through the push service of the browser's vendor (Google, Mozilla, Apple…), encrypted so that only that browser can read it. When a push service says a device no longer exists (the person cleared the browser's data or removed the app), Exhale removes the device.
 
 ## Email
 
@@ -98,4 +114,4 @@ Anyone who shares an Exhale can add a destination, so Exhale refuses addresses t
 
 ## Why was a reminder not delivered?
 
-**Activity → Reminders** lists every reminder with what happened to it: sent, scheduled, retrying with the last error, or not sent because the person had no chat or channel linked.
+**Activity → Reminders** lists every reminder with what happened to it: sent, scheduled, retrying with the last error, or not sent because the person had no chat or channel linked (or their only device was gone).

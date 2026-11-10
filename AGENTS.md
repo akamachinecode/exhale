@@ -25,6 +25,7 @@ Exhale is a self-hosted subscription manager written in Go (backend, single bina
 | ⑰ tool schemas shared by MCP and the assistant | `internal/toolschema` |
 | ② Telegram | `internal/channels/telegram` |
 | ③ Slack (Socket Mode, Block Kit, Home tab) | `internal/channels/slack` |
+| ④ Web Push (encryption, VAPID, action tokens — ADR 0026) | `internal/channels/webpush`; devices and keys in `internal/channels/notifiers`; service worker `web/public/sw.js` |
 | ⑮ CLI, supervisor, logging | `cmd/exhale`, `internal/platform` |
 
 ## Commands
