@@ -7,6 +7,8 @@ package telegram
 
 import (
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
 	"errors"
 	"fmt"
 	"html"
@@ -22,6 +24,7 @@ import (
 	"github.com/akamachinecode/exhale/internal/app"
 	"github.com/akamachinecode/exhale/internal/auth"
 	"github.com/akamachinecode/exhale/internal/domain"
+	"github.com/akamachinecode/exhale/internal/store/db"
 )
 
 // Name is the channel name stored in channel links.
@@ -72,23 +75,56 @@ func (a *Adapter) Serve(ctx context.Context) error {
 	} else {
 		a.log.Warn("telegram: could not read the bot's name", "err", err)
 	}
-	// The command menu in English, and in Spanish for people whose Telegram
-	// is in Spanish.
-	for _, code := range []string{"", "es"} {
-		cmds := make([]models.BotCommand, len(actions.Commands))
-		for i, c := range actions.Commands {
-			cmds[i] = models.BotCommand{Command: c.Command, Description: actions.CommandDescription(actions.Language(code), c.Description)}
-		}
-		if _, err := a.b.SetMyCommands(ctx, &bot.SetMyCommandsParams{Commands: cmds, LanguageCode: code}); err != nil {
-			a.log.Warn("telegram: could not set the command menu", "err", err)
-		}
-	}
-	// The profile people see before pressing Start, so a fresh bot from
-	// BotFather needs no manual setup.
-	_, _ = a.b.SetMyShortDescription(ctx, &bot.SetMyShortDescriptionParams{ShortDescription: "Your subscriptions, handled. Reminders you can act on, right here."})
-	_, _ = a.b.SetMyDescription(ctx, &bot.SetMyDescriptionParams{Description: "This is your private Exhale bot. It reminds you before every charge and lets you fix anything from the message: mark it paid, move the date, change the card or cancel. Only people you link from Exhale can use it."})
+	a.publishProfile(ctx)
 	a.b.Start(ctx)
 	return nil
+}
+
+const (
+	shortDescription = "Your subscriptions, handled. Reminders you can act on, right here."
+	description      = "This is your private Exhale bot. It reminds you before every charge and lets you fix anything from the message: mark it paid, move the date, change the card or cancel. Only people you link from Exhale can use it."
+	// profileKey remembers which profile was last published to which bot.
+	profileKey = "telegram_profile"
+)
+
+// publishProfile sets the bot's command menu (in English, and in Spanish for
+// people whose Telegram is in Spanish) and the texts people see before
+// pressing Start, so a fresh bot from BotFather needs no manual setup. It
+// only talks to Telegram when something changed: these calls are rate
+// limited, and a server that restarts often must not burn that limit.
+func (a *Adapter) publishProfile(ctx context.Context) {
+	menus := map[string][]models.BotCommand{}
+	sum := sha256.New()
+	username, _ := a.username.Load().(string)
+	fmt.Fprint(sum, username, shortDescription, description)
+	for _, code := range []string{"", "es"} {
+		for _, c := range actions.Commands {
+			cmd := models.BotCommand{Command: c.Command, Description: actions.CommandDescription(actions.Language(code), c.Description)}
+			menus[code] = append(menus[code], cmd)
+			fmt.Fprint(sum, code, cmd.Command, cmd.Description)
+		}
+	}
+	want := hex.EncodeToString(sum.Sum(nil))
+	q := a.svc.Store().Q
+	if got, err := q.GetSetting(ctx, profileKey); err == nil && got == want {
+		return
+	}
+	ok := true
+	for _, code := range []string{"", "es"} {
+		if _, err := a.b.SetMyCommands(ctx, &bot.SetMyCommandsParams{Commands: menus[code], LanguageCode: code}); err != nil {
+			a.log.Warn("telegram: could not set the command menu", "err", err)
+			ok = false
+		}
+	}
+	if _, err := a.b.SetMyShortDescription(ctx, &bot.SetMyShortDescriptionParams{ShortDescription: shortDescription}); err != nil {
+		ok = false
+	}
+	if _, err := a.b.SetMyDescription(ctx, &bot.SetMyDescriptionParams{Description: description}); err != nil {
+		ok = false
+	}
+	if ok {
+		_ = q.PutSetting(ctx, db.PutSettingParams{Key: profileKey, Value: want})
+	}
 }
 
 // Send posts a message and returns its id.

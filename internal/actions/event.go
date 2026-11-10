@@ -9,6 +9,7 @@ import (
 // Event kinds: what a message is telling the member.
 const (
 	EventReminder = "reminder" // a charge is coming
+	EventDecision = "decision" // the last day to cancel is near: keep or cancel?
 	EventConfirm  = "confirm"  // the due date passed: was it charged?
 	EventFailed   = "failed"   // the charge failed
 	EventPaid     = "paid"
@@ -61,6 +62,8 @@ func chargeEvent(kind string, r app.ChargeResult, today engine.Date) *Event {
 		ev.Kind = EventSkipped
 	case kind == app.KindConfirm || c.DueDate.Before(today):
 		ev.Kind = EventConfirm
+	case kind == app.KindDecision && !c.CancelBy.IsZero() && c.Decision == "":
+		ev.Kind = EventDecision
 	}
 	return ev
 }
