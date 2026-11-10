@@ -6,6 +6,7 @@ import { AssistantSettings } from "@/components/assistant";
 import { OtherChannels } from "@/components/channels";
 import { PreferencesForm, ReminderTime, Sharing, TelegramSetup, TokensManager } from "@/components/connect";
 import { CalendarLink, ExportData, ImportData } from "@/components/data";
+import { KeepAwake } from "@/components/keep-awake";
 import { PageHeader } from "@/components/layout";
 import { Categories, Payday, PaymentMethods } from "@/components/manage";
 import { PushNotifications } from "@/components/push";
@@ -114,6 +115,14 @@ export function SettingsPage() {
 						<Section title={t("Tags")}>
 							<Tags />
 						</Section>
+						{user?.role === "owner" && (
+							<Section
+								title={t("This computer")}
+								description={t("The computer Exhale runs on, so reminders go out on time.")}
+							>
+								<KeepAwake />
+							</Section>
+						)}
 					</>
 				)}
 				{tab === "channels" && (

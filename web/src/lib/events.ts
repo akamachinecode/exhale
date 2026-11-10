@@ -23,6 +23,7 @@ export function useLiveEvents() {
 			"charge.updated",
 			"payment_method.saved",
 			"category.saved",
+			"keep_awake.updated",
 		]) {
 			es.addEventListener(type, () => refresh(qc));
 		}

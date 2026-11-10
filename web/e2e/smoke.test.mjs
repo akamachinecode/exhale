@@ -354,6 +354,32 @@ test("push notifications: the section shows and the service worker caches nothin
 	assert.equal(key.publicKey.length, 87);
 });
 
+test("keep this computer awake: between two times, with the display on, then off", async () => {
+	await page.goto(`${base}/settings?tab=general`);
+	await page.getByRole("heading", { name: "This computer" }).waitFor();
+	const status = page.locator("[role=status][data-state]");
+	// In a container it is never available.
+	const unavailable = (await status.getAttribute("data-state")) === "unavailable";
+	if (!unavailable) assert.equal(await status.getAttribute("data-state"), "off");
+	await page.getByLabel("Keep this computer awake").selectOption("hours");
+	await page.getByLabel("Start time").waitFor();
+	// Active or waiting depends on the hour; a machine that refuses (no
+	// session allowed to block sleep, a container) says why.
+	if (!unavailable)
+		await page.waitForFunction(() => document.querySelector("[role=status]")?.getAttribute("data-state") !== "off");
+	assert.match(await status.getAttribute("data-state"), /^(active|waiting|unavailable|failed)$/);
+	// Saved first, then shown: click, not uncheck.
+	await page.getByLabel("Let the display sleep").click();
+	await page.waitForFunction(async () => (await (await fetch("/api/v1/keep-awake")).json()).keepDisplayOn === true);
+	await page.getByLabel("Keep this computer awake").selectOption("off");
+	if (!unavailable) await page.getByText("Off: this computer sleeps as usual.").waitFor();
+	const k = await (await page.request.get(`${base}/api/v1/keep-awake`)).json();
+	assert.equal(k.mode, "off");
+	assert.equal(k.status.state, unavailable ? "unavailable" : "off");
+	await page.goto(`${base}/activity`);
+	await page.getByText("changed when this computer stays awake").first().waitFor();
+});
+
 test("no JavaScript errors along the way", () => {
 	assert.deepEqual(errors, []);
 });
