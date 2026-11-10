@@ -1620,6 +1620,7 @@ export interface StoppedSubscription {
   name: string;
   until?: string;
   yearly: Money;
+  yearlyMain: Money;
 }
 
 export interface StoppedSpend {

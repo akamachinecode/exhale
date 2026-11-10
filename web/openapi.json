@@ -4231,12 +4231,16 @@
           },
           "yearly": {
             "$ref": "#/components/schemas/Money"
+          },
+          "yearlyMain": {
+            "$ref": "#/components/schemas/Money"
           }
         },
         "required": [
           "id",
           "name",
-          "yearly"
+          "yearly",
+          "yearlyMain"
         ],
         "type": "object"
       },

@@ -2,6 +2,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
 import { ArrowRight } from "lucide-react";
 import type { ReactNode } from "react";
+import { DuplicateIsFine, MoveSubscriptions } from "@/components/answers";
 import { PageHeader } from "@/components/layout";
 import { ServiceTile } from "@/components/service-tile";
 import { Button } from "@/components/ui/button";
@@ -110,6 +111,7 @@ export function Checkup() {
 									{t("Manage payment methods")}
 								</Link>
 							</p>
+							<MoveSubscriptions fromId={c.paymentMethod.id} count={(c.subscriptions ?? []).length} />
 						</li>
 					)}
 				</Section>
@@ -139,16 +141,23 @@ export function Checkup() {
 					items={a.duplicates ?? []}
 				>
 					{(g) => (
-						<li key={g.service} className="px-5 py-3 text-sm">
-							{(g.subscriptions ?? []).map((s, i) => (
-								<span key={s.id}>
-									{i > 0 && <span className="text-muted"> {t("and")} </span>}
-									<Link to="/subscriptions/$id" params={{ id: s.id }} className="font-medium hover:underline">
-										{s.name}
-									</Link>
-									{s.payer && <span className="text-muted"> ({s.payer})</span>}
-								</span>
-							))}
+						<li key={g.key} className="flex items-center gap-3 px-5 py-3 text-sm">
+							<span className="min-w-0 flex-1">
+								{(g.subscriptions ?? []).map((s, i) => (
+									<span key={s.id}>
+										{i > 0 && <span className="text-muted"> {t("and")} </span>}
+										<Link
+											to="/subscriptions/$id"
+											params={{ id: s.id }}
+											className="font-medium hover:underline"
+										>
+											{s.name}
+										</Link>
+										{s.payer && <span className="text-muted"> ({s.payer})</span>}
+									</span>
+								))}
+							</span>
+							<DuplicateIsFine groupKey={g.key} />
 						</li>
 					)}
 				</Section>

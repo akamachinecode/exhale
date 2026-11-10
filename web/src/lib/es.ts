@@ -801,4 +801,28 @@ export const es: Record<string, string> = {
 	Price: "Precio",
 	"Per month": "Al mes",
 	shown: "mostradas",
+	// Reminders that end in an answer: ask again, move a card's
+	// subscriptions, a duplicate that is fine, what cancelling saved.
+	"If nobody says whether a charge went through, ask": "Si nadie dice si un cargo se cobró, preguntar",
+	"How many times to ask": "Cuántas veces preguntar",
+	once: "una vez",
+	"How often to ask": "Cada cuánto preguntar",
+	"{n} time": "{n} vez",
+	"{n} times": "{n} veces",
+	"every {n} day": "cada {n} día",
+	"every {n} days": "cada {n} días",
+	"Add the new card in Settings, then move them here in one step.":
+		"Añade la tarjeta nueva en Ajustes y pásalas aquí de una vez.",
+	"Could not move them": "No se han podido pasar",
+	"Move them to": "Pasarlas a",
+	"Moved {n} subscription": "{n} suscripción movida",
+	"Moved {n} subscriptions": "{n} suscripciones movidas",
+	"Move it there": "Pasarla ahí",
+	"Move all {n} there": "Pasar las {n} ahí",
+	"That's fine": "Está bien así",
+	"Noted. It won't come up again.": "Anotado. No volverá a salir.",
+	"You stopped paying {0} a year": "Has dejado de pagar {0} al año",
+	"What the subscriptions you cancelled would cost now. Replaced ones (the same service is still active) are left out.":
+		"Lo que costarían ahora las suscripciones que cancelaste. Las sustituidas (el mismo servicio sigue activo) no cuentan.",
+	"service until {0}": "servicio hasta el {0}",
 };
