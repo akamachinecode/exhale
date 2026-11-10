@@ -14,7 +14,7 @@ While it is on, each message you type to it goes to the provider you chose, toge
 - what Exhale **looks up** to answer (for example the history of one subscription, including its notes);
 - the last few turns of the conversation, for half an hour.
 
-When you import a **PDF, a picture or pasted text**, that file is sent too. When you import a **bank export (CSV)**, Exhale finds the recurring charges by itself and sends only the merchant descriptions, to tidy the names: no amounts, no dates.
+When you import a **PDF, a picture or pasted text**, that file is sent too. When you press **Read dates** on a document attached to a subscription, that document is sent, with the subscription's name. When you import a **bank export (CSV)**, Exhale finds the recurring charges by itself and sends only the merchant descriptions, to tidy the names: no amounts, no dates.
 
 Never sent: passwords, API tokens, the bot token, the model's own API key, and subscriptions another member marked private.
 
@@ -101,6 +101,19 @@ It answers in the language you write in.
 Each line of the list says what it is based on ("6 charges every month, last on 2026-11-06"). Tick what to import. Nothing is saved before that, and the file itself is never stored.
 
 Limits: pictures up to 5 MB, PDFs up to 20 MB, text up to 200 KB. A PDF needs a model that accepts files (Claude and OpenAI do; most local models do not: export a CSV or upload a screenshot instead).
+
+## Read the dates of a contract
+
+Attach the contract, the terms or an order confirmation to a subscription (**Documents** on its page), then press **Read dates**. The model reads it and suggests:
+
+- the notice period (in days; a month counts as 30 days),
+- the page where it is cancelled or managed,
+- when it started, and when a free trial ends,
+- the account or customer number it is under.
+
+Each suggestion shows the words of the document it comes from, and what Exhale has now. Untick what is wrong. Exhale checks the rest as an edit, shows the last day to cancel it would give, and saves only when you press **Apply**. The model has one tool, to report what it found, and cannot change anything; whatever the document says, the worst it can do is suggest a wrong value for you to untick.
+
+Limits: PDFs up to 10 MB (the size of an attachment), pictures up to 5 MB. Without the assistant, the button is not there; documents can still be attached, downloaded and deleted.
 
 ## Limits and costs
 
