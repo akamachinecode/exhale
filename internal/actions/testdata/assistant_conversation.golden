@@ -1,0 +1,38 @@
+
+> what do I pay per month?
+
+  You pay 17.99 EUR a month: Spotify Family.
+  Next charge on Sunday.
+
+> add Netflix 13.99 on the 6th
+
+  I prepared Netflix at 13.99 EUR a month, first charge tomorrow.
+Add Netflix?
+  €13.99 monthly
+  First charge: 2026-11-06
+  [✅ Do it](ai|ok|pX) [✖ Don't](ai|no|pX)
+
+> press Do it
+(toast: Done ✅)
+✅ Done: Add Netflix
+  [↩︎ Undo](ai|undo|pX)
+
+> press Undo
+(toast: Undone ↩︎)
+↩︎ Undone: Add Netflix
+
+> cancel spotify
+
+  I prepared the cancellation.
+⚠️ Cancel Spotify Family at the end of the period?
+  Service until 2026-11-08. No more charges.
+  Exhale only stops tracking it: cancel it with the provider too.
+  [✅ Do it](ai|ok|pX) [✖ Don't](ai|no|pX)
+
+> press Don't
+(toast: Nothing was changed)
+✖ Not done: Cancel Spotify Family at the end of the period
+
+> hello?
+
+  ⚠️ The model provider rejected the API key. An owner can fix it in Settings.
