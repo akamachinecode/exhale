@@ -240,6 +240,14 @@ type PaymentMethod struct {
 	OwnerID     *string
 }
 
+type PushSubscription struct {
+	LinkID    string
+	P256dh    string
+	Auth      string
+	Device    string
+	CreatedAt string
+}
+
 type Session struct {
 	Token  string
 	Data   []byte

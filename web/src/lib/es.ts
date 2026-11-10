@@ -1075,4 +1075,29 @@ export const es: Record<string, string> = {
 	"{n} charges in it were already marked paid.": "{n} cobros del extracto ya estaban marcados como pagados.",
 	"Apply {n} change": "Aplicar {n} cambio",
 	"Apply {n} changes": "Aplicar {n} cambios",
+	// Web push notifications (ADR 0026)
+	"Push notifications": "Notificaciones push",
+	"On this phone or computer, with a button to mark a charge paid from the notification.":
+		"En este móvil u ordenador, con un botón para marcar un cobro como pagado desde la notificación.",
+	"Notifications are on for this device": "Notificaciones activadas en este dispositivo",
+	"Notifications were not allowed.": "No se han permitido las notificaciones.",
+	"Could not turn on notifications here": "No se han podido activar las notificaciones aquí",
+	"Notifications are off for this device": "Notificaciones desactivadas en este dispositivo",
+	"Could not turn off notifications here": "No se han podido desactivar las notificaciones aquí",
+	"This device": "Este dispositivo",
+	on: "activadas",
+	off: "desactivadas",
+	"Turn on for this device": "Activar en este dispositivo",
+	"Push needs Exhale on https:// (localhost works for testing). On iPhone and iPad, add Exhale to the Home Screen and turn it on from there.":
+		"Las notificaciones push necesitan Exhale en https:// (localhost sirve para probar). En iPhone y iPad, añade Exhale a la pantalla de inicio y actívalas desde ahí.",
+	"Notifications are blocked for this site. Allow them in the browser's site settings.":
+		"Las notificaciones están bloqueadas para este sitio. Permítelas en los ajustes del sitio del navegador.",
+	"This page is not on https://, so the browser does not offer notifications.":
+		"Esta página no está en https://, así que el navegador no ofrece notificaciones.",
+	"Open Exhale from the Home Screen: Share, then Add to Home Screen.":
+		"Abre Exhale desde la pantalla de inicio: Compartir y luego Añadir a pantalla de inicio.",
+	"This browser does not support push notifications.": "Este navegador no admite notificaciones push.",
+	"Unnamed device": "Dispositivo sin nombre",
+	"{0} removed": "{0} quitado",
+	Browser: "Navegador",
 };

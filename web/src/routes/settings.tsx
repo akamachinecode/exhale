@@ -8,6 +8,7 @@ import { PreferencesForm, ReminderTime, Sharing, TelegramSetup, TokensManager } 
 import { CalendarLink, ExportData, ImportData } from "@/components/data";
 import { PageHeader } from "@/components/layout";
 import { Categories, Payday, PaymentMethods } from "@/components/manage";
+import { PushNotifications } from "@/components/push";
 import { SignOut } from "@/components/sign-out";
 import { SlackSetup } from "@/components/slack";
 import { Tags } from "@/components/tags";
@@ -134,6 +135,14 @@ export function SettingsPage() {
 							description={t("Reminders by email, ntfy or webhook, with a link back here.")}
 						>
 							<OtherChannels />
+						</Section>
+						<Section
+							title={t("Push notifications")}
+							description={t(
+								"On this phone or computer, with a button to mark a charge paid from the notification.",
+							)}
+						>
+							<PushNotifications />
 						</Section>
 					</>
 				)}

@@ -6,6 +6,7 @@ import { Toaster } from "sonner";
 import { getAuthSessionQueryKey } from "@/gen/api";
 import { ApiError } from "@/lib/fetcher";
 import { lang } from "@/lib/i18n";
+import { registerServiceWorker } from "@/lib/push";
 import { ActivityPage } from "@/routes/activity";
 import { AgentsPage } from "@/routes/agents";
 import { JoinPage, Root } from "@/routes/auth";
@@ -94,6 +95,7 @@ const queryClient: QueryClient = new QueryClient({
 });
 
 document.documentElement.lang = lang;
+registerServiceWorker(); // push notifications only; it caches nothing (ADR 0026)
 
 const el = document.getElementById("root");
 if (el) {

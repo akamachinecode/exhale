@@ -32,7 +32,7 @@ const (
 	// The prompt asks for at most 300, which keeps the answer within its
 	// token budget.
 	maxReportedPayments = 300
-	extractToken = 16_000
+	extractToken        = 16_000
 	// extractTimeout bounds reading one document.
 	extractTimeout = 150 * time.Second
 )
