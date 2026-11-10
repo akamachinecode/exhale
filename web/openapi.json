@@ -3385,6 +3385,83 @@
         ],
         "type": "object"
       },
+      "KeepAwakeInfo": {
+        "additionalProperties": false,
+        "properties": {
+          "$schema": {
+            "description": "A URL to the JSON Schema for this object.",
+            "examples": [
+              "https://example.com/api/schemas/KeepAwakeInfo.json"
+            ],
+            "format": "uri",
+            "readOnly": true,
+            "type": "string"
+          },
+          "from": {
+            "type": "string"
+          },
+          "keepDisplayOn": {
+            "type": "boolean"
+          },
+          "mode": {
+            "enum": [
+              "off",
+              "always",
+              "hours"
+            ],
+            "type": "string"
+          },
+          "status": {
+            "$ref": "#/components/schemas/KeepAwakeStatus"
+          },
+          "timezone": {
+            "type": "string"
+          },
+          "to": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "timezone",
+          "status",
+          "mode",
+          "from",
+          "to",
+          "keepDisplayOn"
+        ],
+        "type": "object"
+      },
+      "KeepAwakeStatus": {
+        "additionalProperties": false,
+        "properties": {
+          "error": {
+            "type": "string"
+          },
+          "reason": {
+            "enum": [
+              "container",
+              "unsupported",
+              "other"
+            ],
+            "type": "string"
+          },
+          "state": {
+            "enum": [
+              "off",
+              "active",
+              "waiting",
+              "unavailable",
+              "failed",
+              "unknown"
+            ],
+            "type": "string"
+          }
+        },
+        "required": [
+          "state"
+        ],
+        "type": "object"
+      },
       "LanguageIn": {
         "additionalProperties": false,
         "properties": {
@@ -5295,6 +5372,41 @@
           "chargeId",
           "status"
         ],
+        "type": "object"
+      },
+      "SetKeepAwakeInput": {
+        "additionalProperties": false,
+        "properties": {
+          "$schema": {
+            "description": "A URL to the JSON Schema for this object.",
+            "examples": [
+              "https://example.com/api/schemas/SetKeepAwakeInput.json"
+            ],
+            "format": "uri",
+            "readOnly": true,
+            "type": "string"
+          },
+          "dryRun": {
+            "type": "boolean"
+          },
+          "from": {
+            "type": "string"
+          },
+          "keepDisplayOn": {
+            "type": "boolean"
+          },
+          "mode": {
+            "enum": [
+              "off",
+              "always",
+              "hours"
+            ],
+            "type": "string"
+          },
+          "to": {
+            "type": "string"
+          }
+        },
         "type": "object"
       },
       "SetSubscriptionStatusInput": {
@@ -9474,6 +9586,88 @@
         "summary": "The import waiting from a chat",
         "tags": [
           "Data"
+        ]
+      }
+    },
+    "/api/v1/keep-awake": {
+      "get": {
+        "description": "Whether Exhale keeps the computer it runs on from sleeping (so reminders go out and chat buttons answer): off, always, or between two times of day in the household time zone; whether the display may sleep; and the live status (active, waiting outside the hours, unavailable here and why, or the error the system gave).",
+        "operationId": "get_keep_awake",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/KeepAwakeInfo"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorModel"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Is this computer kept awake",
+        "tags": [
+          "Household"
+        ]
+      },
+      "post": {
+        "description": "Owners only. Keeps the computer Exhale runs on from sleeping: mode off, always, or hours (from and to, HH:MM in the household time zone; to earlier than from crosses midnight). keepDisplayOn keeps the screen on too. A laptop with its lid closed still sleeps. Can be reverted with undo.",
+        "operationId": "set_keep_awake",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SetKeepAwakeInput"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/KeepAwakeInfo"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorModel"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Keep this computer awake",
+        "tags": [
+          "Household"
         ]
       }
     },

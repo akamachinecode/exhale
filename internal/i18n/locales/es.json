@@ -755,5 +755,10 @@
 	"Sun, Mon, Tue, Wed, Thu, Fri, Sat": "dom, lun, mar, mié, jue, vie, sáb",
 	"Sunday, Monday, Tuesday, Wednesday, Thursday, Friday, Saturday": "domingo, lunes, martes, miércoles, jueves, viernes, sábado",
 	"Jan, Feb, Mar, Apr, May, Jun, Jul, Aug, Sep, Oct, Nov, Dec": "ene, feb, mar, abr, may, jun, jul, ago, sep, oct, nov, dic",
-	"January, February, March, April, May, June, July, August, September, October, November, December": "enero, febrero, marzo, abril, mayo, junio, julio, agosto, septiembre, octubre, noviembre, diciembre"
+	"January, February, March, April, May, June, July, August, September, October, November, December": "enero, febrero, marzo, abril, mayo, junio, julio, agosto, septiembre, octubre, noviembre, diciembre",
+	"Is this computer kept awake": "¿Se mantiene despierto este ordenador?",
+	"Keep this computer awake": "Mantener despierto este ordenador",
+	"the hours must start and end at different times": "las horas tienen que empezar y terminar en momentos distintos",
+	"times must look like 08:00": "las horas tienen que tener la forma 08:00",
+	"unknown mode %q": "modo desconocido %q"
 }

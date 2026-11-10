@@ -26,6 +26,7 @@ import (
 	"github.com/akamachinecode/exhale/internal/app"
 	"github.com/akamachinecode/exhale/internal/assistant"
 	"github.com/akamachinecode/exhale/internal/auth"
+	"github.com/akamachinecode/exhale/internal/awake"
 	"github.com/akamachinecode/exhale/internal/backup"
 	"github.com/akamachinecode/exhale/internal/bus"
 	"github.com/akamachinecode/exhale/internal/channels/email"
@@ -179,6 +180,8 @@ func (s *serveCmd) Run(ctx context.Context, g *globals) error {
 	if err != nil {
 		return err
 	}
+	// Keeps this computer from sleeping when the owner asks (ADR 0028).
+	keepAwake := app.NewKeepAwake(e.svc, awake.New(), e.log)
 	handler, _, err := httpapi.New(e.svc, httpapi.Config{
 		Version: version, TrustLocal: s.TrustLocal, SecureCookies: s.SecureCookies, Log: e.log, Telegram: tg, Slack: sl, Channels: others, Assistant: asst,
 		PublicURL: s.PublicURL, OIDC: sso, DisablePasswordLogin: s.DisablePasswordLogin,
@@ -221,6 +224,7 @@ func (s *serveCmd) Run(ctx context.Context, g *globals) error {
 		// Slack also posts reminders of shared subscriptions to the team channel.
 		scheduler.New(e.svc, e.log, sl.Deliverer(eng)),
 		platform.Func{Name: "message-sync", Fn: eng.Sync},
+		keepAwake,
 	)
 	if !s.NoBackups {
 		services = append(services, &backup.Service{DB: e.st.DB, Dir: backupDir(g, s.BackupDir), Keep: s.BackupKeep, Log: e.log})

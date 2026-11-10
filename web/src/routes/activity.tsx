@@ -31,6 +31,7 @@ const labels: Record<string, string> = {
 	"charge.pending": t("Reopened a charge"),
 	"payment_method.save": t("Saved a payment method"),
 	"category.create": t("Created a category"),
+	"keep_awake.update": t("Changed when this computer stays awake"),
 	undo: t("Undid a change"),
 	// Two-factor sign-in (ADR 0025): recorded, not undoable.
 	"two_factor.enable": t("Turned on two-factor sign-in"),

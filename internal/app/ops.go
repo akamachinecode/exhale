@@ -228,6 +228,15 @@ var (
 		Name: "remove_logo", Title: "Remove an uploaded logo", Tag: "Documents", Method: "POST", Path: "/subscriptions/logo/remove", Write: true, Idempotent: true,
 		Description: "Drops the logo someone uploaded for a subscription: it shows the bundled brand mark or its initials again. Can be reverted with undo.",
 	}, (*Service).RemoveLogo}
+	// Keep this computer awake (ADR 0028).
+	OpGetKeepAwake = Op[struct{}, KeepAwakeInfo]{Meta{
+		Name: "get_keep_awake", Title: "Is this computer kept awake", Tag: "Household", Method: "GET", Path: "/keep-awake",
+		Description: "Whether Exhale keeps the computer it runs on from sleeping (so reminders go out and chat buttons answer): off, always, or between two times of day in the household time zone; whether the display may sleep; and the live status (active, waiting outside the hours, unavailable here and why, or the error the system gave).",
+	}, (*Service).GetKeepAwake}
+	OpSetKeepAwake = Op[SetKeepAwakeInput, KeepAwakeInfo]{Meta{
+		Name: "set_keep_awake", Title: "Keep this computer awake", Tag: "Household", Method: "POST", Path: "/keep-awake", Write: true, Idempotent: true,
+		Description: "Owners only. Keeps the computer Exhale runs on from sleeping: mode off, always, or hours (from and to, HH:MM in the household time zone; to earlier than from crosses midnight). keepDisplayOn keeps the screen on too. A laptop with its lid closed still sleeps. Can be reverted with undo.",
+	}, (*Service).SetKeepAwake}
 )
 
 // Catalog lists every use case exposed to adapters.
@@ -243,6 +252,7 @@ func Catalog() []Binding {
 		OpBulkUpdate.Binding(), OpRenameTag.Binding(), OpDeleteTag.Binding(),
 		OpSnooze.Binding(), OpDismissDuplicate.Binding(),
 		OpListDocuments.Binding(), OpDeleteDocument.Binding(), OpRemoveLogo.Binding(),
+		OpGetKeepAwake.Binding(), OpSetKeepAwake.Binding(),
 		OpMatchStatement.Binding(),
 	}
 }

@@ -46,7 +46,13 @@ launchctl bootstrap gui/$(id -u) ~/Library/LaunchAgents/io.github.akamachinecode
 | Restart | `launchctl kickstart -k gui/$(id -u)/io.github.akamachinecode.exhale` |
 | Stop and disable | `launchctl bootout gui/$(id -u)/io.github.akamachinecode.exhale` |
 
-The agent runs while you are logged in. For a Mac used as a server, turn on automatic login and stop it from sleeping (System Settings → Energy).
+The agent runs while you are logged in. For a Mac used as a server, turn on automatic login and keep it awake (below).
+
+## Keep the Mac awake
+
+In the web, **Settings → General → This computer** (owners): *Always*, or *Only between two times* (e.g. 08:00 to 23:00, in the household's time zone; a range can cross midnight). Exhale then runs Apple's `caffeinate` while it should be awake, tied to its own process, so the Mac is free to sleep again as soon as Exhale stops. *Let the display sleep* is on by default: only the Mac stays awake, the screen turns off as usual.
+
+A MacBook with its lid closed still sleeps, unless it is on power with an external display. You can also set it once in System Settings → Energy ("Prevent automatic sleeping when the display is off").
 
 ## Settings
 
