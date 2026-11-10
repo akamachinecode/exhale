@@ -365,7 +365,8 @@ func (l *linkCmd) Run(ctx context.Context, g *globals) error {
 // --- user / setup-code -------------------------------------------------------------
 
 type userCmd struct {
-	ResetPassword userResetCmd `cmd:"" help:"Set a new password for an account and sign it out everywhere."`
+	ResetPassword userResetCmd    `cmd:"" help:"Set a new password for an account and sign it out everywhere."`
+	Reset2FA      userReset2FACmd `cmd:"" name:"reset-2fa" help:"Turn off two-factor sign-in for an account that lost its phone and backup codes."`
 }
 
 type userResetCmd struct {
@@ -397,6 +398,36 @@ func (u *userResetCmd) Run(ctx context.Context, g *globals) error {
 		return err
 	}
 	fmt.Printf("Password updated for %s. Every session of this account was signed out.\n", m.Name)
+	return nil
+}
+
+type userReset2FACmd struct {
+	Email string `required:"" help:"Email of the account."`
+}
+
+func (u *userReset2FACmd) Run(ctx context.Context, g *globals) error {
+	e, err := open(ctx, g)
+	if err != nil {
+		return err
+	}
+	defer e.st.Close()
+	email, err := auth.NormalizeEmail(u.Email)
+	if err != nil {
+		return err
+	}
+	m, err := e.st.Q.MemberByEmail(ctx, email)
+	if err != nil {
+		return fmt.Errorf("no account with email %s", email)
+	}
+	was, err := auth.ResetTwoFactorFromServer(ctx, e.st, m.ID)
+	if err != nil {
+		return err
+	}
+	if !was {
+		fmt.Printf("%s does not use two-factor sign-in. Nothing changed.\n", m.Name)
+		return nil
+	}
+	fmt.Printf("Two-factor sign-in is off for %s: the password alone signs in now. They can turn it on again in Settings.\n", m.Name)
 	return nil
 }
 
