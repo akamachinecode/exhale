@@ -1,5 +1,6 @@
 import { type FormEvent, type ReactNode, useState } from "react";
 import { toast } from "sonner";
+import { OtherChannels } from "@/components/channels";
 import { PreferencesForm, ReminderTime, Sharing, TelegramSetup, TokensManager } from "@/components/connect";
 import { PageHeader } from "@/components/layout";
 import { SignOut } from "@/components/sign-out";
@@ -34,6 +35,12 @@ export function SettingsPage() {
 				</Section>
 				<Section title="Telegram" description="Reminders you act on, and the whole app inside one message.">
 					<TelegramSetup />
+				</Section>
+				<Section
+					title="Other channels"
+					description="Reminders by email, ntfy or webhook, with a link back here."
+				>
+					<OtherChannels />
 				</Section>
 				<Section title="Sharing">
 					<Sharing />
