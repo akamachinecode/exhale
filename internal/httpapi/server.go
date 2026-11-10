@@ -63,6 +63,7 @@ func New(svc *app.Service, cfg Config) (http.Handler, huma.API, error) {
 	registerAuth(api, aa)
 	registerSettings(api, aa)
 	registerData(api, mux, svc)
+	registerMembers(api, aa)
 
 	mux.HandleFunc("GET /healthz", func(w http.ResponseWriter, _ *http.Request) { w.Write([]byte("ok")) })
 	mux.HandleFunc("GET /api/v1/events", events(svc))
@@ -178,6 +179,7 @@ func registerAll(api huma.API, svc *app.Service) {
 	register(api, svc, app.OpDeleteCategory)
 	register(api, svc, app.OpExport)
 	register(api, svc, app.OpImport)
+	register(api, svc, app.OpReminders)
 	register(api, svc, app.OpCreateCategory)
 	register(api, svc, app.OpListAudit)
 	register(api, svc, app.OpUndo)

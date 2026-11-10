@@ -455,6 +455,7 @@ func (e *Engine) Deliver(ctx context.Context, item app.OutboxItem) error {
 		return err
 	}
 	var errs []error
+	delivered := 0
 	for _, l := range links {
 		ch, ok := e.channels[l.Channel]
 		if !ok {
@@ -465,10 +466,14 @@ func (e *Engine) Deliver(ctx context.Context, item app.OutboxItem) error {
 			errs = append(errs, fmt.Errorf("%s: %w", l.Channel, err))
 			continue
 		}
+		delivered++
 		_ = e.svc.Store().Q.SaveMessage(ctx, db.SaveMessageParams{ID: domain.NewID("msg"), Channel: l.Channel, ChatID: l.ExternalID, MessageID: msgID, ChargeID: store.Ptr(item.ChargeID), MemberID: store.Ptr(item.MemberID), CreatedAt: store.FormatTime(time.Now())})
 	}
-	if len(links) == 0 {
+	if delivered == 0 && len(errs) == 0 {
+		// Nowhere to send it: say so in the reminder log instead of
+		// pretending it was sent.
 		e.log.Info("reminder not delivered: member has no linked chat", "member", item.MemberID, "charge", item.ChargeID)
+		return app.ErrNoDestination
 	}
 	return errors.Join(errs...)
 }

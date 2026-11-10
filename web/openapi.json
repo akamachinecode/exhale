@@ -2147,6 +2147,110 @@
         ],
         "type": "object"
       },
+      "MemberDone": {
+        "additionalProperties": false,
+        "properties": {
+          "$schema": {
+            "description": "A URL to the JSON Schema for this object.",
+            "examples": [
+              "https://example.com/api/schemas/MemberDone.json"
+            ],
+            "format": "uri",
+            "readOnly": true,
+            "type": "string"
+          },
+          "ok": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "ok"
+        ],
+        "type": "object"
+      },
+      "MemberRemoveBody": {
+        "additionalProperties": false,
+        "properties": {
+          "$schema": {
+            "description": "A URL to the JSON Schema for this object.",
+            "examples": [
+              "https://example.com/api/schemas/MemberRemoveBody.json"
+            ],
+            "format": "uri",
+            "readOnly": true,
+            "type": "string"
+          },
+          "id": {
+            "description": "Member to remove; your own id to leave.",
+            "type": "string"
+          },
+          "payerTo": {
+            "description": "Member who takes over what they paid for. Default: you.",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id"
+        ],
+        "type": "object"
+      },
+      "MemberRenameBody": {
+        "additionalProperties": false,
+        "properties": {
+          "$schema": {
+            "description": "A URL to the JSON Schema for this object.",
+            "examples": [
+              "https://example.com/api/schemas/MemberRenameBody.json"
+            ],
+            "format": "uri",
+            "readOnly": true,
+            "type": "string"
+          },
+          "id": {
+            "description": "Member to rename; yourself, or anyone if you are an owner.",
+            "type": "string"
+          },
+          "name": {
+            "maxLength": 60,
+            "minLength": 1,
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "name"
+        ],
+        "type": "object"
+      },
+      "MemberRoleBody": {
+        "additionalProperties": false,
+        "properties": {
+          "$schema": {
+            "description": "A URL to the JSON Schema for this object.",
+            "examples": [
+              "https://example.com/api/schemas/MemberRoleBody.json"
+            ],
+            "format": "uri",
+            "readOnly": true,
+            "type": "string"
+          },
+          "id": {
+            "type": "string"
+          },
+          "role": {
+            "enum": [
+              "owner",
+              "member"
+            ],
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "role"
+        ],
+        "type": "object"
+      },
       "MethodSpend": {
         "additionalProperties": false,
         "properties": {
@@ -2520,6 +2624,95 @@
         },
         "required": [
           "moved"
+        ],
+        "type": "object"
+      },
+      "ReminderEntry": {
+        "additionalProperties": false,
+        "properties": {
+          "attempts": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "chargeDate": {
+            "type": "string"
+          },
+          "dueAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "error": {
+            "type": "string"
+          },
+          "explanation": {
+            "type": "string"
+          },
+          "id": {
+            "type": "string"
+          },
+          "kind": {
+            "type": "string"
+          },
+          "sentAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "status": {
+            "enum": [
+              "pending",
+              "sent",
+              "failed",
+              "cancelled"
+            ],
+            "type": "string"
+          },
+          "subscription": {
+            "type": "string"
+          },
+          "subscriptionId": {
+            "type": "string"
+          },
+          "to": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "kind",
+          "status",
+          "dueAt",
+          "attempts",
+          "subscriptionId",
+          "subscription",
+          "chargeDate",
+          "explanation"
+        ],
+        "type": "object"
+      },
+      "ReminderLog": {
+        "additionalProperties": false,
+        "properties": {
+          "$schema": {
+            "description": "A URL to the JSON Schema for this object.",
+            "examples": [
+              "https://example.com/api/schemas/ReminderLog.json"
+            ],
+            "format": "uri",
+            "readOnly": true,
+            "type": "string"
+          },
+          "entries": {
+            "items": {
+              "$ref": "#/components/schemas/ReminderEntry"
+            },
+            "type": [
+              "array",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "entries"
         ],
         "type": "object"
       },
@@ -5241,6 +5434,129 @@
         ]
       }
     },
+    "/api/v1/members/remove": {
+      "post": {
+        "operationId": "members_remove",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/MemberRemoveBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MemberDone"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorModel"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "summary": "Remove a member, or leave",
+        "tags": [
+          "Members"
+        ]
+      }
+    },
+    "/api/v1/members/rename": {
+      "post": {
+        "operationId": "members_rename",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/MemberRenameBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MemberDone"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorModel"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "summary": "Rename a member",
+        "tags": [
+          "Members"
+        ]
+      }
+    },
+    "/api/v1/members/role": {
+      "post": {
+        "operationId": "members_set_role",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/MemberRoleBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MemberDone"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorModel"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "summary": "Make a member an owner or a member (owners only)",
+        "tags": [
+          "Members"
+        ]
+      }
+    },
     "/api/v1/payment-methods": {
       "post": {
         "description": "Creates a payment method (no id) or updates one (with id): name, kind, last four digits, expiry date and owner.",
@@ -5379,6 +5695,55 @@
         "summary": "Move subscriptions to another payment method",
         "tags": [
           "Household"
+        ]
+      }
+    },
+    "/api/v1/reminders": {
+      "get": {
+        "description": "Every reminder Exhale planned, newest first, with what happened to it: sent, scheduled, failed and why, or no longer needed. Answers \"why didn't I get that reminder?\".",
+        "operationId": "list_reminders",
+        "parameters": [
+          {
+            "explode": false,
+            "in": "query",
+            "name": "limit",
+            "schema": {
+              "format": "int64",
+              "maximum": 500,
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReminderLog"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorModel"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Reminder log",
+        "tags": [
+          "Audit"
         ]
       }
     },

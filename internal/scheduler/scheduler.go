@@ -5,6 +5,7 @@ package scheduler
 
 import (
 	"context"
+	"errors"
 	"log/slog"
 	"time"
 
@@ -80,7 +81,12 @@ func (s *Scheduler) Tick(ctx context.Context) {
 		if s.deliver == nil {
 			continue
 		}
-		if err := s.deliver.Deliver(ctx, it); err != nil {
+		err := s.deliver.Deliver(ctx, it)
+		if errors.Is(err, app.ErrNoDestination) {
+			_ = s.svc.MarkUndeliverable(ctx, it, err)
+			continue
+		}
+		if err != nil {
 			s.log.Warn("delivery failed, will retry", "kind", it.Kind, "charge", it.ChargeID, "attempt", it.Attempts+1, "err", err)
 			_ = s.svc.MarkFailed(ctx, it, err)
 			continue

@@ -64,3 +64,19 @@ ON CONFLICT (key) DO UPDATE SET value = excluded.value;
 
 -- name: DeleteSetting :exec
 DELETE FROM settings WHERE key = ?;
+
+-- name: DeleteMember :exec
+DELETE FROM members WHERE id = ? AND household_id = ?;
+
+-- name: UpdateMemberRole :exec
+UPDATE members SET role = ? WHERE id = ? AND household_id = ?;
+
+-- name: UpdateMemberName :exec
+UPDATE members SET name = ? WHERE id = ? AND household_id = ?;
+
+-- name: CountOwners :one
+SELECT count(*) FROM members WHERE household_id = ? AND role = 'owner';
+
+-- name: ReassignPayer :exec
+UPDATE subscriptions SET payer_id = sqlc.narg(to_id), updated_at = sqlc.arg(updated_at), version = version + 1
+WHERE household_id = sqlc.arg(household_id) AND payer_id = sqlc.arg(from_id);

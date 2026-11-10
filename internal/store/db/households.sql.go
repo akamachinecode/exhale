@@ -9,6 +9,17 @@ import (
 	"context"
 )
 
+const countOwners = `-- name: CountOwners :one
+SELECT count(*) FROM members WHERE household_id = ? AND role = 'owner'
+`
+
+func (q *Queries) CountOwners(ctx context.Context, householdID string) (int64, error) {
+	row := q.db.QueryRowContext(ctx, countOwners, householdID)
+	var count int64
+	err := row.Scan(&count)
+	return count, err
+}
+
 const createCategory = `-- name: CreateCategory :exec
 INSERT INTO categories (id, household_id, name, color) VALUES (?, ?, ?, ?)
 `
@@ -123,6 +134,20 @@ type DeleteCategoryParams struct {
 
 func (q *Queries) DeleteCategory(ctx context.Context, arg DeleteCategoryParams) error {
 	_, err := q.db.ExecContext(ctx, deleteCategory, arg.ID, arg.HouseholdID)
+	return err
+}
+
+const deleteMember = `-- name: DeleteMember :exec
+DELETE FROM members WHERE id = ? AND household_id = ?
+`
+
+type DeleteMemberParams struct {
+	ID          string
+	HouseholdID string
+}
+
+func (q *Queries) DeleteMember(ctx context.Context, arg DeleteMemberParams) error {
+	_, err := q.db.ExecContext(ctx, deleteMember, arg.ID, arg.HouseholdID)
 	return err
 }
 
@@ -364,6 +389,28 @@ func (q *Queries) PutSetting(ctx context.Context, arg PutSettingParams) error {
 	return err
 }
 
+const reassignPayer = `-- name: ReassignPayer :exec
+UPDATE subscriptions SET payer_id = ?1, updated_at = ?2, version = version + 1
+WHERE household_id = ?3 AND payer_id = ?4
+`
+
+type ReassignPayerParams struct {
+	ToID        *string
+	UpdatedAt   string
+	HouseholdID string
+	FromID      *string
+}
+
+func (q *Queries) ReassignPayer(ctx context.Context, arg ReassignPayerParams) error {
+	_, err := q.db.ExecContext(ctx, reassignPayer,
+		arg.ToID,
+		arg.UpdatedAt,
+		arg.HouseholdID,
+		arg.FromID,
+	)
+	return err
+}
+
 const reassignPaymentMethod = `-- name: ReassignPaymentMethod :execrows
 UPDATE subscriptions SET payment_method_id = ?1, updated_at = ?2, version = version + 1
 WHERE household_id = ?3 AND payment_method_id = ?4
@@ -437,6 +484,36 @@ func (q *Queries) UpdateHousehold(ctx context.Context, arg UpdateHouseholdParams
 		arg.Payday,
 		arg.ID,
 	)
+	return err
+}
+
+const updateMemberName = `-- name: UpdateMemberName :exec
+UPDATE members SET name = ? WHERE id = ? AND household_id = ?
+`
+
+type UpdateMemberNameParams struct {
+	Name        string
+	ID          string
+	HouseholdID string
+}
+
+func (q *Queries) UpdateMemberName(ctx context.Context, arg UpdateMemberNameParams) error {
+	_, err := q.db.ExecContext(ctx, updateMemberName, arg.Name, arg.ID, arg.HouseholdID)
+	return err
+}
+
+const updateMemberRole = `-- name: UpdateMemberRole :exec
+UPDATE members SET role = ? WHERE id = ? AND household_id = ?
+`
+
+type UpdateMemberRoleParams struct {
+	Role        string
+	ID          string
+	HouseholdID string
+}
+
+func (q *Queries) UpdateMemberRole(ctx context.Context, arg UpdateMemberRoleParams) error {
+	_, err := q.db.ExecContext(ctx, updateMemberRole, arg.Role, arg.ID, arg.HouseholdID)
 	return err
 }
 

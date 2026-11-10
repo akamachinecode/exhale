@@ -101,3 +101,16 @@ ON CONFLICT (day, currency) DO UPDATE SET rate = excluded.rate, source = exclude
 
 -- name: FxRateOnOrBefore :one
 SELECT rate, day FROM fx_rates WHERE currency = ? AND day <= ? ORDER BY day DESC LIMIT 1;
+
+-- name: ListOutboxForHousehold :many
+SELECT o.id, o.kind, o.status, o.due_at, o.sent_at, o.attempts, o.last_error, o.member_id,
+       c.id AS charge_id, c.due_date AS charge_due, s.id AS subscription_id, s.name AS subscription_name
+FROM outbox o
+JOIN charges c ON c.id = o.charge_id
+JOIN subscriptions s ON s.id = c.subscription_id
+WHERE s.household_id = ?
+ORDER BY o.due_at DESC
+LIMIT ?;
+
+-- name: MarkOutboxUndeliverable :exec
+UPDATE outbox SET status = 'failed', last_error = ?, attempts = attempts + 1 WHERE id = ?;

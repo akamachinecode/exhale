@@ -107,3 +107,51 @@ func TestTermsConversation(t *testing.T) {
 
 	testutil.Golden(t, "terms_conversation", termID.ReplaceAllString(script.String(), "${1}_X"))
 }
+
+// TestReminderLogExplainsWhatHappened: a reminder for someone with no chat
+// linked is not "sent"; the log says why it never arrived.
+func TestReminderLogExplainsWhatHappened(t *testing.T) {
+	ctx := context.Background()
+	st, err := store.OpenMemory(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer st.Close()
+	now := time.Date(2026, 11, 5, 9, 0, 0, 0, time.UTC)
+	svc := app.New(st, bus.New(), nil, func() time.Time { return now })
+	owner, err := svc.Bootstrap(ctx, app.BootstrapInput{HouseholdName: "Home", OwnerName: "Alex", Currency: "EUR", Timezone: "UTC", Locale: "en"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	eng := actions.New(svc, slog.New(slog.DiscardHandler), fake.New())
+	if _, err := svc.CreateSubscription(ctx, owner, app.CreateSubscriptionInput{Name: "Netflix", Price: "13.99", Currency: "EUR", FirstCharge: "2026-11-08"}); err != nil {
+		t.Fatal(err)
+	}
+	if err := svc.Plan(ctx); err != nil {
+		t.Fatal(err)
+	}
+	clock := scheduler.New(svc, slog.New(slog.DiscardHandler), eng)
+	clock.Tick(ctx)
+	clock.Tick(ctx) // it must not be retried forever
+	log, err := svc.Reminders(ctx, owner, app.ReminderLogInput{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	var failed, pending int
+	for _, e := range log.Entries {
+		switch e.Status {
+		case "failed":
+			failed++
+			if e.Attempts != 1 || !strings.Contains(e.Explanation, "Alex had no chat or channel linked") {
+				t.Fatalf("entry = %+v", e)
+			}
+		case "pending":
+			pending++
+		default:
+			t.Fatalf("unexpected status %s", e.Status)
+		}
+	}
+	if failed != 1 || pending == 0 {
+		t.Fatalf("failed=%d pending=%d: %+v", failed, pending, log.Entries)
+	}
+}

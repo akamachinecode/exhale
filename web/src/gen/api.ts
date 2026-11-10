@@ -916,6 +916,48 @@ export interface LoginIn {
   password: string;
 }
 
+export interface MemberDone {
+  /** A URL to the JSON Schema for this object. */
+  readonly $schema?: string;
+  ok: boolean;
+}
+
+export interface MemberRemoveBody {
+  /** A URL to the JSON Schema for this object. */
+  readonly $schema?: string;
+  /** Member to remove; your own id to leave. */
+  id: string;
+  /** Member who takes over what they paid for. Default: you. */
+  payerTo?: string;
+}
+
+export interface MemberRenameBody {
+  /** A URL to the JSON Schema for this object. */
+  readonly $schema?: string;
+  /** Member to rename; yourself, or anyone if you are an owner. */
+  id: string;
+  /**
+     * @minLength 1
+     * @maxLength 60
+     */
+  name: string;
+}
+
+export type MemberRoleBodyRole = typeof MemberRoleBodyRole[keyof typeof MemberRoleBodyRole];
+
+
+export const MemberRoleBodyRole = {
+  owner: 'owner',
+  member: 'member',
+} as const;
+
+export interface MemberRoleBody {
+  /** A URL to the JSON Schema for this object. */
+  readonly $schema?: string;
+  id: string;
+  role: MemberRoleBodyRole;
+}
+
 export interface MethodSpend {
   count: number;
   monthly: Money;
@@ -996,6 +1038,38 @@ export interface ReassignResult {
   readonly $schema?: string;
   deleted?: string;
   moved: number;
+}
+
+export type ReminderEntryStatus = typeof ReminderEntryStatus[keyof typeof ReminderEntryStatus];
+
+
+export const ReminderEntryStatus = {
+  pending: 'pending',
+  sent: 'sent',
+  failed: 'failed',
+  cancelled: 'cancelled',
+} as const;
+
+export interface ReminderEntry {
+  attempts: number;
+  chargeDate: string;
+  dueAt: string;
+  error?: string;
+  explanation: string;
+  id: string;
+  kind: string;
+  sentAt?: string;
+  status: ReminderEntryStatus;
+  subscription: string;
+  subscriptionId: string;
+  to?: string;
+}
+
+export interface ReminderLog {
+  /** A URL to the JSON Schema for this object. */
+  readonly $schema?: string;
+  /** @nullable */
+  entries: ReminderEntry[] | null;
 }
 
 export type SavePaymentMethodInputKind = typeof SavePaymentMethodInputKind[keyof typeof SavePaymentMethodInputKind];
@@ -1308,6 +1382,13 @@ limit?: number;
 export type ListChargesParams = {
 from?: string;
 to?: string;
+};
+
+export type ListRemindersParams = {
+/**
+ * @maximum 500
+ */
+limit?: number;
 };
 
 export type SpendingHistoryParams = {
@@ -4683,6 +4764,270 @@ export const useImportSubscriptions = <TError = ErrorModel,
       return useMutation(getImportSubscriptionsMutationOptions(options), queryClient);
     }
 
+export const getMembersRemoveUrl = () => {
+
+
+
+
+  return `/api/v1/members/remove`
+}
+
+/**
+ * @summary Remove a member, or leave
+ */
+export const membersRemove = async (memberRemoveBody: NonReadonly<MemberRemoveBody>, options?: Parameters<typeof fetcher>[1]): Promise<MemberDone> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return fetcher<MemberDone>(getMembersRemoveUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(memberRemoveBody)
+  }
+);}
+
+
+
+
+
+export const getMembersRemoveMutationKey = () => ['membersRemove'] as const;
+
+export const getMembersRemoveMutationOptions = <TError = ErrorModel,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof membersRemove>>, TError,MembersRemoveMutationVariables, TContext>, request?: SecondParameter<typeof fetcher>}
+): UseMutationOptions<Awaited<ReturnType<typeof membersRemove>>, TError,MembersRemoveMutationVariables, TContext> => {
+
+const mutationKey = getMembersRemoveMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof membersRemove>>, MembersRemoveMutationVariables> = (props) => {
+          const {data} = props ?? {};
+
+          return  membersRemove(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type MembersRemoveMutationResult = NonNullable<Awaited<ReturnType<typeof membersRemove>>>
+    export type MembersRemoveMutationBody = NonReadonly<MemberRemoveBody>
+    export type MembersRemoveMutationError = ErrorModel
+    export type MembersRemoveMutationVariables = {data: NonReadonly<MemberRemoveBody>}
+
+    /**
+ * @summary Remove a member, or leave
+ */
+export const useMembersRemove = <TError = ErrorModel,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof membersRemove>>, TError,MembersRemoveMutationVariables, TContext>, request?: SecondParameter<typeof fetcher>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof membersRemove>>,
+        TError,
+        MembersRemoveMutationVariables,
+        TContext
+      > => {
+      return useMutation(getMembersRemoveMutationOptions(options), queryClient);
+    }
+
+export const getMembersRenameUrl = () => {
+
+
+
+
+  return `/api/v1/members/rename`
+}
+
+/**
+ * @summary Rename a member
+ */
+export const membersRename = async (memberRenameBody: NonReadonly<MemberRenameBody>, options?: Parameters<typeof fetcher>[1]): Promise<MemberDone> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return fetcher<MemberDone>(getMembersRenameUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(memberRenameBody)
+  }
+);}
+
+
+
+
+
+export const getMembersRenameMutationKey = () => ['membersRename'] as const;
+
+export const getMembersRenameMutationOptions = <TError = ErrorModel,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof membersRename>>, TError,MembersRenameMutationVariables, TContext>, request?: SecondParameter<typeof fetcher>}
+): UseMutationOptions<Awaited<ReturnType<typeof membersRename>>, TError,MembersRenameMutationVariables, TContext> => {
+
+const mutationKey = getMembersRenameMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof membersRename>>, MembersRenameMutationVariables> = (props) => {
+          const {data} = props ?? {};
+
+          return  membersRename(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type MembersRenameMutationResult = NonNullable<Awaited<ReturnType<typeof membersRename>>>
+    export type MembersRenameMutationBody = NonReadonly<MemberRenameBody>
+    export type MembersRenameMutationError = ErrorModel
+    export type MembersRenameMutationVariables = {data: NonReadonly<MemberRenameBody>}
+
+    /**
+ * @summary Rename a member
+ */
+export const useMembersRename = <TError = ErrorModel,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof membersRename>>, TError,MembersRenameMutationVariables, TContext>, request?: SecondParameter<typeof fetcher>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof membersRename>>,
+        TError,
+        MembersRenameMutationVariables,
+        TContext
+      > => {
+      return useMutation(getMembersRenameMutationOptions(options), queryClient);
+    }
+
+export const getMembersSetRoleUrl = () => {
+
+
+
+
+  return `/api/v1/members/role`
+}
+
+/**
+ * @summary Make a member an owner or a member (owners only)
+ */
+export const membersSetRole = async (memberRoleBody: NonReadonly<MemberRoleBody>, options?: Parameters<typeof fetcher>[1]): Promise<MemberDone> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return fetcher<MemberDone>(getMembersSetRoleUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(memberRoleBody)
+  }
+);}
+
+
+
+
+
+export const getMembersSetRoleMutationKey = () => ['membersSetRole'] as const;
+
+export const getMembersSetRoleMutationOptions = <TError = ErrorModel,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof membersSetRole>>, TError,MembersSetRoleMutationVariables, TContext>, request?: SecondParameter<typeof fetcher>}
+): UseMutationOptions<Awaited<ReturnType<typeof membersSetRole>>, TError,MembersSetRoleMutationVariables, TContext> => {
+
+const mutationKey = getMembersSetRoleMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof membersSetRole>>, MembersSetRoleMutationVariables> = (props) => {
+          const {data} = props ?? {};
+
+          return  membersSetRole(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type MembersSetRoleMutationResult = NonNullable<Awaited<ReturnType<typeof membersSetRole>>>
+    export type MembersSetRoleMutationBody = NonReadonly<MemberRoleBody>
+    export type MembersSetRoleMutationError = ErrorModel
+    export type MembersSetRoleMutationVariables = {data: NonReadonly<MemberRoleBody>}
+
+    /**
+ * @summary Make a member an owner or a member (owners only)
+ */
+export const useMembersSetRole = <TError = ErrorModel,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof membersSetRole>>, TError,MembersSetRoleMutationVariables, TContext>, request?: SecondParameter<typeof fetcher>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof membersSetRole>>,
+        TError,
+        MembersSetRoleMutationVariables,
+        TContext
+      > => {
+      return useMutation(getMembersSetRoleMutationOptions(options), queryClient);
+    }
+
 export const getSavePaymentMethodUrl = () => {
 
 
@@ -4949,6 +5294,115 @@ export const useReassignPaymentMethod = <TError = ErrorModel,
       > => {
       return useMutation(getReassignPaymentMethodMutationOptions(options), queryClient);
     }
+
+export const getListRemindersUrl = (params?: ListRemindersParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : String(value))
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/v1/reminders?${stringifiedParams}` : `/api/v1/reminders`
+}
+
+/**
+ * Every reminder Exhale planned, newest first, with what happened to it: sent, scheduled, failed and why, or no longer needed. Answers "why didn't I get that reminder?".
+ * @summary Reminder log
+ */
+export const listReminders = async (params?: ListRemindersParams, options?: Parameters<typeof fetcher>[1]): Promise<ReminderLog> => {
+
+  return fetcher<ReminderLog>(getListRemindersUrl(params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListRemindersQueryKey = (params?: ListRemindersParams,) => {
+    return [
+    `/api/v1/reminders`, ...(params ? [params] : [])
+    ] as const;
+    }
+
+
+export const getListRemindersQueryOptions = <TData = Awaited<ReturnType<typeof listReminders>>, TError = ErrorModel>(params?: ListRemindersParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listReminders>>, TError, TData>>, request?: SecondParameter<typeof fetcher>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListRemindersQueryKey(params);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listReminders>>> = ({ signal }) => listReminders(params, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listReminders>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type ListRemindersQueryResult = NonNullable<Awaited<ReturnType<typeof listReminders>>>
+export type ListRemindersQueryError = ErrorModel
+
+
+export function useListReminders<TData = Awaited<ReturnType<typeof listReminders>>, TError = ErrorModel>(
+ params: undefined |  ListRemindersParams, options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof listReminders>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof listReminders>>,
+          TError,
+          Awaited<ReturnType<typeof listReminders>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof fetcher>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useListReminders<TData = Awaited<ReturnType<typeof listReminders>>, TError = ErrorModel>(
+ params?: ListRemindersParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listReminders>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof listReminders>>,
+          TError,
+          Awaited<ReturnType<typeof listReminders>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof fetcher>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useListReminders<TData = Awaited<ReturnType<typeof listReminders>>, TError = ErrorModel>(
+ params?: ListRemindersParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listReminders>>, TError, TData>>, request?: SecondParameter<typeof fetcher>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+/**
+ * @summary Reminder log
+ */
+
+export function useListReminders<TData = Awaited<ReturnType<typeof listReminders>>, TError = ErrorModel>(
+ params?: ListRemindersParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listReminders>>, TError, TData>>, request?: SecondParameter<typeof fetcher>}
+ , queryClient?: QueryClient
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getListRemindersQueryOptions(params,options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
 
 export const getPreviewScheduleUrl = () => {
 

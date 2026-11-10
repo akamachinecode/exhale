@@ -469,6 +469,73 @@ func (q *Queries) ListOutboxDue(ctx context.Context, arg ListOutboxDueParams) ([
 	return items, nil
 }
 
+const listOutboxForHousehold = `-- name: ListOutboxForHousehold :many
+SELECT o.id, o.kind, o.status, o.due_at, o.sent_at, o.attempts, o.last_error, o.member_id,
+       c.id AS charge_id, c.due_date AS charge_due, s.id AS subscription_id, s.name AS subscription_name
+FROM outbox o
+JOIN charges c ON c.id = o.charge_id
+JOIN subscriptions s ON s.id = c.subscription_id
+WHERE s.household_id = ?
+ORDER BY o.due_at DESC
+LIMIT ?
+`
+
+type ListOutboxForHouseholdParams struct {
+	HouseholdID string
+	Limit       int64
+}
+
+type ListOutboxForHouseholdRow struct {
+	ID               string
+	Kind             string
+	Status           string
+	DueAt            string
+	SentAt           *string
+	Attempts         int64
+	LastError        string
+	MemberID         *string
+	ChargeID         string
+	ChargeDue        string
+	SubscriptionID   string
+	SubscriptionName string
+}
+
+func (q *Queries) ListOutboxForHousehold(ctx context.Context, arg ListOutboxForHouseholdParams) ([]ListOutboxForHouseholdRow, error) {
+	rows, err := q.db.QueryContext(ctx, listOutboxForHousehold, arg.HouseholdID, arg.Limit)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ListOutboxForHouseholdRow{}
+	for rows.Next() {
+		var i ListOutboxForHouseholdRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.Kind,
+			&i.Status,
+			&i.DueAt,
+			&i.SentAt,
+			&i.Attempts,
+			&i.LastError,
+			&i.MemberID,
+			&i.ChargeID,
+			&i.ChargeDue,
+			&i.SubscriptionID,
+			&i.SubscriptionName,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const markOutboxAttemptFailed = `-- name: MarkOutboxAttemptFailed :exec
 UPDATE outbox SET attempts = attempts + 1, last_error = ?, due_at = ?,
     status = CASE WHEN attempts + 1 >= ? THEN 'failed' ELSE 'pending' END
@@ -503,6 +570,20 @@ type MarkOutboxSentParams struct {
 
 func (q *Queries) MarkOutboxSent(ctx context.Context, arg MarkOutboxSentParams) error {
 	_, err := q.db.ExecContext(ctx, markOutboxSent, arg.SentAt, arg.ID)
+	return err
+}
+
+const markOutboxUndeliverable = `-- name: MarkOutboxUndeliverable :exec
+UPDATE outbox SET status = 'failed', last_error = ?, attempts = attempts + 1 WHERE id = ?
+`
+
+type MarkOutboxUndeliverableParams struct {
+	LastError string
+	ID        string
+}
+
+func (q *Queries) MarkOutboxUndeliverable(ctx context.Context, arg MarkOutboxUndeliverableParams) error {
+	_, err := q.db.ExecContext(ctx, markOutboxUndeliverable, arg.LastError, arg.ID)
 	return err
 }
 

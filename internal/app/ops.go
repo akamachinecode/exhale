@@ -171,6 +171,10 @@ var (
 		Name: "import_subscriptions", Title: "Import subscriptions", Tag: "Data", Method: "POST", Path: "/import", Write: true,
 		Description: "Creates many subscriptions in one step, e.g. from a bank statement, a spreadsheet or another app. Categories, payment methods and payers are given by name (missing categories and payment methods are created). Items that duplicate an existing subscription or fail validation are skipped and reported. Always call it first with dryRun and show the user the list.",
 	}, (*Service).Import}
+	OpReminders = Op[ReminderLogInput, ReminderLog]{Meta{
+		Name: "list_reminders", Title: "Reminder log", Tag: "Audit", Method: "GET", Path: "/reminders",
+		Description: "Every reminder Exhale planned, newest first, with what happened to it: sent, scheduled, failed and why, or no longer needed. Answers \"why didn't I get that reminder?\".",
+	}, (*Service).Reminders}
 	OpListAudit = Op[AuditLogInput, AuditLog]{Meta{
 		Name: "list_changes", Title: "Recent changes", Tag: "Audit", Method: "GET", Path: "/changes",
 		Description: "Recent changes with who made them (member, agent or system). Each id can be passed to undo.",
@@ -190,7 +194,7 @@ func Catalog() []Binding {
 		OpChangeChargeAmount.Binding(), OpSetChargeStatus.Binding(), OpDecideRenewal.Binding(), OpPreviewSchedule.Binding(), OpSummary.Binding(),
 		OpSpendHistory.Binding(), OpBalances.Binding(), OpAudit.Binding(),
 		OpSavePaymentMethod.Binding(), OpReassignPaymentMethod.Binding(), OpDeletePaymentMethod.Binding(),
-		OpCreateCategory.Binding(), OpUpdateCategory.Binding(), OpDeleteCategory.Binding(), OpExport.Binding(), OpImport.Binding(), OpListAudit.Binding(), OpUndo.Binding(),
+		OpCreateCategory.Binding(), OpUpdateCategory.Binding(), OpDeleteCategory.Binding(), OpExport.Binding(), OpImport.Binding(), OpReminders.Binding(), OpListAudit.Binding(), OpUndo.Binding(),
 	}
 }
 

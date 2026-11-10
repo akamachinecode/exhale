@@ -3,6 +3,7 @@ import { Check, Copy, ExternalLink, Loader2, Trash2, UserPlus } from "lucide-rea
 import { type FormEvent, useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 import { encode } from "uqr";
+import { MemberRow } from "@/components/manage";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Field, Input, Select } from "@/components/ui/field";
@@ -565,16 +566,13 @@ export function Sharing() {
 			{members.length > 1 && (
 				<ul className="divide-y divide-line rounded-lg border border-line">
 					{members.map((m) => (
-						<li key={m.id} className="flex items-center justify-between gap-3 px-3 py-2.5">
-							<div className="min-w-0">
-								<p className="truncate text-sm font-medium">
-									{m.name}
-									{m.id === session.data?.user?.id && <span className="font-normal text-muted"> (you)</span>}
-								</p>
-								{m.email && <p className="truncate text-xs text-muted">{m.email}</p>}
-							</div>
-							<Badge>{m.role}</Badge>
-						</li>
+						<MemberRow
+							key={m.id}
+							member={m}
+							me={session.data?.user?.id}
+							isOwner={isOwner}
+							owners={members.filter((x) => x.role === "owner").length}
+						/>
 					))}
 				</ul>
 			)}
