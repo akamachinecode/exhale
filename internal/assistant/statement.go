@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"slices"
 	"strconv"
 	"strings"
 	"time"
@@ -13,6 +14,7 @@ import (
 	"github.com/akamachinecode/exhale/internal/domain"
 	"github.com/akamachinecode/exhale/internal/engine"
 	"github.com/akamachinecode/exhale/internal/importer"
+	"github.com/akamachinecode/exhale/internal/merchant"
 )
 
 // Import limits. A file is read in memory and never written anywhere.
@@ -26,6 +28,10 @@ const (
 	MaxTextSize = 200_000
 	// maxExtracted bounds how many charges one document can propose.
 	maxExtracted = 100
+	// maxReportedPayments bounds the payments a model reports for matching.
+	// The prompt asks for at most 300, which keeps the answer within its
+	// token budget.
+	maxReportedPayments = 300
 	extractToken = 16_000
 	// extractTimeout bounds reading one document.
 	extractTimeout = 150 * time.Second
@@ -34,6 +40,18 @@ const (
 // ErrNeedsAssistant is returned for files only a model can read while the
 // assistant is off.
 var ErrNeedsAssistant = fmt.Errorf("%w: reading a PDF, a picture or free text needs the built-in assistant. An owner can turn it on in Settings; a spreadsheet saved as CSV works without it", domain.ErrValidation)
+
+// ErrScanNeedsAssistant is returned for a PDF without text (a scan) while
+// the assistant is off.
+var ErrScanNeedsAssistant = fmt.Errorf("%w: this PDF has no text (it is probably a scan): reading it needs the built-in assistant. An owner can turn it on in Settings; or export the statement as CSV from your bank", domain.ErrValidation)
+
+// ErrPDFUnreadable is returned for a PDF Exhale cannot open, while the
+// assistant is off.
+var ErrPDFUnreadable = fmt.Errorf("%w: Exhale could not open this PDF (it may be damaged or protected with a password). Export the statement as CSV from your bank, or ask an owner to turn on the built-in assistant in Settings", domain.ErrValidation)
+
+// ErrPDFNeedsAssistant is returned for a PDF with text in which Exhale
+// found no transactions, while the assistant is off.
+var ErrPDFNeedsAssistant = fmt.Errorf("%w: Exhale found no list of transactions in this PDF. Export the statement as CSV from your bank, or ask an owner to turn on the built-in assistant in Settings to read it", domain.ErrValidation)
 
 const reportTool = "report_recurring_charges"
 
@@ -58,7 +76,21 @@ var reportSchema = json.RawMessage(`{
         "required": ["name", "price", "remark"]
       }
     },
-    "notes": {"type": "array", "items": {"type": "string"}, "description": "things the person should know about the document as a whole, e.g. the period it covers"}
+    "notes": {"type": "array", "items": {"type": "string"}, "description": "things the person should know about the document as a whole, e.g. the period it covers"},
+    "transactions": {
+      "type": "array",
+      "description": "every outgoing payment the document lists, recurring or not, at most the 300 most recent; empty if it lists none",
+      "items": {
+        "type": "object",
+        "properties": {
+          "date": {"type": "string", "description": "YYYY-MM-DD"},
+          "description": {"type": "string", "description": "the text as the document prints it"},
+          "amount": {"type": "string", "description": "what left the account, as a positive decimal, e.g. 12.99"},
+          "currency": {"type": "string", "description": "ISO 4217 code, if the document shows it"}
+        },
+        "required": ["date", "description", "amount"]
+      }
+    }
   },
   "required": ["items"]
 }`)
@@ -74,7 +106,13 @@ type reported struct {
 		PaymentMethod string `json:"paymentMethod"`
 		Remark        string `json:"remark"`
 	} `json:"items"`
-	Notes []string `json:"notes"`
+	Notes        []string `json:"notes"`
+	Transactions []struct {
+		Date        string `json:"date"`
+		Description string `json:"description"`
+		Amount      any    `json:"amount"`
+		Currency    string `json:"currency"`
+	} `json:"transactions"`
 }
 
 // ReadImport turns an uploaded file or pasted text into an import review
@@ -103,7 +141,32 @@ func (a *Assistant) ReadImport(ctx context.Context, actor app.Actor, data []byte
 		if kind == importer.FileImage {
 			source = "picture"
 		}
-		return a.extract(ctx, actor, source, cur, today, "Report the recurring charges in the attached document.", []Attachment{{MediaType: media, Data: data}})
+		if kind == importer.FilePDF {
+			// A PDF with text is read by Exhale, like a CSV; the model is
+			// only needed for a scan or a layout Exhale cannot follow.
+			text, terr := importer.PDFText(data)
+			if terr == nil {
+				if res, ok := importer.TextTransactions(text, cur, today, source); ok {
+					if a.finishStatement(ctx, actor, &res) {
+						return res, nil
+					}
+				}
+			}
+			if !a.Enabled(ctx) {
+				switch {
+				case errors.Is(terr, importer.ErrNoText):
+					return importer.Result{}, ErrScanNeedsAssistant
+				case terr != nil:
+					return importer.Result{}, ErrPDFUnreadable
+				}
+				return importer.Result{}, ErrPDFNeedsAssistant
+			}
+		}
+		res, err := a.extract(ctx, actor, source, cur, today, "Report the recurring charges in the attached document.", []Attachment{{MediaType: media, Data: data}})
+		if err == nil {
+			a.matchStatement(ctx, actor, &res)
+		}
+		return res, err
 	case importer.FileSQLite, importer.FileJSON:
 		return importer.Parse(ctx, data, cur)
 	case importer.FileUnknown:
@@ -111,8 +174,7 @@ func (a *Assistant) ReadImport(ctx context.Context, actor app.Actor, data []byte
 	case importer.FileText:
 	}
 	if res, shaped := importer.Transactions(data, cur, today); shaped {
-		if len(res.Items) > 0 {
-			a.tidyNames(ctx, actor, &res)
+		if a.finishStatement(ctx, actor, &res) {
 			return res, nil
 		}
 		if !a.Enabled(ctx) {
@@ -129,10 +191,61 @@ func (a *Assistant) ReadImport(ctx context.Context, actor app.Actor, data []byte
 	if err == nil || !errors.Is(err, importer.ErrUnknownFormat) {
 		return res, err
 	}
+	// Lines copied from a statement: a date, a description, an amount.
+	if res, ok := importer.TextTransactions(string(data), cur, today, "text"); ok && a.finishStatement(ctx, actor, &res) {
+		return res, nil
+	}
 	if !a.Enabled(ctx) {
 		return importer.Result{}, ErrNeedsAssistant
 	}
-	return a.extractText(ctx, actor, cur, today, data)
+	res, err = a.extractText(ctx, actor, cur, today, data)
+	if err == nil {
+		a.matchStatement(ctx, actor, &res)
+	}
+	return res, err
+}
+
+// finishStatement completes a statement Exhale read by itself: its
+// payments are matched with the expected charges, and the merchant names
+// are tidied when the assistant is on. It reports false when the statement
+// gave nothing to review (no recurring charge, no expected charge found).
+func (a *Assistant) finishStatement(ctx context.Context, actor app.Actor, res *importer.Result) bool {
+	a.matchStatement(ctx, actor, res)
+	if len(res.Items) == 0 && (res.Match == nil || len(res.Match.Matches) == 0) {
+		return false
+	}
+	if len(res.Items) > 0 {
+		a.tidyNames(ctx, actor, res)
+	}
+	return true
+}
+
+// matchStatement compares the payments of a statement with the charges
+// Exhale expects (app.MatchStatement). A recurring charge whose merchant
+// is a subscription that matched is not offered as a new one.
+func (a *Assistant) matchStatement(ctx context.Context, actor app.Actor, res *importer.Result) {
+	if len(res.Transactions) == 0 {
+		return
+	}
+	m, err := a.svc.MatchStatement(ctx, actor, app.MatchStatementInput{Transactions: res.Transactions})
+	if err != nil {
+		a.log.Info("import: the statement was not matched", "err", err)
+		return
+	}
+	res.Match = &m
+	known := 0
+	res.Items = slices.DeleteFunc(res.Items, func(it app.ImportItem) bool {
+		for _, mt := range m.Matches {
+			if merchant.Same(merchant.Key(it.Name), merchant.Key(mt.Charge.SubscriptionName)) {
+				known++
+				return true
+			}
+		}
+		return false
+	})
+	if known > 0 {
+		res.Notes = append(res.Notes, fmt.Sprintf("%d of the recurring charges are subscriptions Exhale already has: they are in the charges found below, not in the new ones.", known))
+	}
 }
 
 func (a *Assistant) extractText(ctx context.Context, actor app.Actor, cur string, today engine.Date, data []byte) (importer.Result, error) {
@@ -208,6 +321,14 @@ func (a *Assistant) extract(ctx context.Context, actor app.Actor, source, cur st
 			out.Notes = append(out.Notes, n)
 		}
 	}
+	for _, t := range rep.Transactions {
+		if len(out.Transactions) == maxReportedPayments {
+			break
+		}
+		if l, ok := cleanPayment(t.Date, t.Description, anyString(t.Amount), t.Currency, cur); ok {
+			out.Transactions = append(out.Transactions, l)
+		}
+	}
 	out.Notes = append(out.Notes, "Read by a model: check every line before importing. Nothing is saved until you choose.")
 	a.log.Info("assistant read a document", "provider", p.Name(), "source", source, "items", len(out.Items), "input_tokens", res.Usage.Input, "output_tokens", res.Usage.Output)
 	return out, nil
@@ -241,6 +362,20 @@ func cleanItem(name, price, currency string, interval int, unit, next, method, r
 		it.Remark = strings.TrimSpace(it.Remark + " (no date: add the next charge)")
 	}
 	return it, true
+}
+
+// cleanPayment checks a payment a model reported before it is matched: a
+// real date, a positive amount, a bounded single line of text.
+func cleanPayment(date, description, amount, currency, defaultCurrency string) (app.StatementLine, bool) {
+	l := app.StatementLine{Date: importer.AnyDate(date), Description: oneLine(description, 200)}
+	l.Amount, l.Currency = importer.SplitPrice(strings.TrimPrefix(strings.TrimSpace(amount), "-"), defaultCurrency)
+	if c := strings.ToUpper(strings.TrimSpace(currency)); len(c) == 3 {
+		l.Currency = c
+	}
+	if f, err := strconv.ParseFloat(l.Amount, 64); err != nil || f <= 0 || l.Date == "" || l.Description == "" || len(l.Currency) != 3 {
+		return l, false
+	}
+	return l, true
 }
 
 func oneLine(s string, n int) string {

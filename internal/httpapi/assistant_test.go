@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"io"
 	"net/http"
+	"os"
 	"net/http/httptest"
 	"strings"
 	"testing"
@@ -208,8 +209,20 @@ func TestImportStatement(t *testing.T) {
 
 	// Assistant off: a PDF is refused with what to do; nothing else changes.
 	code, body := upload(t, owner, pdf)
-	if code != 422 || !strings.Contains(body["detail"].(string), "needs the built-in assistant") {
+	if code != 422 || !strings.Contains(body["detail"].(string), "built-in assistant") {
 		t.Fatalf("pdf with the assistant off: %d %v", code, body)
+	}
+	// A PDF with text is read by Exhale itself, and its payments matched.
+	statement, err := os.ReadFile("../importer/testdata/statement.pdf")
+	if err != nil {
+		t.Fatal(err)
+	}
+	code, body = upload(t, owner, statement)
+	if code != 200 || body["source"] != "statement" || body["model"] != nil || body["match"] == nil || len(body["items"].([]any)) != 2 {
+		t.Fatalf("text pdf with the assistant off: %d %v", code, body)
+	}
+	if _, waiting := owner.do("GET", "/api/v1/import/review", nil); waiting["waiting"] != false {
+		t.Fatalf("no import waits from a chat: %v", waiting)
 	}
 	if code, body := upload(t, owner, []byte("PK\x03\x04\x00\x00\x00a zip")); code != 422 || !strings.Contains(body["detail"].(string), "not a Wallos database") {
 		t.Fatalf("unsupported file: %d %v", code, body)
