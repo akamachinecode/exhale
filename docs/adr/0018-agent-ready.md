@@ -165,13 +165,32 @@ A CSV of transactions is read **without a model**: transactions are grouped by a
 
 With the assistant on, the model **only tidies the names**: it is sent the merchant descriptions, no amounts and no dates, and a failure leaves the names Exhale worked out. If no charge repeats (a single month), the text goes to the model when it is on; otherwise the person is told a longer period is needed.
 
+### Finished later (2026-11-10)
+
+Four items of the first "Not done" list, built on the same pieces.
+
+**Spanish everywhere the person reads.** The cards, notes and explanations of the assistant, and the validation errors of `internal/app` and `internal/domain`, are `domain.Text` values: the English format with fmt verbs, which is the key of its translations, and its arguments. An argument from a closed set (a field name, a status) is a `domain.Word` and is translated too. Errors are written with `domain.Invalid`, `NotFound`, `Missing`, `Conflict` or `Fail`; `Error()` stays the same English sentence, so MCP agents and logs see no change. Each edge renders the text in the reader's language:
+
+- chat with the catalog of `internal/actions/i18n_es.go` (`actions.Say`, `actions.ErrorText`), in the member's language;
+- the web with `web/src/lib/es.ts`, in the browser's language: a problem body carries `text: {key, args}` beside the English `detail`, keys use `{0}` like the rest of the web, and the fetcher shows the translation. The assistant's turns and outcomes send the same form.
+
+Considered: stable error codes (rejected: a code per sentence is a second name to keep in sync, against ADR 0023's "the English is the key"), and translating on the server from `Accept-Language` (rejected: the web already translates in the browser, and one rule for all web text is simpler). A test type-checks the packages and collects every format passed to a function with a `format` parameter that returns an error or a `domain.Text`, every constant `domain.Word`, and every use case title; it fails when one has no Spanish in `i18n_es.go`, when `fmt.Errorf` wraps a sentinel, or when `web/scripts/server-texts.json` (the list `pnpm i18n` checks against `es.ts`) is stale. Errors of the auth, channel and notifier packages are not converted yet (see below).
+
+**Streaming.** Both clients read Server-Sent Events: Anthropic's `content_block_*` and `message_delta` events, rebuilt into the same content blocks a whole answer has (reasoning blocks and their signatures kept for replay), and OpenAI-compatible chunks with tool calls split across them and usage in the last chunk (`stream_options`, dropped when a server rejects it). A server that answers a streaming request with plain JSON is read as a whole answer, and a 400 to a streaming request falls back to `Complete`. Still hand-written: streaming with tool calls was the "revisit" reason, and it came to about 500 lines for both protocols, tested against HTTP fakes: still far from the +8.4 MB of the SDK. The person sees the text of each call as it is written; the text of a call made after tools starts again. The cards and screens arrive only with the finished turn, written by Exhale.
+
+- Web: `POST /api/v1/assistant/messages/stream` answers with events `delta`, `text`, `turn` and `error`, read with `fetch`. `POST /api/v1/assistant/messages` stays.
+- Telegram: "typing…", then the answer in one message, edited at most every 3 seconds as it grows and once more into the finished answer; the cards follow. Three seconds keeps within Telegram's limit of about 20 messages a minute in a group (ADR 0019 asked for 500 ms per message, which a group chat does not allow). The logic is `Engine.AskLive`, written against `Channel`, so Slack gets it too.
+
+**Cost and tokens (safety rule 6).** Each question and each import read by a model records the member, where it was asked, the provider, the model that answered, the calls, the input and output tokens and an estimated cost, in `assistant_usage` (migration 00130), kept for 400 days. Never the words. The cost comes from a table of Anthropic's list prices (US dollars per million tokens), which the owner can override per model in Settings; a model without a price gets tokens only, never an invented cost. Other providers' prices change too often to ship. Amounts are integers of millionths of a dollar. Shown in **Activity → Assistant** (an owner sees everyone's questions, a member their own) and as this month's total under **Built-in assistant**. No OpenTelemetry spans yet.
+
+**Generated screens (ADR 0019 §4, minimal).** The model gets one more tool, `show_screen`, with a fixed schema: `kind` (`subscriptions`, `charges`, `total`), `subscriptionIds`, and `from`/`to` or `period`/`by`. It chooses the kind and the records; Exhale reads every name, date and amount from the database, as the member who asked. The model's own words never reach a screen, so a note cannot change what it shows. Unknown fields are refused, and every problem with a call (an id this member cannot see, a duplicate, a date that is not a date, a period over a year) is told to the model in one line so it can fix it. At most 3 screens per answer, 20 subscriptions or 50 charges per screen. The web draws them with the existing pieces (service tiles, amounts, a bar per row) and links each row to its subscription; chat sends a message with a button per record that opens it in the in-chat app. Not done from §4: a JSON Schema generated from the Go screen types and per-channel degradation; the screen vocabulary is three fixed kinds, which is what the assistant needed.
+
 ### Not done
 
-- **Not verified against a real model.** No key was available: every test uses the fake provider or HTTP fakes. The first things to check with a real key are in `docs/guides/assistant.md`; `EXHALE_EVAL_API_KEY=… go test ./internal/assistant -run TestEval -v` runs the eval set.
-- **Generated screens** (ADR 0019 §4): the assistant answers in plain text and the cards are fixed layouts.
-- **Streaming**: an answer arrives whole; chat shows "typing…".
-- **Observability** (safety rule 6): token counts are logged, not shown in the timeline; no OpenTelemetry GenAI spans, no cost.
-- **Slack**: the chat glue is channel-agnostic, the adapter does not exist yet.
-- **Chat text is English**, like the rest of `internal/actions` until its translation lands. The model answers in the person's language; the cards and buttons do not yet.
+- **Not verified against a real model.** No key was available: every test uses the fake provider or HTTP fakes, including the streaming ones. With a key, run `EXHALE_EVAL_API_KEY=… go test ./internal/assistant -run TestEval -v` (it now also checks a streamed answer with a screen) and the checks in `docs/guides/assistant.md`.
+- **Errors outside `internal/app`, `internal/domain`, `internal/assistant`, `internal/actions`, `internal/store` and `internal/httpapi`** (sign-in, invites, Telegram, Slack, email, ntfy and webhook settings) are still English. The mechanism is ready: write them with `domain.Invalid` and friends and add the package to `serverPackages` in `internal/actions/servertexts_test.go`. The `message` of each item of an import's dry run and the "based on" text of a bank export are English too.
+- **OpenTelemetry GenAI spans**: tokens and cost are stored and shown, not exported.
+- **Slack**: the chat glue, including `AskLive`, is channel-agnostic; the adapter does not call it yet.
 - **Sending a photo to the bot** to import it: import is in the web only.
 - **PDF without a model**, and PDFs on local models that do not accept files.
+- Screens: no chart, no per-channel limits beyond the counts above, no screen of a single subscription (the model links it instead).
