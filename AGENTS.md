@@ -29,6 +29,7 @@ Exhale is a self-hosted subscription manager written in Go (backend, single bina
 | ③ Slack (Socket Mode, Block Kit, Home tab) | `internal/channels/slack` |
 | ④ Web Push (encryption, VAPID, action tokens — ADR 0026) | `internal/channels/webpush`; devices and keys in `internal/channels/notifiers`; service worker `web/public/sw.js` |
 | ⑮ CLI, supervisor, logging | `cmd/exhale`, `internal/platform` |
+| desktop app: `exhale open`, start at login (ADR 0029) | `internal/desktop`; installers in `deploy/desktop` (built and tried by `.github/workflows/installers.yml`); download page in `site/` |
 
 ## Commands
 

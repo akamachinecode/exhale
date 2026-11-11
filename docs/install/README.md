@@ -6,21 +6,23 @@ It does not need a public address. Telegram is reached with outgoing connections
 
 ## Pick a method
 
+The quickest way is the **[download page](https://akamachinecode.github.io/exhale/)**: it offers the installer for your computer. Open it and Exhale starts, opens in your browser and starts again with your computer.
+
 | You have | Use | Guide |
 |---|---|---|
+| A Mac | `Exhale.dmg`: drag Exhale to Applications and open it | [macOS](macos.md) |
+| Windows 10 or 11 | `Exhale-Setup.exe`: open it, no administrator needed | [Windows](windows.md) |
+| Debian, Ubuntu, Raspberry Pi OS, Fedora, RHEL | The `.deb` or `.rpm` package: a system service that starts at once and at every boot | [Linux](linux.md#packages-deb-and-rpm) |
 | Docker (NAS, homelab, VPS) | The container image | [Docker](docker.md) |
-| Debian, Ubuntu, Raspberry Pi OS, Fedora, RHEL | The `.deb` or `.rpm` package: installs a system service | [Linux](linux.md#packages-deb-and-rpm) |
 | Another Linux with systemd | The install script: same service, no package manager | [Linux](linux.md#install-script) |
-| A Mac that stays on | The binary and a launchd agent | [macOS](macos.md) |
-| Windows | The binary from the release `.zip`, started by hand (`exhale.exe serve`). There is no Windows service installer yet. To keep the PC from sleeping while Exhale runs, see [Keep the computer awake](#keep-the-computer-awake) | |
 
 All of them run the same binary with the same settings. The same instance serves a home or a small team: see [Exhale for a team](../guides/teams.md).
 
-> **Releases.** Packages, images and tarballs are published on the [releases page](https://github.com/akamachinecode/exhale/releases) with each version, with a signed checksum file and build provenance. To build from source instead: `mise install && mise run build` produces `bin/exhale`.
+> **Releases.** Installers, packages, images and tarballs are published on the [releases page](https://github.com/akamachinecode/exhale/releases) with each version, with a signed checksum file and build provenance. To build from source instead: `mise install && mise run build` produces `bin/exhale`.
 
 ## After installing
 
-1. **Open the web** at `http://<server>:8484` and create your account. Opened from another machine, the wizard asks for a one-time setup code: it is printed in Exhale's log at start.
+1. **Open the web** (the installers open it for you; otherwise `http://<server>:8484`) and create your account. Opened from another machine, the wizard asks for a one-time setup code: it is printed in Exhale's log at start.
 2. **Add your Telegram bot** from the web (Settings → Telegram). The page guides you through @BotFather.
 3. **Decide how you reach it.** At home, plain `http://` on your network is fine. From outside, use Tailscale or HTTPS: [HTTPS and remote access](https.md). Never forward the plain HTTP port to the internet.
 4. **Check your backups.** Exhale copies its database once a day and keeps 14 copies. Put them on another disk: [Backups](backups.md).

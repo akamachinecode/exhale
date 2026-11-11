@@ -9,24 +9,25 @@ Pick the file for your CPU: `amd64` (most PCs and servers), `arm64` (Raspberry P
 
 ## Packages (deb and rpm)
 
-Download the package from the [releases page](https://github.com/akamachinecode/exhale/releases) and install it:
+Download the package from the [download page](https://akamachinecode.github.io/exhale/) (or the [releases page](https://github.com/akamachinecode/exhale/releases/latest)) and open it with your software center, or install it from a terminal:
 
 ```sh
 # Debian, Ubuntu, Raspberry Pi OS
-sudo apt install ./exhale_0.1.0_linux_amd64.deb
+sudo apt install ./exhale_linux_amd64.deb
 
 # Fedora, RHEL
-sudo dnf install ./exhale_0.1.0_linux_amd64.rpm
+sudo dnf install ./exhale_linux_amd64.rpm
 ```
 
-The package creates the `exhale` user, installs the service and enables it at boot. It does not start it, so you can review the settings first. Then:
+The package creates the `exhale` user, installs the service, starts it and enables it at boot. It also adds **Exhale to your apps**: opening it opens the web in your browser. On a server, check the log for the address:
 
 ```sh
-sudo systemctl start exhale
 sudo journalctl -u exhale -n 20
 ```
 
-The log shows the address and, on a new install, the one-time setup code.
+On a new install the log also shows the one-time setup code, needed only when the wizard is opened from another machine.
+
+The package also lets the service keep the computer awake when you ask for it in the web (a polkit rule, `/usr/share/polkit-1/rules.d/50-exhale.rules`).
 
 ## Install script
 
@@ -63,6 +64,7 @@ For access from outside your network see [HTTPS and remote access](https.md).
 | What | Where |
 |---|---|
 | Binary | `/usr/bin/exhale` (package) or `/usr/local/bin/exhale` (script) |
+| App launcher | `/usr/share/applications/exhale.desktop` (package) |
 | Service | `exhale.service`, running as user `exhale` |
 | Settings | `/etc/exhale/exhale.env` (readable by root and the service only) |
 | Data | `/var/lib/exhale` (the database `exhale.db`) |
