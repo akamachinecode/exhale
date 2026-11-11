@@ -1,6 +1,6 @@
 #!/bin/sh
 # Builds Exhale-Setup.exe: Exhale.exe for Windows (no console window) in a
-# one-click installer (ADR 0029). Runs on macOS or Linux with makensis
+# one-click installer (ADR 0029, 0030). Runs on macOS or Linux with makensis
 # (brew install makensis, apt install nsis); the web UI must be built
 # first (web/dist).
 #
@@ -26,9 +26,10 @@ winversion="$(printf '%s' "$version" | sed 's/[^0-9.].*//').0"
 	--product-version "$winversion" --file-version "$winversion" --original-filename Exhale.exe \
 	--copyright AGPL-3.0-or-later)
 
-# -H windowsgui: no console window. desktopApp makes it open Exhale when it
-# is started with no arguments, and start Exhale at sign-in.
-CGO_ENABLED=0 GOOS=windows GOARCH=amd64 go build -trimpath \
+# -H windowsgui: no console window. The desktop tag adds Exhale's window,
+# WebView2, which needs no cgo (ADR 0030). desktopApp makes it open Exhale
+# when it is started with no arguments, and start Exhale at sign-in.
+CGO_ENABLED=0 GOOS=windows GOARCH=amd64 go build -trimpath -tags desktop,production \
 	-ldflags="-s -w -H windowsgui -X main.version=$version -X main.desktopApp=true" \
 	-o "$work/Exhale.exe" ./cmd/exhale
 

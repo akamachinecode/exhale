@@ -36,6 +36,12 @@ jobs:
           persist-credentials: false
       - uses: jdx/mise-action@f5be966e4a917d54244728e6a5fdcd1d93a35e6c # v5.2.6
       - run: golangci-lint run ./...
+      # Exhale's window is built only with the desktop tag (ADR 0030); on
+      # Windows it needs no cgo, so it can be checked from here.
+      - name: Lint the desktop window
+        env:
+          GOOS: windows
+        run: golangci-lint run --build-tags desktop,production ./internal/desktop/... ./cmd/...
       - name: Generated code is up to date
         run: |
           sqlc generate

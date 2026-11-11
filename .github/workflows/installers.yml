@@ -1,8 +1,10 @@
 name: Installers
-# Exhale.dmg and Exhale-Setup.exe (ADR 0029): built, then installed and
-# opened on a real Mac and a real Windows machine before anyone downloads
-# them. The release workflow calls this with the version and publishes what
-# it uploads; on pull requests the installers stay as downloads of the run.
+# Exhale.dmg and Exhale-Setup.exe (ADR 0029), and exhale-window for the Linux
+# packages (ADR 0030): built, then installed and opened on a real Mac, a real
+# Windows machine and Linux before anyone downloads them. Each test waits for
+# Exhale's window to load the web UI (EXHALE_WINDOW_SMOKE). The release
+# workflow calls this with the version and publishes what it uploads; on pull
+# requests the files stay as downloads of the run.
 on:
   workflow_call:
     inputs:
@@ -12,8 +14,12 @@ on:
   pull_request:
     paths:
       - cmd/exhale/**
+      - cmd/exhale-window/**
       - internal/desktop/**
       - deploy/desktop/**
+      - deploy/packaging/**
+      - web/src/lib/desktop.ts
+      - go.mod
       - .github/workflows/installers.yml
   workflow_dispatch:
 permissions: {}
@@ -54,14 +60,19 @@ jobs:
           hdiutil attach installers/Exhale.dmg -nobrowse -mountpoint /tmp/exhale-dmg
           cp -R /tmp/exhale-dmg/Exhale.app /Applications/
           hdiutil detach /tmp/exhale-dmg
+          lipo -archs /Applications/Exhale.app/Contents/MacOS/exhale
           # With no arguments, as Finder starts it: the launchd agent starts
-          # the server, then the browser opens.
-          /Applications/Exhale.app/Contents/MacOS/exhale
+          # the server, then Exhale's window opens. EXHALE_WINDOW_SMOKE makes
+          # the window close once the web UI has loaded in it.
+          EXHALE_WINDOW_SMOKE=/tmp/smoke /Applications/Exhale.app/Contents/MacOS/exhale
+          grep -qx ready /tmp/smoke
           curl -fsS -D - http://127.0.0.1:8484/healthz | tee /tmp/healthz
           grep -qi "x-exhale-version: $VERSION" /tmp/healthz
           launchctl print "gui/$(id -u)/io.github.akamachinecode.exhale" | grep -E "state|program"
-          # Opened again: nothing to start, the browser opens at once.
-          /Applications/Exhale.app/Contents/MacOS/exhale
+          # Opened again: nothing to start, the window opens at once.
+          rm /tmp/smoke
+          EXHALE_WINDOW_SMOKE=/tmp/smoke /Applications/Exhale.app/Contents/MacOS/exhale
+          grep -qx ready /tmp/smoke
           launchctl bootout "gui/$(id -u)/io.github.akamachinecode.exhale"
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
@@ -119,7 +130,9 @@ jobs:
           $exe = "$env:LOCALAPPDATA\Programs\Exhale\Exhale.exe"
           if (-not (Test-Path $exe)) { throw "Exhale.exe was not installed" }
           # As from the Start menu: starts the server, adds it to sign-in,
-          # opens the browser.
+          # opens Exhale's window, which closes once the web UI has loaded
+          # in it (EXHALE_WINDOW_SMOKE).
+          $env:EXHALE_WINDOW_SMOKE = "$env:RUNNER_TEMP\smoke.txt"
           Start-Process $exe
           $r = $null
           foreach ($i in 1..60) {
@@ -129,6 +142,10 @@ jobs:
           if (-not $r) { Get-Content "$env:LOCALAPPDATA\Exhale\exhale.log" -ErrorAction SilentlyContinue; throw "Exhale did not answer" }
           $v = $r.Headers['X-Exhale-Version']
           if ("$v" -ne $env:VERSION) { throw "version $v, expected $env:VERSION" }
+          foreach ($i in 1..120) { if (Test-Path $env:EXHALE_WINDOW_SMOKE) { break }; Start-Sleep 1 }
+          $smoke = "$(Get-Content $env:EXHALE_WINDOW_SMOKE -ErrorAction SilentlyContinue)".Trim()
+          if ($smoke -ne 'ready') { Get-Content "$env:LOCALAPPDATA\Exhale\exhale.log" -ErrorAction SilentlyContinue; throw "the window did not load the web UI: $smoke" }
+          Remove-Item env:EXHALE_WINDOW_SMOKE
           $run = (Get-ItemProperty HKCU:\Software\Microsoft\Windows\CurrentVersion\Run).Exhale
           "starts at sign-in: $run"
           if ($run -notlike "*Exhale.exe*serve") { throw "not added to sign-in" }
@@ -140,3 +157,58 @@ jobs:
           if ((Get-ItemProperty HKCU:\Software\Microsoft\Windows\CurrentVersion\Run).Exhale) { throw "still starts at sign-in" }
           if (-not (Test-Path "$env:LOCALAPPDATA\Exhale\exhale.db")) { throw "the data went with it" }
           "installed, opened, uninstalled"
+
+  # exhale-window for the Linux packages (ADR 0030): Exhale's window, built
+  # with cgo against GTK 4 and WebKitGTK 6.0 on the oldest Ubuntu that has
+  # them (24.04), so it runs there and on anything newer. The release puts it
+  # in the amd64 and arm64 .deb and .rpm.
+  linux:
+    timeout-minutes: 30
+    needs: version
+    permissions:
+      contents: read
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { arch: amd64, runner: ubuntu-24.04 }
+          - { arch: arm64, runner: ubuntu-24.04-arm }
+    runs-on: ${{ matrix.runner }}
+    env:
+      ARCH: ${{ matrix.arch }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: jdx/mise-action@f5be966e4a917d54244728e6a5fdcd1d93a35e6c # v5.2.6
+        with:
+          cache: false # what this builds may be published
+      - name: GTK 4 and WebKitGTK, and a display for the test
+        run: |
+          sudo apt-get -o Acquire::Retries=5 update
+          sudo apt-get -o Acquire::Retries=5 install -y --no-install-recommends \
+            libgtk-4-dev libwebkitgtk-6.0-dev xvfb xauth dbus
+      - name: Web UI
+        run: pnpm -C web install --frozen-lockfile && pnpm -C web build
+      - name: Build exhale-window
+        env:
+          CGO_ENABLED: "1"
+        run: |
+          go build -trimpath -tags desktop,production -ldflags="-s -w" -o "window/exhale-window_linux_$ARCH" ./cmd/exhale-window
+          ldd "window/exhale-window_linux_$ARCH" | grep -E "gtk|webkit"
+          go test -tags desktop,production ./internal/desktop/window/
+      - name: Open it on Exhale, as a person would
+        run: |
+          CGO_ENABLED=0 go build -o "$RUNNER_TEMP/exhale" ./cmd/exhale
+          "$RUNNER_TEMP/exhale" serve --data-dir "$RUNNER_TEMP/data" &
+          for i in $(seq 60); do curl -fs http://127.0.0.1:8484/healthz && break; sleep 1; done
+          # A session bus and an X display, as a desktop has; the window
+          # closes once the web UI has loaded in it.
+          EXHALE_WINDOW_SMOKE="$RUNNER_TEMP/smoke" timeout 150 \
+            dbus-run-session -- xvfb-run -a "window/exhale-window_linux_$ARCH" --url http://127.0.0.1:8484
+          grep -qx ready "$RUNNER_TEMP/smoke"
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: window-linux-${{ matrix.arch }}
+          path: window/
+          if-no-files-found: error
