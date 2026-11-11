@@ -85,7 +85,13 @@ jobs:
         with:
           cache: false # what this builds may be published
       - name: NSIS
-        run: sudo apt-get update -qq && sudo apt-get install -y -qq nsis
+        # Retried: a mirror that does not answer once must not stop a release.
+        run: |
+          for i in 1 2 3; do
+            sudo apt-get update -qq && sudo apt-get install -y -qq nsis && break
+            sleep 20
+          done
+          makensis -VERSION
       - name: Web UI
         run: pnpm -C web install --frozen-lockfile && pnpm -C web build
       - name: Build Exhale-Setup.exe
