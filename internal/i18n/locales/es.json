@@ -760,5 +760,11 @@
 	"Keep this computer awake": "Mantener despierto este ordenador",
 	"the hours must start and end at different times": "las horas tienen que empezar y terminar en momentos distintos",
 	"times must look like 08:00": "las horas tienen que tener la forma 08:00",
-	"unknown mode %q": "modo desconocido %q"
+	"unknown mode %q": "modo desconocido %q",
+	"Move Exhale to Applications": "Mueve Exhale a Aplicaciones",
+	"Drag Exhale into the Applications folder, then open it from there.": "Arrastra Exhale a la carpeta Aplicaciones y ábrelo desde allí.",
+	"Exhale did not start": "Exhale no ha arrancado",
+	"Its log may say why: %s": "Su registro puede explicar por qué: %s",
+	"Exhale is not running": "Exhale no está en marcha",
+	"Start it with: sudo systemctl start exhale": "Arráncalo con: sudo systemctl start exhale"
 }

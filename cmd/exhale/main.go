@@ -7,12 +7,14 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"log/slog"
 	"net"
 	"net/http"
 	"os"
 	"os/signal"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"syscall"
 	"time"
@@ -33,6 +35,7 @@ import (
 	"github.com/akamachinecode/exhale/internal/channels/notifiers"
 	"github.com/akamachinecode/exhale/internal/channels/slack"
 	"github.com/akamachinecode/exhale/internal/channels/telegram"
+	"github.com/akamachinecode/exhale/internal/desktop"
 	"github.com/akamachinecode/exhale/internal/fx"
 	"github.com/akamachinecode/exhale/internal/httpapi"
 	"github.com/akamachinecode/exhale/internal/platform"
@@ -43,10 +46,16 @@ import (
 // version is set at build time by goreleaser.
 var version = "dev"
 
+// desktopApp is "true" in the builds of the desktop apps, Exhale.app and
+// Exhale.exe (ADR 0029). Opened with no arguments they run `exhale open`,
+// and they make Exhale start at login.
+var desktopApp = "false"
+
 type globals struct {
 	DataDir   string `name:"data-dir" env:"EXHALE_DATA_DIR" help:"Directory for the database, logos and backups." type:"path"`
 	LogLevel  string `name:"log-level" env:"EXHALE_LOG_LEVEL" default:"info" enum:"debug,info,warn,error" help:"Log level."`
 	LogFormat string `name:"log-format" env:"EXHALE_LOG_FORMAT" default:"text" enum:"text,json" help:"Log format."`
+	LogFile   string `name:"log-file" env:"EXHALE_LOG_FILE" type:"path" help:"Write the log to this file instead of the terminal."`
 }
 
 type cli struct {
@@ -61,19 +70,60 @@ type cli struct {
 	Backup  backupCmd  `cmd:"" help:"Write a consistent backup of the database (safe while the server runs)."`
 	Restore restoreCmd `cmd:"" help:"Put a backup back as the database. Stop the server first."`
 	Openapi openapiCmd `cmd:"" help:"Print the OpenAPI document."`
+	Open    openCmd    `cmd:"" help:"Open the web UI in the browser, starting Exhale in the background first if it is not running."`
 	Version versionCmd `cmd:"" help:"Print the version."`
 }
 
 func main() {
 	var c cli
-	kctx := kong.Parse(&c, kong.Name("exhale"), kong.Description("Exhale — breathe out, your subscriptions are handled."), kong.UsageOnError())
+	parser := kong.Must(&c, kong.Name("exhale"), kong.Description("Exhale — breathe out, your subscriptions are handled."), kong.UsageOnError())
+	args := os.Args[1:]
+	if desktopApp == "true" && !hasArgs(args) {
+		args = []string{"open"}
+	}
+	kctx, err := parser.Parse(args)
+	parser.FatalIfErrorf(err)
 	if c.DataDir == "" {
 		c.DataDir = platform.DefaultDataDir()
+	}
+	// Exhale.exe has no console: what it would print goes to a file.
+	if desktopApp == "true" && runtime.GOOS == "windows" && c.LogFile == "" {
+		c.LogFile = desktop.DefaultLogFile(c.DataDir)
 	}
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
 	kctx.BindTo(ctx, (*context.Context)(nil))
 	kctx.FatalIfErrorf(kctx.Run(&c.globals))
+}
+
+// hasArgs reports real arguments: macOS used to pass -psn_… to apps
+// opened from Finder.
+func hasArgs(args []string) bool {
+	for _, a := range args {
+		if !strings.HasPrefix(a, "-psn_") {
+			return true
+		}
+	}
+	return false
+}
+
+// logOutput is where the log goes: stderr, or the file of --log-file. A
+// file over 10 MB is moved to <file>.1 first, so it never grows forever.
+func logOutput(g *globals) io.Writer {
+	if g.LogFile == "" {
+		return os.Stderr
+	}
+	if err := os.MkdirAll(filepath.Dir(g.LogFile), 0o700); err != nil {
+		return os.Stderr
+	}
+	if fi, err := os.Stat(g.LogFile); err == nil && fi.Size() > 10<<20 {
+		_ = os.Rename(g.LogFile, g.LogFile+".1")
+	}
+	f, err := os.OpenFile(g.LogFile, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0o600)
+	if err != nil {
+		return os.Stderr
+	}
+	return f
 }
 
 type env struct {
@@ -83,7 +133,7 @@ type env struct {
 }
 
 func open(ctx context.Context, g *globals) (*env, error) {
-	log := platform.NewLogger(os.Stderr, g.LogLevel, g.LogFormat)
+	log := platform.NewLogger(logOutput(g), g.LogLevel, g.LogFormat)
 	st, err := store.Open(ctx, g.DataDir, log)
 	if err != nil {
 		return nil, err
@@ -214,7 +264,7 @@ func (s *serveCmd) Run(ctx context.Context, g *globals) error {
 	// EXHALE_SLACK_BOT_TOKEN and EXHALE_SLACK_APP_TOKEN).
 	services = append(services, tg, sl)
 	eng := actions.New(e.svc, e.log, append([]actions.Channel{tg, sl}, others.Channels()...)...)
-	eng.SetAssistant(asst) // free text in chat (ADR 0018, part B)
+	eng.SetAssistant(asst)        // free text in chat (ADR 0018, part B)
 	eng.SetPublicURL(s.PublicURL) // links from chat to the web (import review)
 	tg.SetEngine(eng)
 	others.SetPushActions(eng) // buttons of push notifications (ADR 0026)
@@ -539,6 +589,26 @@ func (openapiCmd) Run(ctx context.Context, _ *globals) error {
 	}
 	fmt.Println(string(b))
 	return nil
+}
+
+// --- open ----------------------------------------------------------------------
+
+type openCmd struct {
+	Listen string `env:"EXHALE_LISTEN" default:"127.0.0.1:8484" help:"Address Exhale listens on."`
+}
+
+func (o *openCmd) Run(ctx context.Context, g *globals) error {
+	exe, err := os.Executable()
+	if err != nil {
+		return err
+	}
+	if p, err := filepath.EvalSymlinks(exe); err == nil {
+		exe = p
+	}
+	return desktop.App{
+		Exe: exe, Listen: o.Listen, Version: version, DataDir: g.DataDir, LogFile: g.LogFile,
+		Login: desktopApp == "true",
+	}.Open(ctx)
 }
 
 type versionCmd struct{}
