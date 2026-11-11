@@ -6,7 +6,7 @@ It does not need a public address. Telegram is reached with outgoing connections
 
 ## Pick a method
 
-The quickest way is the **[download page](https://akamachinecode.github.io/exhale/)**: it offers the installer for your computer. Open it and Exhale starts, opens in your browser and starts again with your computer.
+The quickest way is the **[download page](https://akamachinecode.github.io/exhale/)**: it offers the installer for your computer. Open it and Exhale starts, opens in its own window and starts again with your computer.
 
 | You have | Use | Guide |
 |---|---|---|

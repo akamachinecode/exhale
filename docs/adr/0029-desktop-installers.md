@@ -3,6 +3,7 @@
 - Status: Accepted
 - Date: 2026-11-11
 - Amends: [0001](0001-distribution-model.md) (the "later and optional" desktop part), [0009](0009-runtime-and-system.md) (installing as a service)
+- Amended by: [0030](0030-desktop-window.md) (the app opens a window of its own instead of the browser)
 
 ## Context — what it has to do
 
