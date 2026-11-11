@@ -17,7 +17,9 @@ import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import { AssistantPanel } from "@/components/assistant";
 import { SignOut } from "@/components/sign-out";
+import { WindowControls } from "@/components/window-frame";
 import { useAuthSession, useAuthSetLanguage } from "@/gen/api";
+import { windowFrame } from "@/lib/desktop";
 import { useLiveEvents } from "@/lib/events";
 import { lang, languages, setLang, syncLanguage, t } from "@/lib/i18n";
 import { cn } from "@/lib/utils";
@@ -80,7 +82,8 @@ export function Logo() {
 
 /**
  * The app's frame. Three widths, one navigation:
- * - 1024px and wider: the sidebar is always there.
+ * - 1024px and wider: the sidebar is always there, on a muted frame, and the
+ *   page sits next to it in a rounded card that scrolls on its own.
  * - 768–1023px (tablets, small windows): the sidebar hides itself. It slides
  *   in when the pointer touches the left edge, when the menu button is
  *   pressed or when the keyboard reaches it, and hides again after.
@@ -97,7 +100,10 @@ export function Layout() {
 	const sidebar = useAutoHide();
 	const toggleTheme = () => setDark(!dark);
 	return (
-		<div className="min-h-dvh md:max-lg:[--sticky-top:3.5rem] lg:grid lg:grid-cols-[232px_1fr]">
+		<div
+			data-drag
+			className="min-h-dvh md:max-lg:[--sticky-top:3.5rem] lg:grid lg:h-dvh lg:grid-cols-[232px_1fr] lg:overflow-hidden lg:bg-frame"
+		>
 			<AssistantPanel />
 			{/* Touching the left edge with the pointer reveals the hidden sidebar. */}
 			<div
@@ -117,20 +123,24 @@ export function Layout() {
 				id="sidebar"
 				ref={sidebar.ref}
 				{...sidebar.panel}
+				data-no-drag
 				className={cn(
-					"fixed inset-y-0 left-0 z-50 flex h-dvh w-[232px] flex-col border-r border-line bg-surface px-3 py-4 max-md:hidden",
+					"fixed inset-y-0 left-0 z-50 flex h-dvh w-[232px] flex-col border-r border-line bg-frame px-3 py-4 max-md:hidden",
 					"transition-[translate,box-shadow] duration-200 ease-out motion-reduce:transition-none",
 					sidebar.state === "closed" ? "-translate-x-full" : "translate-x-0 shadow-2xl",
-					"lg:sticky lg:top-0 lg:bottom-auto lg:z-auto lg:translate-x-0 lg:bg-surface/60 lg:shadow-none lg:transition-none",
+					"lg:sticky lg:top-0 lg:bottom-auto lg:z-auto lg:translate-x-0 lg:border-r-0 lg:shadow-none lg:transition-none",
+					// A Mac's traffic lights sit at the top of the sidebar.
+					windowFrame === "mac" && "pt-0",
 				)}
 			>
+				{windowFrame === "mac" && <div data-drag className="mac-lights -mx-3 shrink-0" />}
 				<div className="flex items-center justify-between pb-6 pl-2">
 					<Logo />
 					<button
 						type="button"
 						onClick={sidebar.close}
 						aria-label={t("Hide menu")}
-						className="rounded-lg p-1.5 text-muted transition-colors hover:bg-raised hover:text-fg lg:hidden"
+						className="rounded-lg p-1.5 text-muted transition-colors hover:bg-frame-hover hover:text-fg lg:hidden"
 					>
 						<PanelLeftClose className="size-4" />
 					</button>
@@ -155,27 +165,54 @@ export function Layout() {
 					</div>
 				</div>
 			</aside>
-			<div className="min-w-0 max-md:pb-[calc(5.5rem+env(safe-area-inset-bottom))]">
-				<header className="flex h-14 items-center gap-1 border-b border-line bg-surface/60 px-4 md:sticky md:top-0 md:z-30 md:bg-bg/80 md:backdrop-blur lg:hidden">
-					<button
-						type="button"
-						onClick={sidebar.toggle}
-						aria-label={sidebar.state === "closed" ? t("Show menu") : t("Hide menu")}
-						aria-controls="sidebar"
-						aria-expanded={sidebar.state !== "closed"}
-						className="-ml-2 rounded-lg p-2 text-muted transition-colors hover:bg-raised hover:text-fg max-md:hidden"
-					>
-						<PanelLeft className="size-4" />
-					</button>
-					<Logo />
-					<div className="ml-auto flex items-center md:hidden">
-						<LanguageToggle />
-						<ThemeToggle dark={dark} onToggle={toggleTheme} />
+			<div className="min-w-0 max-md:pb-[calc(5.5rem+env(safe-area-inset-bottom))] lg:flex lg:h-dvh lg:flex-col lg:py-2 lg:pr-2">
+				<div
+					data-no-drag
+					className="lg:flex lg:min-h-0 lg:flex-1 lg:flex-col lg:overflow-hidden lg:rounded-xl lg:bg-bg lg:shadow-[var(--card-shadow)]"
+				>
+					{/* Windows and Linux: the window's own title bar, inside the card. */}
+					{windowFrame === "frame" && (
+						<div data-drag className="hidden h-11 shrink-0 items-center justify-end px-2 lg:flex">
+							<WindowControls />
+						</div>
+					)}
+					<div id="content" className="lg:min-h-0 lg:flex-1 lg:overflow-y-auto">
+						<header
+							data-drag
+							className={cn(
+								"flex h-14 items-center gap-1 border-b border-line bg-surface/60 px-4 md:sticky md:top-0 md:z-30 md:bg-bg/80 md:backdrop-blur lg:hidden",
+								windowFrame === "mac" && "mac-lights-inset",
+								windowFrame === "frame" && "pr-2",
+							)}
+						>
+							<button
+								type="button"
+								onClick={sidebar.toggle}
+								aria-label={sidebar.state === "closed" ? t("Show menu") : t("Hide menu")}
+								aria-controls="sidebar"
+								aria-expanded={sidebar.state !== "closed"}
+								className="-ml-2 rounded-lg p-2 text-muted transition-colors hover:bg-frame-hover hover:text-fg max-md:hidden"
+							>
+								<PanelLeft className="size-4" />
+							</button>
+							<Logo />
+							<div className="ml-auto flex items-center md:hidden">
+								<LanguageToggle />
+								<ThemeToggle dark={dark} onToggle={toggleTheme} />
+							</div>
+							<WindowControls className="ml-auto max-md:ml-1" />
+						</header>
+						<main
+							className={cn(
+								"mx-auto w-full max-w-[1180px] px-4 py-6 md:px-8 md:py-8",
+								// The title bar above already leaves room.
+								windowFrame === "frame" && "lg:pt-3",
+							)}
+						>
+							<Outlet />
+						</main>
 					</div>
-				</header>
-				<main className="mx-auto w-full max-w-[1180px] px-4 py-6 md:px-8 md:py-8">
-					<Outlet />
-				</main>
+				</div>
 			</div>
 			<Dock />
 		</div>
@@ -187,8 +224,8 @@ function SidebarLink({ to, label, icon: Icon }: { to: string; label: string; ico
 		<Link
 			to={to}
 			activeOptions={{ exact: to === "/" }}
-			className="flex items-center gap-2.5 rounded-lg px-2.5 py-2 text-sm text-muted transition-colors hover:bg-raised hover:text-fg"
-			activeProps={{ className: "bg-raised !text-fg font-medium" }}
+			className="flex items-center gap-2.5 rounded-lg px-2.5 py-2 text-sm text-muted transition-colors hover:bg-frame-hover hover:text-fg"
+			activeProps={{ className: "bg-frame-active !text-fg font-medium" }}
 		>
 			<Icon className="size-4" />
 			{label}
@@ -365,7 +402,7 @@ function LanguageToggle() {
 		}
 	};
 	const style =
-		"rounded-lg px-2 py-2 text-[11px] font-semibold text-muted uppercase transition-colors hover:bg-raised hover:text-fg";
+		"rounded-lg px-2 py-2 text-[11px] font-semibold text-muted uppercase transition-colors hover:bg-frame-hover hover:text-fg";
 	if (others.length === 1) {
 		const other = others[0];
 		return (
@@ -403,7 +440,7 @@ function ThemeToggle({ dark, onToggle }: { dark: boolean; onToggle: () => void }
 			type="button"
 			onClick={onToggle}
 			aria-label={dark ? t("Switch to light theme") : t("Switch to dark theme")}
-			className={cn("rounded-lg p-2 text-muted transition-colors hover:bg-raised hover:text-fg")}
+			className="rounded-lg p-2 text-muted transition-colors hover:bg-frame-hover hover:text-fg"
 		>
 			{dark ? <Sun className="size-4" /> : <Moon className="size-4" />}
 		</button>

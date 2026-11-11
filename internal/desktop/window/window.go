@@ -21,11 +21,13 @@ import (
 	"net/url"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"sync"
 	"time"
 
 	"github.com/wailsapp/wails/v3/pkg/application"
+	"github.com/wailsapp/wails/v3/pkg/events"
 
 	"github.com/akamachinecode/exhale/internal/desktop"
 )
@@ -105,7 +107,16 @@ func Run(o Options) error {
 		MinHeight:        560,
 		InitialPosition:  application.WindowCentered,
 		BackgroundColour: application.NewRGB(7, 7, 7), // --bg of the dark theme, no white flash
+		// The web UI draws the whole window, title bar included (ADR 0031).
+		// On Windows and Linux there is no system frame: the page has its
+		// own minimise, maximise and close buttons and drag area. On a Mac
+		// the traffic lights stay, over the sidebar.
+		Frameless: runtime.GOOS != "darwin",
+		Mac: application.MacWindow{
+			TitleBar: application.MacTitleBarHiddenInset,
+		},
 	})
+	b.watchState()
 	if b.smoke != "" {
 		time.AfterFunc(smokeTimeout, func() { b.finishSmoke(fmt.Errorf("the web UI did not load within %s", smokeTimeout)) })
 	}
@@ -140,10 +151,11 @@ type bridge struct {
 
 // message is what the web UI sends.
 type message struct {
-	Type string `json:"type"` // ready, open or save
-	URL  string `json:"url,omitempty"`
-	Name string `json:"name,omitempty"`
-	Data string `json:"data,omitempty"` // base64
+	Type   string `json:"type"` // ready, open, save or window
+	URL    string `json:"url,omitempty"`
+	Name   string `json:"name,omitempty"`
+	Data   string `json:"data,omitempty"`   // base64
+	Action string `json:"action,omitempty"` // window: minimise, maximise or close
 }
 
 func (b *bridge) handle(_ application.Window, raw string, origin *application.OriginInfo) {
@@ -160,7 +172,10 @@ func (b *bridge) handle(_ application.Window, raw string, origin *application.Or
 	}
 	switch m.Type {
 	case "ready":
+		b.sendState()
 		b.finishSmoke(nil)
+	case "window":
+		b.control(m.Action)
 	case "open":
 		b.open(m.URL)
 	case "save":
@@ -240,6 +255,52 @@ func safeName(name string) string {
 func isDir(p string) bool {
 	fi, err := os.Stat(p)
 	return err == nil && fi.IsDir()
+}
+
+// control runs the page's own window buttons.
+func (b *bridge) control(action string) {
+	if b.win == nil {
+		return
+	}
+	switch action {
+	case "minimise":
+		b.win.Minimise()
+	case "maximise":
+		if b.win.IsFullscreen() {
+			b.win.UnFullscreen()
+		} else {
+			b.win.ToggleMaximise()
+		}
+	case "close":
+		b.win.Close()
+	}
+}
+
+// watchState tells the page when the window is maximised or full screen:
+// the maximise button turns into restore, and a Mac in full screen has no
+// traffic lights to make room for.
+func (b *bridge) watchState() {
+	for _, e := range []events.WindowEventType{
+		events.Common.WindowMaximise,
+		events.Common.WindowUnMaximise,
+		events.Common.WindowFullscreen,
+		events.Common.WindowUnFullscreen,
+		events.Common.WindowRestore,
+	} {
+		b.win.OnWindowEvent(e, func(*application.WindowEvent) { b.sendState() })
+	}
+}
+
+func (b *bridge) sendState() {
+	if b.win == nil {
+		return
+	}
+	b.win.ExecJS(stateJS(b.win.IsMaximised(), b.win.IsFullscreen()))
+}
+
+// stateJS is the event the page listens to (web/src/lib/desktop.ts).
+func stateJS(maximised, fullscreen bool) string {
+	return fmt.Sprintf(`window.dispatchEvent(new CustomEvent("exhale:window",{detail:{maximised:%t,fullscreen:%t}}))`, maximised, fullscreen)
 }
 
 // raise brings the window back when Exhale is opened again.

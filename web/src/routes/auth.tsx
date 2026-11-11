@@ -5,6 +5,7 @@ import { type FormEvent, type ReactNode, useEffect, useState } from "react";
 import { Layout, Logo } from "@/components/layout";
 import { Button } from "@/components/ui/button";
 import { Field, Input, PasswordInput } from "@/components/ui/field";
+import { WindowBar } from "@/components/window-frame";
 import {
 	type AuthSession,
 	getAuthSessionQueryKey,
@@ -54,6 +55,7 @@ export function Root() {
 export function Splash() {
 	return (
 		<div className="grid min-h-dvh place-items-center bg-bg px-4">
+			<WindowBar />
 			<div className="flex flex-col items-center gap-5">
 				<Logo />
 				<p className="text-sm text-muted">{t("Breathe out. Your subscriptions are handled.")}</p>
@@ -74,6 +76,7 @@ export function AuthFrame({
 }) {
 	return (
 		<div className="relative grid min-h-dvh place-items-center overflow-hidden bg-bg px-4 py-10">
+			<WindowBar />
 			<div
 				aria-hidden
 				className="bg-brand pointer-events-none absolute -top-48 left-1/2 h-96 w-[40rem] -translate-x-1/2 rounded-full opacity-[0.12] blur-3xl"

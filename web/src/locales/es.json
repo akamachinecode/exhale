@@ -1038,5 +1038,8 @@
 	"Off: this computer sleeps as usual.": "Desactivado: este ordenador se duerme como siempre.",
 	"Changed when this computer stays awake": "Cambió cuándo sigue despierto este ordenador",
 	"This computer": "Este ordenador",
-	"The computer Exhale runs on, so reminders go out on time.": "El ordenador en el que funciona Exhale, para que los avisos salgan a tiempo."
+	"The computer Exhale runs on, so reminders go out on time.": "El ordenador en el que funciona Exhale, para que los avisos salgan a tiempo.",
+	"Minimize": "Minimizar",
+	"Maximize": "Maximizar",
+	"Restore": "Restaurar"
 }
