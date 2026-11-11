@@ -26,7 +26,9 @@ jobs:
     if: needs.release-please.outputs.released == 'true'
     permissions:
       contents: read
-    uses: ./.github/workflows/installers.yml
+    # A reusable workflow in this repository is read from this same commit,
+    # not from a checkout.
+    uses: ./.github/workflows/installers.yml # zizmor: ignore[self-repository]
     with:
       version: ${{ needs.release-please.outputs.version }}
   goreleaser:
