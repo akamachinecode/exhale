@@ -1,7 +1,8 @@
-// Package desktop is Exhale installed as a desktop app (ADR 0029). Opening
-// the app makes sure the server runs in the background, as the person who
-// opened it and from the next login on, then shows the web UI in their
-// browser. There is no window of its own: the web is the interface.
+// Package desktop is Exhale installed as a desktop app (ADR 0029, 0030).
+// Opening the app makes sure the server runs in the background, as the
+// person who opened it and from the next login on, then shows the web UI in
+// a window of its own (package window), or in the browser where there is
+// none.
 package desktop
 
 import (
@@ -13,6 +14,7 @@ import (
 	"net/http"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"strings"
 	"time"
 
@@ -47,6 +49,12 @@ type App struct {
 	// Login is set in the desktop builds (Exhale.app, Exhale.exe): they
 	// also make Exhale start when the person logs in.
 	Login bool
+	// Window shows the web UI in a window of its own. It is set in builds
+	// with the desktop tag; without it, a window program next to this one
+	// (exhale-window in the Linux packages) is used, or else the browser.
+	Window func(url string) error
+	// Browser opens the browser even where there is a window.
+	Browser bool
 }
 
 // Open shows the web UI, first starting the server in the background when
@@ -71,7 +79,51 @@ func (a App) Open(ctx context.Context) error {
 		alert(tr(lang, "Exhale did not start"), err.Error()+"\n\n"+fmt.Sprintf(tr(lang, "Its log may say why: %s"), a.logPath()))
 		return err
 	}
+	return a.show(ctx, url)
+}
+
+// show puts the web UI in front of the person: in a window of this program,
+// in the window program next to it, or in the browser.
+func (a App) show(ctx context.Context, url string) error {
+	switch {
+	case a.Browser:
+		return browse(url)
+	case a.Window != nil:
+		return a.Window(url)
+	}
+	if p := windowProgram(a.Exe); p != "" {
+		err := runWindow(ctx, p, url)
+		if !errors.Is(err, errNoWindow) {
+			return err
+		}
+	}
 	return browse(url)
+}
+
+// errNoWindow is a window program that cannot start here: its libraries
+// are missing (a server without a desktop) or too old.
+var errNoWindow = errors.New("exhale: no window on this system")
+
+// windowProgram is exhale-window next to exe, if it is installed.
+func windowProgram(exe string) string {
+	p := filepath.Join(filepath.Dir(exe), "exhale-window")
+	if fi, err := os.Stat(p); err == nil && !fi.IsDir() && fi.Mode()&0o111 != 0 {
+		return p
+	}
+	return ""
+}
+
+// runWindow runs the window program until its window is closed. The dynamic
+// loader answers 127 when the program's libraries are missing.
+func runWindow(ctx context.Context, program, url string) error {
+	cmd := exec.CommandContext(ctx, program, "--url", url) //nolint:gosec // our own program, installed next to this one
+	cmd.Stdout, cmd.Stderr = os.Stdout, os.Stderr
+	err := cmd.Run()
+	var exit *exec.ExitError
+	if errors.As(err, &exit) && exit.ExitCode() == 127 {
+		return errNoWindow
+	}
+	return err
 }
 
 // tr translates a text of the dialogs (the catalogs in internal/i18n).

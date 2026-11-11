@@ -19,6 +19,7 @@ require (
 	github.com/pressly/goose/v3 v3.29.0
 	github.com/slack-go/slack v0.35.0
 	github.com/thejerf/suture/v4 v4.0.6
+	github.com/wailsapp/wails/v3 v3.1.0
 	golang.org/x/image v0.47.0
 	golang.org/x/oauth2 v0.38.0
 	golang.org/x/sys v0.49.0
@@ -30,8 +31,12 @@ require (
 
 require (
 	github.com/cockroachdb/apd/v3 v3.2.1 // indirect
+	github.com/coder/websocket v1.8.15 // indirect
 	github.com/dustin/go-humanize v1.1.0 // indirect
+	github.com/ebitengine/purego v0.11.1 // indirect
 	github.com/go-jose/go-jose/v4 v4.1.6 // indirect
+	github.com/go-ole/go-ole v1.3.0 // indirect
+	github.com/godbus/dbus/v5 v5.2.2 // indirect
 	github.com/google/uuid v1.6.0 // indirect
 	github.com/mattn/go-isatty v0.0.24 // indirect
 	github.com/mfridman/interpolate v0.0.2 // indirect
