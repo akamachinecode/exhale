@@ -103,7 +103,13 @@ if (el) {
 		<StrictMode>
 			<QueryClientProvider client={queryClient}>
 				<RouterProvider router={router} />
-				<Toaster position="bottom-right" richColors closeButton />
+				<Toaster
+					position="bottom-right"
+					offset={{ bottom: "var(--toast-bottom)" }}
+					mobileOffset={{ bottom: "var(--toast-bottom)" }}
+					richColors
+					closeButton
+				/>
 			</QueryClientProvider>
 		</StrictMode>,
 	);
