@@ -1,7 +1,8 @@
-; Exhale-Setup.exe (ADR 0029): a one-click installer for the person using
-; Windows, no administrator needed. It copies Exhale.exe, adds Exhale to the
-; Start menu and to Settings → Apps, and opens it; Exhale.exe then starts
-; the server and makes it start at sign-in. Built by build.sh.
+; Exhale-Setup.exe (ADR 0029, 0030): a one-click installer for the person
+; using Windows, no administrator needed. It copies Exhale.exe, adds Exhale
+; to the Start menu and to Settings → Apps, and opens it; Exhale.exe then
+; starts the server, makes it start at sign-in and shows its window. Built
+; by build.sh.
 Unicode true
 SetCompressor /SOLID lzma
 
@@ -68,8 +69,8 @@ Section
   WriteRegDWORD HKCU "${UNINST}" "NoModify" 1
   WriteRegDWORD HKCU "${UNINST}" "NoRepair" 1
 
-  ; Open Exhale: it starts the server, adds itself to sign-in and opens the
-  ; browser. A silent install (/S) leaves that to the next sign-in.
+  ; Open Exhale: it starts the server, adds itself to sign-in and shows its
+  ; window. A silent install (/S) leaves that to the next sign-in.
   ${IfNot} ${Silent}
     Exec '"$INSTDIR\Exhale.exe"'
   ${EndIf}

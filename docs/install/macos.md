@@ -8,7 +8,9 @@ Exhale only sends reminders and answers Telegram buttons while the Mac is awake;
 2. Open it and drag **Exhale** to **Applications**.
 3. Open Exhale from Applications. The first time, macOS says it cannot verify the developer (Exhale is not signed by Apple yet): click **Done**, open **System Settings → Privacy & Security**, scroll to Security and click **Open Anyway**, then **Open**. Only the first time.
 
-Exhale starts in the background and opens in your browser at `http://127.0.0.1:8484`, where you create your account. From then on it starts when you log in: macOS lists it in **System Settings → General → Login Items** as Exhale. Opening the app again just opens the browser.
+Exhale starts in the background and opens in its own window, where you create your account. From then on it starts when you log in: macOS lists it in **System Settings → General → Login Items** as Exhale. Opening the app again brings its window back. Closing the window does not stop Exhale: reminders keep going out.
+
+Links to other sites (Telegram, a service's page) open in your browser, and downloads ask where to save them. If you prefer the browser, Exhale is also at `http://127.0.0.1:8484`.
 
 | | |
 |---|---|

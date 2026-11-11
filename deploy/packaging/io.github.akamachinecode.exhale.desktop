@@ -1,0 +1,16 @@
+[Desktop Entry]
+# Exhale in the app launcher (ADR 0029, 0030). The package runs the server
+# as a system service; this opens Exhale in its own window (exhale-window),
+# or in the browser where that cannot run. The file is named after the
+# window's app id, so the dock shows this entry's name and icon for it.
+Type=Application
+Name=Exhale
+GenericName=Subscription manager
+Comment=Your subscriptions, handled.
+Exec=exhale open
+Icon=exhale
+Terminal=false
+Categories=Office;Finance;
+Keywords=subscriptions;bills;reminders;renewals;
+StartupNotify=true
+StartupWMClass=io.github.akamachinecode.exhale

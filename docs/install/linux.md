@@ -19,7 +19,7 @@ sudo apt install ./exhale_linux_amd64.deb
 sudo dnf install ./exhale_linux_amd64.rpm
 ```
 
-The package creates the `exhale` user, installs the service, starts it and enables it at boot. It also adds **Exhale to your apps**: opening it opens the web in your browser. On a server, check the log for the address:
+The package creates the `exhale` user, installs the service, starts it and enables it at boot. It also adds **Exhale to your apps**: opening it shows Exhale in its own window (on amd64 and arm64, with GTK 4 and WebKitGTK 6.0: Ubuntu 24.04, Debian 13, Fedora 40 or newer). On older systems and on 32-bit Raspberry Pi OS it opens in your browser instead, and `exhale open --browser` always does. Closing the window does not stop Exhale. On a server, check the log for the address:
 
 ```sh
 sudo journalctl -u exhale -n 20
@@ -64,7 +64,8 @@ For access from outside your network see [HTTPS and remote access](https.md).
 | What | Where |
 |---|---|
 | Binary | `/usr/bin/exhale` (package) or `/usr/local/bin/exhale` (script) |
-| App launcher | `/usr/share/applications/exhale.desktop` (package) |
+| App launcher | `/usr/share/applications/io.github.akamachinecode.exhale.desktop` (package) |
+| Window | `/usr/bin/exhale-window` (amd64 and arm64 packages) |
 | Service | `exhale.service`, running as user `exhale` |
 | Settings | `/etc/exhale/exhale.env` (readable by root and the service only) |
 | Data | `/var/lib/exhale` (the database `exhale.db`) |

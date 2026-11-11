@@ -25,3 +25,4 @@ coverage.*
 
 # UI hill-climb screenshots (CLIMB.md and the ledger are committed)
 /.ui-climb/round-*/
+/window/

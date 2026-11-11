@@ -4,6 +4,7 @@ import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 import { Toaster } from "sonner";
 import { getAuthSessionQueryKey } from "@/gen/api";
+import { initDesktop } from "@/lib/desktop";
 import { ApiError } from "@/lib/fetcher";
 import { lang } from "@/lib/i18n";
 import { registerServiceWorker } from "@/lib/push";
@@ -96,6 +97,7 @@ const queryClient: QueryClient = new QueryClient({
 
 document.documentElement.lang = lang;
 registerServiceWorker(); // push notifications only; it caches nothing (ADR 0026)
+initDesktop(); // in Exhale's own window: links and downloads (ADR 0030)
 
 const el = document.getElementById("root");
 if (el) {

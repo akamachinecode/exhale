@@ -1,7 +1,8 @@
 #!/bin/sh
 # Builds Exhale.dmg: Exhale.app for Apple silicon and Intel in a disk image
-# with a link to Applications (ADR 0029). Runs on macOS (lipo, iconutil,
-# codesign, hdiutil); the web UI must be built first (web/dist).
+# with a link to Applications (ADR 0029, 0030). Runs on macOS (Apple's clang
+# for cgo, lipo, iconutil, codesign, hdiutil); the web UI must be built
+# first (web/dist).
 #
 #   sh deploy/desktop/macos/build.sh 0.1.0 [out-dir]
 set -eu
@@ -18,10 +19,13 @@ app="$work/Exhale.app"
 mkdir -p "$app/Contents/MacOS" "$app/Contents/Resources" "$out"
 out="$(cd "$out" && pwd)"
 
-# One binary for both kinds of Mac. desktopApp makes it open Exhale when it
-# is started with no arguments, and start Exhale at login.
+# One binary for both kinds of Mac. The desktop tag adds Exhale's window,
+# WebKit through cgo (ADR 0030): Go hands clang -arch for each one, and
+# macOS 12 is the oldest it runs on, as Info.plist says. desktopApp makes it
+# open Exhale when it is started with no arguments, and start Exhale at
+# login; launchd runs this same binary as the server.
 for arch in arm64 amd64; do
-	CGO_ENABLED=0 GOOS=darwin GOARCH="$arch" go build -trimpath \
+	CGO_ENABLED=1 GOOS=darwin GOARCH="$arch" MACOSX_DEPLOYMENT_TARGET=12.0 go build -trimpath -tags desktop,production \
 		-ldflags="-s -w -X main.version=$version -X main.desktopApp=true" \
 		-o "$work/exhale-$arch" ./cmd/exhale
 done

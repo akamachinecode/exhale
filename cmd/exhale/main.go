@@ -70,7 +70,7 @@ type cli struct {
 	Backup  backupCmd  `cmd:"" help:"Write a consistent backup of the database (safe while the server runs)."`
 	Restore restoreCmd `cmd:"" help:"Put a backup back as the database. Stop the server first."`
 	Openapi openapiCmd `cmd:"" help:"Print the OpenAPI document."`
-	Open    openCmd    `cmd:"" help:"Open the web UI in the browser, starting Exhale in the background first if it is not running."`
+	Open    openCmd    `cmd:"" help:"Open Exhale in its window (or the browser), starting it in the background first if it is not running."`
 	Version versionCmd `cmd:"" help:"Print the version."`
 }
 
@@ -594,7 +594,8 @@ func (openapiCmd) Run(ctx context.Context, _ *globals) error {
 // --- open ----------------------------------------------------------------------
 
 type openCmd struct {
-	Listen string `env:"EXHALE_LISTEN" default:"127.0.0.1:8484" help:"Address Exhale listens on."`
+	Listen  string `env:"EXHALE_LISTEN" default:"127.0.0.1:8484" help:"Address Exhale listens on."`
+	Browser bool   `help:"Open the browser, even where Exhale has a window of its own."`
 }
 
 func (o *openCmd) Run(ctx context.Context, g *globals) error {
@@ -607,7 +608,7 @@ func (o *openCmd) Run(ctx context.Context, g *globals) error {
 	}
 	return desktop.App{
 		Exe: exe, Listen: o.Listen, Version: version, DataDir: g.DataDir, LogFile: g.LogFile,
-		Login: desktopApp == "true",
+		Login: desktopApp == "true", Window: openWindow(g.DataDir), Browser: o.Browser,
 	}.Open(ctx)
 }
 

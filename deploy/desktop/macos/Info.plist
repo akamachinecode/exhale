@@ -1,7 +1,9 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
-<!-- Exhale.app (ADR 0029). build.sh fills in the version. LSUIElement: no
-     Dock icon, the app only starts the server and opens the browser. -->
+<!-- Exhale.app (ADR 0029, 0030). build.sh fills in the version. The app
+     shows Exhale in a window of its own, with a Dock icon while it is open;
+     the server it starts (launchd) has neither. NSAllowsLocalNetworking lets
+     that window load the server on 127.0.0.1 over plain http. -->
 <plist version="1.0">
 <dict>
 	<key>CFBundleName</key>
@@ -26,8 +28,13 @@
 	<string>12.0</string>
 	<key>LSApplicationCategoryType</key>
 	<string>public.app-category.finance</string>
-	<key>LSUIElement</key>
+	<key>NSHighResolutionCapable</key>
 	<true/>
+	<key>NSAppTransportSecurity</key>
+	<dict>
+		<key>NSAllowsLocalNetworking</key>
+		<true/>
+	</dict>
 	<key>NSHumanReadableCopyright</key>
 	<string>AGPL-3.0-or-later</string>
 </dict>

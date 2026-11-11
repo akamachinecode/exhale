@@ -6,9 +6,11 @@ Exhale only sends reminders and answers Telegram buttons while the PC is on; wha
 
 1. Download **`Exhale-Setup.exe`** from the [download page](https://akamachinecode.github.io/exhale/) (or the [releases page](https://github.com/akamachinecode/exhale/releases/latest)). Windows 10 or 11, 64-bit.
 2. Open it. Exhale is not signed yet, so **SmartScreen** may say it protected your PC: click **More info → Run anyway**.
-3. That is all: it installs for you (no administrator needed), starts Exhale and opens it in your browser at `http://127.0.0.1:8484`, where you create your account.
+3. That is all: it installs for you (no administrator needed), starts Exhale and opens its window, where you create your account.
 
-From then on Exhale starts when you sign in to Windows, without a window: it lives in your browser. To open it, choose **Exhale** in the Start menu.
+From then on Exhale starts in the background when you sign in to Windows. To open its window, choose **Exhale** in the Start menu. Closing the window does not stop Exhale: reminders keep going out. Links to other sites open in your browser, and downloads ask where to save them. Exhale is also at `http://127.0.0.1:8484` in any browser.
+
+The window uses Microsoft Edge WebView2, which comes with Windows 10 and 11.
 
 | | |
 |---|---|

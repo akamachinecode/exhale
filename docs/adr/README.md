@@ -46,6 +46,7 @@ Accepted ADRs are not rewritten. A decision that changes gets a new ADR that sup
 | [0026](0026-web-push.md) | Web Push from the installed app, on the standard library | Accepted |
 | [0028](0028-keep-awake.md) | Keep this computer awake, from the web, without cgo | Accepted |
 | [0029](0029-desktop-installers.md) | Desktop installers (dmg, setup.exe, deb/rpm) and a download page | Accepted |
+| [0030](0030-desktop-window.md) | Exhale's own window, with Wails | Accepted |
 
 Open questions are tracked in [../open-questions.md](../open-questions.md).
 
