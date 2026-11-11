@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.3.0](https://github.com/akamachinecode/exhale/compare/v0.2.0...v0.3.0) (2026-11-11)
+
+
+### Features
+
+* **desktop:** the window draws its own title bar, with the sidebar on a muted frame ([#17](https://github.com/akamachinecode/exhale/issues/17)) ([c7df56a](https://github.com/akamachinecode/exhale/commit/c7df56a180a2d4e3da11df25c55c26b736985783))
+
 ## [0.2.0](https://github.com/akamachinecode/exhale/compare/v0.1.1...v0.2.0) (2026-11-11)
 
 
