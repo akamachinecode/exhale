@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!-- Exhale.app (ADR 0029). build.sh fills in the version. LSUIElement: no
+     Dock icon, the app only starts the server and opens the browser. -->
+<plist version="1.0">
+<dict>
+	<key>CFBundleName</key>
+	<string>Exhale</string>
+	<key>CFBundleDisplayName</key>
+	<string>Exhale</string>
+	<key>CFBundleIdentifier</key>
+	<string>io.github.akamachinecode.exhale</string>
+	<key>CFBundleExecutable</key>
+	<string>exhale</string>
+	<key>CFBundleIconFile</key>
+	<string>Exhale</string>
+	<key>CFBundlePackageType</key>
+	<string>APPL</string>
+	<key>CFBundleInfoDictionaryVersion</key>
+	<string>6.0</string>
+	<key>CFBundleShortVersionString</key>
+	<string>{{VERSION}}</string>
+	<key>CFBundleVersion</key>
+	<string>{{VERSION}}</string>
+	<key>LSMinimumSystemVersion</key>
+	<string>12.0</string>
+	<key>LSApplicationCategoryType</key>
+	<string>public.app-category.finance</string>
+	<key>LSUIElement</key>
+	<true/>
+	<key>NSHumanReadableCopyright</key>
+	<string>AGPL-3.0-or-later</string>
+</dict>
+</plist>

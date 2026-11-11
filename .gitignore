@@ -1,6 +1,8 @@
 # build
 /bin/
 /dist/
+/dist-desktop/
+/installers/
 /web/dist/*
 !/web/dist/.keep
 /web/node_modules/

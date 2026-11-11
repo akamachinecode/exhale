@@ -32,6 +32,10 @@ archives:
       - deploy/launchd/io.github.akamachinecode.exhale.plist
 checksum:
   name_template: checksums.txt
+  # Exhale.dmg and Exhale-Setup.exe, built by the installers workflow on
+  # macOS and Linux before this runs (ADR 0029).
+  extra_files:
+    - glob: ./installers/*
 sboms:
   - artifacts: archive
 signs:
@@ -49,8 +53,9 @@ nfpms:
     formats: [deb, rpm]
     section: utils
     bindir: /usr/bin
-    # docs/install/linux.md names the files: exhale_<version>_linux_<arch>.deb
-    file_name_template: "{{ .PackageName }}_{{ .Version }}_{{ .Os }}_{{ .Arch }}{{ if .Arm }}v{{ .Arm }}{{ end }}"
+    # The same name in every release (exhale_linux_amd64.deb), so the
+    # download page links to releases/latest/download/<name> (ADR 0029).
+    file_name_template: "{{ .PackageName }}_{{ .Os }}_{{ .Arch }}{{ if .Arm }}v{{ .Arm }}{{ end }}"
     # A working service: unit, settings file and a dedicated user. Data lives
     # in /var/lib/exhale and is never removed by the package (docs/install/linux.md).
     contents:
@@ -64,6 +69,17 @@ nfpms:
       - src: LICENSE
         dst: /usr/share/licenses/exhale/LICENSE
         type: license
+      # Exhale in the app launcher, and its icon (ADR 0029).
+      - src: deploy/packaging/exhale.desktop
+        dst: /usr/share/applications/exhale.desktop
+        file_info: { mode: 0644 }
+      - src: deploy/desktop/icon.svg
+        dst: /usr/share/icons/hicolor/scalable/apps/exhale.svg
+        file_info: { mode: 0644 }
+      # The service may keep the computer awake when the owner asks (ADR 0028).
+      - src: deploy/packaging/50-exhale.rules
+        dst: /usr/share/polkit-1/rules.d/50-exhale.rules
+        file_info: { mode: 0644 }
     scripts:
       preinstall: deploy/packaging/preinstall.sh
       postinstall: deploy/packaging/postinstall.sh
@@ -84,5 +100,8 @@ dockers_v2:
       org.opencontainers.image.version: "{{ .Version }}"
       org.opencontainers.image.revision: "{{ .FullCommit }}"
       org.opencontainers.image.created: "{{ .Date }}"
+release:
+  extra_files:
+    - glob: ./installers/*
 changelog:
   disable: true # release-please writes CHANGELOG.md

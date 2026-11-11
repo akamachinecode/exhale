@@ -1,0 +1,13 @@
+[Desktop Entry]
+# Exhale in the app launcher (ADR 0029). The package runs the server as a
+# system service; this opens it in the browser.
+Type=Application
+Name=Exhale
+GenericName=Subscription manager
+Comment=Your subscriptions, handled.
+Exec=exhale open
+Icon=exhale
+Terminal=false
+Categories=Office;Finance;
+Keywords=subscriptions;bills;reminders;renewals;
+StartupNotify=false

@@ -1,0 +1,138 @@
+name: Installers
+# Exhale.dmg and Exhale-Setup.exe (ADR 0029): built, then installed and
+# opened on a real Mac and a real Windows machine before anyone downloads
+# them. The release workflow calls this with the version and publishes what
+# it uploads; on pull requests the installers stay as downloads of the run.
+on:
+  workflow_call:
+    inputs:
+      version:
+        type: string
+        required: true
+  pull_request:
+    paths:
+      - cmd/exhale/**
+      - internal/desktop/**
+      - deploy/desktop/**
+      - .github/workflows/installers.yml
+  workflow_dispatch:
+permissions: {}
+jobs:
+  version:
+    permissions: {}
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.v.outputs.version }}
+    steps:
+      - id: v
+        env:
+          VERSION: ${{ inputs.version }}
+          SHA: ${{ github.sha }}
+        run: echo "version=${VERSION:-0.0.0-dev.${SHA:0:7}}" >> "$GITHUB_OUTPUT"
+
+  macos:
+    timeout-minutes: 30
+    needs: version
+    permissions:
+      contents: read
+    runs-on: macos-latest
+    env:
+      VERSION: ${{ needs.version.outputs.version }}
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+        with:
+          persist-credentials: false
+      - uses: jdx/mise-action@5228313ee0372e111a38da051671ca30fc5a96db # v3
+        with:
+          cache: false # what this builds may be published
+      - name: Web UI
+        run: pnpm -C web install --frozen-lockfile && pnpm -C web build
+      - name: Build Exhale.dmg
+        run: sh deploy/desktop/macos/build.sh "$VERSION" installers
+      - name: Install it and open it, as a person would
+        run: |
+          hdiutil attach installers/Exhale.dmg -nobrowse -mountpoint /tmp/exhale-dmg
+          cp -R /tmp/exhale-dmg/Exhale.app /Applications/
+          hdiutil detach /tmp/exhale-dmg
+          # With no arguments, as Finder starts it: the launchd agent starts
+          # the server, then the browser opens.
+          /Applications/Exhale.app/Contents/MacOS/exhale
+          curl -fsS -D - http://127.0.0.1:8484/healthz | tee /tmp/healthz
+          grep -qi "x-exhale-version: $VERSION" /tmp/healthz
+          launchctl print "gui/$(id -u)/io.github.akamachinecode.exhale" | grep -E "state|program"
+          # Opened again: nothing to start, the browser opens at once.
+          /Applications/Exhale.app/Contents/MacOS/exhale
+          launchctl bootout "gui/$(id -u)/io.github.akamachinecode.exhale"
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: installer-macos
+          path: installers/Exhale.dmg
+          if-no-files-found: error
+
+  windows:
+    timeout-minutes: 30
+    needs: version
+    permissions:
+      contents: read
+    runs-on: ubuntu-latest
+    env:
+      VERSION: ${{ needs.version.outputs.version }}
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+        with:
+          persist-credentials: false
+      - uses: jdx/mise-action@5228313ee0372e111a38da051671ca30fc5a96db # v3
+        with:
+          cache: false # what this builds may be published
+      - name: NSIS
+        run: sudo apt-get update -qq && sudo apt-get install -y -qq nsis
+      - name: Web UI
+        run: pnpm -C web install --frozen-lockfile && pnpm -C web build
+      - name: Build Exhale-Setup.exe
+        run: sh deploy/desktop/windows/build.sh "$VERSION" installers
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: installer-windows
+          path: installers/Exhale-Setup.exe
+          if-no-files-found: error
+
+  windows-try:
+    timeout-minutes: 30
+    needs: [version, windows]
+    permissions: {}
+    runs-on: windows-latest
+    env:
+      VERSION: ${{ needs.version.outputs.version }}
+    steps:
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: installer-windows
+          path: installers
+      - name: Install it and open it, as a person would
+        shell: pwsh
+        run: |
+          Start-Process installers\Exhale-Setup.exe -ArgumentList '/S' -Wait
+          $exe = "$env:LOCALAPPDATA\Programs\Exhale\Exhale.exe"
+          if (-not (Test-Path $exe)) { throw "Exhale.exe was not installed" }
+          # As from the Start menu: starts the server, adds it to sign-in,
+          # opens the browser.
+          Start-Process $exe
+          $r = $null
+          foreach ($i in 1..60) {
+            try { $r = Invoke-WebRequest http://127.0.0.1:8484/healthz -UseBasicParsing; if ($r.Content -eq 'ok') { break } } catch {}
+            Start-Sleep 1
+          }
+          if (-not $r) { Get-Content "$env:LOCALAPPDATA\Exhale\exhale.log" -ErrorAction SilentlyContinue; throw "Exhale did not answer" }
+          $v = $r.Headers['X-Exhale-Version']
+          if ("$v" -ne $env:VERSION) { throw "version $v, expected $env:VERSION" }
+          $run = (Get-ItemProperty HKCU:\Software\Microsoft\Windows\CurrentVersion\Run).Exhale
+          "starts at sign-in: $run"
+          if ($run -notlike "*Exhale.exe*serve") { throw "not added to sign-in" }
+          if (-not (Test-Path "$env:APPDATA\Microsoft\Windows\Start Menu\Programs\Exhale.lnk")) { throw "no Start menu entry" }
+          # Uninstall: the server stops, the entries go, the data stays.
+          Start-Process "$env:LOCALAPPDATA\Programs\Exhale\Uninstall.exe" -ArgumentList '/S' -Wait
+          Start-Sleep 5
+          if (Test-Path $exe) { throw "Exhale.exe is still there" }
+          if ((Get-ItemProperty HKCU:\Software\Microsoft\Windows\CurrentVersion\Run).Exhale) { throw "still starts at sign-in" }
+          if (-not (Test-Path "$env:LOCALAPPDATA\Exhale\exhale.db")) { throw "the data went with it" }
+          "installed, opened, uninstalled"
