@@ -102,3 +102,119 @@
 			var(--brand) border-box;
 	}
 }
+
+/* Toasts sit above the phone's dock. */
+:root {
+	--toast-bottom: 24px;
+}
+@media (max-width: 767px) {
+	:root {
+		--toast-bottom: calc(5.5rem + env(safe-area-inset-bottom));
+	}
+}
+
+/* The phone's dock (layout.tsx): a dark pill in both themes, one round
+   button per destination, the current page filled in. On a pointer that
+   can hover (a narrow desktop window), the buttons grow under it. */
+:root {
+	--dock: oklch(0.17 0 0 / 0.94);
+	--dock-line: oklch(1 0 0 / 0.06);
+	--dock-shadow: 0 16px 40px -12px oklch(0 0 0 / 0.45);
+}
+.dark {
+	--dock: oklch(0.215 0 0 / 0.9);
+	--dock-line: oklch(1 0 0 / 0.09);
+	--dock-shadow: 0 16px 40px -8px oklch(0 0 0 / 0.7);
+}
+
+@layer components {
+	.dock-bar {
+		background: var(--dock);
+		box-shadow:
+			0 0 0 1px var(--dock-line),
+			var(--dock-shadow);
+		-webkit-backdrop-filter: blur(12px);
+		backdrop-filter: blur(12px);
+	}
+	.dock-item {
+		/* Eight buttons that fit a 360px phone with 16px to spare each side. */
+		--size: min(2.5rem, calc((100vw - 4.5rem) / 8));
+		position: relative;
+		display: grid;
+		place-items: center;
+		width: var(--size);
+		height: var(--size);
+		border-radius: 9999px;
+		background: oklch(1 0 0 / 0.07);
+		color: oklch(0.74 0 0);
+		-webkit-tap-highlight-color: transparent;
+		transition:
+			width 160ms ease-out,
+			height 160ms ease-out,
+			background-color 150ms,
+			color 150ms,
+			scale 100ms;
+	}
+	.dock-item svg {
+		width: 1.25rem;
+		height: 1.25rem;
+		stroke-width: 1.75;
+	}
+	.dock-item:active {
+		scale: 0.92;
+	}
+	.dock-item:focus-visible {
+		outline: 2px solid oklch(0.97 0 0);
+		outline-offset: 2px;
+	}
+	.dock-item[aria-current="page"] {
+		background: oklch(0.97 0 0);
+		color: oklch(0.15 0 0);
+	}
+	.dock-tip {
+		position: absolute;
+		bottom: calc(100% + 0.625rem);
+		left: 50%;
+		translate: -50% 4px;
+		padding: 0.1875rem 0.625rem;
+		border-radius: 9999px;
+		background: var(--dock);
+		box-shadow: 0 0 0 1px var(--dock-line);
+		color: oklch(0.97 0 0);
+		font-size: 0.75rem;
+		font-weight: 500;
+		white-space: nowrap;
+		opacity: 0;
+		pointer-events: none;
+		transition:
+			opacity 150ms,
+			translate 150ms;
+	}
+	.dock-item[data-flash] .dock-tip {
+		opacity: 1;
+		translate: -50% 0;
+	}
+	@media (hover: hover) and (pointer: fine) {
+		.dock-item:hover {
+			--size: 3rem;
+			color: oklch(0.97 0 0);
+		}
+		.dock-item[aria-current="page"]:hover {
+			color: oklch(0.15 0 0);
+		}
+		.dock-item:hover + .dock-item,
+		.dock-item:has(+ .dock-item:hover) {
+			--size: 2.75rem;
+		}
+		.dock-item:hover .dock-tip {
+			opacity: 1;
+			translate: -50% 0;
+		}
+	}
+	@media (prefers-reduced-motion: reduce) {
+		.dock-item,
+		.dock-tip {
+			transition: none;
+		}
+	}
+}

@@ -210,7 +210,7 @@ export function Subscriptions() {
 			</div>
 			{chosen.length > 0 && (
 				<div
-					className="sticky top-2 z-10 mb-3 flex items-center gap-2 rounded-xl border border-line bg-surface px-3 py-2 shadow-sm"
+					className="sticky top-[calc(var(--sticky-top,0px)+0.5rem)] z-10 mb-3 flex items-center gap-2 rounded-xl border border-line bg-surface px-3 py-2 shadow-sm"
 					role="toolbar"
 					aria-label={t("Change the selected subscriptions")}
 				>

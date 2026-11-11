@@ -1,4 +1,4 @@
-import { Link, useNavigate, useSearch } from "@tanstack/react-router";
+import { useNavigate, useSearch } from "@tanstack/react-router";
 import { type FormEvent, type ReactNode, useState } from "react";
 import { toast } from "sonner";
 import { AskAgain } from "@/components/answers";
@@ -80,14 +80,6 @@ export function SettingsPage() {
 								<TwoFactorSettings />
 							</Section>
 						)}
-						<p className="flex gap-4 text-[13px] md:hidden">
-							<Link to="/activity" className="font-medium hover:underline">
-								{t("Activity")}
-							</Link>
-							<Link to="/agents" className="font-medium hover:underline">
-								{t("AI agents")}
-							</Link>
-						</p>
 					</>
 				)}
 				{tab === "general" && (
