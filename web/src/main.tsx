@@ -70,7 +70,12 @@ const routeTree = root.addChildren([
 	createRoute({ getParentRoute: () => root, path: "/authorize", component: AuthorizePage }),
 ]);
 
-const router = createRouter({ routeTree, defaultPreload: "intent" });
+const router = createRouter({
+	routeTree,
+	defaultPreload: "intent",
+	// On wide screens the page scrolls inside its card (layout.tsx).
+	scrollToTopSelectors: ["window", "#content"],
+});
 declare module "@tanstack/react-router" {
 	interface Register {
 		router: typeof router;

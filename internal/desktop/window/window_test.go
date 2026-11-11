@@ -48,3 +48,13 @@ func TestSafeName(t *testing.T) {
 		}
 	}
 }
+
+func TestStateJS(t *testing.T) {
+	want := `window.dispatchEvent(new CustomEvent("exhale:window",{detail:{maximised:true,fullscreen:false}}))`
+	if got := stateJS(true, false); got != want {
+		t.Errorf("stateJS = %s, want %s", got, want)
+	}
+	// Before the window exists, the buttons do nothing rather than crash.
+	(&bridge{}).control("close")
+	(&bridge{}).sendState()
+}

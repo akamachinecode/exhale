@@ -3,6 +3,7 @@
 - Status: Accepted
 - Date: 2026-11-11
 - Amends: [0029](0029-desktop-installers.md) (the installed app opened the browser), [0002](0002-backend-language-go.md) and [0009](0009-runtime-and-system.md) (one binary without cgo: still true of the server)
+- Amended by: [0031](0031-window-title-bar.md) (the page draws the title bar)
 
 ## Context — what it has to do
 
