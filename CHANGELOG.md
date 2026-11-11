@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.2.0](https://github.com/akamachinecode/exhale/compare/v0.1.1...v0.2.0) (2026-11-11)
+
+
+### Features
+
+* **desktop:** Exhale opens in a window of its own, on macOS, Windows and Linux ([#15](https://github.com/akamachinecode/exhale/issues/15)) ([9c6f361](https://github.com/akamachinecode/exhale/commit/9c6f3613d506491bc472af6ccc6fa961c916fb41))
+
 ## [0.1.1](https://github.com/akamachinecode/exhale/compare/v0.1.0...v0.1.1) (2026-11-11)
 
 
