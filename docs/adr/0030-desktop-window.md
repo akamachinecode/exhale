@@ -62,6 +62,7 @@ Two pieces, then. The **server** is the engine: it sends the reminders and answe
 - **No web push in the window.** Webviews do not offer it. Telegram, Slack, email and ntfy are the channels; push still works in a browser.
 - **A separate sign-in.** The window keeps its own cookies, so you sign in once in it as well.
 - **Linux coverage.** The window needs GTK ≥ 4.14 and glibc ≥ 2.39: Ubuntu 24.04+, Debian 13+, Fedora 40+. Older systems and 32-bit Raspberry Pi OS get the browser.
+- **WebKitGTK's sandbox where it can run.** WebKit isolates each page with bubblewrap, which needs unprivileged user namespaces. Ubuntu (since 24.04) can have AppArmor refuse them, and WebKit then aborts the window. When bubblewrap cannot start there, the window turns that sandbox off (`WEBKIT_DISABLE_SANDBOX_THIS_IS_DANGEROUS`) and logs it: it shows Exhale's own pages from the same computer. Everywhere else the sandbox stays on. CI opens the window both ways.
 - **The release is heavier.** Two more Linux jobs install GTK headers from Ubuntu's mirrors, retried. Exhale.app is built with cgo.
 - **Young as stable.** Wails 3.0 is two weeks old as a stable release. Its CGO-free backend (`purego`) would let us cross-compile everything from one machine, but it is still experimental, so not yet.
 

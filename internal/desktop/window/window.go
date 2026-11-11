@@ -66,6 +66,7 @@ func Run(o Options) error {
 		level = slog.LevelDebug
 	}
 	log := slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: level}))
+	webkitSandbox(log)
 	b := &bridge{base: base, smoke: os.Getenv(SmokeEnv), log: log}
 	app := application.New(application.Options{
 		Name:        "Exhale",

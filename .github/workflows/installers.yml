@@ -204,9 +204,18 @@ jobs:
           for i in $(seq 60); do curl -fs http://127.0.0.1:8484/healthz && break; sleep 1; done
           # A session bus and an X display, as a desktop has; the window
           # closes once the web UI has loaded in it.
-          EXHALE_WINDOW_SMOKE="$RUNNER_TEMP/smoke" timeout 150 \
-            dbus-run-session -- xvfb-run -a "window/exhale-window_linux_$ARCH" --url http://127.0.0.1:8484
-          grep -qx ready "$RUNNER_TEMP/smoke"
+          smoke() {
+            rm -f "$RUNNER_TEMP/smoke"
+            EXHALE_WINDOW_SMOKE="$RUNNER_TEMP/smoke" timeout 150 \
+              dbus-run-session -- xvfb-run -a "window/exhale-window_linux_$ARCH" --url http://127.0.0.1:8484
+            grep -qx ready "$RUNNER_TEMP/smoke"
+          }
+          # As Ubuntu ships: AppArmor keeps WebKit's sandbox from starting,
+          # so the window goes without it.
+          smoke
+          # With user namespaces allowed, as on Fedora and Debian: sandboxed.
+          sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0
+          smoke
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: window-linux-${{ matrix.arch }}
