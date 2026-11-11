@@ -390,12 +390,16 @@ footer a:hover { color: var(--fg); }
 		render();
 	});
 
-	// The Linux packages follow the processor.
+	// The Linux packages follow the processor: the file names come from
+	// this list, in the order of the options.
+	const archs = ["amd64", "arm64", "armv7"];
 	const arch = document.getElementById("arch");
-	arch.addEventListener("change", () => {
-		for (const kind of ["deb", "rpm"]) document.getElementById(kind).href = dl + "/exhale_linux_" + arch.value + "." + kind;
-	});
-	if (/aarch64|arm64/i.test(platform + ua)) { arch.value = "arm64"; arch.dispatchEvent(new Event("change")); }
+	const pickArch = () => {
+		const name = archs[arch.selectedIndex] || archs[0];
+		for (const kind of ["deb", "rpm"]) document.getElementById(kind).href = dl + "/exhale_linux_" + name + "." + kind;
+	};
+	arch.addEventListener("change", pickArch);
+	if (/aarch64|arm64/i.test(platform + ua)) { arch.selectedIndex = 1; pickArch(); }
 
 	if (os in { mac: 1, windows: 1, linux: 1 }) document.getElementById(os).classList.add("mine");
 
