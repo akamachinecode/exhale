@@ -12,6 +12,7 @@ jobs:
     outputs:
       released: ${{ steps.rp.outputs.release_created }}
       tag: ${{ steps.rp.outputs.tag_name }}
+      version: ${{ steps.rp.outputs.version }}
     steps:
       # Versions come from release-please-config.json and
       # .release-please-manifest.json: the first release is 0.1.0, and while
@@ -19,8 +20,19 @@ jobs:
       # release-type here: it would make the action ignore both files.
       - id: rp
         uses: googleapis/release-please-action@5c625bfb5d1ff62eadeeb3772007f7f66fdcf071 # v4
-  goreleaser:
+  # Exhale.dmg and Exhale-Setup.exe, tried on a Mac and on Windows first.
+  installers:
     needs: release-please
+    if: needs.release-please.outputs.released == 'true'
+    permissions:
+      contents: read
+    # A reusable workflow in this repository is read from this same commit,
+    # not from a checkout.
+    uses: ./.github/workflows/installers.yml # zizmor: ignore[self-repository]
+    with:
+      version: ${{ needs.release-please.outputs.version }}
+  goreleaser:
+    needs: [release-please, installers]
     if: needs.release-please.outputs.released == 'true'
     permissions:
       contents: write      # upload release assets
@@ -36,6 +48,12 @@ jobs:
       - uses: jdx/mise-action@5228313ee0372e111a38da051671ca30fc5a96db # v3
         with:
           cache: false # a release never uses a cache another run could have written
+      # Published with the rest and listed in the signed checksums.
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          pattern: installer-*
+          merge-multiple: true
+          path: installers
       - uses: sigstore/cosign-installer@398d4b0eeef1380460a10c8013a76f728fb906ac # v3
       - uses: docker/setup-qemu-action@c7c53464625b32c7a7e944ae62b3e17d2b600130 # v3
       - uses: docker/setup-buildx-action@8d2750c68a42422c14e847fe6c8ac0403b4cbd6f # v3

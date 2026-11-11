@@ -8,6 +8,7 @@ import (
 	"go/ast"
 	"go/parser"
 	"go/token"
+	"maps"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -65,6 +66,12 @@ func chatTexts(t *testing.T) (map[string]bool, map[string]string) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	// The desktop app's dialogs share the chat catalogs (ADR 0029).
+	desk, err := parser.ParseDir(fset, filepath.Join("..", "desktop"), nil, 0) //nolint:staticcheck // every OS's files
+	if err != nil {
+		t.Fatal(err)
+	}
+	maps.Copy(pkgs, desk)
 	used := map[string]bool{}
 	ones := map[string]string{}
 	for _, k := range dynamicKeys {

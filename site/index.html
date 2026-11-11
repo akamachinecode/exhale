@@ -1,0 +1,419 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Exhale — your subscriptions, handled</title>
+<meta name="description" content="Exhale reminds you before every renewal and lets you fix it from the reminder itself, in Telegram, Slack or your browser. Free, open source, and it runs on your own computer.">
+<meta name="theme-color" content="#0a0a0a">
+<meta property="og:title" content="Exhale — your subscriptions, handled">
+<meta property="og:description" content="Reminders you can answer. Free, open source, on your own computer.">
+<meta property="og:image" content="img/overview.webp">
+<link rel="icon" href="favicon.svg" type="image/svg+xml">
+<link rel="preload" href="fonts/geist.woff2" as="font" type="font/woff2" crossorigin>
+<style>
+@font-face { font-family: "Geist"; src: url(fonts/geist.woff2) format("woff2"); font-weight: 100 900; font-display: swap; }
+@font-face { font-family: "Geist Mono"; src: url(fonts/geist-mono.woff2) format("woff2"); font-weight: 100 900; font-display: swap; }
+
+/* The app's dark theme (web/src/styles.css): black, white and greys; the
+   brand gradient only on the logo and the headline. */
+:root {
+	--bg: oklch(0.13 0 0);
+	--surface: oklch(0.165 0 0);
+	--raised: oklch(0.205 0 0);
+	--line: oklch(0.255 0 0);
+	--fg: oklch(0.97 0 0);
+	--muted: oklch(0.72 0 0);
+	--faint: oklch(0.55 0 0);
+	--brand: linear-gradient(120deg, oklch(0.78 0.12 300), oklch(0.8 0.1 230) 50%, oklch(0.85 0.12 175));
+	--radius: 14px;
+	color-scheme: dark;
+}
+* { box-sizing: border-box; }
+html { scroll-behavior: smooth; }
+@media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } }
+body {
+	margin: 0;
+	background: var(--bg);
+	color: var(--fg);
+	font: 16px/1.55 "Geist", ui-sans-serif, system-ui, sans-serif;
+	letter-spacing: -0.006em;
+	-webkit-font-smoothing: antialiased;
+	font-feature-settings: "ss01";
+}
+a { color: inherit; }
+img { max-width: 100%; height: auto; display: block; }
+code, .mono { font-family: "Geist Mono", ui-monospace, monospace; }
+.wrap { width: min(1120px, 100% - 32px); margin-inline: auto; }
+.icon { width: 18px; height: 18px; fill: currentColor; flex: none; }
+
+/* Header */
+.top { position: sticky; top: 0; z-index: 10; background: color-mix(in oklch, var(--bg) 82%, transparent); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); border-bottom: 1px solid transparent; transition: border-color .2s; }
+.top.scrolled { border-bottom-color: var(--line); }
+.top .wrap { display: flex; align-items: center; gap: 24px; height: 60px; }
+.logo { display: flex; align-items: center; gap: 10px; text-decoration: none; font-weight: 600; font-size: 16px; letter-spacing: -0.02em; }
+.logo img { width: 28px; height: 28px; }
+.top nav { display: flex; align-items: center; gap: 4px; margin-left: auto; }
+.top nav a, .lang { color: var(--muted); text-decoration: none; font-size: 14px; padding: 6px 10px; border-radius: 8px; transition: color .15s, background-color .15s; }
+.top nav a:hover, .lang:hover { color: var(--fg); background: var(--raised); }
+.lang { background: none; border: 0; font: inherit; font-size: 12px; font-weight: 600; text-transform: uppercase; cursor: pointer; }
+@media (max-width: 560px) { .top nav .hide-sm { display: none; } }
+
+/* Hero */
+.hero { position: relative; text-align: center; padding: 88px 0 48px; }
+.hero::before { content: ""; position: absolute; inset: -60px 0 auto; height: 520px; z-index: -1; pointer-events: none;
+	background: radial-gradient(60% 55% at 50% 30%, oklch(0.8 0.1 250 / 0.16), transparent 70%); }
+.eyebrow { display: inline-flex; gap: 8px; align-items: center; margin: 0 0 22px; padding: 5px 12px; border: 1px solid var(--line); border-radius: 999px; color: var(--muted); font-size: 13px; background: var(--surface); }
+.eyebrow .dot { width: 6px; height: 6px; border-radius: 50%; background: var(--brand); }
+h1 { margin: 0 auto; max-width: 15ch; text-wrap: balance; font-size: clamp(40px, 7vw, 72px); line-height: 1.02; letter-spacing: -0.045em; font-weight: 650; }
+h1 .brand { background: var(--brand); -webkit-background-clip: text; background-clip: text; color: transparent; }
+.lead { margin: 22px auto 0; max-width: 60ch; color: var(--muted); font-size: clamp(16px, 2.2vw, 18px); }
+.cta { display: flex; flex-wrap: wrap; justify-content: center; gap: 12px; margin-top: 34px; }
+.btn { display: inline-flex; align-items: center; justify-content: center; gap: 10px; height: 46px; padding: 0 20px; border-radius: 12px; font-size: 15px; font-weight: 550; text-decoration: none; border: 1px solid var(--line); transition: transform .1s, background-color .15s, border-color .15s; }
+.btn:active { transform: scale(.98); }
+.btn.primary { background: var(--fg); color: var(--bg); border-color: var(--fg); }
+.btn.primary:hover { background: oklch(0.88 0 0); }
+.btn.ghost { color: var(--fg); background: var(--surface); }
+.btn.ghost:hover { background: var(--raised); }
+.btn:focus-visible, .top a:focus-visible, .lang:focus-visible, select:focus-visible { outline: 2px solid var(--fg); outline-offset: 2px; }
+.meta { margin: 14px 0 0; color: var(--faint); font-size: 13px; }
+
+/* Screenshots */
+.shots { position: relative; margin: 40px auto 0; padding-bottom: 40px; }
+.window { border: 1px solid var(--line); border-radius: 16px; overflow: hidden; background: var(--surface);
+	box-shadow: 0 0 0 1px oklch(1 0 0 / 0.03), 0 40px 120px -40px oklch(0.6 0.12 260 / 0.35), 0 30px 60px -30px oklch(0 0 0 / 0.8); }
+.window .bar { display: flex; gap: 7px; padding: 12px 14px; border-bottom: 1px solid var(--line); }
+.window .bar i { width: 11px; height: 11px; border-radius: 50%; background: var(--raised); }
+.phone { position: absolute; right: -12px; bottom: 0; width: 23%; min-width: 150px; border-radius: 30px; border: 6px solid oklch(0.22 0 0); overflow: hidden;
+	box-shadow: 0 30px 70px -20px oklch(0 0 0 / 0.9), 0 0 0 1px var(--line); }
+@media (max-width: 720px) { .phone { display: none; } .shots { padding-bottom: 0; } }
+
+/* Sections */
+section.block { padding: 96px 0 0; }
+.kicker { color: var(--faint); font-size: 13px; font-weight: 550; text-transform: uppercase; letter-spacing: .08em; margin: 0 0 10px; }
+h2 { margin: 0; font-size: clamp(28px, 4vw, 40px); line-height: 1.1; letter-spacing: -0.035em; font-weight: 620; max-width: 26ch; text-wrap: balance; }
+.sub { color: var(--muted); margin: 12px 0 0; max-width: 62ch; }
+
+.steps { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; margin-top: 36px; counter-reset: step; }
+.step { padding: 24px; border: 1px solid var(--line); border-radius: var(--radius); background: var(--surface); }
+.step::before { counter-increment: step; content: counter(step); display: grid; place-items: center; width: 28px; height: 28px; margin-bottom: 18px; border-radius: 8px; background: var(--raised); color: var(--fg); font-size: 13px; font-weight: 600; }
+.step h3, .feature h3 { margin: 0 0 6px; font-size: 16px; letter-spacing: -0.01em; font-weight: 600; }
+.step p, .feature p { margin: 0; color: var(--muted); font-size: 14.5px; }
+
+.features { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1px; margin-top: 36px; background: var(--line); border: 1px solid var(--line); border-radius: var(--radius); overflow: hidden; }
+.feature { padding: 26px 24px; background: var(--bg); }
+@media (max-width: 860px) { .steps, .features { grid-template-columns: 1fr 1fr; } }
+@media (max-width: 560px) { .steps, .features { grid-template-columns: 1fr; } }
+
+/* Downloads */
+.downloads { display: grid; grid-template-columns: repeat(2, 1fr); gap: 16px; margin-top: 36px; }
+@media (max-width: 760px) { .downloads { grid-template-columns: 1fr; } }
+.card { min-width: 0; display: flex; flex-direction: column; gap: 14px; padding: 24px; border: 1px solid var(--line); border-radius: var(--radius); background: var(--surface); scroll-margin-top: 80px; }
+.card.mine { border-color: oklch(0.45 0 0); box-shadow: 0 0 0 1px oklch(0.45 0 0); }
+.card header { display: flex; align-items: center; gap: 12px; }
+.card header .icon { width: 26px; height: 26px; }
+.card h3 { margin: 0; font-size: 18px; font-weight: 600; letter-spacing: -0.015em; }
+.card .req { margin: 0; color: var(--faint); font-size: 13px; }
+.card .note { margin: auto 0 0; color: var(--muted); font-size: 13.5px; }
+.card .note code { font-size: 12.5px; color: var(--fg); overflow-wrap: anywhere; }
+.card .note strong { color: var(--fg); font-weight: 550; }
+.row { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }
+.btn.small { height: 40px; padding: 0 16px; font-size: 14px; border-radius: 10px; }
+select { height: 40px; padding: 0 34px 0 12px; border-radius: 10px; border: 1px solid var(--line); background: var(--bg) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%23999' stroke-width='2'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E") no-repeat right 12px center; color: var(--fg); font: inherit; font-size: 14px; appearance: none; }
+pre { margin: 0; padding: 14px 16px; border: 1px solid var(--line); border-radius: 10px; background: var(--bg); overflow-x: auto; font-size: 12.5px; line-height: 1.6; color: var(--muted); }
+.all { margin: 20px 0 0; color: var(--faint); font-size: 13.5px; }
+.all a { color: var(--muted); }
+
+/* FAQ */
+.faq { margin-top: 28px; border-top: 1px solid var(--line); }
+.faq details { border-bottom: 1px solid var(--line); }
+.faq summary { cursor: pointer; list-style: none; display: flex; justify-content: space-between; gap: 16px; padding: 18px 0; font-weight: 550; }
+.faq summary::-webkit-details-marker { display: none; }
+.faq summary::after { content: "+"; color: var(--faint); font-weight: 400; font-size: 20px; line-height: 1; }
+.faq details[open] summary::after { content: "−"; }
+.faq p { margin: 0 0 18px; color: var(--muted); max-width: 70ch; }
+
+footer { margin-top: 110px; border-top: 1px solid var(--line); padding: 28px 0 40px; color: var(--faint); font-size: 13.5px; }
+footer .wrap { display: flex; flex-wrap: wrap; gap: 16px 28px; align-items: center; }
+footer nav { display: flex; flex-wrap: wrap; gap: 18px; margin-left: auto; }
+footer a { color: var(--muted); text-decoration: none; }
+footer a:hover { color: var(--fg); }
+</style>
+</head>
+<body>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+	<symbol id="i-apple" viewBox="0 0 24 24"><path d="M12.152 6.896c-.948 0-2.415-1.078-3.96-1.04-2.04.027-3.91 1.183-4.961 3.014-2.117 3.675-.546 9.103 1.519 12.09 1.013 1.454 2.208 3.09 3.792 3.039 1.52-.065 2.09-.987 3.935-.987 1.831 0 2.35.987 3.96.948 1.637-.026 2.676-1.48 3.676-2.948 1.156-1.688 1.636-3.325 1.662-3.415-.039-.013-3.182-1.221-3.22-4.857-.026-3.04 2.48-4.494 2.597-4.559-1.429-2.09-3.623-2.324-4.39-2.376-2-.156-3.675 1.09-4.61 1.09zM15.53 3.83c.843-1.012 1.4-2.427 1.245-3.83-1.207.052-2.662.805-3.532 1.818-.78.896-1.454 2.338-1.273 3.714 1.338.104 2.715-.688 3.559-1.701"/></symbol>
+	<symbol id="i-linux" viewBox="0 0 24 24"><path d="M12.504 0c-.155 0-.315.008-.48.021-4.226.333-3.105 4.807-3.17 6.298-.076 1.092-.3 1.953-1.05 3.02-.885 1.051-2.127 2.75-2.716 4.521-.278.832-.41 1.684-.287 2.489a.424.424 0 00-.11.135c-.26.268-.45.6-.663.839-.199.199-.485.267-.797.4-.313.136-.658.269-.864.68-.09.189-.136.394-.132.602 0 .199.027.4.055.536.058.399.116.728.04.97-.249.68-.28 1.145-.106 1.484.174.334.535.47.94.601.81.2 1.91.135 2.774.6.926.466 1.866.67 2.616.47.526-.116.97-.464 1.208-.946.587-.003 1.23-.269 2.26-.334.699-.058 1.574.267 2.577.2.025.134.063.198.114.333l.003.003c.391.778 1.113 1.132 1.884 1.071.771-.06 1.592-.536 2.257-1.306.631-.765 1.683-1.084 2.378-1.503.348-.199.629-.469.649-.853.023-.4-.2-.811-.714-1.376v-.097l-.003-.003c-.17-.2-.25-.535-.338-.926-.085-.401-.182-.786-.492-1.046h-.003c-.059-.054-.123-.067-.188-.135a.357.357 0 00-.19-.064c.431-1.278.264-2.55-.173-3.694-.533-1.41-1.465-2.638-2.175-3.483-.796-1.005-1.576-1.957-1.56-3.368.026-2.152.236-6.133-3.544-6.139zm.529 3.405h.013c.213 0 .396.062.584.198.19.135.33.332.438.533.105.259.158.459.166.724 0-.02.006-.04.006-.06v.105a.086.086 0 01-.004-.021l-.004-.024a1.807 1.807 0 01-.15.706.953.953 0 01-.213.335.71.71 0 00-.088-.042c-.104-.045-.198-.064-.284-.133a1.312 1.312 0 00-.22-.066c.05-.06.146-.133.183-.198.053-.128.082-.264.088-.402v-.02a1.21 1.21 0 00-.061-.4c-.045-.134-.101-.2-.183-.333-.084-.066-.167-.132-.267-.132h-.016c-.093 0-.176.03-.262.132a.8.8 0 00-.205.334 1.18 1.18 0 00-.09.4v.019c.002.089.008.179.02.267-.193-.067-.438-.135-.607-.202a1.635 1.635 0 01-.018-.2v-.02a1.772 1.772 0 01.15-.768c.082-.22.232-.406.43-.533a.985.985 0 01.594-.2zm-2.962.059h.036c.142 0 .27.048.399.135.146.129.264.288.344.465.09.199.14.4.153.667v.004c.007.134.006.2-.002.266v.08c-.03.007-.056.018-.083.024-.152.055-.274.135-.393.2.012-.09.013-.18.003-.267v-.015c-.012-.133-.04-.2-.082-.333a.613.613 0 00-.166-.267.248.248 0 00-.183-.064h-.021c-.071.006-.13.04-.186.132a.552.552 0 00-.12.27.944.944 0 00-.023.33v.015c.012.135.037.2.08.334.046.134.098.2.166.268.01.009.02.018.034.024-.07.057-.117.07-.176.136a.304.304 0 01-.131.068 2.62 2.62 0 01-.275-.402 1.772 1.772 0 01-.155-.667 1.759 1.759 0 01.08-.668 1.43 1.43 0 01.283-.535c.128-.133.26-.2.418-.2zm1.37 1.706c.332 0 .733.065 1.216.399.293.2.523.269 1.052.468h.003c.255.136.405.266.478.399v-.131a.571.571 0 01.016.47c-.123.31-.516.643-1.063.842v.002c-.268.135-.501.333-.775.465-.276.135-.588.292-1.012.267a1.139 1.139 0 01-.448-.067 3.566 3.566 0 01-.322-.198c-.195-.135-.363-.332-.612-.465v-.005h-.005c-.4-.246-.616-.512-.686-.71-.07-.268-.005-.47.193-.6.224-.135.38-.271.483-.336.104-.074.143-.102.176-.131h.002v-.003c.169-.202.436-.47.839-.601.139-.036.294-.065.466-.065zm2.8 2.142c.358 1.417 1.196 3.475 1.735 4.473.286.534.855 1.659 1.102 3.024.156-.005.33.018.513.064.646-1.671-.546-3.467-1.089-3.966-.22-.2-.232-.335-.123-.335.59.534 1.365 1.572 1.646 2.757.13.535.16 1.104.021 1.67.067.028.135.06.205.067 1.032.534 1.413.938 1.23 1.537v-.043c-.06-.003-.12 0-.18 0h-.016c.151-.467-.182-.825-1.065-1.224-.915-.4-1.646-.336-1.77.465-.008.043-.013.066-.018.135-.068.023-.139.053-.209.064-.43.268-.662.669-.793 1.187-.13.533-.17 1.156-.205 1.869v.003c-.02.334-.17.838-.319 1.35-1.5 1.072-3.58 1.538-5.348.334a2.645 2.645 0 00-.402-.533 1.45 1.45 0 00-.275-.333c.182 0 .338-.03.465-.067a.615.615 0 00.314-.334c.108-.267 0-.697-.345-1.163-.345-.467-.931-.995-1.788-1.521-.63-.4-.986-.87-1.15-1.396-.165-.534-.143-1.085-.015-1.645.245-1.07.873-2.11 1.274-2.763.107-.065.037.135-.408.974-.396.751-1.14 2.497-.122 3.854a8.123 8.123 0 01.647-2.876c.564-1.278 1.743-3.504 1.836-5.268.048.036.217.135.289.202.218.133.38.333.59.465.21.201.477.335.876.335.039.003.075.006.11.006.412 0 .73-.134.997-.268.29-.134.52-.334.74-.4h.005c.467-.135.835-.402 1.044-.7zm2.185 8.958c.037.6.343 1.245.882 1.377.588.134 1.434-.333 1.791-.765l.211-.01c.315-.007.577.01.847.268l.003.003c.208.199.305.53.391.876.085.4.154.78.409 1.066.486.527.645.906.636 1.14l.003-.007v.018l-.003-.012c-.015.262-.185.396-.498.595-.63.401-1.746.712-2.457 1.57-.618.737-1.37 1.14-2.036 1.191-.664.053-1.237-.2-1.574-.898l-.005-.003c-.21-.4-.12-1.025.056-1.69.176-.668.428-1.344.463-1.897.037-.714.076-1.335.195-1.814.12-.465.308-.797.641-.984l.045-.022zm-10.814.049h.01c.053 0 .105.005.157.014.376.055.706.333 1.023.752l.91 1.664.003.003c.243.533.754 1.064 1.189 1.637.434.598.77 1.131.729 1.57v.006c-.057.744-.48 1.148-1.125 1.294-.645.135-1.52.002-2.395-.464-.968-.536-2.118-.469-2.857-.602-.369-.066-.61-.2-.723-.4-.11-.2-.113-.602.123-1.23v-.004l.002-.003c.117-.334.03-.752-.027-1.118-.055-.401-.083-.71.043-.94.16-.334.396-.4.69-.533.294-.135.64-.202.915-.47h.002v-.002c.256-.268.445-.601.668-.838.19-.201.38-.336.663-.336zm7.159-9.074c-.435.201-.945.535-1.488.535-.542 0-.97-.267-1.28-.466-.154-.134-.28-.268-.373-.335-.164-.134-.144-.333-.074-.333.109.016.129.134.199.2.096.066.215.2.36.333.292.2.68.467 1.167.467.485 0 1.053-.267 1.398-.466.195-.135.445-.334.648-.467.156-.136.149-.267.279-.267.128.016.034.134-.147.332a8.097 8.097 0 01-.69.468zm-1.082-1.583V5.64c-.006-.02.013-.042.029-.05.074-.043.18-.027.26.004.063 0 .16.067.15.135-.006.049-.085.066-.135.066-.055 0-.092-.043-.141-.068-.052-.018-.146-.008-.163-.065zm-.551 0c-.02.058-.113.049-.166.066-.047.025-.086.068-.14.068-.05 0-.13-.02-.136-.068-.01-.066.088-.133.15-.133.08-.031.184-.047.259-.005.019.009.036.03.03.05v.02h.003z"/></symbol>
+	<symbol id="i-docker" viewBox="0 0 24 24"><path d="M13.983 11.078h2.119a.186.186 0 00.186-.185V9.006a.186.186 0 00-.186-.186h-2.119a.185.185 0 00-.185.185v1.888c0 .102.083.185.185.185m-2.954-5.43h2.118a.186.186 0 00.186-.186V3.574a.186.186 0 00-.186-.185h-2.118a.185.185 0 00-.185.185v1.888c0 .102.082.185.185.185m0 2.716h2.118a.187.187 0 00.186-.186V6.29a.186.186 0 00-.186-.185h-2.118a.185.185 0 00-.185.185v1.887c0 .102.082.185.185.186m-2.93 0h2.12a.186.186 0 00.184-.186V6.29a.185.185 0 00-.185-.185H8.1a.185.185 0 00-.185.185v1.887c0 .102.083.185.185.186m-2.964 0h2.119a.186.186 0 00.185-.186V6.29a.185.185 0 00-.185-.185H5.136a.186.186 0 00-.186.185v1.887c0 .102.084.185.186.186m5.893 2.715h2.118a.186.186 0 00.186-.185V9.006a.186.186 0 00-.186-.186h-2.118a.185.185 0 00-.185.185v1.888c0 .102.082.185.185.185m-2.93 0h2.12a.185.185 0 00.184-.185V9.006a.185.185 0 00-.184-.186h-2.12a.185.185 0 00-.184.185v1.888c0 .102.083.185.185.185m-2.964 0h2.119a.185.185 0 00.185-.185V9.006a.185.185 0 00-.184-.186h-2.12a.186.186 0 00-.186.186v1.887c0 .102.084.185.186.185m-2.92 0h2.12a.185.185 0 00.184-.185V9.006a.185.185 0 00-.184-.186h-2.12a.185.185 0 00-.184.185v1.888c0 .102.082.185.185.185M23.763 9.89c-.065-.051-.672-.51-1.954-.51-.338.001-.676.03-1.01.087-.248-1.7-1.653-2.53-1.716-2.566l-.344-.199-.226.327c-.284.438-.49.922-.612 1.43-.23.97-.09 1.882.403 2.661-.595.332-1.55.413-1.744.42H.751a.751.751 0 00-.75.748 11.376 11.376 0 00.692 4.062c.545 1.428 1.355 2.48 2.41 3.124 1.18.723 3.1 1.137 5.275 1.137.983.003 1.963-.086 2.93-.266a12.248 12.248 0 003.823-1.389c.98-.567 1.86-1.288 2.61-2.136 1.252-1.418 1.998-2.997 2.553-4.4h.221c1.372 0 2.215-.549 2.68-1.009.309-.293.55-.65.707-1.046l.098-.288Z"/></symbol>
+	<symbol id="i-github" viewBox="0 0 24 24"><path d="M12 .297c-6.63 0-12 5.373-12 12 0 5.303 3.438 9.8 8.205 11.385.6.113.82-.258.82-.577 0-.285-.01-1.04-.015-2.04-3.338.724-4.042-1.61-4.042-1.61C4.422 18.07 3.633 17.7 3.633 17.7c-1.087-.744.084-.729.084-.729 1.205.084 1.838 1.236 1.838 1.236 1.07 1.835 2.809 1.305 3.495.998.108-.776.417-1.305.76-1.605-2.665-.3-5.466-1.332-5.466-5.93 0-1.31.465-2.38 1.235-3.22-.135-.303-.54-1.523.105-3.176 0 0 1.005-.322 3.3 1.23.96-.267 1.98-.399 3-.405 1.02.006 2.04.138 3 .405 2.28-1.552 3.285-1.23 3.285-1.23.645 1.653.24 2.873.12 3.176.765.84 1.23 1.91 1.23 3.22 0 4.61-2.805 5.625-5.475 5.92.42.36.81 1.096.81 2.22 0 1.606-.015 2.896-.015 3.286 0 .315.21.69.825.57C20.565 22.092 24 17.592 24 12.297c0-6.627-5.373-12-12-12"/></symbol>
+	<symbol id="i-windows" viewBox="0 0 24 24"><path d="M3 5.5 10.5 4.4v7.1H3zm8.5-1.2L21 3v8.5h-9.5zM3 12.5h7.5v7.1L3 18.5zm8.5 0H21V21l-9.5-1.3z"/></symbol>
+	<symbol id="i-down" viewBox="0 0 24 24"><path d="M11 4h2v9.17l3.59-3.58L18 11l-6 6-6-6 1.41-1.41L11 13.17z"/><path d="M5 19h14v2H5z"/></symbol>
+</svg>
+
+<header class="top">
+	<div class="wrap">
+		<a class="logo" href="#"><img src="favicon.svg" alt="">Exhale</a>
+		<nav>
+			<a href="#download" data-t="nav.download">Download</a>
+			<a class="hide-sm" href="https://github.com/akamachinecode/exhale/tree/main/docs/install" data-t="nav.docs">Docs</a>
+			<a href="https://github.com/akamachinecode/exhale" aria-label="GitHub"><svg class="icon"><use href="#i-github"/></svg></a>
+			<button class="lang" type="button" id="lang" aria-label="Español">es</button>
+		</nav>
+	</div>
+</header>
+
+<main>
+	<section class="hero wrap">
+		<p class="eyebrow"><span class="dot"></span><span data-t="eyebrow">Free and open source · Runs on your computer</span></p>
+		<h1><span data-t="h1a">Breathe out.</span> <span class="brand" data-t="h1b">Your subscriptions are handled.</span></h1>
+		<p class="lead" data-t="lead">Exhale reminds you before every renewal and lets you fix it from the reminder itself: mark it paid, move the date, change the card, cancel. In Telegram, Slack or your browser. It runs on your own computer, so your data stays with you.</p>
+		<div class="cta">
+			<a class="btn primary" id="primary" href="#download"><svg class="icon" id="primary-icon"><use href="#i-down"/></svg><span id="primary-label" data-t="cta.any">Download</span></a>
+			<a class="btn ghost" href="#download" data-t="cta.other">Other platforms</a>
+		</div>
+		<p class="meta" id="meta"></p>
+
+		<div class="shots">
+			<div class="window">
+				<div class="bar"><i></i><i></i><i></i></div>
+				<img src="img/overview.webp" width="2000" height="1250" alt="Exhale's overview: monthly and yearly spend, charges that need attention, the next 30 days and spend by category" data-t-alt="alt.overview">
+			</div>
+			<img class="phone" src="img/phone.webp" width="780" height="1688" alt="Exhale on a phone, with the dock of every page" data-t-alt="alt.phone">
+		</div>
+	</section>
+
+	<section class="block wrap">
+		<p class="kicker" data-t="how.kicker">How it works</p>
+		<h2 data-t="how.title">Installed in a minute. Then it just runs.</h2>
+		<div class="steps">
+			<div class="step"><h3 data-t="s1.t">Download and open it</h3><p data-t="s1.p">Exhale starts in the background and opens in your browser. From then on it starts by itself with your computer.</p></div>
+			<div class="step"><h3 data-t="s2.t">Create your account</h3><p data-t="s2.p">Then follow the steps on the home page. Making your own Telegram bot takes a minute and is guided.</p></div>
+			<div class="step"><h3 data-t="s3.t">Add your subscriptions</h3><p data-t="s3.p">By hand, from Wallos or a spreadsheet, or from your bank statement. Reminders start the same day.</p></div>
+		</div>
+	</section>
+
+	<section class="block wrap">
+		<p class="kicker" data-t="feat.kicker">What it does</p>
+		<h2 data-t="feat.title">The reminder is the app.</h2>
+		<p class="sub" data-t="feat.sub">The message that says Netflix renews in three days lets you fix it right there. It updates in place, and so does the web.</p>
+		<div class="features">
+			<div class="feature"><h3 data-t="f1.t">Reminders you can answer</h3><p data-t="f1.p">Already paid, a new date, another amount or card, skip, cancel, undo. One tap in the message.</p></div>
+			<div class="feature"><h3 data-t="f2.t">The dates that cost money</h3><p data-t="f2.p">Free trials before they charge, the last day to cancel, renewals that need you, price rises announced ahead.</p></div>
+			<div class="feature"><h3 data-t="f3.t">Every currency, exact</h3><p data-t="f3.p">Totals in your currency at ECB rates, and what to set aside each month for the yearly bills.</p></div>
+			<div class="feature"><h3 data-t="f4.t">Shared, not mixed</h3><p data-t="f4.p">A partner or flatmates get their own account and reminders. Split a subscription and see who owes whom.</p></div>
+			<div class="feature"><h3 data-t="f5.t">Ask it anything</h3><p data-t="f5.p">Plain language in chat, or Claude, ChatGPT and local models over MCP. Every change shows a preview and can be undone.</p></div>
+			<div class="feature"><h3 data-t="f6.t">Yours, on your computer</h3><p data-t="f6.p">One program, one data folder, a backup every day. No cloud, no telemetry, no account with us, no paid tier.</p></div>
+		</div>
+	</section>
+
+	<section class="block wrap" id="download">
+		<p class="kicker" data-t="dl.kicker">Download</p>
+		<h2 data-t="dl.title">Pick your computer.</h2>
+		<p class="sub" id="version-line" data-t="dl.sub">Free, for every system. Open the installer and you are done.</p>
+		<div class="downloads">
+			<article class="card" id="mac">
+				<header><svg class="icon"><use href="#i-apple"/></svg><div><h3>macOS</h3><p class="req" data-t="mac.req">macOS 12 or later · Apple silicon and Intel</p></div></header>
+				<div class="row"><a class="btn primary small" href="https://github.com/akamachinecode/exhale/releases/latest/download/Exhale.dmg"><svg class="icon"><use href="#i-down"/></svg>Exhale.dmg</a></div>
+				<p class="note" data-t="mac.note">Open it and drag Exhale to Applications, then open Exhale. <strong>The first time</strong>, macOS says it cannot verify the developer: go to System Settings → Privacy &amp; Security and click <strong>Open Anyway</strong>.</p>
+			</article>
+			<article class="card" id="windows">
+				<header><svg class="icon"><use href="#i-windows"/></svg><div><h3>Windows</h3><p class="req" data-t="win.req">Windows 10 and 11 · 64-bit</p></div></header>
+				<div class="row"><a class="btn primary small" href="https://github.com/akamachinecode/exhale/releases/latest/download/Exhale-Setup.exe"><svg class="icon"><use href="#i-down"/></svg>Exhale-Setup.exe</a></div>
+				<p class="note" data-t="win.note">Open it: Exhale installs and opens, no administrator needed. If <strong>SmartScreen</strong> appears, click More info → <strong>Run anyway</strong>.</p>
+			</article>
+			<article class="card" id="linux">
+				<header><svg class="icon"><use href="#i-linux"/></svg><div><h3>Linux</h3><p class="req" data-t="linux.req">Ubuntu, Debian, Raspberry Pi OS · Fedora, RHEL</p></div></header>
+				<div class="row">
+					<select id="arch" aria-label="Processor" data-t-label="linux.arch">
+						<option value="amd64">x86-64</option>
+						<option value="arm64">ARM 64-bit</option>
+						<option value="armv7">ARM 32-bit (Raspberry Pi)</option>
+					</select>
+					<a class="btn primary small" id="deb" href="https://github.com/akamachinecode/exhale/releases/latest/download/exhale_linux_amd64.deb"><svg class="icon"><use href="#i-down"/></svg>.deb</a>
+					<a class="btn ghost small" id="rpm" href="https://github.com/akamachinecode/exhale/releases/latest/download/exhale_linux_amd64.rpm"><svg class="icon"><use href="#i-down"/></svg>.rpm</a>
+				</div>
+				<p class="note" data-t="linux.note">Open it with your software center, or <code>sudo apt install ./exhale_linux_amd64.deb</code>. Exhale runs as a service that starts with the computer, and appears among your apps.</p>
+			</article>
+			<article class="card" id="server">
+				<header><svg class="icon"><use href="#i-docker"/></svg><div><h3 data-t="srv.t">Server or NAS</h3><p class="req" data-t="srv.req">Docker, a home server, a Raspberry Pi or a VPS</p></div></header>
+				<pre><code>docker run -d --name exhale --restart unless-stopped \
+  -p 8484:8484 -v exhale-data:/data \
+  ghcr.io/akamachinecode/exhale</code></pre>
+				<p class="note" data-t="srv.note">Reminders never miss on a machine that is always on. The <a href="https://github.com/akamachinecode/exhale/tree/main/docs/install">install guide</a> covers HTTPS, backups and every option.</p>
+			</article>
+		</div>
+		<p class="all" data-t="dl.all">Every file, with signed checksums and build provenance, is on the <a href="https://github.com/akamachinecode/exhale/releases/latest">release page</a>. Prefer to build it yourself? The <a href="https://github.com/akamachinecode/exhale">source is on GitHub</a>.</p>
+	</section>
+
+	<section class="block wrap">
+		<p class="kicker" data-t="faq.kicker">Questions</p>
+		<h2 data-t="faq.title">Before you install</h2>
+		<div class="faq">
+			<details><summary data-t="q1">Does my computer need to stay on?</summary><p data-t="a1">Reminders go out while Exhale runs. On a computer that sleeps, Exhale can keep it awake (Settings → This computer), and anything due while it slept is sent when it wakes. A home server or a Raspberry Pi that never sleeps is ideal.</p></details>
+			<details><summary data-t="q2">Where is my data?</summary><p data-t="a2">In one folder on your computer, copied every day. Nothing is sent anywhere unless you set up a channel such as Telegram.</p></details>
+			<details><summary data-t="q3">Can I use it on my phone?</summary><p data-t="a3">Yes. Reminders reach your phone in Telegram or Slack, and the web works on phones. Exhale itself runs on a computer.</p></details>
+			<details><summary data-t="q4">Is it really free?</summary><p data-t="a4">Yes. Exhale is free software under the AGPL-3.0, with no paid tier, no account with us and no telemetry.</p></details>
+			<details><summary data-t="q5">How do I uninstall it?</summary><p data-t="a5">On a Mac, turn Exhale off in System Settings → General → Login Items and drag it to the Trash. On Windows, Settings → Apps. On Linux, remove the package. Your data stays until you delete its folder.</p></details>
+		</div>
+	</section>
+</main>
+
+<footer>
+	<div class="wrap">
+		<a class="logo" href="#"><img src="favicon.svg" alt="">Exhale</a>
+		<span data-t="foot">Free software under the AGPL-3.0.</span>
+		<nav>
+			<a href="https://github.com/akamachinecode/exhale">GitHub</a>
+			<a href="https://github.com/akamachinecode/exhale/tree/main/docs/install" data-t="foot.docs">Install guide</a>
+			<a href="https://github.com/akamachinecode/exhale/releases" data-t="foot.releases">Releases</a>
+			<a href="https://github.com/akamachinecode/exhale/blob/main/SECURITY.md" data-t="foot.security">Security</a>
+		</nav>
+	</div>
+</footer>
+
+<script>
+(() => {
+	const repo = "akamachinecode/exhale";
+	const dl = "https://github.com/" + repo + "/releases/latest/download";
+
+	// Spanish; English is in the page.
+	const es = {
+		"nav.download": "Descargar", "nav.docs": "Documentación",
+		eyebrow: "Libre y de código abierto · Funciona en tu ordenador",
+		h1a: "Respira.", h1b: "Tus suscripciones están bajo control.",
+		lead: "Exhale te avisa antes de cada renovación y te deja arreglarla desde el propio aviso: marcarla como pagada, mover la fecha, cambiar la tarjeta, cancelarla. En Telegram, Slack o el navegador. Funciona en tu propio ordenador, así que tus datos se quedan contigo.",
+		"cta.any": "Descargar", "cta.other": "Otros sistemas",
+		"cta.mac": "Descargar para macOS", "cta.windows": "Descargar para Windows", "cta.linux": "Descargar para Linux", "cta.phone": "Descárgalo en tu ordenador",
+		"meta.mac": "Apple silicon e Intel · macOS 12 o posterior", "meta.windows": "Windows 10 y 11 · 64 bits", "meta.linux": "Ubuntu, Debian, Fedora y más", "meta.phone": "Exhale funciona en un ordenador; los avisos te llegan al móvil.",
+		"meta.version": "Versión {v}",
+		"alt.overview": "Resumen de Exhale: gasto mensual y anual, cargos que necesitan atención, los próximos 30 días y el gasto por categoría",
+		"alt.phone": "Exhale en un móvil, con el dock de todas las páginas",
+		"how.kicker": "Cómo funciona", "how.title": "Instalado en un minuto. Después, funciona solo.",
+		"s1.t": "Descárgalo y ábrelo", "s1.p": "Exhale arranca en segundo plano y se abre en tu navegador. Desde entonces arranca solo con tu ordenador.",
+		"s2.t": "Crea tu cuenta", "s2.p": "Después sigue los pasos de la página de inicio. Crear tu propio bot de Telegram lleva un minuto y está guiado.",
+		"s3.t": "Añade tus suscripciones", "s3.p": "A mano, desde Wallos o una hoja de cálculo, o desde el extracto del banco. Los avisos empiezan ese mismo día.",
+		"feat.kicker": "Qué hace", "feat.title": "El aviso es la app.",
+		"feat.sub": "El mensaje que dice que Netflix se renueva en tres días te deja arreglarlo ahí mismo. Se actualiza solo, y la web también.",
+		"f1.t": "Avisos que se contestan", "f1.p": "Ya pagado, otra fecha, otro importe o tarjeta, saltar, cancelar, deshacer. Un toque en el mensaje.",
+		"f2.t": "Las fechas que cuestan dinero", "f2.p": "Pruebas gratis antes de que cobren, el último día para cancelar, renovaciones que te necesitan, subidas de precio anunciadas.",
+		"f3.t": "Cualquier moneda, exacta", "f3.p": "Totales en tu moneda con los tipos del BCE, y cuánto apartar cada mes para los pagos anuales.",
+		"f4.t": "Compartido, sin mezclar", "f4.p": "Tu pareja o tus compañeros de piso tienen su cuenta y sus avisos. Divide una suscripción y mira quién debe a quién.",
+		"f5.t": "Pregúntale lo que quieras", "f5.p": "En lenguaje natural por chat, o con Claude, ChatGPT y modelos locales por MCP. Cada cambio se previsualiza y se puede deshacer.",
+		"f6.t": "Tuyo, en tu ordenador", "f6.p": "Un programa, una carpeta de datos, una copia cada día. Sin nube, sin telemetría, sin cuenta con nosotros, sin versión de pago.",
+		"dl.kicker": "Descargar", "dl.title": "Elige tu ordenador.", "dl.sub": "Gratis, para todos los sistemas. Abre el instalador y listo.",
+		"mac.req": "macOS 12 o posterior · Apple silicon e Intel",
+		"mac.note": "Ábrelo y arrastra Exhale a Aplicaciones; después abre Exhale. <strong>La primera vez</strong>, macOS dice que no puede verificar al desarrollador: ve a Ajustes del Sistema → Privacidad y seguridad y pulsa <strong>Abrir igualmente</strong>.",
+		"win.req": "Windows 10 y 11 · 64 bits",
+		"win.note": "Ábrelo: Exhale se instala y se abre, sin permisos de administrador. Si aparece <strong>SmartScreen</strong>, pulsa Más información → <strong>Ejecutar de todas formas</strong>.",
+		"linux.req": "Ubuntu, Debian, Raspberry Pi OS · Fedora, RHEL", "linux.arch": "Procesador",
+		"linux.note": "Ábrelo con tu centro de software, o <code>sudo apt install ./exhale_linux_amd64.deb</code>. Exhale funciona como un servicio que arranca con el ordenador y aparece entre tus aplicaciones.",
+		"srv.t": "Servidor o NAS", "srv.req": "Docker, un servidor en casa, una Raspberry Pi o un VPS",
+		"srv.note": "En una máquina siempre encendida no se pierde ni un aviso. La <a href=\"https://github.com/akamachinecode/exhale/tree/main/docs/install\">guía de instalación</a> explica HTTPS, las copias y todas las opciones.",
+		"dl.all": "Todos los archivos, con sumas de comprobación firmadas y procedencia de la compilación, están en la <a href=\"https://github.com/akamachinecode/exhale/releases/latest\">página de la versión</a>. ¿Prefieres compilarlo tú? El <a href=\"https://github.com/akamachinecode/exhale\">código está en GitHub</a>.",
+		"faq.kicker": "Preguntas", "faq.title": "Antes de instalar",
+		q1: "¿Mi ordenador tiene que estar encendido?", a1: "Los avisos salen mientras Exhale está en marcha. En un ordenador que se suspende, Exhale puede mantenerlo despierto (Ajustes → Este ordenador), y lo que venza mientras dormía se envía al despertar. Lo ideal es un servidor en casa o una Raspberry Pi que nunca se apague.",
+		q2: "¿Dónde están mis datos?", a2: "En una carpeta de tu ordenador, copiada cada día. No se envía nada a ningún sitio salvo que configures un canal como Telegram.",
+		q3: "¿Puedo usarlo en el móvil?", a3: "Sí. Los avisos te llegan al móvil por Telegram o Slack, y la web funciona en el móvil. Exhale en sí funciona en un ordenador.",
+		q4: "¿De verdad es gratis?", a4: "Sí. Exhale es software libre bajo la AGPL-3.0, sin versión de pago, sin cuenta con nosotros y sin telemetría.",
+		q5: "¿Cómo lo desinstalo?", a5: "En un Mac, desactiva Exhale en Ajustes del Sistema → General → Ítems de inicio y arrástralo a la Papelera. En Windows, Configuración → Aplicaciones. En Linux, quita el paquete. Tus datos se quedan hasta que borres su carpeta.",
+		foot: "Software libre bajo la AGPL-3.0.", "foot.docs": "Guía de instalación", "foot.releases": "Versiones", "foot.security": "Seguridad",
+	};
+	const en = {
+		"cta.mac": "Download for macOS", "cta.windows": "Download for Windows", "cta.linux": "Download for Linux", "cta.phone": "Get it for your computer",
+		"meta.mac": "Apple silicon and Intel · macOS 12 or later", "meta.windows": "Windows 10 and 11 · 64-bit", "meta.linux": "Ubuntu, Debian, Fedora and more", "meta.phone": "Exhale runs on a computer; reminders reach your phone.",
+		"meta.version": "Version {v}",
+	};
+	// Remember the English in the page (as nodes, never as HTML text) before
+	// translating it.
+	const original = new Map();
+	document.querySelectorAll("[data-t]").forEach((el) => { original.set(el, Array.from(el.childNodes, (n) => n.cloneNode(true))); });
+	document.querySelectorAll("[data-t-alt]").forEach((el) => { en[el.dataset.tAlt] = el.alt; });
+	document.querySelectorAll("[data-t-label]").forEach((el) => { en[el.dataset.tLabel] = el.getAttribute("aria-label"); });
+
+	// Which computer is this?
+	const ua = navigator.userAgent;
+	const platform = (navigator.userAgentData && navigator.userAgentData.platform) || navigator.platform || "";
+	let os = "other";
+	if (/iPhone|iPad|iPod|Android/i.test(ua) || (/Mac/i.test(platform) && navigator.maxTouchPoints > 1)) os = "phone";
+	else if (/Mac/i.test(platform) || /Mac OS X/.test(ua)) os = "mac";
+	else if (/Win/i.test(platform)) os = "windows";
+	else if (/Linux|X11|CrOS/i.test(platform + ua)) os = "linux";
+
+	let version = "";
+	let lang = "en";
+	try { lang = localStorage.getItem("lang") || ""; } catch {}
+	if (!lang) lang = (navigator.languages || [navigator.language]).some((l) => /^es\b/i.test(l)) ? "es" : "en";
+
+	const t = (k) => (lang === "es" ? es[k] : undefined) ?? en[k] ?? "";
+	function render() {
+		document.documentElement.lang = lang;
+		document.querySelectorAll("[data-t]").forEach((el) => {
+			const v = lang === "es" ? es[el.dataset.t] : undefined;
+			if (v) {
+				// Only the constant Spanish texts above are read as HTML.
+				const tpl = document.createElement("template");
+				tpl.innerHTML = v;
+				el.replaceChildren(tpl.content);
+			} else {
+				el.replaceChildren(...original.get(el).map((n) => n.cloneNode(true)));
+			}
+		});
+		document.querySelectorAll("[data-t-alt]").forEach((el) => { el.alt = t(el.dataset.tAlt); });
+		document.querySelectorAll("[data-t-label]").forEach((el) => { el.setAttribute("aria-label", t(el.dataset.tLabel)); });
+		const other = lang === "es" ? "en" : "es";
+		const btn = document.getElementById("lang");
+		btn.textContent = other;
+		btn.setAttribute("aria-label", other === "es" ? "Español" : "English");
+		btn.lang = other;
+
+		const primary = document.getElementById("primary");
+		const icon = document.querySelector("#primary-icon use");
+		const label = document.getElementById("primary-label");
+		const files = { mac: "Exhale.dmg", windows: "Exhale-Setup.exe" };
+		const icons = { mac: "#i-apple", windows: "#i-windows", linux: "#i-linux" };
+		if (os in icons) {
+			label.textContent = t("cta." + os);
+			icon.setAttribute("href", icons[os]);
+			primary.href = files[os] ? dl + "/" + files[os] : "#linux";
+		} else if (os === "phone") {
+			label.textContent = t("cta.phone");
+		}
+		const meta = [];
+		if (version) meta.push(t("meta.version").replace("{v}", version));
+		if (os !== "other") meta.push(t("meta." + os));
+		document.getElementById("meta").textContent = meta.join(" · ");
+	}
+
+	document.getElementById("lang").addEventListener("click", () => {
+		lang = lang === "es" ? "en" : "es";
+		try { localStorage.setItem("lang", lang); } catch {}
+		render();
+	});
+
+	// The Linux packages follow the processor: the file names come from
+	// this list, in the order of the options.
+	const archs = ["amd64", "arm64", "armv7"];
+	const arch = document.getElementById("arch");
+	const pickArch = () => {
+		const name = archs[arch.selectedIndex] || archs[0];
+		for (const kind of ["deb", "rpm"]) document.getElementById(kind).href = dl + "/exhale_linux_" + name + "." + kind;
+	};
+	arch.addEventListener("change", pickArch);
+	if (/aarch64|arm64/i.test(platform + ua)) { arch.selectedIndex = 1; pickArch(); }
+
+	if (os in { mac: 1, windows: 1, linux: 1 }) document.getElementById(os).classList.add("mine");
+
+	const top = document.querySelector(".top");
+	addEventListener("scroll", () => top.classList.toggle("scrolled", scrollY > 8), { passive: true });
+
+	render();
+
+	// The latest version, for the line under the button.
+	fetch("https://api.github.com/repos/" + repo + "/releases/latest", { headers: { Accept: "application/vnd.github+json" } })
+		.then((r) => (r.ok ? r.json() : null))
+		.then((r) => { if (r && r.tag_name) { version = r.tag_name.replace(/^v/, ""); render(); } })
+		.catch(() => {});
+})();
+</script>
+</body>
+</html>

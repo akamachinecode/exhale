@@ -111,7 +111,12 @@ func New(svc *app.Service, cfg Config) (http.Handler, huma.API, error) {
 	registerOAuth(api, mux, oa)
 	registerPush(api, aa)
 
-	mux.HandleFunc("GET /healthz", func(w http.ResponseWriter, _ *http.Request) { w.Write([]byte("ok")) })
+	mux.HandleFunc("GET /healthz", func(w http.ResponseWriter, _ *http.Request) {
+		// The desktop app compares it with its own to restart an older
+		// server (desktop.VersionHeader).
+		w.Header().Set("X-Exhale-Version", cfg.Version)
+		w.Write([]byte("ok"))
+	})
 	mux.HandleFunc("GET /api/v1/events", events(svc))
 
 	mcpSrv, err := agents.NewServer(svc, cfg.Version, func(ctx context.Context, extra *mcp.RequestExtra, session *mcp.ServerSession) (app.Actor, error) {

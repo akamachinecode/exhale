@@ -1,0 +1,11 @@
+// Lets the Exhale service keep this computer awake when its owner asks for
+// it in the web (Settings → General → This computer, ADR 0028). Without it,
+// logind refuses the sleep lock of a system service. Installed by the
+// .deb and .rpm packages.
+polkit.addRule(function (action, subject) {
+	if (subject.user == "exhale" &&
+		(action.id == "org.freedesktop.login1.inhibit-block-sleep" ||
+			action.id == "org.freedesktop.login1.inhibit-block-idle")) {
+		return polkit.Result.YES;
+	}
+});

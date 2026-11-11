@@ -49,25 +49,42 @@ if [ -f /etc/exhale/exhale.env ]; then
 	chmod 0640 /etc/exhale/exhale.env
 fi
 
-# Enabled (starts at boot) but not started: review the settings first.
+# Started now and at every boot. It answers only on this machine
+# (127.0.0.1:8484) until the settings say otherwise.
+started=no
 if [ "$has_systemctl" = yes ]; then
-	systemctl enable exhale.service >/dev/null 2>&1 || true
+	if [ "$running_systemd" = yes ]; then
+		systemctl enable --now exhale.service >/dev/null 2>&1 && started=yes
+	else
+		systemctl enable exhale.service >/dev/null 2>&1 || true
+	fi
+fi
+
+if [ "$started" = yes ]; then
+	cat <<'MSG'
+
+Exhale is running. Open it from your apps, or at http://127.0.0.1:8484
+on this machine, and create your account.
+
+MSG
+else
+	cat <<'MSG'
+
+Exhale is installed and will start at boot. Start it now with:
+
+  sudo systemctl start exhale
+
+then open http://127.0.0.1:8484 on this machine.
+
+MSG
 fi
 
 cat <<'MSG'
-
-Exhale is installed and will start at boot.
-
   Settings   /etc/exhale/exhale.env
   Data       /var/lib/exhale
+  Log        sudo journalctl -u exhale
 
-Start it now:
-
-  sudo systemctl start exhale
-  sudo journalctl -u exhale -n 20     # the address and the one-time setup code
-
-Then open http://127.0.0.1:8484 on this machine. To reach it from other
-devices or over HTTPS, see:
+To reach it from other devices or over HTTPS, see:
   https://github.com/akamachinecode/exhale/tree/main/docs/install
 
 MSG

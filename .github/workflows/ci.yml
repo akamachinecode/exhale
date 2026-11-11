@@ -64,8 +64,10 @@ jobs:
       - name: Build
         run: pnpm -C web build
       - name: End-to-end test in a browser
+        # No --with-deps: the runner image ships Chrome and the libraries it
+        # needs, and apt mirrors that do not answer must not fail CI.
         run: |
-          pnpm -C web exec playwright install --with-deps chromium
+          pnpm -C web exec playwright install chromium
           mise run test:e2e
   security:
     permissions:
