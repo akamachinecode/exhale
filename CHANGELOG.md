@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.1.1](https://github.com/akamachinecode/exhale/compare/v0.1.0...v0.1.1) (2026-11-11)
+
+
+### Bug Fixes
+
+* **release:** install syft, so the release can attach its files ([#13](https://github.com/akamachinecode/exhale/issues/13)) ([2132408](https://github.com/akamachinecode/exhale/commit/213240859278b3ca187f341785ee3edc7ca28213))
+
 ## 0.1.0 (2026-11-11)
 
 
