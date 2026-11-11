@@ -323,8 +323,10 @@ footer a:hover { color: var(--fg); }
 		"meta.mac": "Apple silicon and Intel · macOS 12 or later", "meta.windows": "Windows 10 and 11 · 64-bit", "meta.linux": "Ubuntu, Debian, Fedora and more", "meta.phone": "Exhale runs on a computer; reminders reach your phone.",
 		"meta.version": "Version {v}",
 	};
-	// Remember the English in the page before translating it.
-	document.querySelectorAll("[data-t]").forEach((el) => { en[el.dataset.t] = el.innerHTML; });
+	// Remember the English in the page (as nodes, never as HTML text) before
+	// translating it.
+	const original = new Map();
+	document.querySelectorAll("[data-t]").forEach((el) => { original.set(el, Array.from(el.childNodes, (n) => n.cloneNode(true))); });
 	document.querySelectorAll("[data-t-alt]").forEach((el) => { en[el.dataset.tAlt] = el.alt; });
 	document.querySelectorAll("[data-t-label]").forEach((el) => { en[el.dataset.tLabel] = el.getAttribute("aria-label"); });
 
@@ -345,7 +347,17 @@ footer a:hover { color: var(--fg); }
 	const t = (k) => (lang === "es" ? es[k] : undefined) ?? en[k] ?? "";
 	function render() {
 		document.documentElement.lang = lang;
-		document.querySelectorAll("[data-t]").forEach((el) => { const v = t(el.dataset.t); if (v) el.innerHTML = v; });
+		document.querySelectorAll("[data-t]").forEach((el) => {
+			const v = lang === "es" ? es[el.dataset.t] : undefined;
+			if (v) {
+				// Only the constant Spanish texts above are read as HTML.
+				const tpl = document.createElement("template");
+				tpl.innerHTML = v;
+				el.replaceChildren(tpl.content);
+			} else {
+				el.replaceChildren(...original.get(el).map((n) => n.cloneNode(true)));
+			}
+		});
 		document.querySelectorAll("[data-t-alt]").forEach((el) => { el.alt = t(el.dataset.tAlt); });
 		document.querySelectorAll("[data-t-label]").forEach((el) => { el.setAttribute("aria-label", t(el.dataset.tLabel)); });
 		const other = lang === "es" ? "en" : "es";
