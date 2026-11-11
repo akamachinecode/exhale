@@ -1,7 +1,8 @@
 #!/bin/sh
 # Builds Exhale-Setup.exe: Exhale.exe for Windows (no console window) in a
-# one-click installer (ADR 0029). Runs on Linux or macOS with makensis
-# (apt install nsis); the web UI must be built first (web/dist).
+# one-click installer (ADR 0029). Runs on macOS or Linux with makensis
+# (brew install makensis, apt install nsis); the web UI must be built
+# first (web/dist).
 #
 #   sh deploy/desktop/windows/build.sh 0.1.0 [out-dir]
 set -eu
