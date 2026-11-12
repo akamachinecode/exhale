@@ -190,11 +190,12 @@ type bridge struct {
 	mu        sync.Mutex
 	smokeDone bool
 	smokeFail error
+	updating  bool // a package update runs (update.go)
 }
 
 // message is what the web UI sends.
 type message struct {
-	Type   string `json:"type"` // ready, open, save or window
+	Type   string `json:"type"` // ready, open, save, window or update
 	URL    string `json:"url,omitempty"`
 	Name   string `json:"name,omitempty"`
 	Data   string `json:"data,omitempty"`   // base64
@@ -223,6 +224,8 @@ func (b *bridge) handle(_ application.Window, raw string, origin *application.Or
 		b.open(m.URL)
 	case "save":
 		go b.save(m.Name, m.Data)
+	case "update":
+		go b.updatePackage()
 	}
 }
 

@@ -1104,5 +1104,7 @@
 	"Exhale cannot update itself on this system. Download the new version:": "Exhale no puede actualizarse solo en este sistema. Descarga la versión nueva:",
 	"Download Exhale {0}": "Descargar Exhale {0}",
 	"Updates": "Actualizaciones",
-	"New versions of Exhale, installed with one click.": "Las versiones nuevas de Exhale, instaladas con un clic."
+	"New versions of Exhale, installed with one click.": "Las versiones nuevas de Exhale, instaladas con un clic.",
+	"The update was cancelled. Nothing changed.": "Se ha cancelado la actualización. No ha cambiado nada.",
+	"Your password is asked to install it. Exhale restarts by itself; your data stays as it is.": "Se te pedirá la contraseña para instalarla. Exhale se reinicia solo; tus datos se quedan como están."
 }

@@ -416,29 +416,9 @@ func (u *Updater) setPhase(p Phase) {
 // install downloads r's file for this system and puts it in place. It
 // returns what Finish runs.
 func (u *Updater) install(ctx context.Context, r *Release) (func() error, error) {
-	name := u.Install.asset(r.Version)
-	link, ok := r.Assets[name]
-	if !ok {
-		return nil, fmt.Errorf("the release has no %s", name)
-	}
-	sumsLink, ok := r.Assets["checksums.txt"]
-	if !ok {
-		return nil, errors.New("the release has no checksums.txt")
-	}
-	if err := os.MkdirAll(u.Dir, 0o700); err != nil {
-		return nil, err
-	}
-	sums, err := u.get(ctx, sumsLink, 1<<20, nil)
-	if err != nil {
-		return nil, fmt.Errorf("downloading checksums.txt: %w", err)
-	}
-	want, err := checksumOf(sums, name)
+	file, err := u.fetchAsset(ctx, r, u.Install.asset(r.Version))
 	if err != nil {
 		return nil, err
-	}
-	file := filepath.Join(u.Dir, name)
-	if err := u.download(ctx, link, file, want); err != nil {
-		return nil, fmt.Errorf("downloading %s: %w", name, err)
 	}
 	u.setPhase(PhaseInstalling)
 	switch u.Install.Method {
@@ -449,6 +429,35 @@ func (u *Updater) install(ctx context.Context, r *Release) (func() error, error)
 	default:
 		return u.installBinary(ctx, file, r.Version)
 	}
+}
+
+// fetchAsset downloads the release file called name into Dir, and keeps
+// it only if it matches its line in the release's checksums.txt.
+func (u *Updater) fetchAsset(ctx context.Context, r *Release, name string) (string, error) {
+	link, ok := r.Assets[name]
+	if !ok {
+		return "", fmt.Errorf("the release has no %s", name)
+	}
+	sumsLink, ok := r.Assets["checksums.txt"]
+	if !ok {
+		return "", errors.New("the release has no checksums.txt")
+	}
+	if err := os.MkdirAll(u.Dir, 0o700); err != nil {
+		return "", err
+	}
+	sums, err := u.get(ctx, sumsLink, 1<<20, nil)
+	if err != nil {
+		return "", fmt.Errorf("downloading checksums.txt: %w", err)
+	}
+	want, err := checksumOf(sums, name)
+	if err != nil {
+		return "", err
+	}
+	file := filepath.Join(u.Dir, name)
+	if err := u.download(ctx, link, file, want); err != nil {
+		return "", fmt.Errorf("downloading %s: %w", name, err)
+	}
+	return file, nil
 }
 
 // get reads a small file, such as checksums.txt.

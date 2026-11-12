@@ -49,7 +49,8 @@ What updating physically involves, per way of installing (ADR 0029):
   - **Binary:** the binary from the archive replaces this one with a rename in the same folder. Then the server stops cleanly and `exec`s the new one: **same process**, so launchd, systemd or the terminal keep following it.
   - **macOS app:** `hdiutil attach` on `Exhale.dmg`, `ditto` of `Exhale.app` next to the installed one, then two renames swap them, and the server `exec`s itself as above. If macOS refuses the swap (App Management, a folder the person cannot write), the disk image opens in Finder: dragging Exhale to Applications finishes it.
   - **Windows app:** once the server has stopped, it runs `Exhale-Setup.exe /S /open`, detached. The installer already stops Exhale, replaces it and, with `/open`, opens it again.
-  - **Elsewhere,** the card shows the exact command: `docker compose pull && docker compose up -d`, `sudo dnf install <rpm>`, `curl … && sudo apt install ./<deb>`, or `sh install.sh [--service]` for a binary owned by root.
+  - **Linux packages, in Exhale's window:** the server (the `exhale` system user) may not replace `/usr/bin/exhale`, but the window runs as the person at the desktop. So **Update** asks the window: it downloads the newest `.deb` or `.rpm`, checks it the same way, and installs it with `pkexec apt-get install` / `dnf install`. The system's own dialog asks for the password. The package restarts the service, and the window reopens in the new version.
+  - **Elsewhere,** the card shows the exact command: `docker compose pull && docker compose up -d`, `sudo dnf install <rpm>` or `curl … && sudo apt install ./<deb>` in a browser, or `sh install.sh [--service]` for a binary owned by root.
 - **The window follows.** The window and its menu bar icon (ADR 0030, 0032) are a second process. Every 5 seconds it checks whether its program on disk is still the same file. When it is not, it starts itself again once it has exited, visible or in the background as it was. This also covers a package manager replacing `exhale-window`. On Windows the installer closes and reopens it.
 - **The web follows.** While an update runs the card asks the server every second, and when the server answers in the new version the page reloads, so the new web UI is loaded.
 
@@ -58,8 +59,8 @@ What updating physically involves, per way of installing (ADR 0029):
 - **Trust in GitHub's HTTPS.** `checksums.txt` comes from the same release as the file, so the check catches a corrupt or truncated download, not a compromised release. The cosign signature of `checksums.txt` (ADR 0016) is not verified yet: that needs the sigstore library and its trust root.
 - **A daily request to GitHub** from every instance, with `exhale/<version>` as User-Agent and nothing else. It can be turned off.
 - **macOS App Management** may refuse the swap of an ad hoc signed app. Then the update ends with one drag in Finder, not one click. A Developer ID signature would make the swap reliable.
-- **Unverified on real machines when written.** The binary path was tried end to end on Linux, from the button to the new version in the same process. The macOS swap and the Windows installer path were not tried on a Mac or a Windows PC: they must be tried by hand before the release that announces them.
-- **Linux packages and Docker** still need a terminal.
+- **Tried before every release.** The installers workflow installs the Mac and Windows apps, serves a newer build of each as a fake release, presses Update through the API and waits for the new version (`.github/scripts/fake-release.py`). The binary path was tried end to end on Linux, from the button to the new version in the same process. The Linux package path through `pkexec` needs a person to type a password, so it is covered by unit tests only.
+- **Docker** still needs a terminal, and so do the Linux packages in a browser or on a machine without a desktop.
 
 ## Revisit when
 

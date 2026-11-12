@@ -112,7 +112,8 @@ Do not run them as root: files created by root in `/var/lib/exhale` cannot be wr
 
 When a new version is out, owners see it in the web (Settings → General → Updates), with the command for this install:
 
-- **Package:** download the new package and install it the same way, for example `sudo dnf install https://github.com/akamachinecode/exhale/releases/download/v<version>/exhale_linux_amd64.rpm`. A running service is restarted, and the window and tray icon reopen in the new version.
+- **Package, in Exhale's window:** press **Update**. Exhale downloads the new package, checks it, and installs it after the system asks for your password. The service restarts and the window reopens in the new version.
+- **Package, by hand:** download the new package and install it the same way, for example `sudo dnf install https://github.com/akamachinecode/exhale/releases/download/v<version>/exhale_linux_amd64.rpm`. A running service is restarted, and the window and tray icon reopen in the new version.
 - **Script:** run `sh install.sh --service` again.
 - **A binary in a folder your user owns** (for example `~/.local/bin`): the **Update** button replaces it and restarts Exhale, with no command.
 

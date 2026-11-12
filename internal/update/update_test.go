@@ -78,7 +78,7 @@ func TestDetect(t *testing.T) {
 	}{
 		{name: "mac app", goos: "darwin", exe: "/Applications/Exhale.app/Contents/MacOS/exhale", desktop: true, method: MethodMacApp, writable: true},
 		{name: "mac app, read-only", goos: "darwin", exe: "/Applications/Exhale.app/Contents/MacOS/exhale", desktop: true,
-			env: fakeEnv{readOnly: map[string]bool{"/Applications/Exhale.app": true}}, method: MethodMacApp},
+			env: fakeEnv{readOnly: map[string]bool{"/Applications": true}}, method: MethodMacApp},
 		{name: "windows app", goos: "windows", exe: `C:\Users\a\AppData\Local\Programs\Exhale\Exhale.exe`, desktop: true, method: MethodWindows, writable: true},
 		{name: "docker", goos: "linux", exe: "/usr/local/bin/exhale", env: fakeEnv{files: map[string]bool{"/.dockerenv": true}},
 			method: MethodDocker, command: "docker compose pull && docker compose up -d"},
@@ -363,5 +363,53 @@ func TestCheckFailsAndRecovers(t *testing.T) {
 	now = now.Add(2 * time.Minute)
 	if in := u.Info(context.Background(), true); in.CheckError != "" || in.Latest != "0.5.0" || !in.Available {
 		t.Fatalf("info = %+v", in)
+	}
+}
+
+func TestDownloadPackage(t *testing.T) {
+	name := "exhale_linux_" + arch() + ".rpm"
+	body := []byte("not really an rpm")
+	rel := newRelease(t, "0.5.0", map[string][]byte{name: body})
+	u := &Updater{Version: "0.4.0", API: rel.srv.URL, Dir: filepath.Join(t.TempDir(), "work")}
+	file, v, err := u.DownloadPackage(context.Background(), "rpm")
+	if err != nil || v != "0.5.0" || filepath.Base(file) != name {
+		t.Fatalf("DownloadPackage = %q, %q, %v", file, v, err)
+	}
+	if got, _ := os.ReadFile(file); string(got) != string(body) { //nolint:gosec // the test's own file
+		t.Fatalf("content = %q", got)
+	}
+	if _, _, err := u.DownloadPackage(context.Background(), "deb"); err == nil {
+		t.Fatal("a package the release does not have must fail")
+	}
+	u.Version = "0.5.0"
+	if _, _, err := u.DownloadPackage(context.Background(), "rpm"); !errors.Is(err, ErrUpToDate) {
+		t.Fatalf("up to date: %v", err)
+	}
+}
+
+func TestPackageCommand(t *testing.T) {
+	has := func(set ...string) func(string) bool {
+		return func(p string) bool {
+			for _, s := range set {
+				if s == p {
+					return true
+				}
+			}
+			return false
+		}
+	}
+	for _, c := range []struct {
+		kind string
+		has  func(string) bool
+		want string
+	}{
+		{"deb", has(), "/usr/bin/apt-get install -y /tmp/x"},
+		{"rpm", has("/usr/bin/dnf"), "/usr/bin/dnf install -y /tmp/x"},
+		{"rpm", has("/usr/bin/zypper"), "/usr/bin/zypper --non-interactive install --allow-unsigned-rpm /tmp/x"},
+		{"rpm", has(), "/usr/bin/rpm -U /tmp/x"},
+	} {
+		if got := strings.Join(PackageCommand(c.kind, "/tmp/x", c.has), " "); got != c.want {
+			t.Errorf("PackageCommand(%s) = %q, want %q", c.kind, got, c.want)
+		}
 	}
 }

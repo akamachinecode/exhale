@@ -52,17 +52,7 @@ func (osEnv) exists(p string) bool {
 	return err == nil
 }
 
-// writable tries to create a file in dir: permissions, read-only volumes
-// and macOS's App Management protection all say no the same way.
-func (osEnv) writable(dir string) bool {
-	f, err := os.CreateTemp(dir, ".exhale-update-*")
-	if err != nil {
-		return false
-	}
-	_ = f.Close()
-	_ = os.Remove(f.Name())
-	return true
-}
+func (osEnv) writable(dir string) bool { return writable(dir) }
 
 func (osEnv) getenv(k string) string { return os.Getenv(k) }
 
@@ -72,7 +62,9 @@ func detect(goos, exe string, desktopApp bool, e env) Install {
 	case goos == "darwin" && strings.Contains(exe, ".app/Contents/MacOS/"):
 		in.Method = MethodMacApp
 		in.Bundle = exe[:strings.Index(exe, ".app/Contents/MacOS/")+len(".app")]
-		in.Writable = e.writable(filepath.Dir(in.Bundle)) && e.writable(in.Bundle)
+		// Swapping the bundle is two renames in its folder. Nothing is
+		// written inside the app to find out: macOS would warn about it.
+		in.Writable = e.writable(filepath.Dir(in.Bundle))
 	case goos == "windows" && desktopApp:
 		in.Method = MethodWindows
 		in.Writable = e.writable(filepath.Dir(exe))

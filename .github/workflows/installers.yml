@@ -2,7 +2,9 @@ name: Installers
 # Exhale.dmg and Exhale-Setup.exe (ADR 0029), and exhale-window for the Linux
 # packages (ADR 0030): built, then installed and opened on a real Mac, a real
 # Windows machine and Linux before anyone downloads them. Each test waits for
-# Exhale's window to load the web UI (EXHALE_WINDOW_SMOKE). The release
+# Exhale's window to load the web UI (EXHALE_WINDOW_SMOKE), and the Mac and
+# Windows apps then update themselves with one click to a newer build served
+# as a fake release (ADR 0033). The release
 # workflow calls this with the version and publishes what it uploads; on pull
 # requests the files stay as downloads of the run.
 on:
@@ -20,7 +22,9 @@ on:
       - deploy/packaging/**
       - web/src/lib/desktop.ts
       - go.mod
+      - internal/update/**
       - .github/workflows/installers.yml
+      - .github/scripts/fake-release.py
   workflow_dispatch:
 permissions: {}
 jobs:
@@ -76,6 +80,44 @@ jobs:
           EXHALE_WINDOW_SMOKE=/tmp/smoke /Applications/Exhale.app/Contents/MacOS/exhale
           grep -qx ready /tmp/smoke
           launchctl bootout "gui/$(id -u)/io.github.akamachinecode.exhale"
+      # Update with one click (ADR 0033): the installed app, run by launchd
+      # as at login, downloads a newer Exhale.dmg from a fake release,
+      # swaps Exhale.app and comes back in the new version.
+      - name: Update it with one click, as a person would
+        env:
+          NEXT: 99.0.0
+        run: |
+          sh deploy/desktop/macos/build.sh "$NEXT" "$RUNNER_TEMP/next"
+          rel="$RUNNER_TEMP/release"
+          mkdir -p "$rel"
+          cp "$RUNNER_TEMP/next/Exhale.dmg" "$rel/"
+          (cd "$rel" && shasum -a 256 Exhale.dmg > checksums.txt)
+          python3 .github/scripts/fake-release.py "$rel" 18990 "$NEXT" &
+          launchctl setenv EXHALE_UPDATE_API http://127.0.0.1:18990
+          launchctl setenv EXHALE_TRUST_LOCAL true
+          /Applications/Exhale.app/Contents/MacOS/exhale init --owner CI
+          launchctl bootstrap "gui/$(id -u)" ~/Library/LaunchAgents/io.github.akamachinecode.exhale.plist
+          for i in $(seq 60); do curl -fs http://127.0.0.1:8484/healthz >/dev/null && break; sleep 1; done
+          curl -fsS 'http://127.0.0.1:8484/api/v1/update?refresh=true' | tee "$RUNNER_TEMP/before.json"
+          echo
+          grep -q '"canApply":true' "$RUNNER_TEMP/before.json"
+          curl -fsS -X POST -H 'content-type: application/json' -d '{}' http://127.0.0.1:8484/api/v1/update
+          echo
+          version() { curl -fsS -D - -o /dev/null http://127.0.0.1:8484/healthz 2>/dev/null | tr -d '\r' | awk -F': ' 'tolower($1)=="x-exhale-version"{print $2}'; }
+          ok=
+          for i in $(seq 240); do
+            if [ "$(version)" = "$NEXT" ]; then ok=1; break; fi
+            sleep 1
+          done
+          tail -30 ~/Library/Logs/Exhale.log || true
+          [ -n "$ok" ] || { echo "Exhale did not come back as $NEXT"; curl -fsS http://127.0.0.1:8484/api/v1/update || true; exit 1; }
+          /usr/libexec/PlistBuddy -c 'Print CFBundleShortVersionString' /Applications/Exhale.app/Contents/Info.plist | grep -qx "$NEXT"
+          codesign --verify --deep --strict /Applications/Exhale.app
+          if ls -a /Applications | grep '^\.Exhale'; then echo "left behind in /Applications"; exit 1; fi
+          launchctl print "gui/$(id -u)/io.github.akamachinecode.exhale" | grep -E "state|program"
+          launchctl bootout "gui/$(id -u)/io.github.akamachinecode.exhale"
+          launchctl unsetenv EXHALE_UPDATE_API
+          launchctl unsetenv EXHALE_TRUST_LOCAL
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: installer-macos
@@ -107,11 +149,21 @@ jobs:
         run: pnpm -C web install --frozen-lockfile && pnpm -C web build
       - name: Build Exhale-Setup.exe
         run: sh deploy/desktop/windows/build.sh "$VERSION" installers
+      # A newer build for the update test (ADR 0033); never published:
+      # the release takes only installer-* artifacts.
+      - name: Build a newer Exhale-Setup.exe to update to
+        run: sh deploy/desktop/windows/build.sh 99.0.0 next
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: installer-windows
           path: installers/Exhale-Setup.exe
           if-no-files-found: error
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: update-test-windows
+          path: next/Exhale-Setup.exe
+          if-no-files-found: error
+          retention-days: 3
 
   windows-try:
     timeout-minutes: 30
@@ -120,11 +172,20 @@ jobs:
     runs-on: windows-latest
     env:
       VERSION: ${{ needs.version.outputs.version }}
+      NEXT: 99.0.0
     steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+          sparse-checkout: .github/scripts
       - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
           name: installer-windows
           path: installers
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: update-test-windows
+          path: next
       - name: Install it and open it, as a person would
         shell: pwsh
         run: |
@@ -155,6 +216,43 @@ jobs:
           "tray icon at sign-in: $icon"
           if ($icon -notlike "*Exhale.exe*open --background") { throw "the tray icon was not added to sign-in" }
           if (-not (Test-Path "$env:APPDATA\Microsoft\Windows\Start Menu\Programs\Exhale.lnk")) { throw "no Start menu entry" }
+          # Update with one click (ADR 0033): the server downloads a newer
+          # Exhale-Setup.exe from a fake release, stops, runs it silently,
+          # and the installer opens the new version.
+          Get-Process Exhale -ErrorAction SilentlyContinue | Stop-Process -Force
+          Start-Sleep 2
+          $rel = "$env:RUNNER_TEMP\release"
+          New-Item -ItemType Directory $rel | Out-Null
+          Copy-Item next\Exhale-Setup.exe $rel\
+          $h = (Get-FileHash "$rel\Exhale-Setup.exe" -Algorithm SHA256).Hash.ToLower()
+          "$h  Exhale-Setup.exe" | Set-Content -Encoding ascii "$rel\checksums.txt"
+          Start-Process python -ArgumentList '.github/scripts/fake-release.py', $rel, '18990', $env:NEXT
+          $env:EXHALE_UPDATE_API = 'http://127.0.0.1:18990'
+          $env:EXHALE_TRUST_LOCAL = 'true'
+          Start-Process $exe -ArgumentList 'init', '--owner', 'CI' -Wait
+          Start-Process $exe -ArgumentList 'serve'
+          foreach ($i in 1..60) {
+            try { $r = Invoke-WebRequest http://127.0.0.1:8484/healthz -UseBasicParsing; if ($r.Content -eq 'ok') { break } } catch {}
+            Start-Sleep 1
+          }
+          $info = Invoke-RestMethod 'http://127.0.0.1:8484/api/v1/update?refresh=true'
+          $info | ConvertTo-Json -Depth 4
+          if (-not $info.canApply) { throw "cannot update itself: $($info.reason) $($info.checkError)" }
+          Invoke-RestMethod -Method Post -ContentType 'application/json' -Body '{}' http://127.0.0.1:8484/api/v1/update | ConvertTo-Json -Depth 4
+          $ok = $false
+          foreach ($i in 1..240) {
+            try {
+              $r = Invoke-WebRequest http://127.0.0.1:8484/healthz -UseBasicParsing
+              if ("$($r.Headers['X-Exhale-Version'])" -eq $env:NEXT) { $ok = $true; break }
+            } catch {}
+            Start-Sleep 1
+          }
+          Get-Content "$env:LOCALAPPDATA\Exhale\exhale.log" -Tail 30 -ErrorAction SilentlyContinue
+          if (-not $ok) { throw "Exhale did not come back as $env:NEXT" }
+          $shown = (Get-ItemProperty HKCU:\Software\Microsoft\Windows\CurrentVersion\Uninstall\Exhale).DisplayVersion
+          if ("$shown" -ne $env:NEXT) { throw "Settings → Apps says $shown, expected $env:NEXT" }
+          "updated to $env:NEXT with one click"
+          Remove-Item env:EXHALE_UPDATE_API, env:EXHALE_TRUST_LOCAL
           # Uninstall: the server stops, the entries go, the data stays.
           Start-Process "$env:LOCALAPPDATA\Programs\Exhale\Uninstall.exe" -ArgumentList '/S' -Wait
           Start-Sleep 5

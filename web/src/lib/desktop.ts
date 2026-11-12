@@ -18,7 +18,8 @@ type Message =
 	| { type: "ready" }
 	| { type: "open"; url: string }
 	| { type: "save"; name: string; data: string }
-	| { type: "window"; action: "minimise" | "maximise" | "close" | "titlebar" };
+	| { type: "window"; action: "minimise" | "maximise" | "close" | "titlebar" }
+	| { type: "update" };
 
 type Host = {
 	chrome?: { webview?: { postMessage(m: string): void } }; // WebView2, Windows
@@ -52,6 +53,35 @@ function send(m: Message) {
 	post?.(`exhale:${JSON.stringify(m)}`);
 }
 
+/** The window's system, or null in a browser. */
+export const windowOS: "mac" | "windows" | "linux" | null = !post
+	? null
+	: /Windows/.test(navigator.userAgent)
+		? "windows"
+		: windowFrame === "mac"
+			? "mac"
+			: "linux";
+
+/** An update the window runs (Linux packages, ADR 0033): it installs the
+ * newest package with pkexec, which asks for the password. */
+export type WindowUpdate = {
+	phase: "downloading" | "installing" | "restarting" | "failed" | "cancelled";
+	error?: string;
+};
+
+/** Asks the window to update the Linux package; progress comes as
+ * "exhale:update" events, see onWindowUpdate. */
+export function updateFromWindow() {
+	send({ type: "update" });
+}
+
+/** Listens to the window's update progress; returns the unsubscribe. */
+export function onWindowUpdate(fn: (u: WindowUpdate) => void): () => void {
+	const h = (e: Event) => fn((e as CustomEvent<WindowUpdate>).detail);
+	window.addEventListener("exhale:update", h);
+	return () => window.removeEventListener("exhale:update", h);
+}
+
 /** The page's own minimise, maximise and close buttons. */
 export function windowAction(action: "minimise" | "maximise" | "close") {
 	send({ type: "window", action });
@@ -62,11 +92,7 @@ export function initDesktop() {
 	if (!post || !windowFrame) return;
 	document.documentElement.dataset.window = windowFrame;
 	// Linux gives a window without a frame no edge at all: styles.css draws one.
-	document.documentElement.dataset.os = /Windows/.test(navigator.userAgent)
-		? "windows"
-		: windowFrame === "mac"
-			? "mac"
-			: "linux";
+	document.documentElement.dataset.os = windowOS ?? "";
 	document.addEventListener("click", onClick, true);
 	initTitleBar(post);
 	// Lets the window run scripts in the page (the maximised state below).

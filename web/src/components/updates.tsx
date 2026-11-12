@@ -13,14 +13,16 @@ import {
 	useGetUpdate,
 	type VersionInfo,
 } from "@/gen/api";
+import { onWindowUpdate, updateFromWindow, type WindowUpdate, windowOS } from "@/lib/desktop";
 import { ApiError } from "@/lib/fetcher";
 import { locale, t } from "@/lib/i18n";
 import { cn } from "@/lib/utils";
 
 // Updating Exhale from the web (ADR 0033): the server checks GitHub, and
 // where it can replace itself (the Mac and Windows apps, a binary it may
-// write) one click installs the new version and restarts it. Elsewhere this
-// shows the command to run.
+// write) one click installs the new version and restarts it. The Linux
+// packages are updated by Exhale's window, which runs as the person and asks
+// for their password (pkexec). Elsewhere this shows the command to run.
 
 const busyPhases = new Set(["downloading", "installing", "restarting"]);
 
@@ -28,12 +30,12 @@ const isBusy = (u?: VersionInfo) => !!u && busyPhases.has(u.progress.phase);
 
 /** The update status, for owners: read once an hour, every second while an
  * update runs (the server goes away for a moment while it restarts). */
-function useUpdate(enabled = true) {
+function useUpdate(enabled = true, fast = false) {
 	return useGetUpdate(undefined, {
 		query: {
 			enabled,
 			staleTime: 60 * 60 * 1000,
-			refetchInterval: (q) => (isBusy(q.state.data) ? 1000 : 60 * 60 * 1000),
+			refetchInterval: (q) => (fast || isBusy(q.state.data) ? 1000 : 60 * 60 * 1000),
 			retry: false,
 		},
 	});
@@ -66,7 +68,10 @@ const errText = (e: unknown, fallback: string) => (e instanceof ApiError ? e.det
 /** Settings → General → Updates. */
 export function Updates() {
 	const qc = useQueryClient();
-	const q = useUpdate();
+	// An update run by the window (Linux packages).
+	const [win, setWin] = useState<WindowUpdate | null>(null);
+	const winBusy = !!win && busyPhases.has(win.phase);
+	const q = useUpdate(true, win?.phase === "installing" || win?.phase === "restarting");
 	const apply = useApplyUpdate();
 	const [checking, setChecking] = useState(false);
 	const u = q.data;
@@ -81,6 +86,15 @@ export function Updates() {
 		toast.success(t("Exhale is up to date: {0}", u.current));
 		setTimeout(() => window.location.reload(), 1200);
 	}, [u]);
+
+	useEffect(
+		() =>
+			onWindowUpdate((w) => {
+				if (w.phase === "failed" || w.phase === "cancelled") target.current = "";
+				setWin(w);
+			}),
+		[],
+	);
 
 	useEffect(() => {
 		if (window.location.hash === "#updates") {
@@ -104,7 +118,15 @@ export function Updates() {
 			setChecking(false);
 		}
 	};
+	// The window can install the Linux package: it asks for the password.
+	const viaWindow = !u.canApply && u.available && u.method === "package" && windowOS === "linux";
 	const start = async () => {
+		if (viaWindow) {
+			target.current = u.latest ?? "";
+			setWin({ phase: "downloading" });
+			updateFromWindow();
+			return;
+		}
 		try {
 			const res = await apply.mutateAsync({ data: {} });
 			if (res.progress.version) target.current = res.progress.version;
@@ -115,29 +137,42 @@ export function Updates() {
 	};
 
 	const busy =
-		isBusy(u) || (!!target.current && u.current !== target.current && u.progress.phase !== "failed");
+		winBusy ||
+		isBusy(u) ||
+		(!!target.current && u.current !== target.current && u.progress.phase !== "failed");
+	const shown: VersionInfo =
+		winBusy && win
+			? { ...u, progress: { phase: win.phase as VersionInfo["progress"]["phase"], done: 0, total: 0 } }
+			: u;
 	return (
 		<div className="grid gap-4">
 			<VersionLine u={u} />
 			{busy ? (
-				<UpdateProgress u={u} target={target.current} />
+				<UpdateProgress u={shown} target={target.current} />
 			) : u.available ? (
 				<div className="grid gap-4">
 					<ReleaseNotes u={u} />
-					{u.progress.phase === "failed" && (
+					{(u.progress.phase === "failed" || win?.phase === "failed") && (
 						<p className="text-sm text-bad" role="alert">
-							{t("The update failed: {0}", u.progress.error ?? "")}{" "}
+							{t("The update failed: {0}", (win?.phase === "failed" ? win.error : u.progress.error) ?? "")}{" "}
 							<span className="text-muted">{t("Exhale {0} keeps running.", u.current)}</span>
 						</p>
 					)}
-					{u.canApply ? (
+					{win?.phase === "cancelled" && (
+						<p className="text-sm text-muted">{t("The update was cancelled. Nothing changed.")}</p>
+					)}
+					{u.canApply || viaWindow ? (
 						<div className="flex flex-wrap items-center gap-3">
 							<Button variant="primary" onClick={start} disabled={apply.isPending}>
 								{apply.isPending ? <Loader2 className="animate-spin" /> : <ArrowUpCircle />}
 								{u.progress.phase === "failed" ? t("Try again") : t("Update to {0}", u.latest ?? "")}
 							</Button>
 							<span className="text-xs text-muted">
-								{t("Exhale restarts by itself in a few seconds. Your data stays as it is.")}
+								{viaWindow
+									? t(
+											"Your password is asked to install it. Exhale restarts by itself; your data stays as it is.",
+										)
+									: t("Exhale restarts by itself in a few seconds. Your data stays as it is.")}
 							</span>
 						</div>
 					) : (
