@@ -1,8 +1,9 @@
-// Package desktop is Exhale installed as a desktop app (ADR 0029, 0030).
-// Opening the app makes sure the server runs in the background, as the
-// person who opened it and from the next login on, then shows the web UI in
-// a window of its own (package window), or in the browser where there is
-// none.
+// Package desktop is Exhale installed as a desktop app (ADR 0029, 0030,
+// 0032). Opening the app makes sure the server runs in the background, as
+// the person who opened it and from the next login on, then shows the web UI
+// in a window of its own (package window), or in the browser where there is
+// none. The window's process also shows Exhale's icon in the menu bar or
+// tray, from login on too; its menu is built here (menubar.go).
 package desktop
 
 import (
@@ -33,6 +34,14 @@ const VersionHeader = "X-Exhale-Version"
 // first start creates and migrates the database.
 const startTimeout = 60 * time.Second
 
+// loginWait is how long the icon, started at login, waits for the server
+// its own login item starts, before starting one itself.
+const loginWait = 30 * time.Second
+
+// BackgroundFlag is the flag of `exhale open` and exhale-window that starts
+// only the icon, with the window hidden: what runs at login.
+const BackgroundFlag = "--background"
+
 // errNotPlaced stops an app opened from a place it cannot run from.
 var errNotPlaced = errors.New("exhale: open the app from the Applications folder")
 
@@ -49,12 +58,16 @@ type App struct {
 	// Login is set in the desktop builds (Exhale.app, Exhale.exe): they
 	// also make Exhale start when the person logs in.
 	Login bool
-	// Window shows the web UI in a window of its own. It is set in builds
-	// with the desktop tag; without it, a window program next to this one
-	// (exhale-window in the Linux packages) is used, or else the browser.
-	Window func(url string) error
+	// Window shows the web UI in a window of its own, with the icon; with
+	// background, only the icon. It is set in builds with the desktop tag;
+	// without it, a window program next to this one (exhale-window in the
+	// Linux packages) is used, or else the browser.
+	Window func(url string, background bool) error
 	// Browser opens the browser even where there is a window.
 	Browser bool
+	// Background starts only the icon, with the window hidden (at login).
+	// Nothing is shown when the server cannot start: the icon says so.
+	Background bool
 }
 
 // Open shows the web UI, first starting the server in the background when
@@ -62,14 +75,31 @@ type App struct {
 func (a App) Open(ctx context.Context) error {
 	lang := i18n.Match(systemLanguages()...)
 	if a.Login && misplaced(a.Exe) {
+		if a.Background {
+			return errNotPlaced
+		}
 		alert(tr(lang, "Move Exhale to Applications"), tr(lang, "Drag Exhale into the Applications folder, then open it from there."))
 		return errNotPlaced
 	}
 	url := "http://" + browseAddr(a.Listen)
 	up, version := probe(ctx, url)
+	if a.Background && !up && waitFor(ctx, url, "", loginWait) == nil {
+		// At login, the server's own login item starts it at the same time.
+		up, version = probe(ctx, url)
+	}
 	want, err := a.start(ctx, up, version)
 	if err == nil {
 		err = waitFor(ctx, url, want, startTimeout)
+	}
+	if !a.Browser {
+		if err := a.iconAtLogin(); err != nil {
+			fmt.Fprintln(os.Stderr, "exhale: the icon will not start at login:", err)
+		}
+	}
+	if err != nil && a.Background {
+		// The icon still starts, and reads the server once it answers.
+		fmt.Fprintln(os.Stderr, "exhale:", err)
+		err = nil
 	}
 	if errors.Is(err, errSystemService) {
 		alert(tr(lang, "Exhale is not running"), tr(lang, "Start it with: sudo systemctl start exhale"))
@@ -89,13 +119,16 @@ func (a App) show(ctx context.Context, url string) error {
 	case a.Browser:
 		return browse(url)
 	case a.Window != nil:
-		return a.Window(url)
+		return a.Window(url, a.Background)
 	}
 	if p := windowProgram(a.Exe); p != "" {
-		err := runWindow(ctx, p, url)
+		err := runWindow(ctx, p, url, a.DataDir, a.Background)
 		if !errors.Is(err, errNoWindow) {
 			return err
 		}
+	}
+	if a.Background {
+		return nil // no icon without a window: nothing to show at login
 	}
 	return browse(url)
 }
@@ -103,6 +136,14 @@ func (a App) show(ctx context.Context, url string) error {
 // errNoWindow is a window program that cannot start here: its libraries
 // are missing (a server without a desktop) or too old.
 var errNoWindow = errors.New("exhale: no window on this system")
+
+// HasWindow reports whether exhale-window is installed next to exe.
+func HasWindow(exe string) bool {
+	if e, err := filepath.EvalSymlinks(exe); err == nil {
+		exe = e
+	}
+	return windowProgram(exe) != ""
+}
 
 // windowProgram is exhale-window next to exe, if it is installed.
 func windowProgram(exe string) string {
@@ -113,10 +154,18 @@ func windowProgram(exe string) string {
 	return ""
 }
 
-// runWindow runs the window program until its window is closed. The dynamic
-// loader answers 127 when the program's libraries are missing.
-func runWindow(ctx context.Context, program, url string) error {
-	cmd := exec.CommandContext(ctx, program, "--url", url) //nolint:gosec // our own program, installed next to this one
+// runWindow runs the window program until its window is closed, or with
+// the icon, until Quit. The dynamic loader answers 127 when the program's
+// libraries are missing.
+func runWindow(ctx context.Context, program, url, dataDir string, background bool) error {
+	args := []string{"--url", url}
+	if dataDir != "" {
+		args = append(args, "--data-dir", dataDir)
+	}
+	if background {
+		args = append(args, BackgroundFlag)
+	}
+	cmd := exec.CommandContext(ctx, program, args...) //nolint:gosec // our own program, installed next to this one
 	cmd.Stdout, cmd.Stderr = os.Stdout, os.Stderr
 	err := cmd.Run()
 	var exit *exec.ExitError
@@ -128,6 +177,9 @@ func runWindow(ctx context.Context, program, url string) error {
 
 // tr translates a text of the dialogs (the catalogs in internal/i18n).
 func tr(lang, text string) string { return i18n.Translate(lang, text) }
+
+// SystemLanguage is the person's language, of those Exhale speaks.
+func SystemLanguage() string { return i18n.Match(systemLanguages()...) }
 
 // browseAddr turns a listen address into one a browser on this machine can
 // open: a server listening on every interface answers on loopback too.

@@ -228,15 +228,27 @@ var (
 		Name: "remove_logo", Title: "Remove an uploaded logo", Tag: "Documents", Method: "POST", Path: "/subscriptions/logo/remove", Write: true, Idempotent: true,
 		Description: "Drops the logo someone uploaded for a subscription: it shows the bundled brand mark or its initials again. Can be reverted with undo.",
 	}, (*Service).RemoveLogo}
-	// Keep this computer awake (ADR 0028).
+	// Keep this computer awake (ADR 0028, 0032).
 	OpGetKeepAwake = Op[struct{}, KeepAwakeInfo]{Meta{
 		Name: "get_keep_awake", Title: "Is this computer kept awake", Tag: "Household", Method: "GET", Path: "/keep-awake",
-		Description: "Whether Exhale keeps the computer it runs on from sleeping (so reminders go out and chat buttons answer): off, always, or between two times of day in the household time zone; whether the display may sleep; and the live status (active, waiting outside the hours, unavailable here and why, or the error the system gave).",
+		Description: "Whether Exhale keeps the computer it runs on from sleeping (so reminders go out and chat buttons answer): off, always, or between two times of day in the household time zone; whether the display may sleep; whether a closed lid, running on battery or a battery floor change that; a session started by hand; and the live status (active and until when, waiting outside the hours, paused on battery, unavailable here and why, or the error the system gave), with the battery's charge.",
 	}, (*Service).GetKeepAwake}
 	OpSetKeepAwake = Op[SetKeepAwakeInput, KeepAwakeInfo]{Meta{
 		Name: "set_keep_awake", Title: "Keep this computer awake", Tag: "Household", Method: "POST", Path: "/keep-awake", Write: true, Idempotent: true,
-		Description: "Owners only. Keeps the computer Exhale runs on from sleeping: mode off, always, or hours (from and to, HH:MM in the household time zone; to earlier than from crosses midnight). keepDisplayOn keeps the screen on too. A laptop with its lid closed still sleeps. Can be reverted with undo.",
+		Description: "Owners only. Keeps the computer Exhale runs on from sleeping: mode off, always, or hours (from and to, HH:MM in the household time zone; to earlier than from crosses midnight). keepDisplayOn keeps the screen on too. lidClosed keeps a laptop awake with its lid closed (on a Mac, setup_lid_closed first). onlyOnPower: only while plugged in. batteryFloor: on battery, stop at this charge (default 20). To keep it awake now for a while, use keep_awake_session. Can be reverted with undo.",
 	}, (*Service).SetKeepAwake}
+	OpKeepAwakeSession = Op[KeepAwakeSessionInput, KeepAwakeInfo]{Meta{
+		Name: "keep_awake_session", Title: "Keep this computer awake for a while", Tag: "Household", Method: "POST", Path: "/keep-awake/session", Write: true,
+		Description: "Owners only. Keeps the computer Exhale runs on awake now, whatever the rule of set_keep_awake says: action start for minutes, until a time of day (HH:MM, household time zone) or until stopped; extend adds minutes; stop ends it. A session survives a restart of the computer with the time it had left. Can be reverted with undo.",
+	}, (*Service).KeepAwakeSession}
+	OpSetupLidClosed = Op[SetupLidClosedInput, KeepAwakeInfo]{Meta{
+		Name: "setup_lid_closed", Title: "Allow keeping a closed laptop awake", Tag: "Household", Method: "POST", Path: "/keep-awake/lid-setup", Write: true, Idempotent: true,
+		Description: "Owners only, on a Mac: shows the system's administrator password dialog on the computer Exhale runs on, to allow it to turn lid sleep off (pmset disablesleep) without asking again. Someone must be at that computer. Elsewhere it only reports whether the lid can be held.",
+	}, (*Service).SetupLidClosed}
+	OpGlance = Op[GlanceInput, Glance]{Meta{
+		Name: "glance", Title: "A glance at what comes next", Tag: "Insights", Method: "GET", Path: "/glance",
+		Description: "The next charges with their amounts already written for the member's language, what the next 30 days cost per currency, and whether this computer is kept awake. Made for small places: the menu bar icon, a widget.",
+	}, (*Service).Glance}
 )
 
 // Catalog lists every use case exposed to adapters.
@@ -252,7 +264,7 @@ func Catalog() []Binding {
 		OpBulkUpdate.Binding(), OpRenameTag.Binding(), OpDeleteTag.Binding(),
 		OpSnooze.Binding(), OpDismissDuplicate.Binding(),
 		OpListDocuments.Binding(), OpDeleteDocument.Binding(), OpRemoveLogo.Binding(),
-		OpGetKeepAwake.Binding(), OpSetKeepAwake.Binding(),
+		OpGetKeepAwake.Binding(), OpSetKeepAwake.Binding(), OpKeepAwakeSession.Binding(), OpSetupLidClosed.Binding(), OpGlance.Binding(),
 		OpMatchStatement.Binding(),
 	}
 }

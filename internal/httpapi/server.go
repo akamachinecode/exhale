@@ -279,6 +279,9 @@ func registerAll(api huma.API, svc *app.Service) {
 	register(api, svc, app.OpMatchStatement)
 	register(api, svc, app.OpGetKeepAwake)
 	register(api, svc, app.OpSetKeepAwake)
+	register(api, svc, app.OpKeepAwakeSession)
+	register(api, svc, app.OpSetupLidClosed)
+	register(api, svc, app.OpGlance)
 }
 
 func operation(m app.Meta) huma.Operation {

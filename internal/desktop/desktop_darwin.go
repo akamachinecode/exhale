@@ -75,6 +75,28 @@ func (a App) start(ctx context.Context, up bool, version string) (string, error)
 	return "", nil
 }
 
+// iconAtLogin writes the launchd agent of the menu bar icon. It is not
+// loaded now: this process shows the icon already, and launchd loads every
+// agent in ~/Library/LaunchAgents at the next login.
+func (a App) iconAtLogin() error {
+	if !a.Login {
+		return nil
+	}
+	home, err := os.UserHomeDir()
+	if err != nil {
+		return err
+	}
+	path := filepath.Join(home, "Library", "LaunchAgents", MenuBarID+".plist")
+	plist := menuBarPlist(a.Exe, a.logPath())
+	if old, _ := os.ReadFile(path); bytes.Equal(old, plist) { //nolint:gosec // our own agent file
+		return nil
+	}
+	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil { //nolint:gosec // ~/Library/LaunchAgents is 0755
+		return err
+	}
+	return os.WriteFile(path, plist, 0o644) //nolint:gosec // launchd agents are 0644; nothing secret in it
+}
+
 func launchctl(ctx context.Context, args ...string) error {
 	out, err := exec.CommandContext(ctx, "/bin/launchctl", args...).CombinedOutput() //nolint:gosec // fixed program, our own arguments
 	if err != nil {

@@ -18,7 +18,7 @@ Links to other sites (Telegram, a service's page) open in your browser, and down
 | Log | `~/Library/Logs/Exhale.log` (also in Console.app) |
 | Upgrade | Download the new `Exhale.dmg`, drag Exhale to Applications again (Replace) and open it: the running server is restarted in the new version |
 | Stop it starting at login | Turn Exhale off in Login Items |
-| Uninstall | Turn it off in Login Items and drag Exhale to the Trash. Your data stays until you delete its folder |
+| Uninstall | Turn it off in Login Items and drag Exhale to the Trash. Your data stays until you delete its folder. If you allowed the lid option: `sudo pmset disablesleep 0 && sudo rm /etc/sudoers.d/exhale` |
 
 Opening Exhale straight from the disk image does not work: it asks you to move it to Applications first, because it would stop working when the image is ejected.
 
@@ -62,9 +62,24 @@ The agent runs while you are logged in. For a Mac used as a server, turn on auto
 
 ## Keep the Mac awake
 
-In the web, **Settings → General → This computer** (owners): *Always*, or *Only between two times* (e.g. 08:00 to 23:00, in the household's time zone; a range can cross midnight). Exhale then runs Apple's `caffeinate` while it should be awake, tied to its own process, so the Mac is free to sleep again as soon as Exhale stops. *Let the display sleep* is on by default: only the Mac stays awake, the screen turns off as usual.
+In the web, **Settings → General → This computer** (owners), or from Exhale's icon in the menu bar: *Always*, *Only between two times* (e.g. 08:00 to 23:00, in the household's time zone; a range can cross midnight), or *now* for 1, 2 or 8 hours, until a time or until you stop it. Exhale then runs Apple's `caffeinate` while it should be awake, tied to its own process, so the Mac is free to sleep again as soon as Exhale stops. *Let the display sleep* is on by default: only the Mac stays awake, the screen turns off as usual.
 
-A MacBook with its lid closed still sleeps, unless it is on power with an external display. You can also set it once in System Settings → Energy ("Prevent automatic sleeping when the display is off").
+### With the lid closed
+
+`caffeinate` cannot stop a closed MacBook from sleeping; `pmset disablesleep 1` can, and it needs root. Turn on *Keep going with the lid closed* and press *Allow on this Mac*: macOS asks for an administrator password, on the Mac that runs Exhale, once. Exhale then installs `/etc/sudoers.d/exhale`, a rule that lets your user run exactly two commands without a password, nothing else:
+
+```
+#501 ALL=(root) NOPASSWD: /usr/bin/pmset disablesleep 1, /usr/bin/pmset disablesleep 0
+```
+
+From then on Exhale turns lid sleep off while it keeps the Mac awake, and back on when it stops, when the battery reaches its level (20 % unless you change it) or, with *Only while plugged in*, when you unplug it. If the lid is closed at that moment, the Mac goes to sleep at once. If Exhale is stopped by force, it turns lid sleep back on the next time it starts.
+
+To undo it all by hand:
+
+```sh
+sudo pmset disablesleep 0
+sudo rm /etc/sudoers.d/exhale
+```
 
 ## Settings
 

@@ -230,8 +230,11 @@ func (s *serveCmd) Run(ctx context.Context, g *globals) error {
 	if err != nil {
 		return err
 	}
-	// Keeps this computer from sleeping when the owner asks (ADR 0028).
+	// Keeps this computer from sleeping when the owner asks (ADR 0028), lid
+	// closed and on battery included (ADR 0032).
 	keepAwake := app.NewKeepAwake(e.svc, awake.New(), e.log)
+	keepAwake.Lid = awake.NewLid(g.DataDir)
+	keepAwake.Power = awake.ReadPower
 	handler, _, err := httpapi.New(e.svc, httpapi.Config{
 		Version: version, TrustLocal: s.TrustLocal, SecureCookies: s.SecureCookies, Log: e.log, Telegram: tg, Slack: sl, Channels: others, Assistant: asst,
 		PublicURL: s.PublicURL, OIDC: sso, DisablePasswordLogin: s.DisablePasswordLogin,
@@ -276,10 +279,44 @@ func (s *serveCmd) Run(ctx context.Context, g *globals) error {
 		platform.Func{Name: "message-sync", Fn: eng.Sync},
 		keepAwake,
 	)
+	if hasMenuBar() {
+		services = append(services, platform.Func{Name: "desktop-token", Fn: func(ctx context.Context) error {
+			return desktopToken(ctx, e, filepath.Join(g.DataDir, auth.DesktopTokenFile))
+		}})
+	}
 	if !s.NoBackups {
 		services = append(services, &backup.Service{DB: e.st.DB, Dir: backupDir(g, s.BackupDir), Keep: s.BackupKeep, Log: e.log})
 	}
 	return platform.Run(ctx, e.log, services...)
+}
+
+// hasMenuBar reports whether this server runs next to the desktop app,
+// whose menu bar icon reads the API with a token (ADR 0032): the macOS and
+// Windows apps, or exhale-window next to exhale in the Linux packages.
+func hasMenuBar() bool {
+	if desktopApp == "true" {
+		return true
+	}
+	exe, err := os.Executable()
+	return err == nil && desktop.HasWindow(exe)
+}
+
+// desktopToken keeps a working token for the menu bar icon in path: once
+// there is an owner (a new install has none until the wizard), and again
+// if someone revokes it from the web.
+func desktopToken(ctx context.Context, e *env, path string) error {
+	for {
+		if owner, err := e.svc.Owner(ctx); err == nil {
+			if err := auth.EnsureDesktopToken(ctx, e.st, owner.MemberID, path); err != nil {
+				e.log.Warn("no token for the menu bar icon", "err", err)
+			}
+		}
+		select {
+		case <-ctx.Done():
+			return nil
+		case <-time.After(time.Minute):
+		}
+	}
 }
 
 // --- init ----------------------------------------------------------------------
@@ -596,6 +633,8 @@ func (openapiCmd) Run(ctx context.Context, _ *globals) error {
 type openCmd struct {
 	Listen  string `env:"EXHALE_LISTEN" default:"127.0.0.1:8484" help:"Address Exhale listens on."`
 	Browser bool   `help:"Open the browser, even where Exhale has a window of its own."`
+	// What starts at login (ADR 0032).
+	Background bool `help:"Start only Exhale's icon in the menu bar or tray, with the window hidden, as at login."`
 }
 
 func (o *openCmd) Run(ctx context.Context, g *globals) error {
@@ -608,7 +647,7 @@ func (o *openCmd) Run(ctx context.Context, g *globals) error {
 	}
 	return desktop.App{
 		Exe: exe, Listen: o.Listen, Version: version, DataDir: g.DataDir, LogFile: g.LogFile,
-		Login: desktopApp == "true", Window: openWindow(g.DataDir), Browser: o.Browser,
+		Login: desktopApp == "true", Window: openWindow(g.DataDir), Browser: o.Browser, Background: o.Background,
 	}.Open(ctx)
 }
 

@@ -1,8 +1,8 @@
-; Exhale-Setup.exe (ADR 0029, 0030): a one-click installer for the person
+; Exhale-Setup.exe (ADR 0029, 0030, 0032): a one-click installer for the person
 ; using Windows, no administrator needed. It copies Exhale.exe, adds Exhale
 ; to the Start menu and to Settings → Apps, and opens it; Exhale.exe then
-; starts the server, makes it start at sign-in and shows its window. Built
-; by build.sh.
+; starts the server, makes it and its tray icon start at sign-in and shows
+; its window. Built by build.sh.
 Unicode true
 SetCompressor /SOLID lzma
 
@@ -82,6 +82,7 @@ Section "Uninstall"
   Pop $0
   Sleep 500
   DeleteRegValue HKCU "${RUN}" "Exhale"
+  DeleteRegValue HKCU "${RUN}" "Exhale icon"
   Delete "$SMPROGRAMS\Exhale.lnk"
   Delete "$INSTDIR\Exhale.exe"
   Delete "$INSTDIR\Uninstall.exe"

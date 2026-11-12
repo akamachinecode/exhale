@@ -5,6 +5,12 @@
 // and WebKitGTK on Linux, through Wails. The server keeps running on its
 // own; closing the window only closes the window.
 //
+// The same process shows Exhale's icon in the menu bar (the tray on Windows
+// and Linux, ADR 0032): the next charges and keeping the computer awake.
+// With the icon there, closing the window hides it and the process stays;
+// "Quit" in the icon's menu ends both, never the server. At login it starts
+// with the window hidden (Options.Background).
+//
 // It is built only with the desktop tag, in the desktop apps (Exhale.app,
 // Exhale.exe) and in exhale-window on Linux, so the server binary everywhere
 // else stays free of cgo and graphical libraries.
@@ -22,6 +28,7 @@ import (
 	"os"
 	"path/filepath"
 	"runtime"
+	"slices"
 	"strings"
 	"sync"
 	"time"
@@ -54,10 +61,13 @@ const maxSave = 512 << 20
 // Options are what the window needs.
 type Options struct {
 	URL     string // the web UI, http://127.0.0.1:8484
-	DataDir string // Exhale's data directory; WebView2 keeps its profile there
+	DataDir string // Exhale's data directory: the icon's token, WebView2's profile
+	// Background starts with the window hidden: only the icon (at login).
+	Background bool
 }
 
-// Run opens the window and returns when it is closed.
+// Run opens the window and returns when it is closed, or with the icon,
+// when Quit is chosen.
 func Run(o Options) error {
 	base, err := url.Parse(o.URL)
 	if err != nil || (base.Scheme != "http" && base.Scheme != "https") || base.Host == "" {
@@ -70,6 +80,15 @@ func Run(o Options) error {
 	log := slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: level}))
 	webkitSandbox(log)
 	b := &bridge{base: base, smoke: os.Getenv(SmokeEnv), log: log}
+	// A smoke run only tries the window, as before the icon.
+	withTray := b.smoke == "" && trayAvailable(log, o.Background)
+	if o.Background && !withTray {
+		return nil // nothing to show until Exhale is opened
+	}
+	policy := application.ActivationPolicyRegular
+	if o.Background {
+		policy = application.ActivationPolicyAccessory // no Dock icon while the window is hidden
+	}
 	app := application.New(application.Options{
 		Name:        "Exhale",
 		Description: "Your subscriptions, handled.",
@@ -78,21 +97,29 @@ func Run(o Options) error {
 		LogLevel:    level,
 		Mac: application.MacOptions{
 			// A Dock icon while the window is open; quitting closes only
-			// the window, the server keeps sending reminders.
-			ActivationPolicy: application.ActivationPolicyRegular,
-			ApplicationShouldTerminateAfterLastWindowClosed: true,
+			// the window and the icon, the server keeps sending reminders.
+			ActivationPolicy: policy,
+			ApplicationShouldTerminateAfterLastWindowClosed: !withTray,
 		},
 		Windows: application.WindowsOptions{
-			WebviewUserDataPath: webviewDataPath(o.DataDir),
+			WebviewUserDataPath:           webviewDataPath(o.DataDir),
+			DisableQuitOnLastWindowClosed: withTray,
 		},
 		Linux: application.LinuxOptions{
 			// The Wayland app id and X11 class, which the launcher entry
 			// names in StartupWMClass so the dock shows Exhale's icon.
-			ApplicationID: desktop.ID,
+			ApplicationID:                 desktop.ID,
+			DisableQuitOnLastWindowClosed: withTray,
 		},
 		SingleInstance: &application.SingleInstanceOptions{
-			UniqueID:               desktop.ID,
-			OnSecondInstanceLaunch: func(application.SecondInstanceData) { b.raise() },
+			UniqueID: desktop.ID,
+			// Opening Exhale again shows the window; a second start at
+			// login has nothing to add.
+			OnSecondInstanceLaunch: func(d application.SecondInstanceData) {
+				if !slices.Contains(d.Args, desktop.BackgroundFlag) {
+					b.show("")
+				}
+			},
 		},
 		RawMessageHandler: b.handle,
 	})
@@ -106,6 +133,7 @@ func Run(o Options) error {
 		MinWidth:         380,
 		MinHeight:        560,
 		InitialPosition:  application.WindowCentered,
+		Hidden:           o.Background,
 		BackgroundColour: application.NewRGB(7, 7, 7), // --bg of the dark theme, no white flash
 		// The web UI draws the whole window, title bar included (ADR 0031).
 		// On Windows and Linux there is no system frame: the page has its
@@ -117,6 +145,16 @@ func Run(o Options) error {
 		},
 	})
 	b.watchState()
+	if withTray {
+		b.tray = startTray(app, b, desktop.Client{Base: base.String(), DataDir: o.DataDir}, log)
+		// Closing the window hides it: the icon stays, and brings it back.
+		b.win.RegisterHook(events.Common.WindowClosing, func(e *application.WindowEvent) {
+			e.Cancel()
+			b.hide()
+		})
+		// A Mac opens a running app again by asking it to reopen.
+		app.Event.OnApplicationEvent(events.Mac.ApplicationShouldHandleReopen, func(*application.ApplicationEvent) { b.show("") })
+	}
 	if b.smoke != "" {
 		time.AfterFunc(smokeTimeout, func() { b.finishSmoke(fmt.Errorf("the web UI did not load within %s", smokeTimeout)) })
 	}
@@ -141,6 +179,7 @@ type bridge struct {
 	base  *url.URL
 	app   *application.App
 	win   *application.WebviewWindow
+	tray  *tray
 	smoke string
 	log   *slog.Logger
 
@@ -314,14 +353,31 @@ func stateJS(maximised, fullscreen bool) string {
 	return fmt.Sprintf(`window.dispatchEvent(new CustomEvent("exhale:window",{detail:{maximised:%t,fullscreen:%t}}))`, maximised, fullscreen)
 }
 
-// raise brings the window back when Exhale is opened again.
-func (b *bridge) raise() {
+// show brings the window to the front, at path of the web UI when one is
+// given: when Exhale is opened again, or from the icon's menu.
+func (b *bridge) show(path string) {
 	if b.win == nil {
 		return
 	}
+	if path != "" {
+		if u, err := b.base.Parse(path); err == nil && u.Host == b.base.Host {
+			b.win.SetURL(u.String())
+		}
+	}
+	setDock(true)
 	b.win.Show()
 	b.win.UnMinimise()
 	b.win.Focus()
+}
+
+// hide puts the window away; the icon stays. A Mac drops the Dock icon
+// until the window shows again.
+func (b *bridge) hide() {
+	if b.win == nil {
+		return
+	}
+	b.win.Hide()
+	setDock(false)
 }
 
 // finishSmoke ends a smoke run: err nil means the web UI loaded.

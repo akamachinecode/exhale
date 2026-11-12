@@ -164,7 +164,7 @@ func TestKeepAwakeUnavailableAndFailures(t *testing.T) {
 	ctx := context.Background()
 	k.avail = awake.ErrContainer
 	info := f.setAwake(t, SetKeepAwakeInput{Mode: ptr(KeepAwakeAlways)})
-	if info.Status != (KeepAwakeStatus{State: AwakeUnavailable, Reason: "container"}) || k.holds != 0 {
+	if info.Status != (KeepAwakeStatus{State: AwakeUnavailable, Reason: "container", Lid: "off"}) || k.holds != 0 {
 		t.Fatalf("container: %+v", info.Status)
 	}
 	k.avail = awake.ErrUnsupported
@@ -282,5 +282,258 @@ func TestKeepAwakeServeAppliesChangesAndReleases(t *testing.T) {
 	<-done
 	if k.holding {
 		t.Fatal("still holding after the server stopped")
+	}
+}
+
+// fakeLid records what the controller asks of the lid switch.
+type fakeLid struct {
+	avail     error
+	holding   bool
+	holds     int
+	releases  int
+	recovered int
+	setups    int
+}
+
+func (l *fakeLid) Available() error { return l.avail }
+func (l *fakeLid) Setup(context.Context) error {
+	l.setups++
+	l.avail = nil
+	return nil
+}
+func (l *fakeLid) Hold() error    { l.holds++; l.holding = true; return nil }
+func (l *fakeLid) Release() error { l.releases++; l.holding = false; return nil }
+func (l *fakeLid) Recover() error { l.recovered++; return nil }
+
+func (f *fixture) session(t *testing.T, in KeepAwakeSessionInput) KeepAwakeInfo {
+	t.Helper()
+	info, err := f.svc.KeepAwakeSession(context.Background(), f.owner, in)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return info
+}
+
+func TestKeepAwakeSessions(t *testing.T) {
+	f, k, ka := awakeFixture(t)
+	ctx := context.Background()
+	f.at(t, "2026-11-05 10:00")
+
+	// For an hour, on top of a rule that is off.
+	info := f.session(t, KeepAwakeSessionInput{Action: SessionStart, Minutes: 60})
+	if info.Status.State != AwakeActive || !info.Status.Session || !k.holding || info.Status.Until != "2026-11-05T10:00:00Z" {
+		t.Fatalf("for an hour: %+v", info.Status)
+	}
+	// Extended by 30 minutes, from its end.
+	info = f.session(t, KeepAwakeSessionInput{Action: SessionExtend, Minutes: 30})
+	if info.Status.Until != "2026-11-05T10:30:00Z" {
+		t.Fatalf("extended: %+v", info.Status)
+	}
+	// It ends by itself.
+	f.at(t, "2026-11-05 11:29")
+	if next := ka.Apply(ctx); next.UTC().Format("15:04") != "10:30" || !k.holding {
+		t.Fatalf("11:29: next %v, holding %v", next, k.holding)
+	}
+	f.at(t, "2026-11-05 11:30")
+	ka.Apply(ctx)
+	if st := ka.Status(); st.State != AwakeOff || k.holding {
+		t.Fatalf("11:30: %+v", st)
+	}
+
+	// Until a time of day: the next time it comes, in Madrid.
+	info = f.session(t, KeepAwakeSessionInput{Action: SessionStart, Until: "09:00"})
+	if info.Session.Until != "2026-11-06T08:00:00Z" {
+		t.Fatalf("until 09:00: %+v", info.Session)
+	}
+	// Until stopped, then stopped: the rule applies again.
+	info = f.session(t, KeepAwakeSessionInput{Action: SessionStart})
+	if !info.Session.Active || info.Session.Until != "" || info.Status.Until != "" || !k.holding {
+		t.Fatalf("until stopped: %+v", info)
+	}
+	info = f.session(t, KeepAwakeSessionInput{Action: SessionStop})
+	if info.Session.Active || k.holding || info.Status.State != AwakeOff {
+		t.Fatalf("stopped: %+v", info)
+	}
+	// A session is a change like any other: an unknown action is refused.
+	if _, err := f.svc.KeepAwakeSession(ctx, f.owner, KeepAwakeSessionInput{Action: "nap"}); err == nil {
+		t.Fatal("unknown action accepted")
+	}
+}
+
+func TestKeepAwakeSessionOverHours(t *testing.T) {
+	f, _, _ := awakeFixture(t)
+	f.at(t, "2026-11-05 22:30")
+	f.setAwake(t, SetKeepAwakeInput{Mode: ptr(KeepAwakeHours), From: ptr("08:00"), To: ptr("23:00")})
+	// A session that ends after the hours: until its end.
+	info := f.session(t, KeepAwakeSessionInput{Action: SessionStart, Minutes: 120})
+	if info.Status.Until != "2026-11-05T23:30:00Z" {
+		t.Fatalf("session after the hours: %+v", info.Status)
+	}
+	// One that ends before them: until the end of the hours.
+	info = f.session(t, KeepAwakeSessionInput{Action: SessionStart, Minutes: 10})
+	if info.Status.Until != "2026-11-05T22:00:00Z" {
+		t.Fatalf("session inside the hours: %+v", info.Status)
+	}
+}
+
+func TestKeepAwakeSessionSurvivesARestart(t *testing.T) {
+	f, k, ka := awakeFixture(t)
+	ka.MaxSleep = time.Hour
+	f.at(t, "2026-11-05 10:00")
+	f.session(t, KeepAwakeSessionInput{Action: SessionStart, Minutes: 60})
+	ctx, cancel := context.WithCancel(context.Background())
+	done := make(chan struct{})
+	go func() { _ = ka.Serve(ctx); close(done) }()
+	f.at(t, "2026-11-05 10:20") // 40 minutes left when the computer restarts
+	cancel()
+	<-done
+	if k.holding {
+		t.Fatal("still holding after the server stopped")
+	}
+	set, _ := readKeepAwake(context.Background(), f.svc.st.Q)
+	if set.Session.Left != 40*60 {
+		t.Fatalf("left = %d", set.Session.Left)
+	}
+	// Back two hours later: it resumes with its 40 minutes.
+	f.at(t, "2026-11-05 12:20")
+	ctx, cancel = context.WithCancel(context.Background())
+	done = make(chan struct{})
+	go func() { _ = ka.Serve(ctx); close(done) }()
+	deadline := time.Now().Add(2 * time.Second)
+	for ka.Status().State != AwakeActive {
+		if time.Now().After(deadline) {
+			t.Fatalf("not resumed: %+v", ka.Status())
+		}
+		time.Sleep(10 * time.Millisecond)
+	}
+	if st := ka.Status(); st.Until != "2026-11-05T12:00:00Z" {
+		t.Fatalf("resumed until %s", st.Until)
+	}
+	cancel()
+	<-done
+}
+
+func TestKeepAwakeOnBattery(t *testing.T) {
+	f, k, ka := awakeFixture(t)
+	ctx := context.Background()
+	pw := awake.Power{Known: true, HasBattery: true, OnBattery: true, Percent: 50}
+	ka.Power = func() awake.Power { return pw }
+	f.setAwake(t, SetKeepAwakeInput{Mode: ptr(KeepAwakeAlways)})
+	if st := ka.Status(); st.State != AwakeActive || st.Power != (KeepAwakePower{HasBattery: true, OnBattery: true, Percent: 50}) {
+		t.Fatalf("50%% on battery: %+v", st)
+	}
+	// At the floor (20% by default), it lets the laptop sleep.
+	pw.Percent = 20
+	ka.Apply(ctx)
+	if st := ka.Status(); st.State != AwakePaused || st.Reason != "battery" || k.holding {
+		t.Fatalf("20%%: %+v", st)
+	}
+	// Plugged in, it goes on.
+	pw.OnBattery = false
+	ka.Apply(ctx)
+	if ka.Status().State != AwakeActive || !k.holding {
+		t.Fatalf("plugged in: %+v", ka.Status())
+	}
+	// Only while plugged in: on battery it waits, whatever the charge.
+	f.setAwake(t, SetKeepAwakeInput{OnlyOnPower: ptr(true)})
+	pw.OnBattery, pw.Percent = true, 90
+	ka.Apply(ctx)
+	if st := ka.Status(); st.State != AwakePaused || st.Reason != "power" || k.holding {
+		t.Fatalf("only on power: %+v", st)
+	}
+	// A desktop has no battery: never paused.
+	pw = awake.Power{Known: true}
+	ka.Apply(ctx)
+	if ka.Status().State != AwakeActive {
+		t.Fatalf("desktop: %+v", ka.Status())
+	}
+	if _, err := f.svc.SetKeepAwake(ctx, f.owner, SetKeepAwakeInput{BatteryFloor: ptr(99)}); err == nil {
+		t.Fatal("a floor of 99% was accepted")
+	}
+}
+
+func TestKeepAwakeLidClosed(t *testing.T) {
+	f, _, ka := awakeFixture(t)
+	ctx := context.Background()
+	lid := &fakeLid{avail: awake.ErrNeedsSetup}
+	ka.Lid = lid
+	f.setAwake(t, SetKeepAwakeInput{Mode: ptr(KeepAwakeAlways), LidClosed: ptr(true)})
+	if st := ka.Status(); st.Lid != "setup" || lid.holding {
+		t.Fatalf("before setup: %+v", st)
+	}
+	info, err := f.svc.SetupLidClosed(ctx, f.owner, SetupLidClosedInput{})
+	if err != nil || info.Status.Lid != "active" || !lid.holding || lid.setups != 1 {
+		t.Fatalf("after setup: %+v %v", info.Status, err)
+	}
+	// Paused on battery: the lid goes back to sleeping the laptop.
+	ka.Power = func() awake.Power { return awake.Power{Known: true, HasBattery: true, OnBattery: true, Percent: 10} }
+	ka.Apply(ctx)
+	if lid.holding || lid.releases != 1 || ka.Status().Lid != "off" {
+		t.Fatalf("on a low battery: %+v", ka.Status())
+	}
+	ka.Power = nil
+	ka.Apply(ctx)
+	if !lid.holding {
+		t.Fatal("not held again on power")
+	}
+	// Turned off: released.
+	f.setAwake(t, SetKeepAwakeInput{LidClosed: ptr(false)})
+	if lid.holding || ka.Status().Lid != "off" {
+		t.Fatalf("turned off: %+v", ka.Status())
+	}
+	// No lid switch on this system.
+	ka.Lid = nil
+	f.setAwake(t, SetKeepAwakeInput{LidClosed: ptr(true)})
+	if ka.Status().Lid != "unavailable" {
+		t.Fatalf("no lid: %+v", ka.Status())
+	}
+}
+
+func TestKeepAwakeServeRecoversTheLid(t *testing.T) {
+	_, _, ka := awakeFixture(t)
+	lid := &fakeLid{}
+	ka.Lid = lid
+	ka.MaxSleep = time.Hour
+	ctx, cancel := context.WithCancel(context.Background())
+	done := make(chan struct{})
+	go func() { _ = ka.Serve(ctx); close(done) }()
+	cancel()
+	<-done
+	if lid.recovered != 1 {
+		t.Fatalf("recovered %d times", lid.recovered)
+	}
+}
+
+// failingLid refuses to let go until told.
+type failingLid struct {
+	fakeLid
+	releaseErr error
+}
+
+func (l *failingLid) Release() error {
+	if l.releaseErr != nil {
+		return l.releaseErr
+	}
+	return l.fakeLid.Release()
+}
+
+func TestKeepAwakeRetriesReleasingTheLid(t *testing.T) {
+	f, _, ka := awakeFixture(t)
+	ctx := context.Background()
+	lid := &failingLid{}
+	ka.Lid = lid
+	f.setAwake(t, SetKeepAwakeInput{Mode: ptr(KeepAwakeAlways), LidClosed: ptr(true)})
+	if !lid.holding {
+		t.Fatal("not held")
+	}
+	lid.releaseErr = errors.New("sudo: a password is required")
+	f.setAwake(t, SetKeepAwakeInput{Mode: ptr(KeepAwakeOff)})
+	if !lid.holding {
+		t.Fatal("released despite the error")
+	}
+	lid.releaseErr = nil
+	ka.Apply(ctx)
+	if lid.holding {
+		t.Fatal("not retried")
 	}
 }

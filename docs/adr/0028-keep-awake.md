@@ -2,6 +2,7 @@
 
 - Status: Accepted
 - Date: 2026-11-10
+- Amended by: [0032](0032-menu-bar-and-keep-awake-sessions.md) (sessions, a closed lid, battery guards, the menu bar icon)
 
 ## Context — what it has to do
 

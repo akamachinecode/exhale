@@ -69,6 +69,8 @@ jobs:
           curl -fsS -D - http://127.0.0.1:8484/healthz | tee /tmp/healthz
           grep -qi "x-exhale-version: $VERSION" /tmp/healthz
           launchctl print "gui/$(id -u)/io.github.akamachinecode.exhale" | grep -E "state|program"
+          # The menu bar icon's agent is written for the next login (ADR 0032).
+          plutil -lint ~/Library/LaunchAgents/io.github.akamachinecode.exhale.menubar.plist
           # Opened again: nothing to start, the window opens at once.
           rm /tmp/smoke
           EXHALE_WINDOW_SMOKE=/tmp/smoke /Applications/Exhale.app/Contents/MacOS/exhale
@@ -149,12 +151,16 @@ jobs:
           $run = (Get-ItemProperty HKCU:\Software\Microsoft\Windows\CurrentVersion\Run).Exhale
           "starts at sign-in: $run"
           if ($run -notlike "*Exhale.exe*serve") { throw "not added to sign-in" }
+          $icon = (Get-ItemProperty HKCU:\Software\Microsoft\Windows\CurrentVersion\Run).'Exhale icon'
+          "tray icon at sign-in: $icon"
+          if ($icon -notlike "*Exhale.exe*open --background") { throw "the tray icon was not added to sign-in" }
           if (-not (Test-Path "$env:APPDATA\Microsoft\Windows\Start Menu\Programs\Exhale.lnk")) { throw "no Start menu entry" }
           # Uninstall: the server stops, the entries go, the data stays.
           Start-Process "$env:LOCALAPPDATA\Programs\Exhale\Uninstall.exe" -ArgumentList '/S' -Wait
           Start-Sleep 5
           if (Test-Path $exe) { throw "Exhale.exe is still there" }
           if ((Get-ItemProperty HKCU:\Software\Microsoft\Windows\CurrentVersion\Run).Exhale) { throw "still starts at sign-in" }
+          if ((Get-ItemProperty HKCU:\Software\Microsoft\Windows\CurrentVersion\Run).'Exhale icon') { throw "the tray icon still starts at sign-in" }
           if (-not (Test-Path "$env:LOCALAPPDATA\Exhale\exhale.db")) { throw "the data went with it" }
           "installed, opened, uninstalled"
 
