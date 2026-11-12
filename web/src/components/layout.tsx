@@ -17,6 +17,7 @@ import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import { AssistantPanel } from "@/components/assistant";
 import { SignOut } from "@/components/sign-out";
+import { UpdateNotice } from "@/components/updates";
 import { WindowControls } from "@/components/window-frame";
 import { useAuthSession, useAuthSetLanguage } from "@/gen/api";
 import { windowFrame } from "@/lib/desktop";
@@ -151,6 +152,7 @@ export function Layout() {
 					))}
 				</nav>
 				<div className="mt-auto grid">
+					<UpdateNotice />
 					<SidebarLink {...settings} />
 				</div>
 				<div className="mt-2 flex items-center justify-between gap-1 border-t border-line pt-3 pl-2">

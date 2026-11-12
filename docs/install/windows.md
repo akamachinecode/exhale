@@ -17,7 +17,7 @@ The window uses Microsoft Edge WebView2, which comes with Windows 10 and 11.
 | Program | `%LOCALAPPDATA%\Programs\Exhale` |
 | Data | `%LOCALAPPDATA%\Exhale` (backups in its `backups` folder) |
 | Log | `%LOCALAPPDATA%\Exhale\exhale.log` |
-| Upgrade | Download the new `Exhale-Setup.exe` and open it: it stops Exhale, replaces it and opens the new version |
+| Upgrade | Settings → General → Updates → **Update**: Exhale downloads the new installer and runs it. By hand: download the new `Exhale-Setup.exe` and open it: it stops Exhale, replaces it and opens the new version |
 | Stop it starting at sign-in | Task Manager → Startup apps → Exhale → Disable |
 | Uninstall | Settings → Apps → Installed apps → Exhale → Uninstall. Your data stays until you delete `%LOCALAPPDATA%\Exhale` |
 

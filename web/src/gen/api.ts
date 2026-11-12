@@ -98,6 +98,12 @@ export interface App {
   verified: boolean;
 }
 
+export interface ApplyUpdateInput {
+  /** A URL to the JSON Schema for this object. */
+  readonly $schema?: string;
+  dryRun?: boolean;
+}
+
 export interface AskIn {
   /** A URL to the JSON Schema for this object. */
   readonly $schema?: string;
@@ -1825,6 +1831,25 @@ export interface ImportReviewOut {
   waiting: boolean;
 }
 
+export type InstallProgressPhase = typeof InstallProgressPhase[keyof typeof InstallProgressPhase];
+
+
+export const InstallProgressPhase = {
+  idle: 'idle',
+  downloading: 'downloading',
+  installing: 'installing',
+  restarting: 'restarting',
+  failed: 'failed',
+} as const;
+
+export interface InstallProgress {
+  done: number;
+  error?: string;
+  phase: InstallProgressPhase;
+  total: number;
+  version?: string;
+}
+
 export type InviteInRole = typeof InviteInRole[keyof typeof InviteInRole];
 
 
@@ -2838,6 +2863,47 @@ export interface UpdateSubscriptionInput {
   weekendShift?: UpdateSubscriptionInputWeekendShift;
 }
 
+export type VersionInfoMethod = typeof VersionInfoMethod[keyof typeof VersionInfoMethod];
+
+
+export const VersionInfoMethod = {
+  'macos-app': 'macos-app',
+  'windows-app': 'windows-app',
+  binary: 'binary',
+  package: 'package',
+  docker: 'docker',
+} as const;
+
+export type VersionInfoReason = typeof VersionInfoReason[keyof typeof VersionInfoReason];
+
+
+export const VersionInfoReason = {
+  '': '',
+  development: 'development',
+  manual: 'manual',
+  'read-only': 'read-only',
+  unsupported: 'unsupported',
+} as const;
+
+export interface VersionInfo {
+  /** A URL to the JSON Schema for this object. */
+  readonly $schema?: string;
+  available: boolean;
+  canApply: boolean;
+  checkError?: string;
+  checkedAt?: string;
+  command?: string;
+  current: string;
+  download?: string;
+  latest?: string;
+  method: VersionInfoMethod;
+  notes?: string;
+  notesUrl?: string;
+  progress: InstallProgress;
+  publishedAt?: string;
+  reason?: VersionInfoReason;
+}
+
 export type AssistantUsageParams = {
 /**
  * @minimum 1
@@ -2894,6 +2960,10 @@ export type ListSubscriptionsParams = {
 status?: string;
 query?: string;
 tag?: string;
+};
+
+export type GetUpdateParams = {
+refresh?: boolean;
 };
 
 type SecondParameter<T extends (...args: never) => unknown> = Parameters<T>[1];
@@ -12938,4 +13008,202 @@ export const useRenameTag = <TError = ErrorModel,
         TContext
       > => {
       return useMutation(getRenameTagMutationOptions(options), queryClient);
+    }
+
+export const getGetUpdateUrl = (params?: GetUpdateParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : String(value))
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/v1/update?${stringifiedParams}` : `/api/v1/update`
+}
+
+/**
+ * The version of Exhale running now and the newest release on GitHub, whether it is newer, what changed (notes and their page), and how this copy was installed: whether apply_update can install it here (the macOS and Windows apps, a binary Exhale may replace) or, if not, the command to run or the file to download (Docker, the Linux packages). Also an update under way: downloading, installing, restarting, or why it failed. refresh asks GitHub again.
+ * @summary Is there a new version of Exhale
+ */
+export const getUpdate = async (params?: GetUpdateParams, options?: Parameters<typeof fetcher>[1]): Promise<VersionInfo> => {
+
+  return fetcher<VersionInfo>(getGetUpdateUrl(params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetUpdateQueryKey = (params?: GetUpdateParams,) => {
+    return [
+    `/api/v1/update`, ...(params ? [params] : [])
+    ] as const;
+    }
+
+
+export const getGetUpdateQueryOptions = <TData = Awaited<ReturnType<typeof getUpdate>>, TError = ErrorModel>(params?: GetUpdateParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getUpdate>>, TError, TData>>, request?: SecondParameter<typeof fetcher>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetUpdateQueryKey(params);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getUpdate>>> = ({ signal }) => getUpdate(params, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getUpdate>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type GetUpdateQueryResult = NonNullable<Awaited<ReturnType<typeof getUpdate>>>
+export type GetUpdateQueryError = ErrorModel
+
+
+export function useGetUpdate<TData = Awaited<ReturnType<typeof getUpdate>>, TError = ErrorModel>(
+ params: undefined |  GetUpdateParams, options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof getUpdate>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getUpdate>>,
+          TError,
+          Awaited<ReturnType<typeof getUpdate>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof fetcher>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useGetUpdate<TData = Awaited<ReturnType<typeof getUpdate>>, TError = ErrorModel>(
+ params?: GetUpdateParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getUpdate>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getUpdate>>,
+          TError,
+          Awaited<ReturnType<typeof getUpdate>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof fetcher>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useGetUpdate<TData = Awaited<ReturnType<typeof getUpdate>>, TError = ErrorModel>(
+ params?: GetUpdateParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getUpdate>>, TError, TData>>, request?: SecondParameter<typeof fetcher>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+/**
+ * @summary Is there a new version of Exhale
+ */
+
+export function useGetUpdate<TData = Awaited<ReturnType<typeof getUpdate>>, TError = ErrorModel>(
+ params?: GetUpdateParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getUpdate>>, TError, TData>>, request?: SecondParameter<typeof fetcher>}
+ , queryClient?: QueryClient
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getGetUpdateQueryOptions(params,options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getApplyUpdateUrl = () => {
+
+
+
+
+  return `/api/v1/update`
+}
+
+/**
+ * Owners only. Installs the newest release of Exhale where it runs: downloads it from GitHub, checks it against the release's checksums, puts it in place of this version and restarts Exhale, which stops answering for a few seconds. Your data stays as it is, and a backup is taken before the database changes. It runs in the background: get_update follows it. Only where get_update says canApply; elsewhere it says the command to run.
+ * @summary Update Exhale
+ */
+export const applyUpdate = async (applyUpdateInput: NonReadonly<ApplyUpdateInput>, options?: Parameters<typeof fetcher>[1]): Promise<VersionInfo> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return fetcher<VersionInfo>(getApplyUpdateUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(applyUpdateInput)
+  }
+);}
+
+
+
+
+
+export const getApplyUpdateMutationKey = () => ['applyUpdate'] as const;
+
+export const getApplyUpdateMutationOptions = <TError = ErrorModel,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof applyUpdate>>, TError,ApplyUpdateMutationVariables, TContext>, request?: SecondParameter<typeof fetcher>}
+): UseMutationOptions<Awaited<ReturnType<typeof applyUpdate>>, TError,ApplyUpdateMutationVariables, TContext> => {
+
+const mutationKey = getApplyUpdateMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof applyUpdate>>, ApplyUpdateMutationVariables> = (props) => {
+          const {data} = props ?? {};
+
+          return  applyUpdate(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type ApplyUpdateMutationResult = NonNullable<Awaited<ReturnType<typeof applyUpdate>>>
+    export type ApplyUpdateMutationBody = NonReadonly<ApplyUpdateInput>
+    export type ApplyUpdateMutationError = ErrorModel
+    export type ApplyUpdateMutationVariables = {data: NonReadonly<ApplyUpdateInput>}
+
+    /**
+ * @summary Update Exhale
+ */
+export const useApplyUpdate = <TError = ErrorModel,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof applyUpdate>>, TError,ApplyUpdateMutationVariables, TContext>, request?: SecondParameter<typeof fetcher>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof applyUpdate>>,
+        TError,
+        ApplyUpdateMutationVariables,
+        TContext
+      > => {
+      return useMutation(getApplyUpdateMutationOptions(options), queryClient);
     }

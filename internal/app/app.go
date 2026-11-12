@@ -14,6 +14,7 @@ import (
 	"github.com/akamachinecode/exhale/internal/domain"
 	"github.com/akamachinecode/exhale/internal/store"
 	"github.com/akamachinecode/exhale/internal/store/db"
+	"github.com/akamachinecode/exhale/internal/update"
 )
 
 // ActorKind says who performs an operation.
@@ -81,6 +82,8 @@ type Service struct {
 	now func() time.Time
 	// keepAwake applies the keep-awake setting (nil outside exhale serve).
 	keepAwake *KeepAwake
+	// updater checks for and installs new versions (nil outside exhale serve).
+	updater *update.Updater
 }
 
 // New returns a Service. now may be nil (time.Now).

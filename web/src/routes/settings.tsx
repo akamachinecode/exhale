@@ -17,6 +17,7 @@ import { TwoFactorSettings } from "@/components/two-factor";
 import { Button } from "@/components/ui/button";
 import { Card, CardHeader } from "@/components/ui/card";
 import { Field, PasswordInput } from "@/components/ui/field";
+import { Updates } from "@/components/updates";
 import { useAuthChangePassword, useAuthSession } from "@/gen/api";
 import { ApiError } from "@/lib/fetcher";
 import { t } from "@/lib/i18n";
@@ -115,6 +116,15 @@ export function SettingsPage() {
 								<KeepAwake />
 							</Section>
 						)}
+						{user?.role === "owner" && (
+							<Section
+								id="updates"
+								title={t("Updates")}
+								description={t("New versions of Exhale, installed with one click.")}
+							>
+								<Updates />
+							</Section>
+						)}
 					</>
 				)}
 				{tab === "channels" && (
@@ -192,18 +202,20 @@ export function SettingsPage() {
 }
 
 function Section({
+	id,
 	title,
 	description,
 	action,
 	children,
 }: {
+	id?: string;
 	title: string;
 	description?: string;
 	action?: ReactNode;
 	children: ReactNode;
 }) {
 	return (
-		<Card>
+		<Card id={id} className={id ? "scroll-mt-6" : undefined}>
 			<CardHeader title={title} description={description} action={action} />
 			<div className="border-t border-line px-5 py-4">{children}</div>
 		</Card>

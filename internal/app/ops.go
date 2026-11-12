@@ -249,6 +249,15 @@ var (
 		Name: "glance", Title: "A glance at what comes next", Tag: "Insights", Method: "GET", Path: "/glance",
 		Description: "The next charges with their amounts already written for the member's language, what the next 30 days cost per currency, and whether this computer is kept awake. Made for small places: the menu bar icon, a widget.",
 	}, (*Service).Glance}
+	// Updating Exhale itself (ADR 0033).
+	OpGetUpdate = Op[GetUpdateInput, UpdateInfo]{Meta{
+		Name: "get_update", Title: "Is there a new version of Exhale", Tag: "Household", Method: "GET", Path: "/update",
+		Description: "The version of Exhale running now and the newest release on GitHub, whether it is newer, what changed (notes and their page), and how this copy was installed: whether apply_update can install it here (the macOS and Windows apps, a binary Exhale may replace) or, if not, the command to run or the file to download (Docker, the Linux packages). Also an update under way: downloading, installing, restarting, or why it failed. refresh asks GitHub again.",
+	}, (*Service).GetUpdate}
+	OpApplyUpdate = Op[ApplyUpdateInput, UpdateInfo]{Meta{
+		Name: "apply_update", Title: "Update Exhale", Tag: "Household", Method: "POST", Path: "/update", Write: true, Idempotent: true,
+		Description: "Owners only. Installs the newest release of Exhale where it runs: downloads it from GitHub, checks it against the release's checksums, puts it in place of this version and restarts Exhale, which stops answering for a few seconds. Your data stays as it is, and a backup is taken before the database changes. It runs in the background: get_update follows it. Only where get_update says canApply; elsewhere it says the command to run.",
+	}, (*Service).ApplyUpdate}
 )
 
 // Catalog lists every use case exposed to adapters.
@@ -265,6 +274,7 @@ func Catalog() []Binding {
 		OpSnooze.Binding(), OpDismissDuplicate.Binding(),
 		OpListDocuments.Binding(), OpDeleteDocument.Binding(), OpRemoveLogo.Binding(),
 		OpGetKeepAwake.Binding(), OpSetKeepAwake.Binding(), OpKeepAwakeSession.Binding(), OpSetupLidClosed.Binding(), OpGlance.Binding(),
+		OpGetUpdate.Binding(), OpApplyUpdate.Binding(),
 		OpMatchStatement.Binding(),
 	}
 }
