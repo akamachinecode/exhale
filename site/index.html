@@ -5,8 +5,15 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Exhale: your subscriptions, handled</title>
 <meta name="description" content="Exhale reminds you before every renewal and lets you fix it from the reminder itself, in Telegram, Slack or your browser. Free, open source, and it runs on your own computer. Downloads for macOS, Windows, Linux and Docker.">
-<meta name="theme-color" content="#fafafa" media="(prefers-color-scheme: light)">
-<meta name="theme-color" content="#0a0a0a" media="(prefers-color-scheme: dark)">
+<meta name="theme-color" content="#0a0a0a">
+<script>
+	// Dark by default, like the app; a light choice (here or in the docs,
+	// which share the key) applies before the first paint.
+	try {
+		var saved = localStorage.getItem("starlight-theme");
+		if (saved === "light" || (saved === "auto" && matchMedia("(prefers-color-scheme: light)").matches)) document.documentElement.dataset.theme = "light";
+	} catch (e) {}
+</script>
 <meta property="og:title" content="Exhale">
 <meta property="og:description" content="Breathe out. Your subscriptions are handled. Reminders you can answer, free and open source, on your own computer.">
 <meta property="og:image" content="https://akamachinecode.github.io/exhale/img/app-dark.webp">
@@ -22,6 +29,8 @@
 	<symbol id="i-docker" viewBox="0 0 24 24"><path d="M13.983 11.078h2.119a.186.186 0 00.186-.185V9.006a.186.186 0 00-.186-.186h-2.119a.185.185 0 00-.185.185v1.888c0 .102.083.185.185.185m-2.954-5.43h2.118a.186.186 0 00.186-.186V3.574a.186.186 0 00-.186-.185h-2.118a.185.185 0 00-.185.185v1.888c0 .102.082.185.185.185m0 2.716h2.118a.187.187 0 00.186-.186V6.29a.186.186 0 00-.186-.185h-2.118a.185.185 0 00-.185.185v1.887c0 .102.082.185.185.186m-2.93 0h2.12a.186.186 0 00.184-.186V6.29a.185.185 0 00-.185-.185H8.1a.185.185 0 00-.185.185v1.887c0 .102.083.185.185.186m-2.964 0h2.119a.186.186 0 00.185-.186V6.29a.185.185 0 00-.185-.185H5.136a.186.186 0 00-.186.185v1.887c0 .102.084.185.186.186m5.893 2.715h2.118a.186.186 0 00.186-.185V9.006a.186.186 0 00-.186-.186h-2.118a.185.185 0 00-.185.185v1.888c0 .102.082.185.185.185m-2.93 0h2.12a.185.185 0 00.184-.185V9.006a.185.185 0 00-.184-.186h-2.12a.185.185 0 00-.184.185v1.888c0 .102.083.185.185.185m-2.964 0h2.119a.185.185 0 00.185-.185V9.006a.185.185 0 00-.184-.186h-2.12a.186.186 0 00-.186.186v1.887c0 .102.084.185.186.185m-2.92 0h2.12a.185.185 0 00.184-.185V9.006a.185.185 0 00-.184-.186h-2.12a.185.185 0 00-.184.185v1.888c0 .102.082.185.185.185M23.763 9.89c-.065-.051-.672-.51-1.954-.51-.338.001-.676.03-1.01.087-.248-1.7-1.653-2.53-1.716-2.566l-.344-.199-.226.327c-.284.438-.49.922-.612 1.43-.23.97-.09 1.882.403 2.661-.595.332-1.55.413-1.744.42H.751a.751.751 0 00-.75.748 11.376 11.376 0 00.692 4.062c.545 1.428 1.355 2.48 2.41 3.124 1.18.723 3.1 1.137 5.275 1.137.983.003 1.963-.086 2.93-.266a12.248 12.248 0 003.823-1.389c.98-.567 1.86-1.288 2.61-2.136 1.252-1.418 1.998-2.997 2.553-4.4h.221c1.372 0 2.215-.549 2.68-1.009.309-.293.55-.65.707-1.046l.098-.288Z"/></symbol>
 	<symbol id="i-github" viewBox="0 0 24 24"><path d="M12 .297c-6.63 0-12 5.373-12 12 0 5.303 3.438 9.8 8.205 11.385.6.113.82-.258.82-.577 0-.285-.01-1.04-.015-2.04-3.338.724-4.042-1.61-4.042-1.61C4.422 18.07 3.633 17.7 3.633 17.7c-1.087-.744.084-.729.084-.729 1.205.084 1.838 1.236 1.838 1.236 1.07 1.835 2.809 1.305 3.495.998.108-.776.417-1.305.76-1.605-2.665-.3-5.466-1.332-5.466-5.93 0-1.31.465-2.38 1.235-3.22-.135-.303-.54-1.523.105-3.176 0 0 1.005-.322 3.3 1.23.96-.267 1.98-.399 3-.405 1.02.006 2.04.138 3 .405 2.28-1.552 3.285-1.23 3.285-1.23.645 1.653.24 2.873.12 3.176.765.84 1.23 1.91 1.23 3.22 0 4.61-2.805 5.625-5.475 5.92.42.36.81 1.096.81 2.22 0 1.606-.015 2.896-.015 3.286 0 .315.21.69.825.57C20.565 22.092 24 17.592 24 12.297c0-6.627-5.373-12-12-12"/></symbol>
 	<symbol id="i-windows" viewBox="0 0 24 24"><path d="M3 5.5 10.5 4.4v7.1H3zm8.5-1.2L21 3v8.5h-9.5zM3 12.5h7.5v7.1L3 18.5zm8.5 0H21V21l-9.5-1.3z"/></symbol>
+	<symbol id="i-sun" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2m-7.07-17.07 1.41 1.41m11.32 11.32 1.41 1.41M2 12h2m16 0h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41"/></g></symbol>
+	<symbol id="i-moon" viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z"/></symbol>
 	<symbol id="i-down" viewBox="0 0 24 24"><path d="M11 4h2v9.17l3.59-3.58L18 11l-6 6-6-6 1.41-1.41L11 13.17z"/><path d="M5 19h14v2H5z"/></symbol>
 </svg>
 
@@ -35,6 +44,7 @@
 			<a href="docs/" data-t="nav.docs">Docs</a>
 			<a href="https://github.com/akamachinecode/exhale" aria-label="GitHub"><svg class="icon"><use href="#i-github"/></svg></a>
 			<button class="lang" type="button" id="lang" aria-label="Español">es</button>
+			<button class="theme-toggle" type="button" id="theme" aria-label="Light mode"><svg class="icon"><use href="#i-sun"/></svg></button>
 		</nav>
 	</div>
 </header>
@@ -55,14 +65,14 @@
 		<p class="fine" id="hero-download-note">Free and open source under the AGPL-3.0. Every build has signed checksums.</p>
 
 		<div class="shots">
-			<picture class="window">
-				<source srcset="img/app-dark.webp" media="(prefers-color-scheme: dark)">
-				<img src="img/app-light.webp" width="2000" height="1250" alt="Exhale's overview: monthly and yearly spend, charges that need attention, the next 30 days and spend by category and by card" data-t-alt="alt.overview">
-			</picture>
-			<picture class="phone">
-				<source srcset="img/phone-dark.webp" media="(prefers-color-scheme: dark)">
-				<img src="img/phone-light.webp" width="780" height="1688" alt="Exhale on a phone, with the dock of every page" data-t-alt="alt.phone">
-			</picture>
+			<div class="window">
+				<img class="for-dark" src="img/app-dark.webp" width="2000" height="1250" alt="Exhale's overview: monthly and yearly spend, charges that need attention, the next 30 days and spend by category and by card" data-t-alt="alt.overview">
+				<img class="for-light" src="img/app-light.webp" width="2000" height="1250" alt="Exhale's overview: monthly and yearly spend, charges that need attention, the next 30 days and spend by category and by card" data-t-alt="alt.overview" loading="lazy">
+			</div>
+			<div class="phone">
+				<img class="for-dark" src="img/phone-dark.webp" width="780" height="1688" alt="Exhale on a phone, with the dock of every page" data-t-alt="alt.phone">
+				<img class="for-light" src="img/phone-light.webp" width="780" height="1688" alt="Exhale on a phone, with the dock of every page" data-t-alt="alt.phone" loading="lazy">
+			</div>
 		</div>
 	</section>
 

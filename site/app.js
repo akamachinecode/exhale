@@ -48,6 +48,7 @@
 		"meta.release": "Version {v}{date}. <a href=\"{notes}\">What's new</a>",
 		"meta.date": ", released {d}",
 		mine: "For this computer", download: "Download", copy: "Copy", copied: "Copied",
+		"theme.light": "Light mode", "theme.dark": "Dark mode",
 		"g.app": "App", "g.cli": "Command line", "g.deb": "Debian, Ubuntu, Raspberry Pi OS", "g.rpm": "Fedora, RHEL, openSUSE", "g.any": "Any distribution",
 		"a.mac": "Apple silicon and Intel", "a.silicon": "Apple silicon", "a.intel": "Intel", "a.x64": "x64", "a.amd64": "x86-64", "a.arm64": "ARM64", "a.armv7": "ARM 32-bit",
 		"k.dmg": "Disk image", "k.installer": "Installer", "k.archive": "Archive", "k.package": "Package",
@@ -108,6 +109,7 @@
 		foot: "Software libre bajo la AGPL-3.0.", "foot.docs": "Documentación", "foot.install": "Guía de instalación", "foot.security": "Seguridad",
 		"foot.changelog": "Cambios", "foot.source": "Código", "foot.issues": "Incidencias",
 		mine: "Para este ordenador", download: "Descargar", copied: "Copiado",
+		"theme.light": "Modo claro", "theme.dark": "Modo oscuro",
 		"g.app": "App", "g.cli": "Línea de comandos", "g.deb": "Debian, Ubuntu, Raspberry Pi OS", "g.rpm": "Fedora, RHEL, openSUSE", "g.any": "Cualquier distribución",
 		"a.mac": "Apple silicon e Intel", "a.silicon": "Apple silicon", "a.intel": "Intel", "a.x64": "x64", "a.amd64": "x86-64", "a.arm64": "ARM64", "a.armv7": "ARM 32 bits",
 		"k.dmg": "Imagen de disco", "k.installer": "Instalador", "k.archive": "Archivo", "k.package": "Paquete",
@@ -148,6 +150,29 @@
 		btn.textContent = other;
 		btn.setAttribute("aria-label", other === "es" ? "Español" : "English");
 		btn.lang = other;
+	}
+
+	// ---- light and dark ----
+
+	// Dark by default, like the app. The choice is stored under the docs'
+	// key (Starlight's "starlight-theme"), so it carries over to /docs/.
+	const light = () => document.documentElement.dataset.theme === "light";
+
+	function renderTheme() {
+		const btn = document.getElementById("theme");
+		// The button offers the other theme, like the app's sun and moon.
+		btn.querySelector("use").setAttribute("href", light() ? "#i-moon" : "#i-sun");
+		btn.setAttribute("aria-label", t(light() ? "theme.dark" : "theme.light"));
+		btn.title = btn.getAttribute("aria-label");
+		document.querySelector('meta[name="theme-color"]').content = light() ? "#fafafa" : "#0a0a0a";
+	}
+
+	function toggleTheme() {
+		const next = light() ? "dark" : "light";
+		if (next === "light") document.documentElement.dataset.theme = "light";
+		else delete document.documentElement.dataset.theme;
+		try { localStorage.setItem("starlight-theme", next); } catch (e) { /* storage blocked */ }
+		renderTheme();
 	}
 
 	// ---- what is the visitor on ----
@@ -353,12 +378,14 @@
 		let pick = desktop ? choose(os, "amd64", detectDistro()) : null;
 		const render = () => {
 			translatePage();
+			renderTheme();
 			renderLists(release, pick);
 			renderHero(release, os, pick);
 			renderMeta(release);
 		};
 
 		wireTabs(os);
+		document.getElementById("theme").addEventListener("click", toggleTheme);
 		document.getElementById("lang").addEventListener("click", () => {
 			lang = lang === "es" ? "en" : "es";
 			try { localStorage.setItem("lang", lang); } catch (e) { /* storage blocked */ }

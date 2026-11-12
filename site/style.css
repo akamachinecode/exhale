@@ -1,12 +1,13 @@
 /* Exhale's download page. Same look as the app (web/src/styles.css): black,
    white and greys in both themes, Geist, and the brand gradient only on the
-   logo and the headline. Light or dark follows the visitor's system. */
+   logo and the headline. Dark by default, like the app; the button in the
+   header switches to light (data-theme="light" on <html>) and remembers it. */
 
 @font-face { font-family: "Geist"; src: url(fonts/geist.woff2) format("woff2"); font-weight: 100 900; font-display: swap; }
 @font-face { font-family: "Geist Mono"; src: url(fonts/geist-mono.woff2) format("woff2"); font-weight: 100 900; font-display: swap; }
 
 :root {
-	color-scheme: light dark;
+	color-scheme: dark;
 	--bg: light-dark(oklch(0.985 0 0), oklch(0.13 0 0));
 	--surface: light-dark(oklch(1 0 0), oklch(0.165 0 0));
 	--raised: light-dark(oklch(0.955 0 0), oklch(0.205 0 0));
@@ -22,10 +23,15 @@
 	--shadow: light-dark(oklch(0.2 0.02 260 / 0.22), oklch(0 0 0 / 0.75));
 	--radius: 14px;
 }
-/* The light gradient is too pale on white: the same hues, darker. */
-@media (prefers-color-scheme: light) {
-	:root { --brand: linear-gradient(120deg, oklch(0.52 0.19 300), oklch(0.53 0.15 245) 50%, oklch(0.56 0.12 185)); }
+/* Light: the same palette through light-dark(), and the gradient's hues
+   darker, since the dark ones are too pale on white. */
+:root[data-theme="light"] {
+	color-scheme: light;
+	--brand: linear-gradient(120deg, oklch(0.52 0.19 300), oklch(0.53 0.15 245) 50%, oklch(0.56 0.12 185));
 }
+/* Each screenshot is in the page twice; only the current theme's shows. */
+.for-light, :root[data-theme="light"] .for-dark { display: none; }
+:root[data-theme="light"] .for-light { display: block; }
 
 * { box-sizing: border-box; }
 html { scroll-behavior: smooth; scroll-padding-top: 72px; }
@@ -65,9 +71,11 @@ h2 { margin: 0; font-size: clamp(28px, 4vw, 40px); line-height: 1.1; letter-spac
 .logo { display: flex; align-items: center; gap: 10px; text-decoration: none; font-weight: 600; font-size: 16px; letter-spacing: -0.02em; }
 .logo img { width: 28px; height: 28px; }
 .top nav { display: flex; align-items: center; gap: 2px; margin-left: auto; }
-.top nav a, .lang { color: var(--muted); text-decoration: none; font-size: 14px; padding: 6px 10px; border-radius: 8px; transition: color .15s, background-color .15s; }
-.top nav a:hover, .lang:hover { color: var(--fg); background: var(--raised); }
+.top nav a, .lang, .theme-toggle { color: var(--muted); text-decoration: none; font-size: 14px; padding: 6px 10px; border-radius: 8px; transition: color .15s, background-color .15s; }
+.top nav a:hover, .lang:hover, .theme-toggle:hover { color: var(--fg); background: var(--raised); }
 .lang { background: none; border: 0; font: inherit; font-size: 12px; font-weight: 600; text-transform: uppercase; cursor: pointer; }
+.theme-toggle { display: grid; place-items: center; padding: 6px 8px; background: none; border: 0; cursor: pointer; }
+.theme-toggle .icon { width: 16px; height: 16px; }
 @media (max-width: 640px) { .top nav .wide { display: none; } }
 
 /* hero */
