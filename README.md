@@ -1,37 +1,74 @@
+<div align="center">
+
+<img src="site/favicon.svg" width="72" height="72" alt="">
+
 # Exhale
 
-[![CI](https://github.com/akamachinecode/exhale/actions/workflows/ci.yml/badge.svg)](https://github.com/akamachinecode/exhale/actions/workflows/ci.yml)
+### Breathe out. Your subscriptions are handled.
+
+Exhale reminds you before every renewal and lets you fix it **from the reminder itself**:<br>
+mark it paid, move the date, change the card, cancel. In Telegram, Slack or your browser.<br>
+It runs on your own computer, so your data stays with you.
+
+**[Download](https://akamachinecode.github.io/exhale/)** · **[Documentation](https://akamachinecode.github.io/exhale/docs/)** · **[Releases](https://github.com/akamachinecode/exhale/releases)**
+
 [![Release](https://img.shields.io/github/v/release/akamachinecode/exhale?include_prereleases&sort=semver)](https://github.com/akamachinecode/exhale/releases)
+[![CI](https://github.com/akamachinecode/exhale/actions/workflows/ci.yml/badge.svg)](https://github.com/akamachinecode/exhale/actions/workflows/ci.yml)
 [![License: AGPL-3.0](https://img.shields.io/badge/license-AGPL--3.0-blue)](LICENSE)
 
-> Breathe out. Your subscriptions are handled.
+Free and open source · macOS, Windows, Linux and Docker · English and Spanish
 
-Exhale is an open-source, self-hosted subscription manager where **the reminder is the interface**. The message that tells you Netflix renews in three days lets you fix it right there: mark it paid, move the date, change the card or the amount, cancel. The message updates in place, and so does the web.
+<br>
 
-It is one program with one data folder. No cloud, no account with us, no telemetry, no paid tier.
+<img src="site/img/overview.webp" alt="Exhale's overview: monthly and yearly spend, charges that need you, the next 30 days and spend by category" width="900">
 
-**Status:** early (0.x). It works and is used daily by its author; expect rough edges, and read the release notes before upgrading.
+</div>
 
-## What it does
+<br>
 
-- **Reminders you can answer.** In Telegram (and Slack), each reminder carries the buttons that fit: already paid, new date (this charge or from now on), another amount, payment method, skip, cancel, undo. Also by email, ntfy and webhook as one-way notifications.
-- **The whole app inside a chat message.** A pinned message in Telegram is Exhale itself: spend, upcoming charges, every subscription, an add wizard, payment methods, settings and a check-up. It redraws when anything changes.
-- **The dates that actually cost money.** Free trials (reminds before the first charge), notice periods (reminds before the last day to cancel and asks "keep or cancel?"), things that expire unless renewed (domains, licences), fixed-term contracts, and price changes announced in advance.
-- **Billing days as banks charge them.** Day 31 falls on the last day of shorter months and comes back on the 31st; "the third Wednesday" or "the last Friday"; charges that fall on a weekend moved to the next or previous business day. Dates are always counted from the first charge, so they never drift.
-- **Memory.** Every charge is a row with its own state, so Exhale knows what you really paid, when the price went up and by how much, and what each subscription has cost since you track it.
-- **A check-up of facts, not tips.** The same service paid twice, prices that rose in the last year, trials about to charge, deadlines, big yearly charges coming, a card about to expire and everything that depends on it, subscriptions you said you no longer use.
-- **Sharing.** Other people get their own account and their own reminders. Split the cost of a subscription and see who owes whom each month. Private subscriptions stay private.
-- **Money done properly.** Any currency, exact amounts, totals converted with ECB reference rates, how much to put away each month for yearly bills, and what is due before payday.
-- **For AI agents.** Every operation is a tool over MCP, with a live briefing, previews before any change, confirmation for destructive ones and undo for everything. Claude, ChatGPT or a local model can read and manage your subscriptions safely.
-- **Tools for many subscriptions.** Search by name, notes, account, category or tag; free tags; duplicate a subscription; change many at once (category, payment method, tags, pause, cancel, delete) with a preview and one undo; and, when you record a plan's other price (say, yearly), what switching saves. See [the guide](docs/guides/many-subscriptions.md).
-- **Your data goes in and out.** Import a Wallos database, a CSV or an Exhale export through a review list; import your bank's statement (CSV or PDF, in the web or sent to the bot) to find subscriptions and confirm the charges you expected; export everything as JSON, CSV or a ZIP with your attached documents; subscribe to a private calendar feed.
-- **Easy to run.** A single binary, installers for macOS and Windows, a container image, `.deb`/`.rpm` packages with a hardened systemd service, automatic daily backups, sign-in with a password or your identity provider (OpenID Connect). English and Spanish, in chat and on the web; [adding a language](docs/guides/translating.md) is two JSON files.
+## The reminder is the app
 
-## Install
+Most tools tell you Netflix renews in three days and leave the rest to you. Exhale's reminder is where you deal with it. This is a real one, in Telegram:
 
-Get the installer for your computer from the **[download page](https://akamachinecode.github.io/exhale/)**: `Exhale.dmg` for macOS, `Exhale-Setup.exe` for Windows, `.deb` or `.rpm` for Linux. Open it: Exhale starts, opens in your browser and starts again with your computer. Create your account and follow the steps on the home page.
+```text
+🔔 Spotify Family renews in 3 days
+   💶 €17.99 · Sun, 8 Nov 2026
+   💳 Revolut ••0937
 
-On a server or NAS, with Docker:
+   [ ✅ Already paid ]      [ 📅 Change date ]
+   [ 💳 Payment method ]    [ ✏️ Amount ]
+   [ ⏭ Skip this one ]      [ ❌ Cancel subscription ]
+   [ 💤 Remind me tomorrow ] [ 💤 In 3 days ]
+```
+
+One tap and the message updates in place, with an undo. The web updates at the same moment.
+
+## Why people switch to Exhale
+
+|  |  |
+|---|---|
+| 🔔 **Reminders you can answer** | Already paid, a new date (this charge or from now on), another amount or card, skip, cancel, undo. Also by email, ntfy, web push and webhook. |
+| 📱 **The whole app in a chat message** | A pinned Telegram message is Exhale itself: spend, upcoming charges, every subscription, an add wizard, payment methods and settings. It redraws when anything changes. |
+| ⏳ **The dates that cost money** | Free trials before they charge, the last day to cancel, renewals that need you (domains, licences), fixed-term contracts and price rises announced ahead. |
+| 📆 **Billing days as banks charge them** | Day 31 in short months, "the third Wednesday", weekends moved to a business day. Counted from the first charge, so dates never drift. |
+| 🩺 **A check-up of facts, not tips** | The same service paid twice, prices that went up this year, trials about to charge, a card about to expire and everything that depends on it. |
+| 💶 **Every currency, exact** | Totals in your currency at ECB rates, what each subscription has really cost you, and how much to set aside each month for the yearly bills. |
+| 👥 **Shared, not mixed** | A partner or flatmates get their own account and reminders. Split a subscription and see who owes whom. Private ones stay private. |
+| 🤖 **Ask it anything** | Plain language in chat, or Claude, ChatGPT and local models over MCP. Every change shows a preview first and can be undone. |
+| 📥 **Bring everything with you** | Import from Wallos, a spreadsheet or your bank statement (CSV or PDF). Export it all as JSON, CSV or ZIP, or follow it in your calendar. |
+| 🔒 **Yours, on your computer** | One program, one data folder, a backup every day. No cloud, no telemetry, no account with us, no paid tier. |
+
+## Up and running in a minute
+
+1. **Download and open it.** Get `Exhale.dmg` (macOS), `Exhale-Setup.exe` (Windows) or a `.deb`/`.rpm` (Linux) from the **[download page](https://akamachinecode.github.io/exhale/)**. Exhale opens in its own window and starts by itself with your computer.
+2. **Create your account.** The home page walks you through the rest. Making your own Telegram bot takes a minute and is guided.
+3. **Add your subscriptions.** By hand, from Wallos or a spreadsheet, or from your bank statement. Reminders start the same day.
+
+No public address needed: Exhale talks to Telegram and Slack with outgoing connections only, so it works behind a home router.
+
+### On a server or NAS
+
+An always-on machine (a home server, a Raspberry Pi, a VPS) never misses a reminder:
 
 ```sh
 docker run -d --name exhale --restart unless-stopped \
@@ -40,46 +77,66 @@ docker run -d --name exhale --restart unless-stopped \
 docker logs exhale   # shows the one-time setup code
 ```
 
-Open `http://<server>:8484`, enter the setup code, create your account and follow the steps on the home page: create your own Telegram bot (guided), link your chat, add your subscriptions or import them, and connect your AI agent if you use one.
+Open `http://<server>:8484`, enter the setup code and follow the steps on the home page. The [install guide](docs/install/README.md) covers Linux packages with a hardened systemd service, [HTTPS and remote access](docs/install/https.md), [backups](docs/install/backups.md) and [single sign-on](docs/install/sso.md).
 
-Exhale needs no public address: it talks to Telegram and Slack with outgoing connections only, so it works behind a home router.
+## Questions before installing
 
-Every file is also on the [releases page](https://github.com/akamachinecode/exhale/releases), with an install script for any Linux and plain binaries. The [install guide](docs/install/README.md) covers each one, plus HTTPS and backups.
+<details>
+<summary><b>Does my computer have to be on?</b></summary>
 
-From source:
+Reminders go out while Exhale is running. On a laptop that sleeps, Exhale can keep it awake (Settings → This computer), and anything due while it slept is sent when it wakes. A home server or a Raspberry Pi that never sleeps is ideal.
+</details>
+
+<details>
+<summary><b>Where is my data?</b></summary>
+
+In one folder on your computer, backed up every day. Nothing is sent anywhere unless you set up a channel such as Telegram.
+</details>
+
+<details>
+<summary><b>Can I use it on my phone?</b></summary>
+
+Yes. Reminders reach your phone through Telegram or Slack, and the web works on a phone. Exhale itself runs on a computer.
+</details>
+
+<details>
+<summary><b>Is it really free?</b></summary>
+
+Yes. Exhale is free software under the AGPL-3.0, with no paid tier, no account with us and no telemetry.
+</details>
+
+<details>
+<summary><b>I use Wallos. Can I move over?</b></summary>
+
+Yes. Import your Wallos database and review every subscription before it is saved.
+</details>
+
+## Learn more
+
+The **[documentation site](https://akamachinecode.github.io/exhale/docs/)** has every guide, with search, the REST API reference and [`llms.txt`](https://akamachinecode.github.io/exhale/docs/llms.txt) for language models. A few places to start:
+
+- [Reminders that end in an answer](docs/guides/reminders.md) and [reminders by email, ntfy and webhook](docs/guides/notifications.md)
+- [Slack](docs/guides/slack.md) and [Exhale for a team](docs/guides/teams.md)
+- [The in-app assistant](docs/guides/assistant.md) and [connecting a remote AI agent](docs/guides/remote-agents.md)
+- [Tools for many subscriptions](docs/guides/many-subscriptions.md)
+- [Vision](docs/vision.md) and [architecture decisions](docs/adr/README.md)
+
+> **Status:** Exhale is young (0.x). It is used every day by its author; read the [release notes](CHANGELOG.md) before upgrading.
+
+## Contributing
+
+Contributions are welcome, from a translation ([two JSON files](docs/guides/translating.md)) to a new feature. Read [CONTRIBUTING.md](CONTRIBUTING.md) and [AGENTS.md](AGENTS.md), the map of the code for people and coding agents. Every technical decision is recorded as an [ADR](docs/adr/README.md).
 
 ```sh
 git clone https://github.com/akamachinecode/exhale && cd exhale
 mise install        # Go, Node, pnpm and the other tools
 mise run build      # builds the web UI into the binary: bin/exhale
 ./bin/exhale serve  # http://127.0.0.1:8484
+mise run test       # Go tests with the race detector
 ```
-
-## Documentation
-
-Everything is on the **[documentation site](https://akamachinecode.github.io/exhale/docs/)**, with search, the REST API reference and [`llms.txt`](https://akamachinecode.github.io/exhale/docs/llms.txt) for language models. The same pages are in [`docs/`](docs/):
-
-- [Install](docs/install/README.md): [macOS](docs/install/macos.md), [Windows](docs/install/windows.md), Linux packages and service, Docker, [HTTPS and remote access](docs/install/https.md), [backups](docs/install/backups.md), [single sign-on](docs/install/sso.md)
-- [Exhale for a team](docs/guides/teams.md)
-- [Reminders by email, ntfy and webhook](docs/guides/notifications.md)
-- [Reminders that end in an answer](docs/guides/reminders.md): snooze, asking again, duplicates, cards about to expire
-- [Vision](docs/vision.md) and [architecture decisions](docs/adr/README.md)
-- [What other tools do and what we took from them](docs/research/2026-11-10-feature-scan.md)
-
-## Contributing
-
-Read [CONTRIBUTING.md](CONTRIBUTING.md) and [AGENTS.md](AGENTS.md) (the map of the code, for people and coding agents). Commits follow Conventional Commits and are signed off (DCO). Every technical decision is recorded as an ADR.
-
-```sh
-mise run test   # Go tests with the race detector
-mise run lint   # golangci-lint
-mise run gen    # after changing SQL or the API
-```
-
-## Security
 
 Report vulnerabilities as described in [SECURITY.md](SECURITY.md).
 
 ## Licence
 
-[AGPL-3.0-or-later](LICENSE).
+[AGPL-3.0-or-later](LICENSE). Free to use, change and share.
