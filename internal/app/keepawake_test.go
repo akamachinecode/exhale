@@ -384,6 +384,7 @@ func TestKeepAwakeSessionSurvivesARestart(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	done := make(chan struct{})
 	go func() { _ = ka.Serve(ctx); close(done) }()
+	waitStatus(t, ka, func(st KeepAwakeStatus) bool { return st.State == AwakeActive })
 	f.at(t, "2026-11-05 10:20") // 40 minutes left when the computer restarts
 	cancel()
 	<-done
@@ -399,18 +400,22 @@ func TestKeepAwakeSessionSurvivesARestart(t *testing.T) {
 	ctx, cancel = context.WithCancel(context.Background())
 	done = make(chan struct{})
 	go func() { _ = ka.Serve(ctx); close(done) }()
+	// 12:20 in Madrid is 11:20 UTC; 40 minutes later, 12:00 UTC.
+	waitStatus(t, ka, func(st KeepAwakeStatus) bool { return st.Until == "2026-11-05T12:00:00Z" })
+	cancel()
+	<-done
+}
+
+// waitStatus waits for the controller, running in Serve, to reach a status.
+func waitStatus(t *testing.T, ka *KeepAwake, ok func(KeepAwakeStatus) bool) {
+	t.Helper()
 	deadline := time.Now().Add(2 * time.Second)
-	for ka.Status().State != AwakeActive {
+	for !ok(ka.Status()) {
 		if time.Now().After(deadline) {
-			t.Fatalf("not resumed: %+v", ka.Status())
+			t.Fatalf("status never came: %+v", ka.Status())
 		}
 		time.Sleep(10 * time.Millisecond)
 	}
-	if st := ka.Status(); st.Until != "2026-11-05T12:00:00Z" {
-		t.Fatalf("resumed until %s", st.Until)
-	}
-	cancel()
-	<-done
 }
 
 func TestKeepAwakeOnBattery(t *testing.T) {
