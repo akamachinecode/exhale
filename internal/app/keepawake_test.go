@@ -3,6 +3,7 @@ package app
 import (
 	"context"
 	"errors"
+	"sync"
 	"testing"
 	"time"
 
@@ -379,13 +380,27 @@ func TestKeepAwakeSessionOverHours(t *testing.T) {
 func TestKeepAwakeSessionSurvivesARestart(t *testing.T) {
 	f, k, ka := awakeFixture(t)
 	ka.MaxSleep = time.Hour
+	// Serve reads the clock on its own goroutine: a clock safe to move.
+	var mu sync.Mutex
 	f.at(t, "2026-11-05 10:00")
+	clock := f.now
+	f.svc.now = func() time.Time {
+		mu.Lock()
+		defer mu.Unlock()
+		return clock
+	}
+	move := func(at string) {
+		f.at(t, at)
+		mu.Lock()
+		clock = f.now
+		mu.Unlock()
+	}
 	f.session(t, KeepAwakeSessionInput{Action: SessionStart, Minutes: 60})
 	ctx, cancel := context.WithCancel(context.Background())
 	done := make(chan struct{})
 	go func() { _ = ka.Serve(ctx); close(done) }()
 	waitStatus(t, ka, func(st KeepAwakeStatus) bool { return st.State == AwakeActive })
-	f.at(t, "2026-11-05 10:20") // 40 minutes left when the computer restarts
+	move("2026-11-05 10:20") // 40 minutes left when the computer restarts
 	cancel()
 	<-done
 	if k.holding {
@@ -396,7 +411,7 @@ func TestKeepAwakeSessionSurvivesARestart(t *testing.T) {
 		t.Fatalf("left = %d", set.Session.Left)
 	}
 	// Back two hours later: it resumes with its 40 minutes.
-	f.at(t, "2026-11-05 12:20")
+	move("2026-11-05 12:20")
 	ctx, cancel = context.WithCancel(context.Background())
 	done = make(chan struct{})
 	go func() { _ = ka.Serve(ctx); close(done) }()
