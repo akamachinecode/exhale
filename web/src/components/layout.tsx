@@ -170,8 +170,10 @@ export function Layout() {
 					data-no-drag
 					className="lg:flex lg:min-h-0 lg:flex-1 lg:flex-col lg:overflow-hidden lg:rounded-xl lg:bg-bg lg:shadow-[var(--card-shadow)]"
 				>
-					{/* Windows and Linux: the window's own title bar, inside the card. */}
-					{windowFrame === "frame" && (
+					{/* The window's own title bar, inside the card: what moves the window
+					    and fills the screen on a double click, plus the buttons on
+					    Windows and Linux (on a Mac they are the traffic lights). */}
+					{windowFrame && (
 						<div data-drag className="hidden h-11 shrink-0 items-center justify-end px-2 lg:flex">
 							<WindowControls />
 						</div>
