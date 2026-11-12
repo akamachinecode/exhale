@@ -114,6 +114,8 @@ More in [Backups](backups.md).
 
 ## Upgrade
 
+Owners see new versions in the web (Settings → General → Updates). A container cannot replace itself; run:
+
 ```sh
 docker compose pull && docker compose up -d
 ```

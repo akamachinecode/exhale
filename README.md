@@ -59,7 +59,7 @@ One tap and the message updates in place, with an undo. The web updates at the s
 | 👥 **Shared, not mixed** | A partner or flatmates get their own account and reminders. Split a subscription and see who owes whom. Private ones stay private. |
 | 🤖 **Ask it anything** | Plain language in chat, or Claude, ChatGPT and local models over MCP. Every change shows a preview first and can be undone. |
 | 📥 **Bring everything with you** | Import from Wallos or a spreadsheet. Export it all as JSON, CSV or ZIP, or follow your charges in your calendar. |
-| 🔒 **Yours, on your computer** | One program, one data folder, a backup every day. No cloud, no telemetry, no account with us, no paid tier. |
+| 🔒 **Yours, on your computer** | One program, one data folder, a backup every day, and each new version installed with one click. No cloud, no telemetry, no account with us, no paid tier. |
 
 ## Download
 

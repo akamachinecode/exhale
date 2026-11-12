@@ -16,7 +16,7 @@ Links to other sites (Telegram, a service's page) open in your browser, and down
 |---|---|
 | Data | `~/Library/Application Support/Exhale` (backups in its `backups` folder) |
 | Log | `~/Library/Logs/Exhale.log` (also in Console.app) |
-| Upgrade | Download the new `Exhale.dmg`, drag Exhale to Applications again (Replace) and open it: the running server is restarted in the new version |
+| Upgrade | Settings → General → Updates → **Update**: Exhale downloads the new version, replaces itself and restarts. By hand: download the new `Exhale.dmg`, drag Exhale to Applications again (Replace) and open it |
 | Stop it starting at login | Turn Exhale off in Login Items |
 | Uninstall | Turn it off in Login Items and drag Exhale to the Trash. Your data stays until you delete its folder. If you allowed the lid option: `sudo pmset disablesleep 0 && sudo rm /etc/sudoers.d/exhale` |
 

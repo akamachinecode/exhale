@@ -145,6 +145,10 @@ func Run(o Options) error {
 		},
 	})
 	b.watchState()
+	// A new version on disk reopens the window with it (ADR 0033).
+	app.Event.OnApplicationEvent(events.Common.ApplicationStarted, func(*application.ApplicationEvent) {
+		go b.followUpdates(app.Context())
+	})
 	if withTray {
 		b.tray = startTray(app, b, desktop.Client{Base: base.String(), DataDir: o.DataDir}, log)
 		// Closing the window hides it: the icon stays, and brings it back.

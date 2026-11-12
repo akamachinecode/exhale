@@ -48,6 +48,8 @@ Accepted ADRs are not rewritten. A decision that changes gets a new ADR that sup
 | [0029](0029-desktop-installers.md) | Desktop installers (dmg, setup.exe, deb/rpm) and a download page | Accepted |
 | [0030](0030-desktop-window.md) | Exhale's own window, with Wails | Accepted |
 | [0031](0031-window-title-bar.md) | The window draws its own title bar | Accepted |
+| [0032](0032-menu-bar-and-keep-awake-sessions.md) | A menu bar icon, and keeping a closed laptop awake | Accepted |
+| [0033](0033-one-click-updates.md) | Updating Exhale with one click, from GitHub Releases | Accepted |
 
 Open questions are tracked in [../open-questions.md](../open-questions.md).
 

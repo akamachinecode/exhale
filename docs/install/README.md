@@ -63,6 +63,7 @@ Every setting is a flag of `exhale serve` and an environment variable. Flags win
 | `EXHALE_BACKUP_DIR` | `--backup-dir` | `<data dir>/backups` | Where the daily backups go |
 | `EXHALE_BACKUP_KEEP` | `--backup-keep` | `14` | Automatic backups to keep. `0` keeps all |
 | `EXHALE_NO_BACKUPS` | `--no-backups` | off | Turns the daily backups off |
+| `EXHALE_UPDATE_CHECK` | `--[no-]update-check` | on | Checks GitHub once a day for a new version, shown to owners in Settings → Updates. `false`: only **Check now** asks |
 | `EXHALE_TELEGRAM_TOKEN` | `--telegram-token` | none | Bot token. Usually set from the web instead; set here, the web cannot change it |
 | `EXHALE_LOG_LEVEL` | `--log-level` | `info` | `debug`, `info`, `warn` or `error` |
 | `EXHALE_LOG_FORMAT` | `--log-format` | `text` | `text` or `json` |

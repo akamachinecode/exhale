@@ -87,6 +87,24 @@
         ],
         "type": "object"
       },
+      "ApplyUpdateInput": {
+        "additionalProperties": false,
+        "properties": {
+          "$schema": {
+            "description": "A URL to the JSON Schema for this object.",
+            "examples": [
+              "https://example.com/api/schemas/ApplyUpdateInput.json"
+            ],
+            "format": "uri",
+            "readOnly": true,
+            "type": "string"
+          },
+          "dryRun": {
+            "type": "boolean"
+          }
+        },
+        "type": "object"
+      },
       "AskIn": {
         "additionalProperties": false,
         "properties": {
@@ -3348,6 +3366,41 @@
         },
         "required": [
           "waiting"
+        ],
+        "type": "object"
+      },
+      "InstallProgress": {
+        "additionalProperties": false,
+        "properties": {
+          "done": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "error": {
+            "type": "string"
+          },
+          "phase": {
+            "enum": [
+              "idle",
+              "downloading",
+              "installing",
+              "restarting",
+              "failed"
+            ],
+            "type": "string"
+          },
+          "total": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "version": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "phase",
+          "done",
+          "total"
         ],
         "type": "object"
       },
@@ -7346,6 +7399,84 @@
         "required": [
           "from",
           "rule"
+        ],
+        "type": "object"
+      },
+      "VersionInfo": {
+        "additionalProperties": false,
+        "properties": {
+          "$schema": {
+            "description": "A URL to the JSON Schema for this object.",
+            "examples": [
+              "https://example.com/api/schemas/VersionInfo.json"
+            ],
+            "format": "uri",
+            "readOnly": true,
+            "type": "string"
+          },
+          "available": {
+            "type": "boolean"
+          },
+          "canApply": {
+            "type": "boolean"
+          },
+          "checkError": {
+            "type": "string"
+          },
+          "checkedAt": {
+            "type": "string"
+          },
+          "command": {
+            "type": "string"
+          },
+          "current": {
+            "type": "string"
+          },
+          "download": {
+            "type": "string"
+          },
+          "latest": {
+            "type": "string"
+          },
+          "method": {
+            "enum": [
+              "macos-app",
+              "windows-app",
+              "binary",
+              "package",
+              "docker"
+            ],
+            "type": "string"
+          },
+          "notes": {
+            "type": "string"
+          },
+          "notesUrl": {
+            "type": "string"
+          },
+          "progress": {
+            "$ref": "#/components/schemas/InstallProgress"
+          },
+          "publishedAt": {
+            "type": "string"
+          },
+          "reason": {
+            "enum": [
+              "",
+              "development",
+              "manual",
+              "read-only",
+              "unsupported"
+            ],
+            "type": "string"
+          }
+        },
+        "required": [
+          "current",
+          "available",
+          "method",
+          "canApply",
+          "progress"
         ],
         "type": "object"
       },
@@ -11881,6 +12012,98 @@
         "summary": "Rename a tag",
         "tags": [
           "Subscriptions"
+        ]
+      }
+    },
+    "/api/v1/update": {
+      "get": {
+        "description": "The version of Exhale running now and the newest release on GitHub, whether it is newer, what changed (notes and their page), and how this copy was installed: whether apply_update can install it here (the macOS and Windows apps, a binary Exhale may replace) or, if not, the command to run or the file to download (Docker, the Linux packages). Also an update under way: downloading, installing, restarting, or why it failed. refresh asks GitHub again.",
+        "operationId": "get_update",
+        "parameters": [
+          {
+            "explode": false,
+            "in": "query",
+            "name": "refresh",
+            "schema": {
+              "type": "boolean"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/VersionInfo"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorModel"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Is there a new version of Exhale",
+        "tags": [
+          "Household"
+        ]
+      },
+      "post": {
+        "description": "Owners only. Installs the newest release of Exhale where it runs: downloads it from GitHub, checks it against the release's checksums, puts it in place of this version and restarts Exhale, which stops answering for a few seconds. Your data stays as it is, and a backup is taken before the database changes. It runs in the background: get_update follows it. Only where get_update says canApply; elsewhere it says the command to run.",
+        "operationId": "apply_update",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ApplyUpdateInput"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/VersionInfo"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorModel"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Update Exhale",
+        "tags": [
+          "Household"
         ]
       }
     }

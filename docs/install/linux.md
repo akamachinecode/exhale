@@ -110,10 +110,13 @@ Do not run them as root: files created by root in `/var/lib/exhale` cannot be wr
 
 ## Upgrade
 
-- **Package:** download the new package and install it the same way. A running service is restarted.
-- **Script:** run `sh install.sh --service` again.
+When a new version is out, owners see it in the web (Settings → General → Updates), with the command for this install:
 
-There is no apt or dnf repository yet, so upgrades are not automatic.
+- **Package:** download the new package and install it the same way, for example `sudo dnf install https://github.com/akamachinecode/exhale/releases/download/v<version>/exhale_linux_amd64.rpm`. A running service is restarted, and the window and tray icon reopen in the new version.
+- **Script:** run `sh install.sh --service` again.
+- **A binary in a folder your user owns** (for example `~/.local/bin`): the **Update** button replaces it and restarts Exhale, with no command.
+
+There is no apt or dnf repository yet, so packages do not update with the system. Exhale checks GitHub once a day for a new version; `EXHALE_UPDATE_CHECK=false` in the settings file turns that off (then only **Check now** asks).
 
 On the first start after an upgrade Exhale updates its database by itself. Before doing so it saves a copy in `/var/lib/exhale/backups/pre-migrate-…db`.
 

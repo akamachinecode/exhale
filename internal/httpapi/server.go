@@ -281,6 +281,8 @@ func registerAll(api huma.API, svc *app.Service) {
 	register(api, svc, app.OpSetKeepAwake)
 	register(api, svc, app.OpKeepAwakeSession)
 	register(api, svc, app.OpSetupLidClosed)
+	register(api, svc, app.OpGetUpdate)
+	register(api, svc, app.OpApplyUpdate)
 	register(api, svc, app.OpGlance)
 }
 

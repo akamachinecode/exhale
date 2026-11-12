@@ -41,6 +41,7 @@ import (
 	"github.com/akamachinecode/exhale/internal/platform"
 	"github.com/akamachinecode/exhale/internal/scheduler"
 	"github.com/akamachinecode/exhale/internal/store"
+	"github.com/akamachinecode/exhale/internal/update"
 )
 
 // version is set at build time by goreleaser.
@@ -93,8 +94,21 @@ func main() {
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
 	kctx.BindTo(ctx, (*context.Context)(nil))
-	kctx.FatalIfErrorf(kctx.Run(&c.globals))
+	err = kctx.Run(&c.globals)
+	// The server stopped for a new version: start it (ADR 0033).
+	var r restart
+	if errors.As(err, &r) {
+		err = r.Finish()
+	}
+	kctx.FatalIfErrorf(err)
 }
+
+// restart is serve stopping for a new version, once the database is
+// closed: Finish runs the new binary in this process's place, or the
+// Windows installer.
+type restart struct{ *update.Updater }
+
+func (restart) Error() string { return "exhale: restarting into the new version" }
 
 // hasArgs reports real arguments: macOS used to pass -psn_… to apps
 // opened from Finder.
@@ -171,6 +185,9 @@ type serveCmd struct {
 	AssistantModel    string `name:"assistant-model" env:"EXHALE_ASSISTANT_MODEL" help:"Model id for the assistant."`
 	AssistantBaseURL  string `name:"assistant-base-url" env:"EXHALE_ASSISTANT_BASE_URL" help:"Address of the assistant's endpoint, for example http://localhost:11434/v1 for Ollama."`
 	Dev               bool   `help:"Development mode."`
+	// New versions (ADR 0033).
+	UpdateCheck bool   `name:"update-check" env:"EXHALE_UPDATE_CHECK" default:"true" negatable:"" help:"Check GitHub once a day for a new version of Exhale, so owners see it in the web. With --no-update-check, only Check now in Settings asks."`
+	UpdateAPI   string `name:"update-api" env:"EXHALE_UPDATE_API" hidden:"" help:"GitHub API of the repository releases come from (tests)."`
 	oidcFlags
 
 	// Email, ntfy and webhooks. All optional: owners usually set them in
@@ -189,6 +206,9 @@ type serveCmd struct {
 }
 
 func (s *serveCmd) Run(ctx context.Context, g *globals) error {
+	// Cancelled to restart into a new version.
+	ctx, cancel := context.WithCancel(ctx)
+	defer cancel()
 	e, err := open(ctx, g)
 	if err != nil {
 		return err
@@ -235,6 +255,21 @@ func (s *serveCmd) Run(ctx context.Context, g *globals) error {
 	keepAwake := app.NewKeepAwake(e.svc, awake.New(), e.log)
 	keepAwake.Lid = awake.NewLid(g.DataDir)
 	keepAwake.Power = awake.ReadPower
+	// New versions from GitHub, installed with one click where Exhale may
+	// replace itself (ADR 0033).
+	exe, err := os.Executable()
+	if err != nil {
+		return err
+	}
+	upd := &update.Updater{
+		Version: version, Install: update.Detect(exe, desktopApp == "true"), API: s.UpdateAPI,
+		Dir: filepath.Join(g.DataDir, "update"), Log: e.log, Restart: cancel,
+		OnlyWhenAsked: !s.UpdateCheck,
+	}
+	if s.UpdateCheck {
+		upd.Every = 24 * time.Hour
+	}
+	e.svc.SetUpdater(upd)
 	handler, _, err := httpapi.New(e.svc, httpapi.Config{
 		Version: version, TrustLocal: s.TrustLocal, SecureCookies: s.SecureCookies, Log: e.log, Telegram: tg, Slack: sl, Channels: others, Assistant: asst,
 		PublicURL: s.PublicURL, OIDC: sso, DisablePasswordLogin: s.DisablePasswordLogin,
@@ -278,6 +313,7 @@ func (s *serveCmd) Run(ctx context.Context, g *globals) error {
 		scheduler.New(e.svc, e.log, sl.Deliverer(eng)),
 		platform.Func{Name: "message-sync", Fn: eng.Sync},
 		keepAwake,
+		upd,
 	)
 	if hasMenuBar() {
 		services = append(services, platform.Func{Name: "desktop-token", Fn: func(ctx context.Context) error {
@@ -287,7 +323,13 @@ func (s *serveCmd) Run(ctx context.Context, g *globals) error {
 	if !s.NoBackups {
 		services = append(services, &backup.Service{DB: e.st.DB, Dir: backupDir(g, s.BackupDir), Keep: s.BackupKeep, Log: e.log})
 	}
-	return platform.Run(ctx, e.log, services...)
+	if err := platform.Run(ctx, e.log, services...); err != nil {
+		return err
+	}
+	if upd.Restarting() {
+		return restart{upd}
+	}
+	return nil
 }
 
 // hasMenuBar reports whether this server runs next to the desktop app,

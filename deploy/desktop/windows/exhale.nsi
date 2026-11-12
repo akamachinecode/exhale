@@ -1,4 +1,4 @@
-; Exhale-Setup.exe (ADR 0029, 0030, 0032): a one-click installer for the person
+; Exhale-Setup.exe (ADR 0029, 0030, 0032, 0033): a one-click installer for the person
 ; using Windows, no administrator needed. It copies Exhale.exe, adds Exhale
 ; to the Start menu and to Settings → Apps, and opens it; Exhale.exe then
 ; starts the server, makes it and its tray icon start at sign-in and shows
@@ -20,6 +20,7 @@ SetCompressor /SOLID lzma
 
 !include "MUI2.nsh"
 !include "LogicLib.nsh"
+!include "FileFunc.nsh"
 
 Name "Exhale"
 OutFile "${OUTFILE}"
@@ -70,8 +71,13 @@ Section
   WriteRegDWORD HKCU "${UNINST}" "NoRepair" 1
 
   ; Open Exhale: it starts the server, adds itself to sign-in and shows its
-  ; window. A silent install (/S) leaves that to the next sign-in.
+  ; window. A silent install (/S) leaves that to the next sign-in, unless
+  ; it is Exhale updating itself (ADR 0033): /S /open.
+  ${GetParameters} $R0
+  ClearErrors
+  ${GetOptions} $R0 "/open" $R1
   ${IfNot} ${Silent}
+  ${OrIfNot} ${Errors}
     Exec '"$INSTDIR\Exhale.exe"'
   ${EndIf}
 SectionEnd
