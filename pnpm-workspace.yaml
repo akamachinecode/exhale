@@ -1,6 +1,10 @@
 packages:
   - web
+  - docs
 # Supply-chain guard (ADR 0015): never install a version published less than 7 days ago.
 minimumReleaseAge: 10080
 allowBuilds:
   esbuild: true
+overrides:
+  # starlight-openapi → httpsnippet pins form-data 4.0.4 (GHSA-hmw2-7cc7-3qxx).
+  form-data: ^4.0.6

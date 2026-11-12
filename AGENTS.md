@@ -30,6 +30,7 @@ Exhale is a self-hosted subscription manager written in Go (backend, single bina
 | ④ Web Push (encryption, VAPID, action tokens — ADR 0026) | `internal/channels/webpush`; devices and keys in `internal/channels/notifiers`; service worker `web/public/sw.js` |
 | ⑮ CLI, supervisor, logging | `cmd/exhale`, `internal/platform` |
 | desktop app: `exhale open`, start at login (ADR 0029) | `internal/desktop`; installers in `deploy/desktop` (built and tried by `.github/workflows/installers.yml`); download page in `site/` |
+| documentation site (Starlight, ADR 0016) at `akamachinecode.github.io/exhale/docs/` | `docs/` package: `scripts/sync.mjs` turns `docs/{install,guides,adr}/*.md` and `vision.md` into pages, `astro.config.mjs` holds the sidebar; published with `site/` by `.github/workflows/pages.yml` |
 
 ## Commands
 
@@ -37,6 +38,7 @@ Exhale is a self-hosted subscription manager written in Go (backend, single bina
 - `mise run gen` after editing SQL in `internal/store/queries` or migrations
 - `go test ./internal/actions -update` to regenerate conversation golden files (review the diff) and the web's copy of the server texts; same for `./internal/assistant`
 - `pnpm -C web i18n` checks the web's translations (`--update` fills an incomplete language)
+- `pnpm -C docs build` builds the documentation site and fails on a broken link between pages
 
 ## Rules
 
@@ -50,4 +52,5 @@ Exhale is a self-hosted subscription manager written in Go (backend, single bina
 - Errors people may see are written with `domain.Invalid`, `NotFound`, `Missing`, `Conflict` or `Fail` (never `fmt.Errorf` with a sentinel), and other server texts people read (the assistant's cards) with `domain.T`; a field name or a status passed as an argument is a `domain.Word`. The format is a constant English sentence. Add the Spanish to `internal/i18n/locales/es.json` (Go verbs), then run `go test ./internal/actions -update`: it copies it to `web/src/locales/server/es.json` with `{0}` placeholders (never edit that copy). MCP agents keep getting the English `Error()`. A new op's `Title` needs an entry too.
 - New migrations get a number above every existing one; never renumber or reuse one that shipped.
 - `mise run test:e2e` drives a real browser against a fresh server; keep it green when changing web flows.
+- A new page in `docs/install` or `docs/guides` starts with a `# Title` line, links other pages by relative `.md` path, and is added to the sidebar in `docs/astro.config.mjs`. Never edit `docs/src/content/docs/` except `index.mdx`: the rest is generated.
 - Commits: Conventional Commits, signed off (`git commit -s`).

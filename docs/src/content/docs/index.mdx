@@ -1,0 +1,43 @@
+---
+title: Introduction
+description: Exhale is an open-source, self-hosted subscription manager where the reminder is the interface. Install it, connect Telegram or Slack, and fix every renewal from the message itself.
+editUrl: https://github.com/akamachinecode/exhale/edit/main/docs/src/content/docs/index.mdx
+---
+
+import { CardGrid, LinkButton, LinkCard } from "@astrojs/starlight/components";
+import ReminderPreview from "../../components/ReminderPreview.astro";
+
+Exhale is an open-source, self-hosted subscription manager where **the reminder is the interface**. The message that tells you Netflix renews in three days lets you fix it right there: mark it paid, move the date, change the card or the amount, cancel. The message updates in place, and so does the web.
+
+It is one program with one data folder. No cloud, no account with us, no telemetry, no paid tier.
+
+<div class="actions">
+	<LinkButton href="/exhale/docs/install/">Install Exhale</LinkButton>
+	<LinkButton href="/exhale/" variant="secondary">Download page</LinkButton>
+</div>
+
+<ReminderPreview />
+
+## Get started
+
+<CardGrid>
+	<LinkCard title="Install" href="/exhale/docs/install/" description="The installer for macOS, Windows or Linux, or Docker on a server or NAS." />
+	<LinkCard title="Reminders that end in an answer" href="/exhale/docs/guides/reminders/" description="Snooze, asking again, duplicates, and cards about to expire." />
+	<LinkCard title="Slack and teams" href="/exhale/docs/guides/teams/" description="One Exhale for a team or small business, with reminders in Slack." />
+	<LinkCard title="AI agents" href="/exhale/docs/guides/remote-agents/" description="Claude.ai, ChatGPT and Grok over MCP, with previews and undo." />
+</CardGrid>
+
+## How it works
+
+1. **Install it** on a computer that stays on: a laptop, a Mac mini, a NAS, a Raspberry Pi or a small server. Exhale needs no public address: it reaches Telegram and Slack with outgoing connections only.
+2. **Create your account** and follow the steps on the home page: create your own Telegram bot (guided), link your chat, add your subscriptions or import them from Wallos, a spreadsheet or your bank statement.
+3. **Answer the reminders.** Each one carries the buttons that fit: already paid, a new date, another amount or card, skip, cancel, undo.
+
+## For developers
+
+<CardGrid>
+	<LinkCard title="REST API" href="/exhale/docs/api/" description="Every operation, generated from the server's OpenAPI document." />
+	<LinkCard title="Architecture decisions" href="/exhale/docs/adr/" description="Why Exhale is built the way it is, one decision at a time." />
+</CardGrid>
+
+The documentation is also available for language models at [`llms.txt`](/exhale/docs/llms.txt).

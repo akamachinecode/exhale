@@ -155,7 +155,7 @@ footer a:hover { color: var(--fg); }
 		<a class="logo" href="#"><img src="favicon.svg" alt="">Exhale</a>
 		<nav>
 			<a href="#download" data-t="nav.download">Download</a>
-			<a class="hide-sm" href="https://github.com/akamachinecode/exhale/tree/main/docs/install" data-t="nav.docs">Docs</a>
+			<a class="hide-sm" href="docs/" data-t="nav.docs">Docs</a>
 			<a href="https://github.com/akamachinecode/exhale" aria-label="GitHub"><svg class="icon"><use href="#i-github"/></svg></a>
 			<button class="lang" type="button" id="lang" aria-label="Español">es</button>
 		</nav>
@@ -239,7 +239,7 @@ footer a:hover { color: var(--fg); }
 				<pre><code>docker run -d --name exhale --restart unless-stopped \
   -p 8484:8484 -v exhale-data:/data \
   ghcr.io/akamachinecode/exhale</code></pre>
-				<p class="note" data-t="srv.note">Reminders never miss on a machine that is always on. The <a href="https://github.com/akamachinecode/exhale/tree/main/docs/install">install guide</a> covers HTTPS, backups and every option.</p>
+				<p class="note" data-t="srv.note">Reminders never miss on a machine that is always on. The <a href="docs/install/">install guide</a> covers HTTPS, backups and every option.</p>
 			</article>
 		</div>
 		<p class="all" data-t="dl.all">Every file, with signed checksums and build provenance, is on the <a href="https://github.com/akamachinecode/exhale/releases/latest">release page</a>. Prefer to build it yourself? The <a href="https://github.com/akamachinecode/exhale">source is on GitHub</a>.</p>
@@ -264,7 +264,7 @@ footer a:hover { color: var(--fg); }
 		<span data-t="foot">Free software under the AGPL-3.0.</span>
 		<nav>
 			<a href="https://github.com/akamachinecode/exhale">GitHub</a>
-			<a href="https://github.com/akamachinecode/exhale/tree/main/docs/install" data-t="foot.docs">Install guide</a>
+			<a href="docs/" data-t="foot.docs">Documentation</a>
 			<a href="https://github.com/akamachinecode/exhale/releases" data-t="foot.releases">Releases</a>
 			<a href="https://github.com/akamachinecode/exhale/blob/main/SECURITY.md" data-t="foot.security">Security</a>
 		</nav>
@@ -308,7 +308,7 @@ footer a:hover { color: var(--fg); }
 		"linux.req": "Ubuntu, Debian, Raspberry Pi OS · Fedora, RHEL", "linux.arch": "Procesador",
 		"linux.note": "Ábrelo con tu centro de software, o <code>sudo apt install ./exhale_linux_amd64.deb</code>. Exhale funciona como un servicio que arranca con el ordenador y aparece entre tus aplicaciones.",
 		"srv.t": "Servidor o NAS", "srv.req": "Docker, un servidor en casa, una Raspberry Pi o un VPS",
-		"srv.note": "En una máquina siempre encendida no se pierde ni un aviso. La <a href=\"https://github.com/akamachinecode/exhale/tree/main/docs/install\">guía de instalación</a> explica HTTPS, las copias y todas las opciones.",
+		"srv.note": "En una máquina siempre encendida no se pierde ni un aviso. La <a href=\"docs/install/\">guía de instalación</a> explica HTTPS, las copias y todas las opciones.",
 		"dl.all": "Todos los archivos, con sumas de comprobación firmadas y procedencia de la compilación, están en la <a href=\"https://github.com/akamachinecode/exhale/releases/latest\">página de la versión</a>. ¿Prefieres compilarlo tú? El <a href=\"https://github.com/akamachinecode/exhale\">código está en GitHub</a>.",
 		"faq.kicker": "Preguntas", "faq.title": "Antes de instalar",
 		q1: "¿Mi ordenador tiene que estar encendido?", a1: "Los avisos salen mientras Exhale está en marcha. En un ordenador que se suspende, Exhale puede mantenerlo despierto (Ajustes → Este ordenador), y lo que venza mientras dormía se envía al despertar. Lo ideal es un servidor en casa o una Raspberry Pi que nunca se apague.",
@@ -316,7 +316,7 @@ footer a:hover { color: var(--fg); }
 		q3: "¿Puedo usarlo en el móvil?", a3: "Sí. Los avisos te llegan al móvil por Telegram o Slack, y la web funciona en el móvil. Exhale en sí funciona en un ordenador.",
 		q4: "¿De verdad es gratis?", a4: "Sí. Exhale es software libre bajo la AGPL-3.0, sin versión de pago, sin cuenta con nosotros y sin telemetría.",
 		q5: "¿Cómo lo desinstalo?", a5: "En un Mac, desactiva Exhale en Ajustes del Sistema → General → Ítems de inicio y arrástralo a la Papelera. En Windows, Configuración → Aplicaciones. En Linux, quita el paquete. Tus datos se quedan hasta que borres su carpeta.",
-		foot: "Software libre bajo la AGPL-3.0.", "foot.docs": "Guía de instalación", "foot.releases": "Versiones", "foot.security": "Seguridad",
+		foot: "Software libre bajo la AGPL-3.0.", "foot.docs": "Documentación", "foot.releases": "Versiones", "foot.security": "Seguridad",
 	};
 	const en = {
 		"cta.mac": "Download for macOS", "cta.windows": "Download for Windows", "cta.linux": "Download for Linux", "cta.phone": "Get it for your computer",
