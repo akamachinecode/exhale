@@ -18,7 +18,7 @@ type Message =
 	| { type: "ready" }
 	| { type: "open"; url: string }
 	| { type: "save"; name: string; data: string }
-	| { type: "window"; action: "minimise" | "maximise" | "close" };
+	| { type: "window"; action: "minimise" | "maximise" | "close" | "titlebar" };
 
 type Host = {
 	chrome?: { webview?: { postMessage(m: string): void } }; // WebView2, Windows
@@ -83,7 +83,10 @@ export function initDesktop() {
 //
 // - An element with data-drag moves the window, except on its buttons,
 //   links and fields, and except inside a data-no-drag one closer to the
-//   pointer. Double-clicking it maximises.
+//   pointer. Double-clicking it does what the system's title bar does: the
+//   window decides (on a Mac, from "Double-click a window's title bar to").
+//   The window only starts moving once the pointer has moved a few pixels,
+//   so a double click with a shaky hand is not taken for a drag.
 // - Without a system frame (Windows, Linux), the 5px band along each edge
 //   resizes the window.
 
@@ -101,6 +104,7 @@ export const windowState = {
 };
 
 const edge = 5; // px of the resize band
+const dragSlop = 3; // px the pointer moves before the window does
 const corner = 10; // extra px that count as a corner
 const cursors: Record<string, string> = {
 	"n-resize": "ns-resize",
@@ -115,6 +119,7 @@ const cursors: Record<string, string> = {
 
 function initTitleBar(post: (m: string) => void) {
 	let armed: "drag" | `resize:${string}` | null = null;
+	let from = { x: 0, y: 0 }; // where the button went down
 	let moving = false; // the window is being moved or resized
 	let swallow = false; // so the page doesn't take the end of it for a click
 	let resize = "";
@@ -146,6 +151,7 @@ function initTitleBar(post: (m: string) => void) {
 				e.preventDefault();
 			} else if (e.detail === 1 && draggable(e)) {
 				armed = "drag";
+				from = { x: e.screenX, y: e.screenY };
 			} else {
 				armed = null;
 			}
@@ -156,6 +162,7 @@ function initTitleBar(post: (m: string) => void) {
 		"mousemove",
 		(e) => {
 			if (armed && e.buttons & 1) {
+				if (armed === "drag" && Math.hypot(e.screenX - from.x, e.screenY - from.y) < dragSlop) return;
 				post(armed === "drag" ? "wails:drag" : `wails:${armed}`);
 				armed = null;
 				moving = swallow = true;
@@ -189,8 +196,7 @@ function initTitleBar(post: (m: string) => void) {
 	window.addEventListener("dblclick", (e) => {
 		if (!draggable(e)) return;
 		e.preventDefault();
-		if (windowFrame === "mac") post("wails:drag:doubleclick");
-		else windowAction("maximise");
+		send({ type: "window", action: "titlebar" });
 	});
 
 	let before = "";

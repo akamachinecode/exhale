@@ -155,7 +155,7 @@ type message struct {
 	URL    string `json:"url,omitempty"`
 	Name   string `json:"name,omitempty"`
 	Data   string `json:"data,omitempty"`   // base64
-	Action string `json:"action,omitempty"` // window: minimise, maximise or close
+	Action string `json:"action,omitempty"` // window: minimise, maximise, close or titlebar (a double click)
 }
 
 func (b *bridge) handle(_ application.Window, raw string, origin *application.OriginInfo) {
@@ -273,6 +273,16 @@ func (b *bridge) control(action string) {
 		}
 	case "close":
 		b.win.Close()
+	case "titlebar": // a double click on the title bar
+		if b.win.IsFullscreen() {
+			return
+		}
+		switch titlebarDoubleClick() {
+		case titlebarZoom:
+			b.win.ToggleMaximise()
+		case titlebarMinimise:
+			b.win.Minimise()
+		}
 	}
 }
 
