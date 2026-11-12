@@ -10,6 +10,7 @@ import (
 	"io"
 	"os"
 	"os/exec"
+	"path"
 	"path/filepath"
 	"runtime"
 	"strings"
@@ -58,16 +59,21 @@ func (osEnv) getenv(k string) string { return os.Getenv(k) }
 
 func detect(goos, exe string, desktopApp bool, e env) Install {
 	in := Install{Exe: exe, GOOS: goos, Method: MethodBinary}
+	// The folder of a path as goos writes it (tests stand in for others).
+	dir := path.Dir
+	if goos == "windows" {
+		dir = filepath.Dir
+	}
 	switch {
 	case goos == "darwin" && strings.Contains(exe, ".app/Contents/MacOS/"):
 		in.Method = MethodMacApp
 		in.Bundle = exe[:strings.Index(exe, ".app/Contents/MacOS/")+len(".app")]
 		// Swapping the bundle is two renames in its folder. Nothing is
 		// written inside the app to find out: macOS would warn about it.
-		in.Writable = e.writable(filepath.Dir(in.Bundle))
+		in.Writable = e.writable(dir(in.Bundle))
 	case goos == "windows" && desktopApp:
 		in.Method = MethodWindows
-		in.Writable = e.writable(filepath.Dir(exe))
+		in.Writable = e.writable(dir(exe))
 	case goos == "linux" && (e.exists("/.dockerenv") || e.exists("/run/.containerenv")):
 		in.Method = MethodDocker
 	case goos == "linux" && (exe == "/usr/bin/exhale" || exe == "/usr/bin/exhale-window"):
@@ -77,7 +83,7 @@ func detect(goos, exe string, desktopApp bool, e env) Install {
 			in.Package = "deb"
 		}
 	default:
-		in.Writable = e.writable(filepath.Dir(exe))
+		in.Writable = e.writable(dir(exe))
 		in.Service = goos == "linux" && e.getenv("INVOCATION_ID") != ""
 	}
 	return in

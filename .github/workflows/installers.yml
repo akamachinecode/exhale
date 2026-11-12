@@ -93,6 +93,7 @@ jobs:
           cp "$RUNNER_TEMP/next/Exhale.dmg" "$rel/"
           (cd "$rel" && shasum -a 256 Exhale.dmg > checksums.txt)
           python3 .github/scripts/fake-release.py "$rel" 18990 "$NEXT" &
+          for i in $(seq 30); do curl -fs http://127.0.0.1:18990/releases/latest >/dev/null && break; sleep 1; done
           launchctl setenv EXHALE_UPDATE_API http://127.0.0.1:18990
           launchctl setenv EXHALE_TRUST_LOCAL true
           /Applications/Exhale.app/Contents/MacOS/exhale init --owner CI
@@ -227,6 +228,9 @@ jobs:
           $h = (Get-FileHash "$rel\Exhale-Setup.exe" -Algorithm SHA256).Hash.ToLower()
           "$h  Exhale-Setup.exe" | Set-Content -Encoding ascii "$rel\checksums.txt"
           Start-Process python -ArgumentList '.github/scripts/fake-release.py', $rel, '18990', $env:NEXT
+          foreach ($i in 1..30) {
+            try { Invoke-RestMethod http://127.0.0.1:18990/releases/latest | Out-Null; break } catch { Start-Sleep 1 }
+          }
           $env:EXHALE_UPDATE_API = 'http://127.0.0.1:18990'
           $env:EXHALE_TRUST_LOCAL = 'true'
           Start-Process $exe -ArgumentList 'init', '--owner', 'CI' -Wait
