@@ -4,6 +4,7 @@ import (
 	"context"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 
@@ -39,7 +40,8 @@ func TestEnsureDesktopToken(t *testing.T) {
 	if a, err := ResolveToken(ctx, st, first); err != nil || a.MemberID != owner.MemberID || !a.CanWrite() {
 		t.Fatalf("token does not work: %+v %v", a, err)
 	}
-	if fi, _ := os.Stat(path); fi.Mode().Perm() != 0o600 {
+	// Windows has no Unix modes: the file lives in the person's own profile.
+	if fi, _ := os.Stat(path); runtime.GOOS != "windows" && fi.Mode().Perm() != 0o600 {
 		t.Errorf("mode %v", fi.Mode().Perm())
 	}
 	// Kept while it works.
