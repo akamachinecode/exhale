@@ -80,7 +80,7 @@
 		"f9.t": "Compartido, sin mezclar", "f9.p": "Tu pareja o tus compañeros de piso tienen su cuenta y sus avisos. Divide una suscripción y mira quién debe a quién.",
 		"f10.t": "Pregúntale lo que quieras", "f10.p": "En lenguaje natural por chat, o con Claude, ChatGPT y modelos locales por MCP. Cada cambio se previsualiza y se puede deshacer.",
 		"f11.t": "Trae todo contigo", "f11.p": "Importa desde Wallos o una hoja de cálculo. Exporta todo en JSON, CSV o ZIP, o sigue tus cargos en tu calendario.",
-		"f12.t": "Tuyo, en tu ordenador", "f12.p": "Un programa, una carpeta de datos, una copia cada día. Sin nube, sin telemetría, sin cuenta con nosotros, sin versión de pago.",
+		"f12.t": "Tuyo, en tu ordenador", "f12.p": "Un programa, una carpeta de datos, una copia cada día, y cada versión nueva instalada con un clic. Sin nube, sin telemetría, sin cuenta con nosotros, sin versión de pago.",
 		"how.kicker": "Cómo funciona", "how.title": "Instalado en un minuto. Después, funciona solo.",
 		"s1.t": "Descárgalo y ábrelo", "s1.p": "Exhale arranca en segundo plano y se abre en su propia ventana. Desde entonces arranca solo con tu ordenador.",
 		"s2.t": "Crea tu cuenta", "s2.p": "Después sigue los pasos de la página de inicio. Crear tu propio bot de Telegram lleva un minuto y está guiado.",
