@@ -282,6 +282,7 @@ func (b *bridge) control(action string) {
 			b.win.ToggleMaximise()
 		case titlebarMinimise:
 			b.win.Minimise()
+		case titlebarNothing:
 		}
 	}
 }
