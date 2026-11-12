@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.5.0](https://github.com/akamachinecode/exhale/compare/v0.4.0...v0.5.0) (2026-11-12)
+
+
+### Features
+
+* **site:** every download on the website, new screenshots, light and dark ([#24](https://github.com/akamachinecode/exhale/issues/24)) ([16ccb71](https://github.com/akamachinecode/exhale/commit/16ccb7179fe8d71ab86803de1b0c682b9eabc875))
+* **update:** update Exhale with one click from the web ([#26](https://github.com/akamachinecode/exhale/issues/26)) ([e7a4a31](https://github.com/akamachinecode/exhale/commit/e7a4a31d8fdedb050e88059255b88bcdf531e4a0))
+
 ## [0.4.0](https://github.com/akamachinecode/exhale/compare/v0.3.0...v0.4.0) (2026-11-12)
 
 

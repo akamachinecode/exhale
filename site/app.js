@@ -5,7 +5,7 @@
 (function () {
 	"use strict";
 	const repo = "akamachinecode/exhale";
-	const VERSION = "0.4.0"; // x-release-please-version
+	const VERSION = "0.5.0"; // x-release-please-version
 
 	// Every build of a release, in the order each card shows them. `name`
 	// spells the file for a version; `match` finds it among the API's assets.
