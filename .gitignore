@@ -26,3 +26,12 @@ coverage.*
 # UI hill-climb screenshots (CLIMB.md and the ledger are committed)
 /.ui-climb/round-*/
 /window/
+
+# docs site: pages copied from docs/ by docs/scripts/sync.mjs, and the build
+/docs/src/content/docs/*
+!/docs/src/content/docs/index.mdx
+/docs/public/architecture-diagram.html
+/docs/src/openapi.json
+/docs/dist/
+/docs/.astro/
+/docs/node_modules/

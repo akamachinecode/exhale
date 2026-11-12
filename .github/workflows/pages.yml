@@ -1,34 +1,69 @@
-name: Download page
-# Publishes site/ (the download page, ADR 0029) to GitHub Pages. The page
-# links to releases/latest/download/<file>, so a release needs no deploy.
+name: Website
+# Publishes akamachinecode.github.io/exhale: the download page (site/, ADR
+# 0029) at the root and the documentation (docs/, Starlight, ADR 0016) under
+# /docs/. A repository has one Pages site, so both go out in one deployment.
+# The download page links to releases/latest/download/<file>, so a release
+# needs no deploy. On a pull request the site is built (which checks every
+# link between pages) but not published.
 on:
   push:
     branches: [main]
     paths:
       - site/**
+      - docs/**
+      - web/openapi.json
+      - .release-please-manifest.json
+      - pnpm-lock.yaml
+      - .github/workflows/pages.yml
+  pull_request:
+    paths:
+      - site/**
+      - docs/**
+      - web/openapi.json
+      - .release-please-manifest.json
+      - pnpm-lock.yaml
       - .github/workflows/pages.yml
   workflow_dispatch:
 permissions: {}
 concurrency:
-  group: pages
-  cancel-in-progress: false
+  group: pages-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 jobs:
-  deploy:
+  build:
     permissions:
       contents: read
-      pages: write    # publish the page
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: jdx/mise-action@f5be966e4a917d54244728e6a5fdcd1d93a35e6c # v5.2.6
+        with:
+          install_args: node pnpm
+      - name: Install
+        run: pnpm install --frozen-lockfile --filter @exhale/docs
+      - name: Build the documentation
+        run: pnpm -C docs build
+      - name: Put the download page and the documentation together
+        run: |
+          mkdir _site
+          cp -R site/. _site/
+          cp -R docs/dist _site/docs
+      - if: github.event_name != 'pull_request'
+        uses: actions/upload-pages-artifact@fc324d3547104276b827a68afc52ff2a11cc49c9 # v5.0.0
+        with:
+          path: _site
+  deploy:
+    if: github.event_name != 'pull_request'
+    needs: build
+    permissions:
+      pages: write    # publish the site
       id-token: write # prove the deployment comes from this workflow
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with:
-          persist-credentials: false
       - uses: actions/configure-pages@45bfe0192ca1faeb007ade9deae92b16b8254a0d # v6.0.0
-      - uses: actions/upload-pages-artifact@fc324d3547104276b827a68afc52ff2a11cc49c9 # v5.0.0
-        with:
-          path: site
       - id: deployment
         uses: actions/deploy-pages@368f82528645a54fb793d4d04e342629a3f51346 # v5.0.1

@@ -1,0 +1,18 @@
+---
+// A way back to the download page, then the GitHub link.
+import Default from "@astrojs/starlight/components/SocialIcons.astro";
+---
+
+<a class="download" href="/exhale/">Download</a>
+<Default />
+
+<style>
+	.download {
+		color: var(--sl-color-gray-2);
+		font-size: var(--sl-text-sm);
+		text-decoration: none;
+	}
+	.download:hover {
+		color: var(--sl-color-white);
+	}
+</style>

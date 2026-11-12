@@ -57,6 +57,8 @@ mise run build      # builds the web UI into the binary: bin/exhale
 
 ## Documentation
 
+Everything is on the **[documentation site](https://akamachinecode.github.io/exhale/docs/)**, with search, the REST API reference and [`llms.txt`](https://akamachinecode.github.io/exhale/docs/llms.txt) for language models. The same pages are in [`docs/`](docs/):
+
 - [Install](docs/install/README.md): [macOS](docs/install/macos.md), [Windows](docs/install/windows.md), Linux packages and service, Docker, [HTTPS and remote access](docs/install/https.md), [backups](docs/install/backups.md), [single sign-on](docs/install/sso.md)
 - [Exhale for a team](docs/guides/teams.md)
 - [Reminders by email, ntfy and webhook](docs/guides/notifications.md)
