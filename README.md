@@ -10,21 +10,21 @@ Exhale reminds you before every renewal and lets you fix it **from the reminder 
 mark it paid, move the date, change the card, cancel. In Telegram, Slack or your browser.<br>
 It runs on your own computer, so your data stays with you.
 
-**[Download](https://akamachinecode.github.io/exhale/)** · **[Documentation](https://akamachinecode.github.io/exhale/docs/)** · **[Releases](https://github.com/akamachinecode/exhale/releases)**
+[**Download**](https://akamachinecode.github.io/exhale/#download) · [Website](https://akamachinecode.github.io/exhale/) · [Docs](https://akamachinecode.github.io/exhale/docs/) · [Changelog](CHANGELOG.md)
 
-[![Release](https://img.shields.io/github/v/release/akamachinecode/exhale?include_prereleases&sort=semver)](https://github.com/akamachinecode/exhale/releases)
+[![Latest release](https://img.shields.io/github/v/release/akamachinecode/exhale?include_prereleases&sort=semver&label=release)](https://github.com/akamachinecode/exhale/releases/latest)
 [![CI](https://github.com/akamachinecode/exhale/actions/workflows/ci.yml/badge.svg)](https://github.com/akamachinecode/exhale/actions/workflows/ci.yml)
 [![License: AGPL-3.0](https://img.shields.io/badge/license-AGPL--3.0-blue)](LICENSE)
+![macOS · Windows · Linux · Docker](https://img.shields.io/badge/macOS%20·%20Windows%20·%20Linux%20·%20Docker-5b5e67)
 
-Free and open source · macOS, Windows, Linux and Docker · English and Spanish
-
-<br>
-
-<img src="site/img/overview.webp" alt="Exhale's overview: monthly and yearly spend, charges that need you, the next 30 days and spend by category" width="900">
+Free and open source · English and Spanish
 
 </div>
 
-<br>
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="site/img/app-dark.webp">
+  <img src="site/img/app-light.webp" alt="Exhale's overview: monthly and yearly spend, charges that need attention, the next 30 days and spend by category and by card">
+</picture>
 
 ## The reminder is the app
 
@@ -58,26 +58,32 @@ One tap and the message updates in place, with an undo. The web updates at the s
 | 📥 **Bring everything with you** | Import from Wallos, a spreadsheet or your bank statement (CSV or PDF). Export it all as JSON, CSV or ZIP, or follow it in your calendar. |
 | 🔒 **Yours, on your computer** | One program, one data folder, a backup every day. No cloud, no telemetry, no account with us, no paid tier. |
 
-## Up and running in a minute
+## Download
 
-1. **Download and open it.** Get `Exhale.dmg` (macOS), `Exhale-Setup.exe` (Windows) or a `.deb`/`.rpm` (Linux) from the **[download page](https://akamachinecode.github.io/exhale/)**. Exhale opens in its own window and starts by itself with your computer.
+| | |
+|---|---|
+| **macOS** 12+ | [`Exhale.dmg`, Apple silicon and Intel](https://akamachinecode.github.io/exhale/#download-mac) |
+| **Windows** 10/11 | [`Exhale-Setup.exe`, or a `.zip` for x64 and ARM64](https://akamachinecode.github.io/exhale/#download-windows) |
+| **Linux** | [`.deb`, `.rpm` or `.tar.gz`, x86-64, ARM64 and ARM 32-bit (Raspberry Pi)](https://akamachinecode.github.io/exhale/#download-linux) |
+| **Server or NAS** | [Docker image](https://akamachinecode.github.io/exhale/#download-server), `ghcr.io/akamachinecode/exhale` |
+
+Or from a terminal:
+
+```sh
+curl -fsSL https://akamachinecode.github.io/exhale/install.sh | sh -s -- --service   # Linux, as a systemd service
+docker run -d --name exhale --restart unless-stopped \
+  -p 8484:8484 -v exhale-data:/data ghcr.io/akamachinecode/exhale                   # anywhere with Docker
+```
+
+Every release has cosign-signed checksums and build provenance. The [install guide](https://akamachinecode.github.io/exhale/docs/install/) covers first-launch prompts, [verifying downloads](https://akamachinecode.github.io/exhale/docs/install/linux/#verify-a-download), [HTTPS and remote access](docs/install/https.md), [backups](docs/install/backups.md) and [single sign-on](docs/install/sso.md).
+
+## Quick start
+
+1. **Open Exhale.** It opens in its own window and starts by itself with your computer. On a server, open `http://<server>:8484` and enter the one-time setup code from the log (`docker logs exhale`).
 2. **Create your account.** The home page walks you through the rest. Making your own Telegram bot takes a minute and is guided.
 3. **Add your subscriptions.** By hand, from Wallos or a spreadsheet, or from your bank statement. Reminders start the same day.
 
-No public address needed: Exhale talks to Telegram and Slack with outgoing connections only, so it works behind a home router.
-
-### On a server or NAS
-
-An always-on machine (a home server, a Raspberry Pi, a VPS) never misses a reminder:
-
-```sh
-docker run -d --name exhale --restart unless-stopped \
-  -p 8484:8484 -v exhale-data:/data \
-  ghcr.io/akamachinecode/exhale:latest
-docker logs exhale   # shows the one-time setup code
-```
-
-Open `http://<server>:8484`, enter the setup code and follow the steps on the home page. The [install guide](docs/install/README.md) covers Linux packages with a hardened systemd service, [HTTPS and remote access](docs/install/https.md), [backups](docs/install/backups.md) and [single sign-on](docs/install/sso.md).
+No public address needed: Exhale talks to Telegram and Slack with outgoing connections only, so it works behind a home router. An always-on machine (a home server, a Raspberry Pi, a VPS) never misses a reminder.
 
 ## Questions before installing
 
@@ -121,7 +127,9 @@ The **[documentation site](https://akamachinecode.github.io/exhale/docs/)** has 
 - [Tools for many subscriptions](docs/guides/many-subscriptions.md)
 - [Vision](docs/vision.md) and [architecture decisions](docs/adr/README.md)
 
-> **Status:** Exhale is young (0.x). It is used every day by its author; read the [release notes](CHANGELOG.md) before upgrading.
+## Status
+
+Exhale is young (v0.x) and used every day by its author. Expect rough edges and tell us about them in [Issues](https://github.com/akamachinecode/exhale/issues); read the [changelog](CHANGELOG.md) before upgrading.
 
 ## Contributing
 

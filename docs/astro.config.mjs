@@ -50,6 +50,7 @@ const sidebar = [
 				collapsed: true,
 				items: [{ label: "How we decide", link: "/adr/" }, { autogenerate: { directory: "adr" } }],
 			},
+			{ label: "Changelog", link: `${github}/blob/main/CHANGELOG.md` },
 		],
 	},
 ];
@@ -89,7 +90,6 @@ export default defineConfig({
 			social: [{ icon: "github", label: "GitHub", href: github }],
 			customCss: ["./src/styles/theme.css"],
 			components: {
-				ThemeProvider: "./src/components/ThemeProvider.astro",
 				SocialIcons: "./src/components/SocialIcons.astro",
 			},
 			// Each page sets its own editUrl (the source file in docs/).
