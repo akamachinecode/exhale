@@ -3,142 +3,24 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Exhale — your subscriptions, handled</title>
-<meta name="description" content="Exhale reminds you before every renewal and lets you fix it from the reminder itself, in Telegram, Slack or your browser. Free, open source, and it runs on your own computer.">
+<title>Exhale: your subscriptions, handled</title>
+<meta name="description" content="Exhale reminds you before every renewal and lets you fix it from the reminder itself, in Telegram, Slack or your browser. Free, open source, and it runs on your own computer. Downloads for macOS, Windows, Linux and Docker.">
 <meta name="theme-color" content="#0a0a0a">
-<meta property="og:title" content="Exhale — your subscriptions, handled">
-<meta property="og:description" content="Reminders you can answer. Free, open source, on your own computer.">
-<meta property="og:image" content="img/overview.webp">
+<script>
+	// Dark by default, like the app; a light choice (here or in the docs,
+	// which share the key) applies before the first paint.
+	try {
+		var saved = localStorage.getItem("starlight-theme");
+		if (saved === "light" || (saved === "auto" && matchMedia("(prefers-color-scheme: light)").matches)) document.documentElement.dataset.theme = "light";
+	} catch (e) {}
+</script>
+<meta property="og:title" content="Exhale">
+<meta property="og:description" content="Breathe out. Your subscriptions are handled. Reminders you can answer, free and open source, on your own computer.">
+<meta property="og:image" content="https://akamachinecode.github.io/exhale/img/app-dark.webp">
 <link rel="icon" href="favicon.svg" type="image/svg+xml">
 <link rel="preload" href="fonts/geist.woff2" as="font" type="font/woff2" crossorigin>
-<style>
-@font-face { font-family: "Geist"; src: url(fonts/geist.woff2) format("woff2"); font-weight: 100 900; font-display: swap; }
-@font-face { font-family: "Geist Mono"; src: url(fonts/geist-mono.woff2) format("woff2"); font-weight: 100 900; font-display: swap; }
-
-/* The app's dark theme (web/src/styles.css): black, white and greys; the
-   brand gradient only on the logo and the headline. */
-:root {
-	--bg: oklch(0.13 0 0);
-	--surface: oklch(0.165 0 0);
-	--raised: oklch(0.205 0 0);
-	--line: oklch(0.255 0 0);
-	--fg: oklch(0.97 0 0);
-	--muted: oklch(0.72 0 0);
-	--faint: oklch(0.55 0 0);
-	--brand: linear-gradient(120deg, oklch(0.78 0.12 300), oklch(0.8 0.1 230) 50%, oklch(0.85 0.12 175));
-	--radius: 14px;
-	color-scheme: dark;
-}
-* { box-sizing: border-box; }
-html { scroll-behavior: smooth; }
-@media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } }
-body {
-	margin: 0;
-	background: var(--bg);
-	color: var(--fg);
-	font: 16px/1.55 "Geist", ui-sans-serif, system-ui, sans-serif;
-	letter-spacing: -0.006em;
-	-webkit-font-smoothing: antialiased;
-	font-feature-settings: "ss01";
-}
-a { color: inherit; }
-img { max-width: 100%; height: auto; display: block; }
-code, .mono { font-family: "Geist Mono", ui-monospace, monospace; }
-.wrap { width: min(1120px, 100% - 32px); margin-inline: auto; }
-.icon { width: 18px; height: 18px; fill: currentColor; flex: none; }
-
-/* Header */
-.top { position: sticky; top: 0; z-index: 10; background: color-mix(in oklch, var(--bg) 82%, transparent); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); border-bottom: 1px solid transparent; transition: border-color .2s; }
-.top.scrolled { border-bottom-color: var(--line); }
-.top .wrap { display: flex; align-items: center; gap: 24px; height: 60px; }
-.logo { display: flex; align-items: center; gap: 10px; text-decoration: none; font-weight: 600; font-size: 16px; letter-spacing: -0.02em; }
-.logo img { width: 28px; height: 28px; }
-.top nav { display: flex; align-items: center; gap: 4px; margin-left: auto; }
-.top nav a, .lang { color: var(--muted); text-decoration: none; font-size: 14px; padding: 6px 10px; border-radius: 8px; transition: color .15s, background-color .15s; }
-.top nav a:hover, .lang:hover { color: var(--fg); background: var(--raised); }
-.lang { background: none; border: 0; font: inherit; font-size: 12px; font-weight: 600; text-transform: uppercase; cursor: pointer; }
-@media (max-width: 560px) { .top nav .hide-sm { display: none; } }
-
-/* Hero */
-.hero { position: relative; text-align: center; padding: 88px 0 48px; }
-.hero::before { content: ""; position: absolute; inset: -60px 0 auto; height: 520px; z-index: -1; pointer-events: none;
-	background: radial-gradient(60% 55% at 50% 30%, oklch(0.8 0.1 250 / 0.16), transparent 70%); }
-.eyebrow { display: inline-flex; gap: 8px; align-items: center; margin: 0 0 22px; padding: 5px 12px; border: 1px solid var(--line); border-radius: 999px; color: var(--muted); font-size: 13px; background: var(--surface); }
-.eyebrow .dot { width: 6px; height: 6px; border-radius: 50%; background: var(--brand); }
-h1 { margin: 0 auto; max-width: 15ch; text-wrap: balance; font-size: clamp(40px, 7vw, 72px); line-height: 1.02; letter-spacing: -0.045em; font-weight: 650; }
-h1 .brand { background: var(--brand); -webkit-background-clip: text; background-clip: text; color: transparent; }
-.lead { margin: 22px auto 0; max-width: 60ch; color: var(--muted); font-size: clamp(16px, 2.2vw, 18px); }
-.cta { display: flex; flex-wrap: wrap; justify-content: center; gap: 12px; margin-top: 34px; }
-.btn { display: inline-flex; align-items: center; justify-content: center; gap: 10px; height: 46px; padding: 0 20px; border-radius: 12px; font-size: 15px; font-weight: 550; text-decoration: none; border: 1px solid var(--line); transition: transform .1s, background-color .15s, border-color .15s; }
-.btn:active { transform: scale(.98); }
-.btn.primary { background: var(--fg); color: var(--bg); border-color: var(--fg); }
-.btn.primary:hover { background: oklch(0.88 0 0); }
-.btn.ghost { color: var(--fg); background: var(--surface); }
-.btn.ghost:hover { background: var(--raised); }
-.btn:focus-visible, .top a:focus-visible, .lang:focus-visible, select:focus-visible { outline: 2px solid var(--fg); outline-offset: 2px; }
-.meta { margin: 14px 0 0; color: var(--faint); font-size: 13px; }
-
-/* Screenshots */
-.shots { position: relative; margin: 40px auto 0; padding-bottom: 40px; }
-.window { border: 1px solid var(--line); border-radius: 16px; overflow: hidden; background: var(--surface);
-	box-shadow: 0 0 0 1px oklch(1 0 0 / 0.03), 0 40px 120px -40px oklch(0.6 0.12 260 / 0.35), 0 30px 60px -30px oklch(0 0 0 / 0.8); }
-.window .bar { display: flex; gap: 7px; padding: 12px 14px; border-bottom: 1px solid var(--line); }
-.window .bar i { width: 11px; height: 11px; border-radius: 50%; background: var(--raised); }
-.phone { position: absolute; right: -12px; bottom: 0; width: 23%; min-width: 150px; border-radius: 30px; border: 6px solid oklch(0.22 0 0); overflow: hidden;
-	box-shadow: 0 30px 70px -20px oklch(0 0 0 / 0.9), 0 0 0 1px var(--line); }
-@media (max-width: 720px) { .phone { display: none; } .shots { padding-bottom: 0; } }
-
-/* Sections */
-section.block { padding: 96px 0 0; }
-.kicker { color: var(--faint); font-size: 13px; font-weight: 550; text-transform: uppercase; letter-spacing: .08em; margin: 0 0 10px; }
-h2 { margin: 0; font-size: clamp(28px, 4vw, 40px); line-height: 1.1; letter-spacing: -0.035em; font-weight: 620; max-width: 26ch; text-wrap: balance; }
-.sub { color: var(--muted); margin: 12px 0 0; max-width: 62ch; }
-
-.steps { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; margin-top: 36px; counter-reset: step; }
-.step { padding: 24px; border: 1px solid var(--line); border-radius: var(--radius); background: var(--surface); }
-.step::before { counter-increment: step; content: counter(step); display: grid; place-items: center; width: 28px; height: 28px; margin-bottom: 18px; border-radius: 8px; background: var(--raised); color: var(--fg); font-size: 13px; font-weight: 600; }
-.step h3, .feature h3 { margin: 0 0 6px; font-size: 16px; letter-spacing: -0.01em; font-weight: 600; }
-.step p, .feature p { margin: 0; color: var(--muted); font-size: 14.5px; }
-
-.features { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1px; margin-top: 36px; background: var(--line); border: 1px solid var(--line); border-radius: var(--radius); overflow: hidden; }
-.feature { padding: 26px 24px; background: var(--bg); }
-@media (max-width: 860px) { .steps, .features { grid-template-columns: 1fr 1fr; } }
-@media (max-width: 560px) { .steps, .features { grid-template-columns: 1fr; } }
-
-/* Downloads */
-.downloads { display: grid; grid-template-columns: repeat(2, 1fr); gap: 16px; margin-top: 36px; }
-@media (max-width: 760px) { .downloads { grid-template-columns: 1fr; } }
-.card { min-width: 0; display: flex; flex-direction: column; gap: 14px; padding: 24px; border: 1px solid var(--line); border-radius: var(--radius); background: var(--surface); scroll-margin-top: 80px; }
-.card.mine { border-color: oklch(0.45 0 0); box-shadow: 0 0 0 1px oklch(0.45 0 0); }
-.card header { display: flex; align-items: center; gap: 12px; }
-.card header .icon { width: 26px; height: 26px; }
-.card h3 { margin: 0; font-size: 18px; font-weight: 600; letter-spacing: -0.015em; }
-.card .req { margin: 0; color: var(--faint); font-size: 13px; }
-.card .note { margin: auto 0 0; color: var(--muted); font-size: 13.5px; }
-.card .note code { font-size: 12.5px; color: var(--fg); overflow-wrap: anywhere; }
-.card .note strong { color: var(--fg); font-weight: 550; }
-.row { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }
-.btn.small { height: 40px; padding: 0 16px; font-size: 14px; border-radius: 10px; }
-select { height: 40px; padding: 0 34px 0 12px; border-radius: 10px; border: 1px solid var(--line); background: var(--bg) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%23999' stroke-width='2'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E") no-repeat right 12px center; color: var(--fg); font: inherit; font-size: 14px; appearance: none; }
-pre { margin: 0; padding: 14px 16px; border: 1px solid var(--line); border-radius: 10px; background: var(--bg); overflow-x: auto; font-size: 12.5px; line-height: 1.6; color: var(--muted); }
-.all { margin: 20px 0 0; color: var(--faint); font-size: 13.5px; }
-.all a { color: var(--muted); }
-
-/* FAQ */
-.faq { margin-top: 28px; border-top: 1px solid var(--line); }
-.faq details { border-bottom: 1px solid var(--line); }
-.faq summary { cursor: pointer; list-style: none; display: flex; justify-content: space-between; gap: 16px; padding: 18px 0; font-weight: 550; }
-.faq summary::-webkit-details-marker { display: none; }
-.faq summary::after { content: "+"; color: var(--faint); font-weight: 400; font-size: 20px; line-height: 1; }
-.faq details[open] summary::after { content: "−"; }
-.faq p { margin: 0 0 18px; color: var(--muted); max-width: 70ch; }
-
-footer { margin-top: 110px; border-top: 1px solid var(--line); padding: 28px 0 40px; color: var(--faint); font-size: 13.5px; }
-footer .wrap { display: flex; flex-wrap: wrap; gap: 16px 28px; align-items: center; }
-footer nav { display: flex; flex-wrap: wrap; gap: 18px; margin-left: auto; }
-footer a { color: var(--muted); text-decoration: none; }
-footer a:hover { color: var(--fg); }
-</style>
+<link rel="stylesheet" href="style.css">
+<script src="app.js" defer></script>
 </head>
 <body>
 <svg width="0" height="0" style="position:absolute" aria-hidden="true">
@@ -147,42 +29,74 @@ footer a:hover { color: var(--fg); }
 	<symbol id="i-docker" viewBox="0 0 24 24"><path d="M13.983 11.078h2.119a.186.186 0 00.186-.185V9.006a.186.186 0 00-.186-.186h-2.119a.185.185 0 00-.185.185v1.888c0 .102.083.185.185.185m-2.954-5.43h2.118a.186.186 0 00.186-.186V3.574a.186.186 0 00-.186-.185h-2.118a.185.185 0 00-.185.185v1.888c0 .102.082.185.185.185m0 2.716h2.118a.187.187 0 00.186-.186V6.29a.186.186 0 00-.186-.185h-2.118a.185.185 0 00-.185.185v1.887c0 .102.082.185.185.186m-2.93 0h2.12a.186.186 0 00.184-.186V6.29a.185.185 0 00-.185-.185H8.1a.185.185 0 00-.185.185v1.887c0 .102.083.185.185.186m-2.964 0h2.119a.186.186 0 00.185-.186V6.29a.185.185 0 00-.185-.185H5.136a.186.186 0 00-.186.185v1.887c0 .102.084.185.186.186m5.893 2.715h2.118a.186.186 0 00.186-.185V9.006a.186.186 0 00-.186-.186h-2.118a.185.185 0 00-.185.185v1.888c0 .102.082.185.185.185m-2.93 0h2.12a.185.185 0 00.184-.185V9.006a.185.185 0 00-.184-.186h-2.12a.185.185 0 00-.184.185v1.888c0 .102.083.185.185.185m-2.964 0h2.119a.185.185 0 00.185-.185V9.006a.185.185 0 00-.184-.186h-2.12a.186.186 0 00-.186.186v1.887c0 .102.084.185.186.185m-2.92 0h2.12a.185.185 0 00.184-.185V9.006a.185.185 0 00-.184-.186h-2.12a.185.185 0 00-.184.185v1.888c0 .102.082.185.185.185M23.763 9.89c-.065-.051-.672-.51-1.954-.51-.338.001-.676.03-1.01.087-.248-1.7-1.653-2.53-1.716-2.566l-.344-.199-.226.327c-.284.438-.49.922-.612 1.43-.23.97-.09 1.882.403 2.661-.595.332-1.55.413-1.744.42H.751a.751.751 0 00-.75.748 11.376 11.376 0 00.692 4.062c.545 1.428 1.355 2.48 2.41 3.124 1.18.723 3.1 1.137 5.275 1.137.983.003 1.963-.086 2.93-.266a12.248 12.248 0 003.823-1.389c.98-.567 1.86-1.288 2.61-2.136 1.252-1.418 1.998-2.997 2.553-4.4h.221c1.372 0 2.215-.549 2.68-1.009.309-.293.55-.65.707-1.046l.098-.288Z"/></symbol>
 	<symbol id="i-github" viewBox="0 0 24 24"><path d="M12 .297c-6.63 0-12 5.373-12 12 0 5.303 3.438 9.8 8.205 11.385.6.113.82-.258.82-.577 0-.285-.01-1.04-.015-2.04-3.338.724-4.042-1.61-4.042-1.61C4.422 18.07 3.633 17.7 3.633 17.7c-1.087-.744.084-.729.084-.729 1.205.084 1.838 1.236 1.838 1.236 1.07 1.835 2.809 1.305 3.495.998.108-.776.417-1.305.76-1.605-2.665-.3-5.466-1.332-5.466-5.93 0-1.31.465-2.38 1.235-3.22-.135-.303-.54-1.523.105-3.176 0 0 1.005-.322 3.3 1.23.96-.267 1.98-.399 3-.405 1.02.006 2.04.138 3 .405 2.28-1.552 3.285-1.23 3.285-1.23.645 1.653.24 2.873.12 3.176.765.84 1.23 1.91 1.23 3.22 0 4.61-2.805 5.625-5.475 5.92.42.36.81 1.096.81 2.22 0 1.606-.015 2.896-.015 3.286 0 .315.21.69.825.57C20.565 22.092 24 17.592 24 12.297c0-6.627-5.373-12-12-12"/></symbol>
 	<symbol id="i-windows" viewBox="0 0 24 24"><path d="M3 5.5 10.5 4.4v7.1H3zm8.5-1.2L21 3v8.5h-9.5zM3 12.5h7.5v7.1L3 18.5zm8.5 0H21V21l-9.5-1.3z"/></symbol>
+	<symbol id="i-sun" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2m-7.07-17.07 1.41 1.41m11.32 11.32 1.41 1.41M2 12h2m16 0h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41"/></g></symbol>
+	<symbol id="i-moon" viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z"/></symbol>
 	<symbol id="i-down" viewBox="0 0 24 24"><path d="M11 4h2v9.17l3.59-3.58L18 11l-6 6-6-6 1.41-1.41L11 13.17z"/><path d="M5 19h14v2H5z"/></symbol>
 </svg>
 
 <header class="top">
 	<div class="wrap">
-		<a class="logo" href="#"><img src="favicon.svg" alt="">Exhale</a>
-		<nav>
+		<a class="logo" href="./"><img src="favicon.svg" alt="">Exhale</a>
+		<nav aria-label="Main">
+			<a class="wide" href="#features" data-t="nav.features">Features</a>
+			<a class="wide" href="#how" data-t="nav.how">How it works</a>
 			<a href="#download" data-t="nav.download">Download</a>
-			<a class="hide-sm" href="docs/" data-t="nav.docs">Docs</a>
+			<a href="docs/" data-t="nav.docs">Docs</a>
 			<a href="https://github.com/akamachinecode/exhale" aria-label="GitHub"><svg class="icon"><use href="#i-github"/></svg></a>
 			<button class="lang" type="button" id="lang" aria-label="Español">es</button>
+			<button class="theme-toggle" type="button" id="theme" aria-label="Light mode"><svg class="icon"><use href="#i-sun"/></svg></button>
 		</nav>
 	</div>
 </header>
 
 <main>
 	<section class="hero wrap">
-		<p class="eyebrow"><span class="dot"></span><span data-t="eyebrow">Free and open source · Runs on your computer</span></p>
+		<a class="pill" id="release-pill" href="https://github.com/akamachinecode/exhale/releases/latest">
+			<span class="dot" aria-hidden="true"></span>
+			<span id="release-pill-text">Free and open source · Runs on your computer</span>
+			<span class="arrow" aria-hidden="true">→</span>
+		</a>
 		<h1><span data-t="h1a">Breathe out.</span> <span class="brand" data-t="h1b">Your subscriptions are handled.</span></h1>
-		<p class="lead" data-t="lead">Exhale reminds you before every renewal and lets you fix it from the reminder itself: mark it paid, move the date, change the card, cancel. In Telegram, Slack or your browser. It runs on your own computer, so your data stays with you.</p>
+		<p class="lede" data-t="lead">Exhale reminds you before every renewal and lets you fix it from the reminder itself: mark it paid, move the date, change the card, cancel. In Telegram, Slack or your browser. It runs on your own computer, so your data stays with you.</p>
 		<div class="cta">
-			<a class="btn primary" id="primary" href="#download"><svg class="icon" id="primary-icon"><use href="#i-down"/></svg><span id="primary-label" data-t="cta.any">Download</span></a>
-			<a class="btn ghost" href="#download" data-t="cta.other">Other platforms</a>
+			<a class="btn primary" id="hero-download" href="#download"><svg class="icon" id="hero-download-icon"><use href="#i-down"/></svg><span id="hero-download-label">Download Exhale</span></a>
+			<a class="btn" href="#download" data-t="cta.other">All downloads</a>
 		</div>
-		<p class="meta" id="meta"></p>
+		<p class="fine" id="hero-download-note">Free and open source under the AGPL-3.0. Every build has signed checksums.</p>
 
 		<div class="shots">
 			<div class="window">
-				<div class="bar"><i></i><i></i><i></i></div>
-				<img src="img/overview.webp" width="2000" height="1250" alt="Exhale's overview: monthly and yearly spend, charges that need attention, the next 30 days and spend by category" data-t-alt="alt.overview">
+				<img class="for-dark" src="img/app-dark.webp" width="2000" height="1250" alt="Exhale's overview: monthly and yearly spend, charges that need attention, the next 30 days and spend by category and by card" data-t-alt="alt.overview">
+				<img class="for-light" src="img/app-light.webp" width="2000" height="1250" alt="Exhale's overview: monthly and yearly spend, charges that need attention, the next 30 days and spend by category and by card" data-t-alt="alt.overview" loading="lazy">
 			</div>
-			<img class="phone" src="img/phone.webp" width="780" height="1688" alt="Exhale on a phone, with the dock of every page" data-t-alt="alt.phone">
+			<div class="phone">
+				<img class="for-dark" src="img/phone-dark.webp" width="780" height="1688" alt="Exhale on a phone, with the dock of every page" data-t-alt="alt.phone">
+				<img class="for-light" src="img/phone-light.webp" width="780" height="1688" alt="Exhale on a phone, with the dock of every page" data-t-alt="alt.phone" loading="lazy">
+			</div>
 		</div>
 	</section>
 
-	<section class="block wrap">
+	<section class="block wrap" id="features">
+		<p class="kicker" data-t="feat.kicker">What it does</p>
+		<h2 data-t="feat.title">The reminder is the app.</h2>
+		<p class="sub" data-t="feat.sub">The message that says Netflix renews in three days lets you fix it right there. It updates in place, and so does the web.</p>
+		<div class="features">
+			<div class="feature"><h3 data-t="f1.t">Reminders you can answer</h3><p data-t="f1.p">Already paid, a new date, another amount or card, skip, cancel, undo. One tap in the message.</p></div>
+			<div class="feature"><h3 data-t="f2.t">The dates that cost money</h3><p data-t="f2.p">Free trials before they charge, the last day to cancel, renewals that need you, price rises announced ahead.</p></div>
+			<div class="feature"><h3 data-t="f3.t">Find the ones you forgot</h3><p data-t="f3.p">Import a bank export or a PDF statement and Exhale finds the charges that repeat, with no AI needed. Later statements show what was paid, what changed price and what never arrived.</p></div>
+			<div class="feature"><h3 data-t="f4.t">The whole app in a chat</h3><p data-t="f4.p">A pinned Telegram or Slack message is Exhale itself: spend, upcoming charges, every subscription, an add wizard and settings.</p></div>
+			<div class="feature"><h3 data-t="f5.t">A check-up of facts, not tips</h3><p data-t="f5.p">The same service paid twice, prices that went up this year, trials about to charge, a card about to expire and everything that depends on it.</p></div>
+			<div class="feature"><h3 data-t="f6.t">Awake when it matters</h3><p data-t="f6.p">An icon in the menu bar with your next charges. Keep a laptop awake for an hour or a night, even with the lid closed, never down to an empty battery.</p></div>
+			<div class="feature"><h3 data-t="f7.t">On your phone, no app store</h3><p data-t="f7.p">Install the web as an app and get push notifications with a button that works from the notification. Or reminders by email, ntfy and webhook.</p></div>
+			<div class="feature"><h3 data-t="f8.t">Every currency, exact</h3><p data-t="f8.p">Totals in your currency at ECB rates, and what to set aside each month for the yearly bills.</p></div>
+			<div class="feature"><h3 data-t="f9.t">Shared, not mixed</h3><p data-t="f9.p">A partner or flatmates get their own account and reminders. Split a subscription and see who owes whom.</p></div>
+			<div class="feature"><h3 data-t="f10.t">Ask it anything</h3><p data-t="f10.p">Plain language in chat, or Claude, ChatGPT and local models over MCP. Every change shows a preview and can be undone.</p></div>
+			<div class="feature"><h3 data-t="f11.t">Bring everything with you</h3><p data-t="f11.p">Import from Wallos or a spreadsheet. Export it all as JSON, CSV or ZIP, or follow your charges in your calendar.</p></div>
+			<div class="feature"><h3 data-t="f12.t">Yours, on your computer</h3><p data-t="f12.p">One program, one data folder, a backup every day. No cloud, no telemetry, no account with us, no paid tier.</p></div>
+		</div>
+	</section>
+
+	<section class="block wrap" id="how">
 		<p class="kicker" data-t="how.kicker">How it works</p>
 		<h2 data-t="how.title">Installed in a minute. Then it just runs.</h2>
 		<div class="steps">
@@ -192,228 +106,94 @@ footer a:hover { color: var(--fg); }
 		</div>
 	</section>
 
-	<section class="block wrap">
-		<p class="kicker" data-t="feat.kicker">What it does</p>
-		<h2 data-t="feat.title">The reminder is the app.</h2>
-		<p class="sub" data-t="feat.sub">The message that says Netflix renews in three days lets you fix it right there. It updates in place, and so does the web.</p>
-		<div class="features">
-			<div class="feature"><h3 data-t="f1.t">Reminders you can answer</h3><p data-t="f1.p">Already paid, a new date, another amount or card, skip, cancel, undo. One tap in the message.</p></div>
-			<div class="feature"><h3 data-t="f2.t">The dates that cost money</h3><p data-t="f2.p">Free trials before they charge, the last day to cancel, renewals that need you, price rises announced ahead.</p></div>
-			<div class="feature"><h3 data-t="f3.t">Every currency, exact</h3><p data-t="f3.p">Totals in your currency at ECB rates, and what to set aside each month for the yearly bills.</p></div>
-			<div class="feature"><h3 data-t="f4.t">Shared, not mixed</h3><p data-t="f4.p">A partner or flatmates get their own account and reminders. Split a subscription and see who owes whom.</p></div>
-			<div class="feature"><h3 data-t="f5.t">Ask it anything</h3><p data-t="f5.p">Plain language in chat, or Claude, ChatGPT and local models over MCP. Every change shows a preview and can be undone.</p></div>
-			<div class="feature"><h3 data-t="f6.t">Yours, on your computer</h3><p data-t="f6.p">One program, one data folder, a backup every day. No cloud, no telemetry, no account with us, no paid tier.</p></div>
-		</div>
-	</section>
-
 	<section class="block wrap" id="download">
 		<p class="kicker" data-t="dl.kicker">Download</p>
 		<h2 data-t="dl.title">Pick your computer.</h2>
-		<p class="sub" id="version-line" data-t="dl.sub">Free, for every system. Open the installer and you are done.</p>
-		<div class="downloads">
-			<article class="card" id="mac">
-				<header><svg class="icon"><use href="#i-apple"/></svg><div><h3>macOS</h3><p class="req" data-t="mac.req">macOS 12 or later · Apple silicon and Intel</p></div></header>
-				<div class="row"><a class="btn primary small" href="https://github.com/akamachinecode/exhale/releases/latest/download/Exhale.dmg"><svg class="icon"><use href="#i-down"/></svg>Exhale.dmg</a></div>
-				<p class="note" data-t="mac.note">Open it and drag Exhale to Applications, then open Exhale. <strong>The first time</strong>, macOS says it cannot verify the developer: go to System Settings → Privacy &amp; Security and click <strong>Open Anyway</strong>.</p>
-			</article>
-			<article class="card" id="windows">
-				<header><svg class="icon"><use href="#i-windows"/></svg><div><h3>Windows</h3><p class="req" data-t="win.req">Windows 10 and 11 · 64-bit</p></div></header>
-				<div class="row"><a class="btn primary small" href="https://github.com/akamachinecode/exhale/releases/latest/download/Exhale-Setup.exe"><svg class="icon"><use href="#i-down"/></svg>Exhale-Setup.exe</a></div>
-				<p class="note" data-t="win.note">Open it: Exhale installs and opens, no administrator needed. If <strong>SmartScreen</strong> appears, click More info → <strong>Run anyway</strong>.</p>
-			</article>
-			<article class="card" id="linux">
-				<header><svg class="icon"><use href="#i-linux"/></svg><div><h3>Linux</h3><p class="req" data-t="linux.req">Ubuntu, Debian, Raspberry Pi OS · Fedora, RHEL</p></div></header>
-				<div class="row">
-					<select id="arch" aria-label="Processor" data-t-label="linux.arch">
-						<option value="amd64">x86-64</option>
-						<option value="arm64">ARM 64-bit</option>
-						<option value="armv7">ARM 32-bit (Raspberry Pi)</option>
-					</select>
-					<a class="btn primary small" id="deb" href="https://github.com/akamachinecode/exhale/releases/latest/download/exhale_linux_amd64.deb"><svg class="icon"><use href="#i-down"/></svg>.deb</a>
-					<a class="btn ghost small" id="rpm" href="https://github.com/akamachinecode/exhale/releases/latest/download/exhale_linux_amd64.rpm"><svg class="icon"><use href="#i-down"/></svg>.rpm</a>
-				</div>
-				<p class="note" data-t="linux.note">Open it with your software center, or <code>sudo apt install ./exhale_linux_amd64.deb</code>. Exhale runs as a service that starts with the computer, and appears among your apps.</p>
-			</article>
-			<article class="card" id="server">
-				<header><svg class="icon"><use href="#i-docker"/></svg><div><h3 data-t="srv.t">Server or NAS</h3><p class="req" data-t="srv.req">Docker, a home server, a Raspberry Pi or a VPS</p></div></header>
-				<pre><code>docker run -d --name exhale --restart unless-stopped \
+		<p class="sub" id="release-meta">The latest release, straight from GitHub Releases.</p>
+
+		<noscript>
+			<p class="fine">Every build is on the <a href="https://github.com/akamachinecode/exhale/releases/latest">latest release page</a>.</p>
+		</noscript>
+
+		<div class="platforms">
+			<section class="platform" id="download-mac" data-os="darwin" aria-labelledby="h-mac">
+				<header><svg class="icon"><use href="#i-apple"/></svg><h3 id="h-mac">macOS</h3><span class="req" data-t="mac.req">macOS 12 or later</span></header>
+				<ul class="files"></ul>
+				<p class="fine" data-t="mac.note">Open it and drag Exhale to Applications. <strong>The first time</strong>, macOS says it cannot verify the developer: go to <em>System Settings → Privacy &amp; Security</em> and choose <em>Open Anyway</em>.</p>
+			</section>
+			<section class="platform" id="download-windows" data-os="windows" aria-labelledby="h-windows">
+				<header><svg class="icon"><use href="#i-windows"/></svg><h3 id="h-windows">Windows</h3><span class="req" data-t="win.req">Windows 10 or 11</span></header>
+				<ul class="files"></ul>
+				<p class="fine" data-t="win.note">The installer needs no administrator. If <strong>SmartScreen</strong> warns you, choose <em>More info → Run anyway</em>.</p>
+			</section>
+			<section class="platform" id="download-linux" data-os="linux" aria-labelledby="h-linux">
+				<header><svg class="icon"><use href="#i-linux"/></svg><h3 id="h-linux">Linux</h3><span class="req" data-t="linux.req">x86-64, ARM64, Raspberry Pi</span></header>
+				<ul class="files"></ul>
+				<p class="fine" data-t="linux.note">The <code>.deb</code> and <code>.rpm</code> run Exhale as a service that starts with the computer, and add it to your applications.</p>
+			</section>
+		</div>
+
+		<div class="verify">
+			<span data-t="verify">Verify a download:</span>
+			<a id="checksums" href="https://github.com/akamachinecode/exhale/releases/latest">checksums.txt</a>
+			<a id="signature" href="https://github.com/akamachinecode/exhale/releases/latest" data-t="verify.sig">cosign signature</a>
+			<a href="docs/install/linux/#verify-a-download" data-t="verify.how">How to verify</a>
+			<a href="https://github.com/akamachinecode/exhale/releases" data-t="verify.all">All releases</a>
+		</div>
+
+		<div class="terminal" id="download-server">
+			<h3 data-t="term.title">On a server, or from the terminal</h3>
+			<div class="tabs" role="tablist" aria-label="Install method">
+				<button role="tab" id="tab-docker" aria-controls="panel-docker" data-tab="docker" aria-selected="true">Docker</button>
+				<button role="tab" id="tab-linux" aria-controls="panel-linux" data-tab="linux" aria-selected="false" tabindex="-1" data-t="term.linux">Linux script</button>
+			</div>
+			<div class="panel" role="tabpanel" id="panel-docker" aria-labelledby="tab-docker" data-tab="docker">
+				<div class="cmd">
+					<pre><code>docker run -d --name exhale --restart unless-stopped \
   -p 8484:8484 -v exhale-data:/data \
   ghcr.io/akamachinecode/exhale</code></pre>
-				<p class="note" data-t="srv.note">Reminders never miss on a machine that is always on. The <a href="docs/install/">install guide</a> covers HTTPS, backups and every option.</p>
-			</article>
+					<button class="copy" type="button" data-t="copy" aria-label="Copy command">Copy</button>
+				</div>
+				<p class="fine" data-t="term.docker">For a home server, a NAS, a Raspberry Pi or a VPS: reminders never miss on a machine that is always on. <code>docker logs exhale</code> shows the one-time setup code. The <a href="docs/install/docker/">Docker guide</a> covers Compose, HTTPS and backups.</p>
+			</div>
+			<div class="panel" role="tabpanel" id="panel-linux" aria-labelledby="tab-linux" data-tab="linux" hidden>
+				<div class="cmd">
+					<pre><code>curl -fsSL https://akamachinecode.github.io/exhale/install.sh | sh -s -- --service
+sudo systemctl start exhale</code></pre>
+					<button class="copy" type="button" data-t="copy" aria-label="Copy command">Copy</button>
+				</div>
+				<p class="fine" data-t="term.script">For a machine without the <code>.deb</code> or <code>.rpm</code>. The script checks the SHA-256 of what it downloads before installing, and sets Exhale up as a systemd service. <a href="install.sh">Read it first</a>, or see the <a href="docs/install/linux/#install-script">Linux guide</a>.</p>
+			</div>
 		</div>
-		<p class="all" data-t="dl.all">Every file, with signed checksums and build provenance, is on the <a href="https://github.com/akamachinecode/exhale/releases/latest">release page</a>. Prefer to build it yourself? The <a href="https://github.com/akamachinecode/exhale">source is on GitHub</a>.</p>
 	</section>
 
-	<section class="block wrap">
+	<section class="block wrap" id="questions">
 		<p class="kicker" data-t="faq.kicker">Questions</p>
 		<h2 data-t="faq.title">Before you install</h2>
 		<div class="faq">
-			<details><summary data-t="q1">Does my computer need to stay on?</summary><p data-t="a1">Reminders go out while Exhale runs. On a computer that sleeps, Exhale can keep it awake (Settings → This computer), and anything due while it slept is sent when it wakes. A home server or a Raspberry Pi that never sleeps is ideal.</p></details>
+			<details><summary data-t="q1">Does my computer need to stay on?</summary><p data-t="a1">Reminders go out while Exhale runs. On a laptop, Exhale can keep it awake for a while, even with the lid closed, from its menu bar icon or Settings → This computer, and anything due while it slept is sent when it wakes. A home server or a Raspberry Pi that never sleeps is ideal.</p></details>
 			<details><summary data-t="q2">Where is my data?</summary><p data-t="a2">In one folder on your computer, copied every day. Nothing is sent anywhere unless you set up a channel such as Telegram.</p></details>
-			<details><summary data-t="q3">Can I use it on my phone?</summary><p data-t="a3">Yes. Reminders reach your phone in Telegram or Slack, and the web works on phones. Exhale itself runs on a computer.</p></details>
+			<details><summary data-t="q3">Can I use it on my phone?</summary><p data-t="a3">Yes. Reminders reach your phone in Telegram or Slack, or as push notifications once you install the web as an app (it needs HTTPS). Exhale itself runs on a computer.</p></details>
 			<details><summary data-t="q4">Is it really free?</summary><p data-t="a4">Yes. Exhale is free software under the AGPL-3.0, with no paid tier, no account with us and no telemetry.</p></details>
-			<details><summary data-t="q5">How do I uninstall it?</summary><p data-t="a5">On a Mac, turn Exhale off in System Settings → General → Login Items and drag it to the Trash. On Windows, Settings → Apps. On Linux, remove the package. Your data stays until you delete its folder.</p></details>
+			<details><summary data-t="q5">I use Wallos. Can I move over?</summary><p data-t="a5">Yes. Import your Wallos database and review every subscription before it is saved.</p></details>
+			<details><summary data-t="q6">How do I uninstall it?</summary><p data-t="a6">On a Mac, turn Exhale off in System Settings → General → Login Items and drag it to the Trash. On Windows, Settings → Apps. On Linux, remove the package. Your data stays until you delete its folder.</p></details>
 		</div>
 	</section>
 </main>
 
 <footer>
 	<div class="wrap">
-		<a class="logo" href="#"><img src="favicon.svg" alt="">Exhale</a>
+		<a class="logo" href="./"><img src="favicon.svg" alt="">Exhale</a>
 		<span data-t="foot">Free software under the AGPL-3.0.</span>
-		<nav>
-			<a href="https://github.com/akamachinecode/exhale">GitHub</a>
-			<a href="docs/" data-t="foot.docs">Documentation</a>
-			<a href="https://github.com/akamachinecode/exhale/releases" data-t="foot.releases">Releases</a>
+		<nav aria-label="Footer">
+			<a href="docs/" data-t="foot.docs">Docs</a>
+			<a href="docs/install/" data-t="foot.install">Install guide</a>
 			<a href="https://github.com/akamachinecode/exhale/blob/main/SECURITY.md" data-t="foot.security">Security</a>
+			<a href="https://github.com/akamachinecode/exhale/blob/main/CHANGELOG.md" data-t="foot.changelog">Changelog</a>
+			<a href="https://github.com/akamachinecode/exhale" data-t="foot.source">Source</a>
+			<a href="https://github.com/akamachinecode/exhale/issues" data-t="foot.issues">Issues</a>
 		</nav>
 	</div>
 </footer>
-
-<script>
-(() => {
-	const repo = "akamachinecode/exhale";
-	const dl = "https://github.com/" + repo + "/releases/latest/download";
-
-	// Spanish; English is in the page.
-	const es = {
-		"nav.download": "Descargar", "nav.docs": "Documentación",
-		eyebrow: "Libre y de código abierto · Funciona en tu ordenador",
-		h1a: "Respira.", h1b: "Tus suscripciones están bajo control.",
-		lead: "Exhale te avisa antes de cada renovación y te deja arreglarla desde el propio aviso: marcarla como pagada, mover la fecha, cambiar la tarjeta, cancelarla. En Telegram, Slack o el navegador. Funciona en tu propio ordenador, así que tus datos se quedan contigo.",
-		"cta.any": "Descargar", "cta.other": "Otros sistemas",
-		"cta.mac": "Descargar para macOS", "cta.windows": "Descargar para Windows", "cta.linux": "Descargar para Linux", "cta.phone": "Descárgalo en tu ordenador",
-		"meta.mac": "Apple silicon e Intel · macOS 12 o posterior", "meta.windows": "Windows 10 y 11 · 64 bits", "meta.linux": "Ubuntu, Debian, Fedora y más", "meta.phone": "Exhale funciona en un ordenador; los avisos te llegan al móvil.",
-		"meta.version": "Versión {v}",
-		"alt.overview": "Resumen de Exhale: gasto mensual y anual, cargos que necesitan atención, los próximos 30 días y el gasto por categoría",
-		"alt.phone": "Exhale en un móvil, con el dock de todas las páginas",
-		"how.kicker": "Cómo funciona", "how.title": "Instalado en un minuto. Después, funciona solo.",
-		"s1.t": "Descárgalo y ábrelo", "s1.p": "Exhale arranca en segundo plano y se abre en su propia ventana. Desde entonces arranca solo con tu ordenador.",
-		"s2.t": "Crea tu cuenta", "s2.p": "Después sigue los pasos de la página de inicio. Crear tu propio bot de Telegram lleva un minuto y está guiado.",
-		"s3.t": "Añade tus suscripciones", "s3.p": "A mano, desde Wallos o una hoja de cálculo, o desde el extracto del banco. Los avisos empiezan ese mismo día.",
-		"feat.kicker": "Qué hace", "feat.title": "El aviso es la app.",
-		"feat.sub": "El mensaje que dice que Netflix se renueva en tres días te deja arreglarlo ahí mismo. Se actualiza solo, y la web también.",
-		"f1.t": "Avisos que se contestan", "f1.p": "Ya pagado, otra fecha, otro importe o tarjeta, saltar, cancelar, deshacer. Un toque en el mensaje.",
-		"f2.t": "Las fechas que cuestan dinero", "f2.p": "Pruebas gratis antes de que cobren, el último día para cancelar, renovaciones que te necesitan, subidas de precio anunciadas.",
-		"f3.t": "Cualquier moneda, exacta", "f3.p": "Totales en tu moneda con los tipos del BCE, y cuánto apartar cada mes para los pagos anuales.",
-		"f4.t": "Compartido, sin mezclar", "f4.p": "Tu pareja o tus compañeros de piso tienen su cuenta y sus avisos. Divide una suscripción y mira quién debe a quién.",
-		"f5.t": "Pregúntale lo que quieras", "f5.p": "En lenguaje natural por chat, o con Claude, ChatGPT y modelos locales por MCP. Cada cambio se previsualiza y se puede deshacer.",
-		"f6.t": "Tuyo, en tu ordenador", "f6.p": "Un programa, una carpeta de datos, una copia cada día. Sin nube, sin telemetría, sin cuenta con nosotros, sin versión de pago.",
-		"dl.kicker": "Descargar", "dl.title": "Elige tu ordenador.", "dl.sub": "Gratis, para todos los sistemas. Abre el instalador y listo.",
-		"mac.req": "macOS 12 o posterior · Apple silicon e Intel",
-		"mac.note": "Ábrelo y arrastra Exhale a Aplicaciones; después abre Exhale. <strong>La primera vez</strong>, macOS dice que no puede verificar al desarrollador: ve a Ajustes del Sistema → Privacidad y seguridad y pulsa <strong>Abrir igualmente</strong>.",
-		"win.req": "Windows 10 y 11 · 64 bits",
-		"win.note": "Ábrelo: Exhale se instala y se abre, sin permisos de administrador. Si aparece <strong>SmartScreen</strong>, pulsa Más información → <strong>Ejecutar de todas formas</strong>.",
-		"linux.req": "Ubuntu, Debian, Raspberry Pi OS · Fedora, RHEL", "linux.arch": "Procesador",
-		"linux.note": "Ábrelo con tu centro de software, o <code>sudo apt install ./exhale_linux_amd64.deb</code>. Exhale funciona como un servicio que arranca con el ordenador y aparece entre tus aplicaciones.",
-		"srv.t": "Servidor o NAS", "srv.req": "Docker, un servidor en casa, una Raspberry Pi o un VPS",
-		"srv.note": "En una máquina siempre encendida no se pierde ni un aviso. La <a href=\"docs/install/\">guía de instalación</a> explica HTTPS, las copias y todas las opciones.",
-		"dl.all": "Todos los archivos, con sumas de comprobación firmadas y procedencia de la compilación, están en la <a href=\"https://github.com/akamachinecode/exhale/releases/latest\">página de la versión</a>. ¿Prefieres compilarlo tú? El <a href=\"https://github.com/akamachinecode/exhale\">código está en GitHub</a>.",
-		"faq.kicker": "Preguntas", "faq.title": "Antes de instalar",
-		q1: "¿Mi ordenador tiene que estar encendido?", a1: "Los avisos salen mientras Exhale está en marcha. En un ordenador que se suspende, Exhale puede mantenerlo despierto (Ajustes → Este ordenador), y lo que venza mientras dormía se envía al despertar. Lo ideal es un servidor en casa o una Raspberry Pi que nunca se apague.",
-		q2: "¿Dónde están mis datos?", a2: "En una carpeta de tu ordenador, copiada cada día. No se envía nada a ningún sitio salvo que configures un canal como Telegram.",
-		q3: "¿Puedo usarlo en el móvil?", a3: "Sí. Los avisos te llegan al móvil por Telegram o Slack, y la web funciona en el móvil. Exhale en sí funciona en un ordenador.",
-		q4: "¿De verdad es gratis?", a4: "Sí. Exhale es software libre bajo la AGPL-3.0, sin versión de pago, sin cuenta con nosotros y sin telemetría.",
-		q5: "¿Cómo lo desinstalo?", a5: "En un Mac, desactiva Exhale en Ajustes del Sistema → General → Ítems de inicio y arrástralo a la Papelera. En Windows, Configuración → Aplicaciones. En Linux, quita el paquete. Tus datos se quedan hasta que borres su carpeta.",
-		foot: "Software libre bajo la AGPL-3.0.", "foot.docs": "Documentación", "foot.releases": "Versiones", "foot.security": "Seguridad",
-	};
-	const en = {
-		"cta.mac": "Download for macOS", "cta.windows": "Download for Windows", "cta.linux": "Download for Linux", "cta.phone": "Get it for your computer",
-		"meta.mac": "Apple silicon and Intel · macOS 12 or later", "meta.windows": "Windows 10 and 11 · 64-bit", "meta.linux": "Ubuntu, Debian, Fedora and more", "meta.phone": "Exhale runs on a computer; reminders reach your phone.",
-		"meta.version": "Version {v}",
-	};
-	// Remember the English in the page (as nodes, never as HTML text) before
-	// translating it.
-	const original = new Map();
-	document.querySelectorAll("[data-t]").forEach((el) => { original.set(el, Array.from(el.childNodes, (n) => n.cloneNode(true))); });
-	document.querySelectorAll("[data-t-alt]").forEach((el) => { en[el.dataset.tAlt] = el.alt; });
-	document.querySelectorAll("[data-t-label]").forEach((el) => { en[el.dataset.tLabel] = el.getAttribute("aria-label"); });
-
-	// Which computer is this?
-	const ua = navigator.userAgent;
-	const platform = (navigator.userAgentData && navigator.userAgentData.platform) || navigator.platform || "";
-	let os = "other";
-	if (/iPhone|iPad|iPod|Android/i.test(ua) || (/Mac/i.test(platform) && navigator.maxTouchPoints > 1)) os = "phone";
-	else if (/Mac/i.test(platform) || /Mac OS X/.test(ua)) os = "mac";
-	else if (/Win/i.test(platform)) os = "windows";
-	else if (/Linux|X11|CrOS/i.test(platform + ua)) os = "linux";
-
-	let version = "";
-	let lang = "en";
-	try { lang = localStorage.getItem("lang") || ""; } catch {}
-	if (!lang) lang = (navigator.languages || [navigator.language]).some((l) => /^es\b/i.test(l)) ? "es" : "en";
-
-	const t = (k) => (lang === "es" ? es[k] : undefined) ?? en[k] ?? "";
-	function render() {
-		document.documentElement.lang = lang;
-		document.querySelectorAll("[data-t]").forEach((el) => {
-			const v = lang === "es" ? es[el.dataset.t] : undefined;
-			if (v) {
-				// Only the constant Spanish texts above are read as HTML.
-				const tpl = document.createElement("template");
-				tpl.innerHTML = v;
-				el.replaceChildren(tpl.content);
-			} else {
-				el.replaceChildren(...original.get(el).map((n) => n.cloneNode(true)));
-			}
-		});
-		document.querySelectorAll("[data-t-alt]").forEach((el) => { el.alt = t(el.dataset.tAlt); });
-		document.querySelectorAll("[data-t-label]").forEach((el) => { el.setAttribute("aria-label", t(el.dataset.tLabel)); });
-		const other = lang === "es" ? "en" : "es";
-		const btn = document.getElementById("lang");
-		btn.textContent = other;
-		btn.setAttribute("aria-label", other === "es" ? "Español" : "English");
-		btn.lang = other;
-
-		const primary = document.getElementById("primary");
-		const icon = document.querySelector("#primary-icon use");
-		const label = document.getElementById("primary-label");
-		const files = { mac: "Exhale.dmg", windows: "Exhale-Setup.exe" };
-		const icons = { mac: "#i-apple", windows: "#i-windows", linux: "#i-linux" };
-		if (os in icons) {
-			label.textContent = t("cta." + os);
-			icon.setAttribute("href", icons[os]);
-			primary.href = files[os] ? dl + "/" + files[os] : "#linux";
-		} else if (os === "phone") {
-			label.textContent = t("cta.phone");
-		}
-		const meta = [];
-		if (version) meta.push(t("meta.version").replace("{v}", version));
-		if (os !== "other") meta.push(t("meta." + os));
-		document.getElementById("meta").textContent = meta.join(" · ");
-	}
-
-	document.getElementById("lang").addEventListener("click", () => {
-		lang = lang === "es" ? "en" : "es";
-		try { localStorage.setItem("lang", lang); } catch {}
-		render();
-	});
-
-	// The Linux packages follow the processor: the file names come from
-	// this list, in the order of the options.
-	const archs = ["amd64", "arm64", "armv7"];
-	const arch = document.getElementById("arch");
-	const pickArch = () => {
-		const name = archs[arch.selectedIndex] || archs[0];
-		for (const kind of ["deb", "rpm"]) document.getElementById(kind).href = dl + "/exhale_linux_" + name + "." + kind;
-	};
-	arch.addEventListener("change", pickArch);
-	if (/aarch64|arm64/i.test(platform + ua)) { arch.selectedIndex = 1; pickArch(); }
-
-	if (os in { mac: 1, windows: 1, linux: 1 }) document.getElementById(os).classList.add("mine");
-
-	const top = document.querySelector(".top");
-	addEventListener("scroll", () => top.classList.toggle("scrolled", scrollY > 8), { passive: true });
-
-	render();
-
-	// The latest version, for the line under the button.
-	fetch("https://api.github.com/repos/" + repo + "/releases/latest", { headers: { Accept: "application/vnd.github+json" } })
-		.then((r) => (r.ok ? r.json() : null))
-		.then((r) => { if (r && r.tag_name) { version = r.tag_name.replace(/^v/, ""); render(); } })
-		.catch(() => {});
-})();
-</script>
 </body>
 </html>

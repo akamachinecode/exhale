@@ -50,6 +50,7 @@ const sidebar = [
 				collapsed: true,
 				items: [{ label: "How we decide", link: "/adr/" }, { autogenerate: { directory: "adr" } }],
 			},
+			{ label: "Changelog", link: `${github}/blob/main/CHANGELOG.md` },
 		],
 	},
 ];

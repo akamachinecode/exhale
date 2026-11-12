@@ -29,7 +29,8 @@ Exhale is a self-hosted subscription manager written in Go (backend, single bina
 | ③ Slack (Socket Mode, Block Kit, Home tab) | `internal/channels/slack` |
 | ④ Web Push (encryption, VAPID, action tokens — ADR 0026) | `internal/channels/webpush`; devices and keys in `internal/channels/notifiers`; service worker `web/public/sw.js` |
 | ⑮ CLI, supervisor, logging | `cmd/exhale`, `internal/platform` |
-| desktop app: `exhale open`, start at login (ADR 0029) | `internal/desktop`; installers in `deploy/desktop` (built and tried by `.github/workflows/installers.yml`); download page in `site/` |
+| desktop app: `exhale open`, start at login (ADR 0029) | `internal/desktop`; installers in `deploy/desktop` (built and tried by `.github/workflows/installers.yml`) |
+| website at `akamachinecode.github.io/exhale/`: landing page with every download | `site/` (`index.html`, `style.css`, `app.js`; the version in `app.js` is kept by release-please, the lists come from the GitHub API); `scripts/install.sh` is published at `/install.sh`; screenshots in `site/img` (light and dark), also used by the README; dark by default like the app, with a sun/moon switch stored under Starlight's `starlight-theme` so the docs open in the same theme |
 | documentation site (Starlight, ADR 0016) at `akamachinecode.github.io/exhale/docs/` | `docs/` package: `scripts/sync.mjs` turns `docs/{install,guides,adr}/*.md` and `vision.md` into pages, `astro.config.mjs` holds the sidebar; published with `site/` by `.github/workflows/pages.yml` |
 
 ## Commands
@@ -39,6 +40,7 @@ Exhale is a self-hosted subscription manager written in Go (backend, single bina
 - `go test ./internal/actions -update` to regenerate conversation golden files (review the diff) and the web's copy of the server texts; same for `./internal/assistant`
 - `pnpm -C web i18n` checks the web's translations (`--update` fills an incomplete language)
 - `pnpm -C docs build` builds the documentation site and fails on a broken link between pages
+- `mise run screenshots` retakes the website and README screenshots (`site/img`) from the current code, with demo data dated from today
 
 ## Rules
 
@@ -53,4 +55,6 @@ Exhale is a self-hosted subscription manager written in Go (backend, single bina
 - New migrations get a number above every existing one; never renumber or reuse one that shipped.
 - `mise run test:e2e` drives a real browser against a fresh server; keep it green when changing web flows.
 - A new page in `docs/install` or `docs/guides` starts with a `# Title` line, links other pages by relative `.md` path, and is added to the sidebar in `docs/astro.config.mjs`. Never edit `docs/src/content/docs/` except `index.mdx`: the rest is generated.
+- Every picture on the website and in the README shows the latest version. Run `mise run screenshots` in any PR that changes how the app looks, and check them before merging a release PR. Never edit them by hand or take them from a real database.
+- A feature people would choose Exhale for is announced when it ships: a card in the website's features (`site/index.html`, Spanish in `site/app.js`) and a row in the README's table, ordered by the pain it solves.
 - Commits: Conventional Commits, signed off (`git commit -s`).

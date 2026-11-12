@@ -2,14 +2,16 @@ name: Website
 # Publishes akamachinecode.github.io/exhale: the download page (site/, ADR
 # 0029) at the root and the documentation (docs/, Starlight, ADR 0016) under
 # /docs/. A repository has one Pages site, so both go out in one deployment.
-# The download page links to releases/latest/download/<file>, so a release
-# needs no deploy. On a pull request the site is built (which checks every
+# The download page lists the latest release's files through the GitHub API;
+# without it, the version in site/app.js (kept in step by release-please).
+# The Linux install script is published at /install.sh. On a pull request the site is built (which checks every
 # link between pages) but not published.
 on:
   push:
     branches: [main]
     paths:
       - site/**
+      - scripts/install.sh
       - docs/**
       - web/openapi.json
       - .release-please-manifest.json
@@ -18,6 +20,7 @@ on:
   pull_request:
     paths:
       - site/**
+      - scripts/install.sh
       - docs/**
       - web/openapi.json
       - .release-please-manifest.json
@@ -48,6 +51,7 @@ jobs:
         run: |
           mkdir _site
           cp -R site/. _site/
+          cp scripts/install.sh _site/install.sh
           cp -R docs/dist _site/docs
       - if: github.event_name != 'pull_request'
         uses: actions/upload-pages-artifact@fc324d3547104276b827a68afc52ff2a11cc49c9 # v5.0.0

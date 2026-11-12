@@ -32,7 +32,7 @@ The package also lets the service keep the computer awake when you ask for it in
 ## Install script
 
 ```sh
-curl -fsSLO https://raw.githubusercontent.com/akamachinecode/exhale/main/scripts/install.sh
+curl -fsSLO https://akamachinecode.github.io/exhale/install.sh
 less install.sh                 # read it first
 sh install.sh --service
 sudo systemctl start exhale

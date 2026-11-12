@@ -6,7 +6,13 @@
   "include-component-in-tag": false,
   "packages": {
     ".": {
-      "package-name": "exhale"
+      "package-name": "exhale",
+      "extra-files": [
+        {
+          "type": "generic",
+          "path": "site/app.js"
+        }
+      ]
     }
   }
 }
