@@ -12,6 +12,7 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"os"
 	"strings"
 	"time"
 
@@ -175,4 +176,41 @@ func Unlink(ctx context.Context, st *store.Store, memberID, id string) error {
 		return fmt.Errorf("%w: link %s", domain.ErrNotFound, id)
 	}
 	return err
+}
+
+// DesktopTokenName names the token of the menu bar icon (ADR 0032).
+const DesktopTokenName = "Exhale menu bar" //nolint:gosec // a name, not a secret
+
+// DesktopTokenFile is the file, in the data directory, that holds it.
+const DesktopTokenFile = "desktop-token"
+
+// EnsureDesktopToken makes sure path holds a working token of memberID for
+// the menu bar icon, which runs as the same person on the same computer:
+// whoever can read the file can read the database next to it anyway. A
+// missing or revoked token is replaced, and the old ones are revoked.
+func EnsureDesktopToken(ctx context.Context, st *store.Store, memberID, path string) error {
+	if b, err := os.ReadFile(path); err == nil { //nolint:gosec // our own data directory
+		// Looked up, not resolved: resolving records a use every minute.
+		if t, err := st.Q.GetAPITokenByHash(ctx, Hash(strings.TrimSpace(string(b)))); err == nil && t.MemberID == memberID {
+			return nil
+		}
+	}
+	old, err := ListTokens(ctx, st, memberID)
+	if err != nil {
+		return err
+	}
+	for _, t := range old {
+		if t.Name == DesktopTokenName {
+			_ = RevokeToken(ctx, st, memberID, t.ID)
+		}
+	}
+	plain, err := CreateToken(ctx, st, memberID, DesktopTokenName, app.ScopeWrite)
+	if err != nil {
+		return err
+	}
+	tmp := path + ".tmp"
+	if err := os.WriteFile(tmp, []byte(plain+"\n"), 0o600); err != nil {
+		return err
+	}
+	return os.Rename(tmp, path)
 }

@@ -29,14 +29,27 @@ All of them run the same binary with the same settings. The same instance serves
 
 ## Keep the computer awake
 
-On a desktop Mac or Windows PC, let Exhale keep the machine from sleeping: in the web, **Settings → General → This computer** (owners), choose *Always* or *Only between two times*. The display still turns off unless you untick *Let the display sleep*. Exhale stops holding the machine when it exits.
+On a desktop Mac or Windows PC, let Exhale keep the machine from sleeping: in the web, **Settings → General → This computer** (owners), or from Exhale's icon in the menu bar (the tray on Windows and Linux).
 
-- **Windows**: Exhale asks Windows itself (`SetThreadExecutionState`), nothing to install. Sleep you ask for (Start → Sleep, closing a laptop lid) still happens.
+- **A rule**: *Always*, or *Only between two times* (e.g. 08:00 to 23:00, in the household's time zone; a range can cross midnight).
+- **Now, for a while**: 1, 2 or 8 hours, until a time, or until you stop it, with *+1 h* to make it longer. A session started before the computer restarts comes back with the time it had left.
+- **Keep going with the lid closed**: a laptop stays awake when you close it. On a Mac this needs your administrator password once (see [macOS](macos.md#keep-the-mac-awake)).
+- **Only while plugged in**, and **stop on battery at** a level (20 % unless you change it): on battery, the laptop sleeps as usual.
+
+The display still turns off unless you untick *Let the display sleep*. Exhale stops holding the machine when it exits, and lets a closed laptop sleep at once when it stops holding it.
+
+- **Windows**: Exhale asks Windows itself (`SetThreadExecutionState`), nothing to install. With the lid option, it sets your power plan's "When I close the lid" to *Do nothing* while it holds, and puts back what it was. If the laptop is already closed when that happens, it sleeps at the next idle timeout.
 - **macOS**: see [macOS](macos.md#keep-the-mac-awake).
-- **Linux**: Exhale takes a `systemd-inhibit` lock. A desktop session may; a system service usually needs a polkit rule, and the web shows the refusal until then. Most Linux servers never sleep anyway.
+- **Linux**: Exhale takes a `systemd-inhibit` lock (idle and sleep, and the lid switch with the lid option). A desktop session may; a system service usually needs a polkit rule, and the web shows the refusal until then. Most Linux servers never sleep anyway.
 - **Docker**: not available: the container cannot keep its host awake. Use the host's own settings.
 
-A laptop with its lid closed sleeps whatever Exhale asks.
+A laptop kept awake in a closed bag gets hot. Use the lid option on a desk, and keep the battery level on.
+
+### The menu bar icon
+
+The desktop apps put an Exhale icon in the menu bar (macOS) or the tray (Windows, Linux). It shows your next charges and what the next 30 days cost, and starts, extends or stops keeping the computer awake. It starts at login, and stays when you close the window; *Quit* in its menu closes only the icon: reminders keep going out.
+
+On GNOME (Fedora, Debian), tray icons need the *AppIndicator and KStatusNotifierItem Support* extension (`gnome-shell-extension-appindicator`); Ubuntu has it on already, KDE needs nothing.
 
 ## Settings
 

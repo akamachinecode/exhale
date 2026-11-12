@@ -38,21 +38,51 @@ func TestWindowProgram(t *testing.T) {
 
 func TestRunWindow(t *testing.T) {
 	ctx := context.Background()
-	if err := runWindow(ctx, windowProgram(fakeWindow(t, "0")), "http://127.0.0.1:8484"); err != nil {
+	if err := runWindow(ctx, windowProgram(fakeWindow(t, "0")), "http://127.0.0.1:8484", "", false); err != nil {
 		t.Errorf("a window closed normally: %v", err)
 	}
 	// 127: the loader did not find its libraries, a server without a desktop.
-	if err := runWindow(ctx, windowProgram(fakeWindow(t, "127")), "http://127.0.0.1:8484"); !errors.Is(err, errNoWindow) {
+	if err := runWindow(ctx, windowProgram(fakeWindow(t, "127")), "http://127.0.0.1:8484", "", false); !errors.Is(err, errNoWindow) {
 		t.Errorf("missing libraries: %v, want errNoWindow", err)
 	}
-	if err := runWindow(ctx, windowProgram(fakeWindow(t, "3")), "http://127.0.0.1:8484"); err == nil || errors.Is(err, errNoWindow) {
+	if err := runWindow(ctx, windowProgram(fakeWindow(t, "3")), "http://127.0.0.1:8484", "", false); err == nil || errors.Is(err, errNoWindow) {
 		t.Errorf("a window that failed: %v", err)
+	}
+}
+
+func TestRunWindowPassesDataDirAndBackground(t *testing.T) {
+	dir := t.TempDir()
+	out := filepath.Join(dir, "args")
+	script := "#!/bin/sh\necho \"$@\" > '" + out + "'\n"
+	if err := os.WriteFile(filepath.Join(dir, "exhale-window"), []byte(script), 0o755); err != nil { //nolint:gosec // a test script
+		t.Fatal(err)
+	}
+	if err := runWindow(context.Background(), filepath.Join(dir, "exhale-window"), "http://127.0.0.1:8484", "/data dir", true); err != nil {
+		t.Fatal(err)
+	}
+	got, _ := os.ReadFile(out) //nolint:gosec // the test's own file
+	if want := "--url http://127.0.0.1:8484 --data-dir /data dir --background\n"; string(got) != want {
+		t.Errorf("args = %q, want %q", got, want)
+	}
+}
+
+func TestBackgroundWithoutWindowShowsNothing(t *testing.T) {
+	// The libraries are missing: at login, no browser opens.
+	a := App{Exe: fakeWindow(t, "127"), Background: true}
+	if err := a.show(context.Background(), "http://127.0.0.1:1"); err != nil {
+		t.Errorf("show = %v", err)
+	}
+	// And the background flag reaches its own window.
+	var bg bool
+	a.Window = func(_ string, background bool) error { bg = background; return nil }
+	if err := a.show(context.Background(), "http://127.0.0.1:1"); err != nil || !bg {
+		t.Errorf("show = %v, background %v", err, bg)
 	}
 }
 
 func TestShowPrefersItsOwnWindow(t *testing.T) {
 	var shown string
-	a := App{Exe: fakeWindow(t, "3"), Window: func(url string) error { shown = url; return nil }}
+	a := App{Exe: fakeWindow(t, "3"), Window: func(url string, _ bool) error { shown = url; return nil }}
 	if err := a.show(context.Background(), "http://127.0.0.1:8484"); err != nil || shown != "http://127.0.0.1:8484" {
 		t.Errorf("show = %v, shown %q", err, shown)
 	}

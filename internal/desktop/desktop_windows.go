@@ -22,24 +22,40 @@ func misplaced(string) bool { return false }
 // replacing the files.
 func (a App) start(_ context.Context, up bool, _ string) (string, error) {
 	if a.Login {
-		k, _, err := registry.CreateKey(registry.CURRENT_USER, runKey, registry.QUERY_VALUE|registry.SET_VALUE)
-		if err != nil {
+		if err := atSignIn("Exhale", `"`+a.Exe+`" serve`); err != nil {
 			return "", err
 		}
-		line := `"` + a.Exe + `" serve`
-		if v, _, err := k.GetStringValue("Exhale"); err != nil || v != line {
-			err = k.SetStringValue("Exhale", line)
-			if err != nil {
-				_ = k.Close()
-				return "", err
-			}
-		}
-		_ = k.Close()
 	}
 	if up {
 		return "", nil
 	}
 	return "", a.spawn()
+}
+
+// iconRunValue names the tray icon's entry in the Run key (ADR 0032); the
+// uninstaller removes it too.
+const iconRunValue = "Exhale icon"
+
+// iconAtLogin adds the tray icon to the programs started at sign-in: it
+// waits for the server, started by the entry beside it.
+func (a App) iconAtLogin() error {
+	if !a.Login {
+		return nil
+	}
+	return atSignIn(iconRunValue, `"`+a.Exe+`" open `+BackgroundFlag)
+}
+
+// atSignIn sets an entry of the Run key, unless it already says line.
+func atSignIn(name, line string) error {
+	k, _, err := registry.CreateKey(registry.CURRENT_USER, runKey, registry.QUERY_VALUE|registry.SET_VALUE)
+	if err != nil {
+		return err
+	}
+	defer func() { _ = k.Close() }()
+	if v, _, err := k.GetStringValue(name); err == nil && v == line {
+		return nil
+	}
+	return k.SetStringValue(name, line)
 }
 
 // DefaultLogFile is the log of a server started without a console.

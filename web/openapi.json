@@ -2837,6 +2837,98 @@
         ],
         "type": "object"
       },
+      "Glance": {
+        "additionalProperties": false,
+        "properties": {
+          "$schema": {
+            "description": "A URL to the JSON Schema for this object.",
+            "examples": [
+              "https://example.com/api/schemas/Glance.json"
+            ],
+            "format": "uri",
+            "readOnly": true,
+            "type": "string"
+          },
+          "charges": {
+            "items": {
+              "$ref": "#/components/schemas/GlanceCharge"
+            },
+            "type": [
+              "array",
+              "null"
+            ]
+          },
+          "keepAwake": {
+            "$ref": "#/components/schemas/KeepAwakeInfo"
+          },
+          "language": {
+            "type": "string"
+          },
+          "overdue": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "today": {
+            "type": "string"
+          },
+          "totals": {
+            "items": {
+              "type": "string"
+            },
+            "type": [
+              "array",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "language",
+          "today",
+          "charges",
+          "totals",
+          "keepAwake",
+          "overdue"
+        ],
+        "type": "object"
+      },
+      "GlanceCharge": {
+        "additionalProperties": false,
+        "properties": {
+          "amount": {
+            "type": "string"
+          },
+          "date": {
+            "type": "string"
+          },
+          "daysUntil": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "kind": {
+            "enum": [
+              "renewal",
+              "trial",
+              "expiry"
+            ],
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "subscriptionId": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "subscriptionId",
+          "name",
+          "amount",
+          "date",
+          "daysUntil",
+          "kind"
+        ],
+        "type": "object"
+      },
       "Household": {
         "additionalProperties": false,
         "properties": {
@@ -3397,10 +3489,19 @@
             "readOnly": true,
             "type": "string"
           },
+          "batteryFloor": {
+            "format": "int64",
+            "maximum": 95,
+            "minimum": 0,
+            "type": "integer"
+          },
           "from": {
             "type": "string"
           },
           "keepDisplayOn": {
+            "type": "boolean"
+          },
+          "lidClosed": {
             "type": "boolean"
           },
           "mode": {
@@ -3410,6 +3511,12 @@
               "hours"
             ],
             "type": "string"
+          },
+          "onlyOnPower": {
+            "type": "boolean"
+          },
+          "session": {
+            "$ref": "#/components/schemas/KeepAwakeSession"
           },
           "status": {
             "$ref": "#/components/schemas/KeepAwakeStatus"
@@ -3427,7 +3534,88 @@
           "mode",
           "from",
           "to",
-          "keepDisplayOn"
+          "keepDisplayOn",
+          "lidClosed",
+          "onlyOnPower",
+          "batteryFloor"
+        ],
+        "type": "object"
+      },
+      "KeepAwakePower": {
+        "additionalProperties": false,
+        "properties": {
+          "hasBattery": {
+            "type": "boolean"
+          },
+          "onBattery": {
+            "type": "boolean"
+          },
+          "percent": {
+            "format": "int64",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "hasBattery",
+          "onBattery",
+          "percent"
+        ],
+        "type": "object"
+      },
+      "KeepAwakeSession": {
+        "additionalProperties": false,
+        "properties": {
+          "active": {
+            "type": "boolean"
+          },
+          "left": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "until": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "active"
+        ],
+        "type": "object"
+      },
+      "KeepAwakeSessionInput": {
+        "additionalProperties": false,
+        "properties": {
+          "$schema": {
+            "description": "A URL to the JSON Schema for this object.",
+            "examples": [
+              "https://example.com/api/schemas/KeepAwakeSessionInput.json"
+            ],
+            "format": "uri",
+            "readOnly": true,
+            "type": "string"
+          },
+          "action": {
+            "enum": [
+              "start",
+              "extend",
+              "stop"
+            ],
+            "type": "string"
+          },
+          "dryRun": {
+            "type": "boolean"
+          },
+          "minutes": {
+            "format": "int64",
+            "maximum": 10080,
+            "minimum": 0,
+            "type": "integer"
+          },
+          "until": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "action"
         ],
         "type": "object"
       },
@@ -3437,28 +3625,55 @@
           "error": {
             "type": "string"
           },
+          "lid": {
+            "enum": [
+              "off",
+              "active",
+              "setup",
+              "unavailable",
+              "failed"
+            ],
+            "type": "string"
+          },
+          "lidError": {
+            "type": "string"
+          },
+          "power": {
+            "$ref": "#/components/schemas/KeepAwakePower"
+          },
           "reason": {
             "enum": [
               "container",
               "unsupported",
-              "other"
+              "other",
+              "power",
+              "battery"
             ],
             "type": "string"
+          },
+          "session": {
+            "type": "boolean"
           },
           "state": {
             "enum": [
               "off",
               "active",
               "waiting",
+              "paused",
               "unavailable",
               "failed",
               "unknown"
             ],
             "type": "string"
+          },
+          "until": {
+            "type": "string"
           }
         },
         "required": [
-          "state"
+          "state",
+          "session",
+          "lid"
         ],
         "type": "object"
       },
@@ -5386,6 +5601,12 @@
             "readOnly": true,
             "type": "string"
           },
+          "batteryFloor": {
+            "format": "int64",
+            "maximum": 95,
+            "minimum": 0,
+            "type": "integer"
+          },
           "dryRun": {
             "type": "boolean"
           },
@@ -5395,6 +5616,9 @@
           "keepDisplayOn": {
             "type": "boolean"
           },
+          "lidClosed": {
+            "type": "boolean"
+          },
           "mode": {
             "enum": [
               "off",
@@ -5402,6 +5626,9 @@
               "hours"
             ],
             "type": "string"
+          },
+          "onlyOnPower": {
+            "type": "boolean"
           },
           "to": {
             "type": "string"
@@ -5486,6 +5713,24 @@
           "email",
           "password"
         ],
+        "type": "object"
+      },
+      "SetupLidClosedInput": {
+        "additionalProperties": false,
+        "properties": {
+          "$schema": {
+            "description": "A URL to the JSON Schema for this object.",
+            "examples": [
+              "https://example.com/api/schemas/SetupLidClosedInput.json"
+            ],
+            "format": "uri",
+            "readOnly": true,
+            "type": "string"
+          },
+          "dryRun": {
+            "type": "boolean"
+          }
+        },
         "type": "object"
       },
       "Share": {
@@ -9400,6 +9645,56 @@
         ]
       }
     },
+    "/api/v1/glance": {
+      "get": {
+        "description": "The next charges with their amounts already written for the member's language, what the next 30 days cost per currency, and whether this computer is kept awake. Made for small places: the menu bar icon, a widget.",
+        "operationId": "glance",
+        "parameters": [
+          {
+            "explode": false,
+            "in": "query",
+            "name": "limit",
+            "schema": {
+              "format": "int64",
+              "maximum": 20,
+              "minimum": 0,
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Glance"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorModel"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "A glance at what comes next",
+        "tags": [
+          "Insights"
+        ]
+      }
+    },
     "/api/v1/household": {
       "get": {
         "description": "Household settings, members, categories and payment methods with their ids.",
@@ -9591,7 +9886,7 @@
     },
     "/api/v1/keep-awake": {
       "get": {
-        "description": "Whether Exhale keeps the computer it runs on from sleeping (so reminders go out and chat buttons answer): off, always, or between two times of day in the household time zone; whether the display may sleep; and the live status (active, waiting outside the hours, unavailable here and why, or the error the system gave).",
+        "description": "Whether Exhale keeps the computer it runs on from sleeping (so reminders go out and chat buttons answer): off, always, or between two times of day in the household time zone; whether the display may sleep; whether a closed lid, running on battery or a battery floor change that; a session started by hand; and the live status (active and until when, waiting outside the hours, paused on battery, unavailable here and why, or the error the system gave), with the battery's charge.",
         "operationId": "get_keep_awake",
         "responses": {
           "200": {
@@ -9626,7 +9921,7 @@
         ]
       },
       "post": {
-        "description": "Owners only. Keeps the computer Exhale runs on from sleeping: mode off, always, or hours (from and to, HH:MM in the household time zone; to earlier than from crosses midnight). keepDisplayOn keeps the screen on too. A laptop with its lid closed still sleeps. Can be reverted with undo.",
+        "description": "Owners only. Keeps the computer Exhale runs on from sleeping: mode off, always, or hours (from and to, HH:MM in the household time zone; to earlier than from crosses midnight). keepDisplayOn keeps the screen on too. lidClosed keeps a laptop awake with its lid closed (on a Mac, setup_lid_closed first). onlyOnPower: only while plugged in. batteryFloor: on battery, stop at this charge (default 20). To keep it awake now for a while, use keep_awake_session. Can be reverted with undo.",
         "operationId": "set_keep_awake",
         "requestBody": {
           "content": {
@@ -9666,6 +9961,100 @@
           }
         ],
         "summary": "Keep this computer awake",
+        "tags": [
+          "Household"
+        ]
+      }
+    },
+    "/api/v1/keep-awake/lid-setup": {
+      "post": {
+        "description": "Owners only, on a Mac: shows the system's administrator password dialog on the computer Exhale runs on, to allow it to turn lid sleep off (pmset disablesleep) without asking again. Someone must be at that computer. Elsewhere it only reports whether the lid can be held.",
+        "operationId": "setup_lid_closed",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SetupLidClosedInput"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/KeepAwakeInfo"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorModel"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Allow keeping a closed laptop awake",
+        "tags": [
+          "Household"
+        ]
+      }
+    },
+    "/api/v1/keep-awake/session": {
+      "post": {
+        "description": "Owners only. Keeps the computer Exhale runs on awake now, whatever the rule of set_keep_awake says: action start for minutes, until a time of day (HH:MM, household time zone) or until stopped; extend adds minutes; stop ends it. A session survives a restart of the computer with the time it had left. Can be reverted with undo.",
+        "operationId": "keep_awake_session",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/KeepAwakeSessionInput"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/KeepAwakeInfo"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorModel"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Keep this computer awake for a while",
         "tags": [
           "Household"
         ]

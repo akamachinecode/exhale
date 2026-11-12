@@ -15,9 +15,12 @@ import (
 	"github.com/akamachinecode/exhale/internal/store/db"
 )
 
-// Keep this computer awake (ADR 0028): on a desktop that sleeps, reminders
-// are not sent and chat buttons stop answering. The owner chooses when
-// Exhale keeps the machine from sleeping; KeepAwake applies it.
+// Keep this computer awake (ADR 0028, 0032): on a desktop that sleeps,
+// reminders are not sent and chat buttons stop answering. The owner chooses
+// when Exhale keeps the machine from sleeping (a standing rule: always or
+// between two times), may start a session on top of it (for an hour, until
+// a time, until stopped), and may keep a laptop going with its lid closed,
+// only on power, or down to a battery level. KeepAwake applies it.
 
 // keepAwakeKey is the settings key of the choice, stored as JSON.
 const keepAwakeKey = "keep_awake"
@@ -34,6 +37,7 @@ const (
 	AwakeOff         = "off"         // the owner turned it off
 	AwakeActive      = "active"      // the machine is kept awake now
 	AwakeWaiting     = "waiting"     // outside the hours
+	AwakePaused      = "paused"      // on battery: not plugged in, or below the floor (see Reason)
 	AwakeUnavailable = "unavailable" // not possible here (see Reason)
 	AwakeFailed      = "failed"      // the system refused (see Error)
 	AwakeUnknown     = "unknown"     // this process does not apply it (exhale mcp)
@@ -46,18 +50,66 @@ type KeepAwakeSetting struct {
 	To   string `json:"to" jsonschema:"end of the hours, HH:MM in the household time zone; earlier than from for hours that cross midnight"`
 	// The system is kept awake; the display may still sleep unless this is set.
 	KeepDisplayOn bool `json:"keepDisplayOn" jsonschema:"also keep the display on (default false: only the system stays awake)"`
+	LidClosed     bool `json:"lidClosed" jsonschema:"keep a laptop awake with its lid closed too (on a Mac, needs setup_lid_closed once)"`
+	OnlyOnPower   bool `json:"onlyOnPower" jsonschema:"only while plugged in: a laptop on battery sleeps as usual"`
+	BatteryFloor  int  `json:"batteryFloor" minimum:"0" maximum:"95" jsonschema:"on battery, stop keeping it awake at or below this charge, in percent (0: never stop)"`
+	// Session keeps it awake on top of the rule, for a while or until stopped.
+	Session KeepAwakeSession `json:"session,omitzero"`
+}
+
+// KeepAwakeSession keeps the computer awake now, whatever the rule says.
+type KeepAwakeSession struct {
+	Active bool `json:"active"`
+	// Until is when it ends (RFC 3339); empty: when it is stopped.
+	Until string `json:"until,omitempty" jsonschema:"when the session ends, RFC 3339; empty when it lasts until stopped"`
+	// Left is the time it had left when the server stopped, in seconds:
+	// a computer that restarts gets it back in full.
+	Left int `json:"left,omitempty" jsonschema:"seconds the session had left when Exhale stopped; it resumes with them"`
 }
 
 func defaultKeepAwake() KeepAwakeSetting {
-	return KeepAwakeSetting{Mode: KeepAwakeOff, From: "08:00", To: "23:00"}
+	return KeepAwakeSetting{Mode: KeepAwakeOff, From: "08:00", To: "23:00", BatteryFloor: 20}
+}
+
+// sessionEnd is when the session ends: zero when it is not active or lasts
+// until stopped; ok is false when there is none now.
+func sessionEnd(k KeepAwakeSetting, now time.Time) (end time.Time, ok bool) {
+	if !k.Session.Active {
+		return time.Time{}, false
+	}
+	if k.Session.Until == "" {
+		return time.Time{}, true
+	}
+	end, err := time.Parse(time.RFC3339, k.Session.Until)
+	if err != nil || !end.After(now) {
+		return time.Time{}, false
+	}
+	return end, true
 }
 
 // KeepAwakeStatus says whether the computer is kept awake right now.
 type KeepAwakeStatus struct {
-	State string `json:"state" enum:"off,active,waiting,unavailable,failed,unknown" jsonschema:"active: kept awake now; waiting: outside the hours; unavailable: not possible on this machine (reason); failed: the system refused (error); unknown: the server process applies it, not this one"`
-	// Why it is unavailable.
-	Reason string `json:"reason,omitempty" enum:"container,unsupported,other" jsonschema:"container: Exhale runs in a container; unsupported: this operating system; other: see error"`
+	State string `json:"state" enum:"off,active,waiting,paused,unavailable,failed,unknown" jsonschema:"active: kept awake now; waiting: outside the hours; paused: on battery (reason); unavailable: not possible on this machine (reason); failed: the system refused (error); unknown: the server process applies it, not this one"`
+	// Why it is paused or unavailable.
+	Reason string `json:"reason,omitempty" enum:"container,unsupported,other,power,battery" jsonschema:"container: Exhale runs in a container; unsupported: this operating system; other: see error; power: on battery and set to keep awake only while plugged in; battery: the battery is at or below the floor"`
 	Error  string `json:"error,omitempty" jsonschema:"what the system said, in its words"`
+	// Until is when keeping awake ends by itself: the session's end, or the
+	// end of the hours.
+	Until string `json:"until,omitempty" jsonschema:"when it stops by itself, RFC 3339 (the session's end or the end of the hours); empty when it does not"`
+	// Session is true when a session, not the rule, keeps it awake now.
+	Session bool `json:"session" jsonschema:"a session started by hand keeps it awake now"`
+	// Lid is whether a closed lid is kept awake too.
+	Lid      string `json:"lid" enum:"off,active,setup,unavailable,failed" jsonschema:"off: not asked or not active now; active: a closed lid does not send it to sleep; setup: a Mac needs setup_lid_closed once; unavailable: not on this system (lidError); failed: the system refused (lidError)"`
+	LidError string `json:"lidError,omitempty"`
+	// Power is the computer's power source, when the system says.
+	Power KeepAwakePower `json:"power,omitzero"`
+}
+
+// KeepAwakePower is the computer's power source.
+type KeepAwakePower struct {
+	HasBattery bool `json:"hasBattery" jsonschema:"false on a desktop"`
+	OnBattery  bool `json:"onBattery"`
+	Percent    int  `json:"percent" jsonschema:"battery charge, 0 to 100"`
 }
 
 // KeepAwakeInfo is the setting with its live status.
@@ -74,7 +126,32 @@ type SetKeepAwakeInput struct {
 	From          *string `json:"from,omitempty" jsonschema:"start of the hours, HH:MM in the household time zone"`
 	To            *string `json:"to,omitempty" jsonschema:"end of the hours, HH:MM; earlier than from for hours that cross midnight, e.g. 20:00 to 02:00"`
 	KeepDisplayOn *bool   `json:"keepDisplayOn,omitempty" jsonschema:"also keep the display on; false lets it sleep while the system stays awake"`
+	LidClosed     *bool   `json:"lidClosed,omitempty" jsonschema:"keep a laptop awake with its lid closed too (on a Mac, needs setup_lid_closed once)"`
+	OnlyOnPower   *bool   `json:"onlyOnPower,omitempty" jsonschema:"only while plugged in"`
+	BatteryFloor  *int    `json:"batteryFloor,omitempty" minimum:"0" maximum:"95" jsonschema:"on battery, stop at or below this charge in percent; 0 never stops"`
 	DryRun        bool    `json:"dryRun,omitempty"`
+}
+
+// Session actions.
+const (
+	SessionStart  = "start"
+	SessionExtend = "extend"
+	SessionStop   = "stop"
+)
+
+// KeepAwakeSessionInput starts, extends or stops a session that keeps the
+// computer awake now, whatever the rule says.
+type KeepAwakeSessionInput struct {
+	Action  string `json:"action" enum:"start,extend,stop" jsonschema:"start: keep it awake now (for minutes, until a time, or until stopped when neither is given); extend: add minutes to the session (starts one when there is none); stop: end the session, the rule applies again"`
+	Minutes int    `json:"minutes,omitempty" minimum:"0" maximum:"10080" jsonschema:"how long, in minutes (start, extend)"`
+	Until   string `json:"until,omitempty" jsonschema:"start only: until this time of day, HH:MM in the household time zone (the next time it comes)"`
+	DryRun  bool   `json:"dryRun,omitempty"`
+}
+
+// SetupLidClosedInput asks this computer for the permission to keep it
+// awake with its lid closed.
+type SetupLidClosedInput struct {
+	DryRun bool `json:"dryRun,omitempty"`
 }
 
 // GetKeepAwake returns the keep-awake setting and whether it is in effect.
@@ -121,38 +198,136 @@ func (s *Service) SetKeepAwake(ctx context.Context, actor Actor, in SetKeepAwake
 		if in.KeepDisplayOn != nil {
 			set.KeepDisplayOn = *in.KeepDisplayOn
 		}
+		if in.LidClosed != nil {
+			set.LidClosed = *in.LidClosed
+		}
+		if in.OnlyOnPower != nil {
+			set.OnlyOnPower = *in.OnlyOnPower
+		}
+		if in.BatteryFloor != nil {
+			if *in.BatteryFloor < 0 || *in.BatteryFloor > 95 {
+				return domain.Invalid("the battery level must be between 0 and 95")
+			}
+			set.BatteryFloor = *in.BatteryFloor
+		}
 		if set.Mode == KeepAwakeHours && set.From == set.To {
 			return domain.Invalid("the hours must start and end at different times")
 		}
-		if stored && set == before {
-			return nil
-		}
-		b, err := json.Marshal(set)
-		if err != nil {
-			return err
-		}
-		if err := q.PutSetting(ctx, db.PutSettingParams{Key: keepAwakeKey, Value: string(b)}); err != nil {
-			return err
-		}
-		var prev any
-		if stored {
-			prev = before
-		}
-		if _, err := c.record(q, "keep_awake.update", "setting", keepAwakeKey, prev, set); err != nil {
-			return err
-		}
-		c.emit(bus.Event{Type: bus.KeepAwakeUpdated, HouseholdID: actor.HouseholdID, EntityID: keepAwakeKey})
-		return nil
+		return saveKeepAwake(ctx, q, c, actor, before, stored, set)
 	})
+	return s.keepAwakeAnswer(ctx, actor, set, in.DryRun, err)
+}
+
+// saveKeepAwake stores the setting and records the change, so it can be
+// undone.
+func saveKeepAwake(ctx context.Context, q *db.Queries, c *change, actor Actor, before KeepAwakeSetting, stored bool, set KeepAwakeSetting) error {
+	if stored && set == before {
+		return nil
+	}
+	b, err := json.Marshal(set)
+	if err != nil {
+		return err
+	}
+	if err := q.PutSetting(ctx, db.PutSettingParams{Key: keepAwakeKey, Value: string(b)}); err != nil {
+		return err
+	}
+	var prev any
+	if stored {
+		prev = before
+	}
+	if _, err := c.record(q, "keep_awake.update", "setting", keepAwakeKey, prev, set); err != nil {
+		return err
+	}
+	c.emit(bus.Event{Type: bus.KeepAwakeUpdated, HouseholdID: actor.HouseholdID, EntityID: keepAwakeKey})
+	return nil
+}
+
+// keepAwakeAnswer applies a saved change at once and answers with the
+// setting and its new status.
+func (s *Service) keepAwakeAnswer(ctx context.Context, actor Actor, set KeepAwakeSetting, dryRun bool, err error) (KeepAwakeInfo, error) {
 	if err != nil {
 		return KeepAwakeInfo{}, err
 	}
-	if s.keepAwake != nil && !in.DryRun {
+	if s.keepAwake != nil && !dryRun {
 		s.keepAwake.Apply(ctx) // the status the answer shows is the new one
 	}
 	info, err := s.GetKeepAwake(ctx, actor, struct{}{})
 	info.KeepAwakeSetting = set // a dry run was rolled back
 	return info, err
+}
+
+// KeepAwakeSession starts, extends or stops a session that keeps the
+// computer awake now. Owners only.
+func (s *Service) KeepAwakeSession(ctx context.Context, actor Actor, in KeepAwakeSessionInput) (KeepAwakeInfo, error) {
+	var set KeepAwakeSetting
+	now := s.Now()
+	loc := s.awakeLocation(ctx) // before the transaction: SQLite has one writer
+	err := s.write(ctx, actor, in.DryRun, func(q *db.Queries, c *change) error {
+		if err := s.requireOwner(ctx, q, actor); err != nil {
+			return err
+		}
+		before, stored := readKeepAwake(ctx, q)
+		set = before
+		if in.Minutes < 0 || in.Minutes > 7*24*60 {
+			return domain.Invalid("minutes must be between 1 and 10080 (a week)")
+		}
+		switch in.Action {
+		case SessionStart:
+			set.Session = KeepAwakeSession{Active: true}
+			switch {
+			case in.Until != "":
+				m, ok := clockMinutes(strings.TrimSpace(in.Until))
+				if !ok {
+					return domain.Invalid("times must look like 08:00")
+				}
+				set.Session.Until = nextClock(now.In(loc), m).UTC().Format(time.RFC3339)
+			case in.Minutes > 0:
+				set.Session.Until = now.Add(time.Duration(in.Minutes) * time.Minute).UTC().Format(time.RFC3339)
+			}
+		case SessionExtend:
+			if in.Minutes == 0 {
+				return domain.Invalid("say how many minutes to add")
+			}
+			end, ok := sessionEnd(before, now)
+			switch {
+			case ok && end.IsZero():
+				return nil // until stopped: nothing to extend
+			case !ok:
+				end = now
+			}
+			set.Session = KeepAwakeSession{Active: true, Until: end.Add(time.Duration(in.Minutes) * time.Minute).UTC().Format(time.RFC3339)}
+		case SessionStop:
+			set.Session = KeepAwakeSession{}
+		default:
+			return domain.Invalid("unknown action %q", in.Action)
+		}
+		return saveKeepAwake(ctx, q, c, actor, before, stored, set)
+	})
+	return s.keepAwakeAnswer(ctx, actor, set, in.DryRun, err)
+}
+
+// SetupLidClosed asks this computer for the permission to keep it awake
+// with its lid closed: on a Mac, the administrator's password, in a dialog
+// on its screen, to allow `pmset disablesleep` (ADR 0032). Owners only.
+func (s *Service) SetupLidClosed(ctx context.Context, actor Actor, in SetupLidClosedInput) (KeepAwakeInfo, error) {
+	if err := s.requireOwner(ctx, s.st.Q, actor); err != nil {
+		return KeepAwakeInfo{}, err
+	}
+	if !actor.CanWrite() {
+		return KeepAwakeInfo{}, domain.Fail(ErrForbidden, "%s has read-only access", actor.Label)
+	}
+	k := s.keepAwake
+	if k == nil || k.Lid == nil {
+		return KeepAwakeInfo{}, domain.Invalid("this process does not keep the computer awake: ask the Exhale server")
+	}
+	if !in.DryRun {
+		// No transaction is open while the dialog waits for the person.
+		if err := k.SetupLid(ctx); err != nil {
+			return KeepAwakeInfo{}, domain.Invalid("the computer did not allow it: %s", err.Error())
+		}
+		k.Apply(ctx)
+	}
+	return s.GetKeepAwake(ctx, actor, struct{}{})
 }
 
 // undoSetting restores a setting recorded by a change (keep_awake is the
@@ -265,6 +440,10 @@ type KeepAwake struct {
 	svc    *Service
 	keeper awake.Keeper
 	log    *slog.Logger
+	// Lid keeps the computer awake with its lid closed; nil: not here.
+	Lid awake.Lid
+	// Power reads the power source; nil: unknown (never paused).
+	Power func() awake.Power
 	// MaxSleep bounds every wait, so a change made by another process
 	// (exhale mcp) or a clock jump is noticed.
 	MaxSleep time.Duration
@@ -273,6 +452,9 @@ type KeepAwake struct {
 	RetryAfter time.Duration
 
 	mu       sync.Mutex
+	setupMu  sync.Mutex
+	lidHeld  bool
+	lidAt    time.Time // when holding the lid last failed
 	held     bool
 	display  bool
 	status   KeepAwakeStatus
@@ -302,11 +484,23 @@ func (k *KeepAwake) Status() KeepAwakeStatus {
 }
 
 // Serve applies the setting until ctx is cancelled, then lets the machine
-// sleep again.
+// sleep again. It first undoes a lid hold a crash left behind and resumes a
+// session the last stop paused; when it stops, it pauses the session.
 func (k *KeepAwake) Serve(ctx context.Context) error {
 	events, stop := k.svc.Bus().Subscribe(16)
 	defer stop()
-	defer k.Release()
+	if k.Lid != nil {
+		if err := k.Lid.Recover(); err != nil {
+			k.log.Warn("could not let a closed laptop sleep again after the last stop", "err", err)
+		} else {
+			k.log.Debug("lid recovery done")
+		}
+	}
+	k.resumeSession(ctx)
+	defer func() {
+		k.Release()
+		k.pauseSession()
+	}()
 	for {
 		next := k.Apply(ctx)
 		wait := k.MaxSleep
@@ -327,7 +521,45 @@ func (k *KeepAwake) Serve(ctx context.Context) error {
 	}
 }
 
-// Release lets the machine sleep again.
+// pauseSession saves the time a timed session has left: when the server
+// stops (a restart of the computer, an update), the session resumes with
+// it rather than running out while nothing kept the computer awake.
+func (k *KeepAwake) pauseSession() {
+	ctx := context.Background()
+	set, ok := readKeepAwake(ctx, k.svc.st.Q)
+	end, active := sessionEnd(set, k.svc.Now())
+	if !ok || !active || end.IsZero() || set.Session.Left > 0 {
+		return
+	}
+	set.Session.Left = int(end.Sub(k.svc.Now()).Seconds())
+	k.putSetting(ctx, set)
+}
+
+// resumeSession gives back a paused session its time.
+func (k *KeepAwake) resumeSession(ctx context.Context) {
+	set, ok := readKeepAwake(ctx, k.svc.st.Q)
+	if !ok || !set.Session.Active || set.Session.Left <= 0 {
+		return
+	}
+	set.Session.Until = k.svc.Now().Add(time.Duration(set.Session.Left) * time.Second).UTC().Format(time.RFC3339)
+	set.Session.Left = 0
+	k.putSetting(ctx, set)
+	k.log.Info("resuming the keep-awake session", "until", set.Session.Until)
+}
+
+// putSetting stores a change the server makes by itself: not a change of
+// the owner's, so it is not in the audit log.
+func (k *KeepAwake) putSetting(ctx context.Context, set KeepAwakeSetting) {
+	b, err := json.Marshal(set)
+	if err == nil {
+		err = k.svc.st.Q.PutSetting(ctx, db.PutSettingParams{Key: keepAwakeKey, Value: string(b)})
+	}
+	if err != nil {
+		k.log.Warn("could not save the keep-awake session", "err", err)
+	}
+}
+
+// Release lets the machine sleep again, lid included.
 func (k *KeepAwake) Release() {
 	k.mu.Lock()
 	defer k.mu.Unlock()
@@ -335,6 +567,7 @@ func (k *KeepAwake) Release() {
 }
 
 func (k *KeepAwake) release() {
+	k.releaseLid()
 	if k.held {
 		k.keeper.Release()
 		k.held = false
@@ -342,20 +575,81 @@ func (k *KeepAwake) release() {
 	}
 }
 
+func (k *KeepAwake) releaseLid() {
+	if !k.lidHeld {
+		return
+	}
+	if err := k.Lid.Release(); err != nil {
+		// Still held: the next Apply, a minute from now, tries again, and
+		// the marker makes the next start try too.
+		k.log.Warn("could not let a closed laptop sleep again", "err", err)
+		return
+	}
+	k.lidHeld = false
+	k.log.Info("a closed lid sends this computer to sleep again")
+}
+
+// SetupLid asks the computer for the permission to hold the lid.
+func (k *KeepAwake) SetupLid(ctx context.Context) error {
+	k.setupMu.Lock() // one dialog at a time
+	defer k.setupMu.Unlock()
+	return k.Lid.Setup(ctx)
+}
+
 // Apply holds or releases the machine as the setting asks now, and returns
 // when that next changes by itself (zero: not by itself).
 func (k *KeepAwake) Apply(ctx context.Context) time.Time {
 	set, _ := readKeepAwake(ctx, k.svc.st.Q)
-	now := k.svc.Now().In(k.svc.awakeLocation(ctx))
-	on, next := wanted(set, now)
+	now := k.svc.Now()
+	on, next := wanted(set, now.In(k.svc.awakeLocation(ctx)))
+	// until is when keeping awake stops by itself, as people read it: the
+	// later of the session's end and the end of the hours, never with
+	// "always" or a session until stopped.
+	var until time.Time
+	if on && set.Mode == KeepAwakeHours {
+		until = next
+	}
+	session := false
+	if end, ok := sessionEnd(set, now); ok {
+		session = true
+		switch {
+		case end.IsZero():
+			until = time.Time{}
+		case !on || end.After(until):
+			until = end
+		}
+		if !end.IsZero() && (next.IsZero() || end.Before(next)) {
+			next = end
+		}
+		on = true
+	}
+	if set.Mode == KeepAwakeAlways {
+		until = time.Time{}
+	}
+	var pw awake.Power
+	if k.Power != nil {
+		pw = k.Power()
+	}
 	k.mu.Lock()
 	prev := k.status
-	k.status = k.apply(set, on, now)
-	st := k.status
+	st := k.apply(set, on, pw, now)
+	if st.State == AwakeActive {
+		st.Session = session
+		if !until.IsZero() {
+			st.Until = until.UTC().Format(time.RFC3339)
+		}
+	}
+	if pw.Known && pw.HasBattery {
+		st.Power = KeepAwakePower{HasBattery: true, OnBattery: pw.OnBattery, Percent: pw.Percent}
+	}
+	k.status = st
 	k.mu.Unlock()
-	if st != prev {
+	if quiet(st) != quiet(prev) {
 		if st.State == AwakeFailed || st.State == AwakeUnavailable {
 			k.log.Warn("cannot keep this computer awake", "state", st.State, "reason", st.Reason, "err", st.Error)
+		}
+		if st.Lid == "failed" {
+			k.log.Warn("cannot keep this computer awake with its lid closed", "err", st.LidError)
 		}
 		if h, err := k.svc.st.Q.FirstHousehold(ctx); err == nil {
 			k.svc.Bus().Publish(bus.Event{Type: bus.KeepAwakeUpdated, HouseholdID: h.ID, EntityID: keepAwakeKey})
@@ -364,10 +658,17 @@ func (k *KeepAwake) Apply(ctx context.Context) time.Time {
 	return next
 }
 
-func (k *KeepAwake) apply(set KeepAwakeSetting, on bool, now time.Time) KeepAwakeStatus {
+// quiet is the status without the battery's charge, which changes every
+// few minutes and is not worth telling every page about.
+func quiet(st KeepAwakeStatus) KeepAwakeStatus {
+	st.Power.Percent = 0
+	return st
+}
+
+func (k *KeepAwake) apply(set KeepAwakeSetting, on bool, pw awake.Power, now time.Time) KeepAwakeStatus {
 	if err := k.keeper.Available(); err != nil {
 		k.release()
-		st := KeepAwakeStatus{State: AwakeUnavailable, Reason: "other", Error: err.Error()}
+		st := KeepAwakeStatus{State: AwakeUnavailable, Reason: "other", Error: err.Error(), Lid: "off"}
 		switch {
 		case errors.Is(err, awake.ErrContainer):
 			st.Reason, st.Error = "container", ""
@@ -387,17 +688,50 @@ func (k *KeepAwake) apply(set KeepAwakeSetting, on bool, now time.Time) KeepAwak
 		k.release()
 		k.failedAt = time.Time{}
 		if set.Mode == KeepAwakeOff {
-			return KeepAwakeStatus{State: AwakeOff}
+			return KeepAwakeStatus{State: AwakeOff, Lid: "off"}
 		}
-		return KeepAwakeStatus{State: AwakeWaiting}
+		return KeepAwakeStatus{State: AwakeWaiting, Lid: "off"}
 	}
+	// A laptop on battery: not plugged in, or too low to go on.
+	if pw.Known && pw.HasBattery && pw.OnBattery {
+		reason := ""
+		switch {
+		case set.OnlyOnPower:
+			reason = "power"
+		case set.BatteryFloor > 0 && pw.Percent <= set.BatteryFloor:
+			reason = "battery"
+		}
+		if reason != "" {
+			if k.held {
+				k.log.Info("pausing: this computer runs on battery", "reason", reason, "percent", pw.Percent)
+			}
+			k.release()
+			k.failedAt = time.Time{}
+			return KeepAwakeStatus{State: AwakePaused, Reason: reason, Lid: "off"}
+		}
+	}
+	st := k.hold(set, now)
+	if st.State != AwakeActive {
+		k.releaseLid()
+		st.Lid = "off"
+		return st
+	}
+	st.Lid, st.LidError = k.applyLid(set.LidClosed, now)
+	return st
+}
+
+// hold keeps the system awake, the display too when asked.
+func (k *KeepAwake) hold(set KeepAwakeSetting, now time.Time) KeepAwakeStatus {
 	if k.held && k.display == set.KeepDisplayOn {
 		return KeepAwakeStatus{State: AwakeActive}
 	}
 	if !k.failedAt.IsZero() && k.failedOn == set && now.Sub(k.failedAt) < k.RetryAfter && k.status.State == AwakeFailed {
-		return k.status
+		return KeepAwakeStatus{State: AwakeFailed, Error: k.status.Error}
 	}
-	k.release()
+	if k.held {
+		k.keeper.Release()
+		k.held = false
+	}
 	if err := k.keeper.Hold(set.KeepDisplayOn); err != nil {
 		k.failedAt, k.failedOn = now, set
 		return KeepAwakeStatus{State: AwakeFailed, Error: err.Error()}
@@ -406,4 +740,38 @@ func (k *KeepAwake) apply(set KeepAwakeSetting, on bool, now time.Time) KeepAwak
 	k.held, k.display = true, set.KeepDisplayOn
 	k.log.Info("keeping this computer awake", "display", set.KeepDisplayOn)
 	return KeepAwakeStatus{State: AwakeActive}
+}
+
+// applyLid holds or releases the lid while the system is held.
+func (k *KeepAwake) applyLid(want bool, now time.Time) (state, errText string) {
+	if !want || k.Lid == nil {
+		k.releaseLid()
+		if want {
+			return "unavailable", awake.ErrUnsupported.Error()
+		}
+		return "off", ""
+	}
+	if k.lidHeld {
+		return "active", ""
+	}
+	if err := k.Lid.Available(); err != nil {
+		switch {
+		case errors.Is(err, awake.ErrNeedsSetup):
+			return "setup", ""
+		case errors.Is(err, awake.ErrContainer), errors.Is(err, awake.ErrUnsupported):
+			return "unavailable", err.Error()
+		}
+		return "failed", err.Error()
+	}
+	if !k.lidAt.IsZero() && now.Sub(k.lidAt) < k.RetryAfter && k.status.Lid == "failed" {
+		return "failed", k.status.LidError
+	}
+	if err := k.Lid.Hold(); err != nil {
+		k.lidAt = now
+		return "failed", err.Error()
+	}
+	k.lidAt = time.Time{}
+	k.lidHeld = true
+	k.log.Info("keeping this computer awake with its lid closed")
+	return "active", ""
 }
