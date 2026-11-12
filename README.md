@@ -47,15 +47,18 @@ One tap and the message updates in place, with an undo. The web updates at the s
 
 |  |  |
 |---|---|
-| 🔔 **Reminders you can answer** | Already paid, a new date (this charge or from now on), another amount or card, skip, cancel, undo. Also by email, ntfy, web push and webhook. |
-| 📱 **The whole app in a chat message** | A pinned Telegram message is Exhale itself: spend, upcoming charges, every subscription, an add wizard, payment methods and settings. It redraws when anything changes. |
+| 🔔 **Reminders you can answer** | Already paid, a new date (this charge or from now on), another amount or card, skip, cancel, undo. One tap in the message, and it updates in place. |
 | ⏳ **The dates that cost money** | Free trials before they charge, the last day to cancel, renewals that need you (domains, licences), fixed-term contracts and price rises announced ahead. |
-| 📆 **Billing days as banks charge them** | Day 31 in short months, "the third Wednesday", weekends moved to a business day. Counted from the first charge, so dates never drift. |
+| 🔍 **Find the ones you forgot** | Import a bank export (CSV) or a PDF statement and Exhale finds the charges that repeat, with no AI needed. Later statements show what was paid, what changed price and what never arrived. |
+| 📱 **The whole app in a chat message** | A pinned Telegram or Slack message is Exhale itself: spend, upcoming charges, every subscription, an add wizard, payment methods and settings. It redraws when anything changes. Send the bot a statement to import it. |
 | 🩺 **A check-up of facts, not tips** | The same service paid twice, prices that went up this year, trials about to charge, a card about to expire and everything that depends on it. |
+| 💻 **Awake when it matters** | An icon in the menu bar (or the tray) with your next charges. Keep a laptop awake for an hour or a night, even with the lid closed, never down to an empty battery. What was due while it slept goes out when it wakes. |
+| 📲 **On your phone, no app store** | Install the web as an app and get push notifications with a button that works from the notification. Or reminders by email, ntfy and webhook. |
+| 📆 **Billing days as banks charge them** | Day 31 in short months, "the third Wednesday", weekends moved to a business day. Counted from the first charge, so dates never drift. |
 | 💶 **Every currency, exact** | Totals in your currency at ECB rates, what each subscription has really cost you, and how much to set aside each month for the yearly bills. |
 | 👥 **Shared, not mixed** | A partner or flatmates get their own account and reminders. Split a subscription and see who owes whom. Private ones stay private. |
 | 🤖 **Ask it anything** | Plain language in chat, or Claude, ChatGPT and local models over MCP. Every change shows a preview first and can be undone. |
-| 📥 **Bring everything with you** | Import from Wallos, a spreadsheet or your bank statement (CSV or PDF). Export it all as JSON, CSV or ZIP, or follow it in your calendar. |
+| 📥 **Bring everything with you** | Import from Wallos or a spreadsheet. Export it all as JSON, CSV or ZIP, or follow your charges in your calendar. |
 | 🔒 **Yours, on your computer** | One program, one data folder, a backup every day. No cloud, no telemetry, no account with us, no paid tier. |
 
 ## Download
@@ -90,7 +93,7 @@ No public address needed: Exhale talks to Telegram and Slack with outgoing conne
 <details>
 <summary><b>Does my computer have to be on?</b></summary>
 
-Reminders go out while Exhale is running. On a laptop that sleeps, Exhale can keep it awake (Settings → This computer), and anything due while it slept is sent when it wakes. A home server or a Raspberry Pi that never sleeps is ideal.
+Reminders go out while Exhale is running. On a laptop, Exhale can keep it awake for a while, even with the lid closed, from its menu bar icon or Settings → This computer, and anything due while it slept is sent when it wakes. A home server or a Raspberry Pi that never sleeps is ideal.
 </details>
 
 <details>
@@ -102,7 +105,7 @@ In one folder on your computer, backed up every day. Nothing is sent anywhere un
 <details>
 <summary><b>Can I use it on my phone?</b></summary>
 
-Yes. Reminders reach your phone through Telegram or Slack, and the web works on a phone. Exhale itself runs on a computer.
+Yes. Reminders reach your phone through Telegram or Slack, or as push notifications once you install the web as an app (it needs HTTPS). Exhale itself runs on a computer.
 </details>
 
 <details>

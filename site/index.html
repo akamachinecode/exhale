@@ -73,10 +73,16 @@
 		<div class="features">
 			<div class="feature"><h3 data-t="f1.t">Reminders you can answer</h3><p data-t="f1.p">Already paid, a new date, another amount or card, skip, cancel, undo. One tap in the message.</p></div>
 			<div class="feature"><h3 data-t="f2.t">The dates that cost money</h3><p data-t="f2.p">Free trials before they charge, the last day to cancel, renewals that need you, price rises announced ahead.</p></div>
-			<div class="feature"><h3 data-t="f3.t">Every currency, exact</h3><p data-t="f3.p">Totals in your currency at ECB rates, and what to set aside each month for the yearly bills.</p></div>
-			<div class="feature"><h3 data-t="f4.t">Shared, not mixed</h3><p data-t="f4.p">A partner or flatmates get their own account and reminders. Split a subscription and see who owes whom.</p></div>
-			<div class="feature"><h3 data-t="f5.t">Ask it anything</h3><p data-t="f5.p">Plain language in chat, or Claude, ChatGPT and local models over MCP. Every change shows a preview and can be undone.</p></div>
-			<div class="feature"><h3 data-t="f6.t">Yours, on your computer</h3><p data-t="f6.p">One program, one data folder, a backup every day. No cloud, no telemetry, no account with us, no paid tier.</p></div>
+			<div class="feature"><h3 data-t="f3.t">Find the ones you forgot</h3><p data-t="f3.p">Import a bank export or a PDF statement and Exhale finds the charges that repeat, with no AI needed. Later statements show what was paid, what changed price and what never arrived.</p></div>
+			<div class="feature"><h3 data-t="f4.t">The whole app in a chat</h3><p data-t="f4.p">A pinned Telegram or Slack message is Exhale itself: spend, upcoming charges, every subscription, an add wizard and settings.</p></div>
+			<div class="feature"><h3 data-t="f5.t">A check-up of facts, not tips</h3><p data-t="f5.p">The same service paid twice, prices that went up this year, trials about to charge, a card about to expire and everything that depends on it.</p></div>
+			<div class="feature"><h3 data-t="f6.t">Awake when it matters</h3><p data-t="f6.p">An icon in the menu bar with your next charges. Keep a laptop awake for an hour or a night, even with the lid closed, never down to an empty battery.</p></div>
+			<div class="feature"><h3 data-t="f7.t">On your phone, no app store</h3><p data-t="f7.p">Install the web as an app and get push notifications with a button that works from the notification. Or reminders by email, ntfy and webhook.</p></div>
+			<div class="feature"><h3 data-t="f8.t">Every currency, exact</h3><p data-t="f8.p">Totals in your currency at ECB rates, and what to set aside each month for the yearly bills.</p></div>
+			<div class="feature"><h3 data-t="f9.t">Shared, not mixed</h3><p data-t="f9.p">A partner or flatmates get their own account and reminders. Split a subscription and see who owes whom.</p></div>
+			<div class="feature"><h3 data-t="f10.t">Ask it anything</h3><p data-t="f10.p">Plain language in chat, or Claude, ChatGPT and local models over MCP. Every change shows a preview and can be undone.</p></div>
+			<div class="feature"><h3 data-t="f11.t">Bring everything with you</h3><p data-t="f11.p">Import from Wallos or a spreadsheet. Export it all as JSON, CSV or ZIP, or follow your charges in your calendar.</p></div>
+			<div class="feature"><h3 data-t="f12.t">Yours, on your computer</h3><p data-t="f12.p">One program, one data folder, a backup every day. No cloud, no telemetry, no account with us, no paid tier.</p></div>
 		</div>
 	</section>
 
@@ -155,9 +161,9 @@ sudo systemctl start exhale</code></pre>
 		<p class="kicker" data-t="faq.kicker">Questions</p>
 		<h2 data-t="faq.title">Before you install</h2>
 		<div class="faq">
-			<details><summary data-t="q1">Does my computer need to stay on?</summary><p data-t="a1">Reminders go out while Exhale runs. On a computer that sleeps, Exhale can keep it awake (Settings → This computer), and anything due while it slept is sent when it wakes. A home server or a Raspberry Pi that never sleeps is ideal.</p></details>
+			<details><summary data-t="q1">Does my computer need to stay on?</summary><p data-t="a1">Reminders go out while Exhale runs. On a laptop, Exhale can keep it awake for a while, even with the lid closed, from its menu bar icon or Settings → This computer, and anything due while it slept is sent when it wakes. A home server or a Raspberry Pi that never sleeps is ideal.</p></details>
 			<details><summary data-t="q2">Where is my data?</summary><p data-t="a2">In one folder on your computer, copied every day. Nothing is sent anywhere unless you set up a channel such as Telegram.</p></details>
-			<details><summary data-t="q3">Can I use it on my phone?</summary><p data-t="a3">Yes. Reminders reach your phone in Telegram or Slack, and the web works on phones. Exhale itself runs on a computer.</p></details>
+			<details><summary data-t="q3">Can I use it on my phone?</summary><p data-t="a3">Yes. Reminders reach your phone in Telegram or Slack, or as push notifications once you install the web as an app (it needs HTTPS). Exhale itself runs on a computer.</p></details>
 			<details><summary data-t="q4">Is it really free?</summary><p data-t="a4">Yes. Exhale is free software under the AGPL-3.0, with no paid tier, no account with us and no telemetry.</p></details>
 			<details><summary data-t="q5">I use Wallos. Can I move over?</summary><p data-t="a5">Yes. Import your Wallos database and review every subscription before it is saved.</p></details>
 			<details><summary data-t="q6">How do I uninstall it?</summary><p data-t="a6">On a Mac, turn Exhale off in System Settings → General → Login Items and drag it to the Trash. On Windows, Settings → Apps. On Linux, remove the package. Your data stays until you delete its folder.</p></details>

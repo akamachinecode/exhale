@@ -29,6 +29,10 @@ run = "go test ./..."
 description = "Browser test against a fresh server (needs: pnpm -C web exec playwright install chromium)"
 run = "sh scripts/e2e.sh"
 
+[tasks.screenshots]
+description = "Retake the website and README screenshots (site/img) from the current code"
+run = "sh scripts/screenshots.sh"
+
 [tasks.lint]
 description = "Lint Go code"
 run = "golangci-lint run ./..."
