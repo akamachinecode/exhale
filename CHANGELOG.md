@@ -1,5 +1,18 @@
 # Changelog
 
+## [0.4.0](https://github.com/akamachinecode/exhale/compare/v0.3.0...v0.4.0) (2026-11-12)
+
+
+### Features
+
+* **desktop:** a menu bar icon, and keeping a closed laptop awake for a while ([#22](https://github.com/akamachinecode/exhale/issues/22)) ([f76e57e](https://github.com/akamachinecode/exhale/commit/f76e57e880ee38320c7ae16c2075eaddef85b664))
+* **docs:** a documentation site on GitHub Pages, next to the download page ([#19](https://github.com/akamachinecode/exhale/issues/19)) ([bf35ce8](https://github.com/akamachinecode/exhale/commit/bf35ce80028a8a4a0a57c9afc9f4b1282529de7b))
+
+
+### Bug Fixes
+
+* **desktop:** a double click on the title bar fills the screen on a Mac ([#21](https://github.com/akamachinecode/exhale/issues/21)) ([8ec0413](https://github.com/akamachinecode/exhale/commit/8ec0413b8bf0d28b2e8d27f8a991cc277c728062))
+
 ## [0.3.0](https://github.com/akamachinecode/exhale/compare/v0.2.0...v0.3.0) (2026-11-11)
 
 
