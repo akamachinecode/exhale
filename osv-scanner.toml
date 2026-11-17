@@ -1,0 +1,7 @@
+# Known vulnerabilities accepted on purpose, each with a reason and a date to
+# look again. CI's security job (osv-scanner) reads this file.
+
+[[IgnoredVulns]]
+id = "GHSA-fc5q-39xc-vjpf"
+ignoreUntil = 2026-12-17T00:00:00Z
+reason = "picomatch ReDoS with attacker-written globs. No fixed version exists (all <= 4.0.7). It is only a build tool of the web and docs (vite, astro): it never ships in Exhale and only reads globs from our own config. Remove when picomatch publishes a fix."
