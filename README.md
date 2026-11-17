@@ -35,9 +35,10 @@ Most tools tell you Netflix renews in three days and leave the rest to you. Exha
    💶 €17.99 · Sun, 8 Nov 2026
    💳 Revolut ••0937
 
-   [ ✅ Already paid ]      [ 📅 Change date ]
-   [ 💳 Payment method ]    [ ✏️ Amount ]
-   [ ⏭ Skip this one ]      [ ❌ Cancel subscription ]
+   [ ✅ Already paid ]      [ 🗓 Paid another day ]
+   [ 📅 Change date ]       [ ✏️ Amount ]
+   [ 💳 Payment method ]    [ ⏭ Skip this one ]
+   [ ❌ Cancel subscription ]
    [ 💤 Remind me tomorrow ] [ 💤 In 3 days ]
 ```
 
@@ -47,7 +48,7 @@ One tap and the message updates in place, with an undo. The web updates at the s
 
 |  |  |
 |---|---|
-| 🔔 **Reminders you can answer** | Already paid, a new date (this charge or from now on), another amount or card, skip, cancel, undo. One tap in the message, and it updates in place. |
+| 🔔 **Reminders you can answer** | Already paid (or paid on another day, like an App Store receipt), a new date (this charge or from now on), another amount or card, skip, cancel, undo. One tap in the message, and it updates in place. |
 | ⏳ **The dates that cost money** | Free trials before they charge, the last day to cancel, renewals that need you (domains, licences), fixed-term contracts and price rises announced ahead. |
 | 🔍 **Find the ones you forgot** | Import a bank export (CSV) or a PDF statement and Exhale finds the charges that repeat, with no AI needed. Later statements show what was paid, what changed price and what never arrived. |
 | 📱 **The whole app in a chat message** | A pinned Telegram or Slack message is Exhale itself: spend, upcoming charges, every subscription, an add wizard, payment methods and settings. It redraws when anything changes. Send the bot a statement to import it. |

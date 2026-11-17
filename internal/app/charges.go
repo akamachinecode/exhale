@@ -21,6 +21,19 @@ type ChargeResult struct {
 	// PriceChange is set when a charge was paid at a different amount than
 	// expected, in the same currency: probably a new price.
 	PriceChange *PriceChangeHint `json:"priceChange,omitempty" jsonschema:"the bank took a different amount than expected. Ask the user whether this is the new price; if so call update_subscription with price"`
+	// SkippedCycle is set when a new billing day leaves a cycle without a
+	// charge.
+	SkippedCycle *SkippedCycle `json:"skippedCycle,omitempty" jsonschema:"the change removes an open charge and the first new one is nearer the cycle after it, so nothing is charged for that cycle. Ask the user whether it was already paid; if so, preview with dryRun first and instead mark that charge paid with set_charge_status (chargedOn = the day it was charged), then move the next charge"`
+}
+
+// SkippedCycle warns that a change of billing day removes an open charge
+// and the first new charge is nearer the cycle after it: nothing would be
+// charged for that cycle. That is right when it really was skipped, and a
+// silent loss when it was paid on another day (a receipt dated before the
+// renewal date it shows).
+type SkippedCycle struct {
+	Removed engine.Date `json:"removed" jsonschema:"original date of the open charge the change removes"`
+	Next    engine.Date `json:"next" jsonschema:"first charge after the change"`
 }
 
 // PriceChangeHint says a charge was paid at another amount.
@@ -69,6 +82,11 @@ func (s *Service) ChangeChargeDate(ctx context.Context, actor Actor, in ChangeCh
 			}
 		case domain.ScopeThisAndAfter:
 			beforeSub := sub
+			cutOld := minDate(ch.OriginalDate, newDate)
+			removed, hasRemoved, err := firstRemovable(ctx, q, sub.ID, cutOld)
+			if err != nil {
+				return err
+			}
 			// The rule keeps its kind (weekday of the month, weekend shift).
 			rule := sub.Schedule.Current(ch.OriginalDate).Reanchor(newDate)
 			sub.Schedule, err = sub.Schedule.ChangeRule(ch.OriginalDate, rule)
@@ -85,6 +103,9 @@ func (s *Service) ChangeChargeDate(ctx context.Context, actor Actor, in ChangeCh
 			sub.Version++
 			if err := s.materialize(ctx, q, sub, cut); err != nil {
 				return err
+			}
+			if hasRemoved {
+				out.SkippedCycle = skippedCycle(beforeSub.Schedule, sub.Schedule, removed, cut)
 			}
 			if _, err := c.record(q, "subscription.reschedule", "subscription", sub.ID, beforeSub, sub); err != nil {
 				return err
@@ -176,6 +197,7 @@ type SetChargeStatusInput struct {
 	Status        string `json:"status" jsonschema:"paid, failed, skipped, or pending to reopen" enum:"paid,failed,skipped,pending"`
 	ChargedAmount string `json:"chargedAmount,omitempty" jsonschema:"what the bank actually took, decimal string (optional)"`
 	ChargedIn     string `json:"chargedCurrency,omitempty" jsonschema:"currency of chargedAmount, e.g. EUR when a USD service is paid from a EUR card"`
+	ChargedOn     string `json:"chargedOn,omitempty" jsonschema:"day the bank took it, YYYY-MM-DD, when it was not the due date (status paid only, not after today). The charge moves to that day, e.g. an App Store receipt dated before the renewal date it shows"`
 	Note          string `json:"note,omitempty"`
 	DryRun        bool   `json:"dryRun,omitempty"`
 }
@@ -191,6 +213,19 @@ func (s *Service) SetChargeStatus(ctx context.Context, actor Actor, in SetCharge
 		before := ch
 		if err := ch.Transition(domain.ChargeStatus(in.Status), s.now()); err != nil {
 			return err
+		}
+		if in.ChargedOn != "" {
+			on, err := engine.ParseDate(in.ChargedOn)
+			if err != nil {
+				return domain.BadDate("charged on", in.ChargedOn)
+			}
+			if ch.Status != domain.ChargePaid {
+				return domain.Invalid("a charge date goes only with status paid")
+			}
+			if on.After(s.today(ctx, q, actor)) {
+				return domain.Invalid("a charge cannot have been paid after today")
+			}
+			ch.DueDate = on
 		}
 		if in.ChargedAmount != "" {
 			cur := in.ChargedIn
@@ -268,6 +303,44 @@ func (s *Service) DecideRenewal(ctx context.Context, actor Actor, in DecideRenew
 	})
 	out.DryRun = in.DryRun
 	return out, err
+}
+
+// firstRemovable returns the original date of the first open charge on or
+// after from that DeleteFuturePendingCharges would remove (moved charges
+// are kept).
+func firstRemovable(ctx context.Context, q *db.Queries, subID string, from engine.Date) (engine.Date, bool, error) {
+	rows, err := q.ListChargesForSubscription(ctx, db.ListChargesForSubscriptionParams{SubscriptionID: subID, Limit: 1000})
+	if err != nil {
+		return engine.Date{}, false, err
+	}
+	var first engine.Date
+	for _, r := range rows {
+		ch := store.ChargeFromRow(r)
+		if ch.Status != domain.ChargePending || ch.Delayed() || ch.OriginalDate.Before(from) {
+			continue
+		}
+		if first.IsZero() || ch.OriginalDate.Before(first) {
+			first = ch.OriginalDate
+		}
+	}
+	return first, !first.IsZero(), nil
+}
+
+// skippedCycle compares the open charge a change of billing day removes
+// with the first charge the new schedule makes from `from`. When that one
+// is nearer the charge that came after the removed one (in the old
+// schedule) than the removed one itself, the cycle of the removed charge
+// gets no charge.
+func skippedCycle(old, cur engine.Schedule, removed, from engine.Date) *SkippedCycle {
+	next, ok := cur.NextOnOrAfter(from)
+	if !ok || !next.After(removed) {
+		return nil
+	}
+	after, ok := old.NextOnOrAfter(removed.AddDays(1))
+	if !ok || removed.DaysUntil(next) <= next.DaysUntil(after) {
+		return nil
+	}
+	return &SkippedCycle{Removed: removed, Next: next}
 }
 
 // priceChangeHint compares what was charged with what was expected.

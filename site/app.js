@@ -69,7 +69,7 @@
 		"alt.phone": "Exhale en un móvil, con el dock de todas las páginas",
 		"feat.kicker": "Qué hace", "feat.title": "El aviso es la app.",
 		"feat.sub": "El mensaje que dice que Netflix se renueva en tres días te deja arreglarlo ahí mismo. Se actualiza solo, y la web también.",
-		"f1.t": "Avisos que se contestan", "f1.p": "Ya pagado, otra fecha, otro importe o tarjeta, saltar, cancelar, deshacer. Un toque en el mensaje.",
+		"f1.t": "Avisos que se contestan", "f1.p": "Ya pagado o pagado otro día, otra fecha, otro importe o tarjeta, saltar, cancelar, deshacer. Un toque en el mensaje.",
 		"f2.t": "Las fechas que cuestan dinero", "f2.p": "Pruebas gratis antes de que cobren, el último día para cancelar, renovaciones que te necesitan, subidas de precio anunciadas.",
 		"f3.t": "Encuentra las que olvidaste", "f3.p": "Importa un extracto del banco (CSV o PDF) y Exhale encuentra los cargos que se repiten, sin IA. Los siguientes extractos muestran qué se pagó, qué cambió de precio y qué no llegó.",
 		"f4.t": "La app entera en un chat", "f4.p": "Un mensaje fijado en Telegram o Slack es Exhale entero: gasto, próximos cargos, todas las suscripciones, un asistente para añadir y los ajustes.",

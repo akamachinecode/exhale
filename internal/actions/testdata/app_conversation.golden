@@ -36,7 +36,7 @@ EDIT #1
   🏷 Streaming
   [✅ Paid](paid|chg_2) [⏳ Not yet](notyet|chg_2) [❌ Failed](failed|chg_2)
   [📅 New date](date|chg_2|2026-11) [⏭ Skip](skip|chg_2)
-  [💶 Paid, another amount](pa|chg_2)
+  [💶 Paid, another amount](pa|chg_2) [🗓 Paid another day](pon|chg_2|2026-11)
   [‹ Netflix](a|sub|sub_3) [🏠 Home](a|home)
 
 > press Paid
@@ -85,9 +85,10 @@ Spotify Family
   💶 €17.99 · Sun, 8 Nov 2026
   💳 Revolut ••0937
   🏷 Music
-  [✅ Already paid](paid|chg_1) [📅 Change date](date|chg_1|2026-11)
-  [💳 Payment method](pm|chg_1) [✏️ Amount](amount|chg_1)
-  [⏭ Skip this one](skip|chg_1) [❌ Cancel subscription](cancel|chg_1)
+  [✅ Already paid](paid|chg_1) [🗓 Paid another day](pon|chg_1|2026-11)
+  [📅 Change date](date|chg_1|2026-11) [✏️ Amount](amount|chg_1)
+  [💳 Payment method](pm|chg_1) [⏭ Skip this one](skip|chg_1)
+  [❌ Cancel subscription](cancel|chg_1)
   [‹ Spotify Family](a|sub|sub_1) [🏠 Home](a|home)
 
 > press Change date

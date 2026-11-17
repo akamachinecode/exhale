@@ -110,7 +110,7 @@ It answers in the language you write in. The cards, screens, buttons and error m
 
 The list has up to three parts:
 
-- **Paid, according to the statement.** A payment that matches a charge Exhale expected: the same service, within a week of the date, an amount within 30%. Ticked lines are marked paid. If the bank took another amount, Exhale asks whether it is the new price.
+- **Paid, according to the statement.** A payment that matches a charge Exhale expected: the same service, within a week of the date, an amount within 30%. Ticked lines are marked paid on the day the money left. If the bank took another amount, Exhale asks whether it is the new price.
 - **Expected but not in this statement.** Charges due in the period that the statement does not show (only for the cards the statement covers). Worth a look: a failed payment, or a subscription that ended.
 - **New subscriptions.** Charges that repeat on a regular cycle and are not in Exhale yet. Each line says what it is based on ("6 charges every month, last on 2026-11-06").
 

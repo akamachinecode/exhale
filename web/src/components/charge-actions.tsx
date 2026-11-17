@@ -1,12 +1,13 @@
 import { Popover } from "@base-ui/react/popover";
 import { useQueryClient } from "@tanstack/react-query";
 import { CalendarClock, Check, Coins, X } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/field";
 import {
 	type ChargeView,
+	type SkippedCycle,
 	useChangeChargeDate,
 	useSetChargeStatus,
 	useUndo,
@@ -14,7 +15,7 @@ import {
 } from "@/gen/api";
 import { ApiError } from "@/lib/fetcher";
 import { t } from "@/lib/i18n";
-import { cn, decimal, money } from "@/lib/utils";
+import { cn, decimal, date as formatDate, money, todayISO } from "@/lib/utils";
 
 function useUndoToast() {
 	const qc = useQueryClient();
@@ -112,6 +113,7 @@ export function ChargeActions({
 			>
 				<Check />
 			</Button>
+			<PaidAmount charge={charge} />
 			<MoveCharge charge={charge} />
 		</div>
 	);
@@ -120,11 +122,17 @@ export function ChargeActions({
 const iconTrigger =
 	"inline-flex size-8 items-center justify-center rounded-lg text-sm text-muted transition-colors hover:bg-raised hover:text-fg";
 
-/** Paid, but the bank took another amount: record it and offer to make it the new price. */
+/**
+ * Paid on another day or at another amount: record what the receipt or the
+ * bank says (an App Store receipt is dated the day Apple charged, before the
+ * renewal it shows), and offer to make a new amount the new price.
+ */
 function PaidAmount({ charge }: { charge: ChargeView }) {
 	const qc = useQueryClient();
 	const [open, setOpen] = useState(false);
 	const [amount, setAmount] = useState(decimal(charge.amount));
+	const today = todayISO();
+	const [on, setOn] = useState([charge.dueDate, today].sort()[0]);
 	const reprice = useUpdateSubscription({
 		mutation: {
 			onSuccess: () => {
@@ -164,17 +172,18 @@ function PaidAmount({ charge }: { charge: ChargeView }) {
 		<Popover.Root open={open} onOpenChange={setOpen}>
 			<Popover.Trigger
 				className={iconTrigger}
-				aria-label={t("{0} was paid at another amount", charge.subscriptionName)}
-				title={t("Paid, another amount")}
+				aria-label={t("{0} was paid on another day or at another amount", charge.subscriptionName)}
+				title={t("Paid another day or amount")}
 			>
 				<Coins className="size-4" />
 			</Popover.Trigger>
 			<Popover.Portal>
 				<Popover.Positioner sideOffset={6} align="end">
 					<Popover.Popup className="z-50 w-64 rounded-xl border border-line bg-surface p-4 shadow-xl">
-						<p className="text-sm font-semibold">{t("How much did it take?")}</p>
+						<p className="text-sm font-semibold">{t("When and how much?")}</p>
 						<p className="mt-0.5 text-xs text-muted">
-							{t("Expected")} {money(charge.amount)}.
+							{t("Expected {0} on {1}.", money(charge.amount), formatDate(charge.dueDate))}{" "}
+							{t("Use the receipt or the bank statement.")}
 						</p>
 						<form
 							className="mt-3 grid gap-3"
@@ -185,10 +194,18 @@ function PaidAmount({ charge }: { charge: ChargeView }) {
 										chargeId: charge.id,
 										status: "paid",
 										chargedAmount: amount.trim().replace(",", "."),
+										chargedOn: on && on !== charge.dueDate ? on : undefined,
 									},
 								});
 							}}
 						>
+							<Input
+								type="date"
+								max={today}
+								value={on}
+								onChange={(e) => setOn(e.target.value)}
+								aria-label={t("Day it was charged")}
+							/>
 							<Input
 								autoFocus
 								inputMode="decimal"
@@ -224,6 +241,23 @@ function MoveCharge({ charge, label = false }: { charge: ChargeView; label?: boo
 			onError: errorToast,
 		},
 	});
+	// A new billing day may leave this charge's cycle without a charge: the
+	// server says so in a dry run, and the popover warns before moving.
+	const preview = useChangeChargeDate();
+	const [skipped, setSkipped] = useState<SkippedCycle>();
+	const previewMutate = preview.mutate;
+	useEffect(() => {
+		setSkipped(undefined);
+		if (!open || scope !== "following" || !date || date === charge.dueDate) return;
+		let live = true;
+		previewMutate(
+			{ data: { chargeId: charge.id, newDate: date, scope, dryRun: true } },
+			{ onSuccess: (r) => live && setSkipped(r.skippedCycle) },
+		);
+		return () => {
+			live = false;
+		};
+	}, [open, scope, date, charge.id, charge.dueDate, previewMutate]);
 	return (
 		<Popover.Root open={open} onOpenChange={setOpen}>
 			<Popover.Trigger
@@ -275,6 +309,7 @@ function MoveCharge({ charge, label = false }: { charge: ChargeView; label?: boo
 									? t("A one-off delay: later charges keep their date.")
 									: t("The billing day changes from this charge on.")}
 							</p>
+							{skipped && <SkippedCycleNote skipped={skipped} />}
 							<Button
 								variant="primary"
 								disabled={move.isPending || date === charge.dueDate}
@@ -287,5 +322,25 @@ function MoveCharge({ charge, label = false }: { charge: ChargeView; label?: boo
 				</Popover.Positioner>
 			</Popover.Portal>
 		</Popover.Root>
+	);
+}
+
+/** Warns that a new billing day leaves a cycle without a charge. */
+export function SkippedCycleNote({ skipped }: { skipped: SkippedCycle }) {
+	return (
+		<div role="alert" className="rounded-lg bg-warn-soft px-3 py-2 text-xs text-fg">
+			<p className="font-medium">
+				{t(
+					"The {0} charge disappears and the next one is {1}: nothing is charged in between.",
+					formatDate(skipped.removed, "long"),
+					formatDate(skipped.next, "long"),
+				)}
+			</p>
+			<p className="mt-0.5 text-muted">
+				{t(
+					"If it was already paid (a receipt dated before its renewal), first mark it paid on the day it was charged.",
+				)}
+			</p>
+		</div>
 	);
 }

@@ -3,12 +3,14 @@ import { useNavigate } from "@tanstack/react-router";
 import { ChevronDown } from "lucide-react";
 import { type FormEvent, type ReactNode, useEffect, useState } from "react";
 import { toast } from "sonner";
+import { SkippedCycleNote } from "@/components/charge-actions";
 import { TagInput } from "@/components/tags";
 import { Button } from "@/components/ui/button";
 import { Dialog } from "@/components/ui/dialog";
 import { Field, Input, Select } from "@/components/ui/field";
 import {
 	type CreateSubscriptionInput,
+	type SkippedCycle,
 	type SubscriptionView,
 	type UpdateSubscriptionInput,
 	useCreateSubscription,
@@ -145,7 +147,13 @@ export function SubscriptionDialog({
 	const tagSuggestions = (household.data?.tags ?? []).map((x) => x.name);
 	const [more, setMore] = useState(false);
 	const [error, setError] = useState<string>();
-	const set = <K extends keyof Values>(k: K, value: Values[K]) => setV((old) => ({ ...old, [k]: value }));
+	// A new billing day that would leave a cycle without a charge: shown
+	// once, saved on the second press.
+	const [skipped, setSkipped] = useState<SkippedCycle>();
+	const set = <K extends keyof Values>(k: K, value: Values[K]) => {
+		setSkipped(undefined);
+		setV((old) => ({ ...old, [k]: value }));
+	};
 	const mainCurrency = household.data?.household.currency;
 
 	// Reset whenever the dialog opens (for another subscription or a new one).
@@ -154,6 +162,7 @@ export function SubscriptionDialog({
 		if (open) {
 			setV(copyOf ? copied(copyOf, mainCurrency ?? "EUR") : initial(subscription, mainCurrency ?? "EUR"));
 			setError(undefined);
+			setSkipped(undefined);
 			setMore(Boolean(copyOf));
 		}
 	}, [open, subscription?.id, copyOf?.id, mainCurrency]);
@@ -279,6 +288,11 @@ export function SubscriptionDialog({
 			if (altPrice !== base.altPrice || (altPrice && v.altUnit !== base.altUnit)) {
 				data.altPrice = altPrice;
 				if (altPrice) data.altUnit = v.altUnit;
+			}
+			const reschedules = data.nextCharge || data.interval || data.unit || data.dayRule || data.weekendShift;
+			if (reschedules && !skipped) {
+				const preview = await update.mutateAsync({ data: { ...data, dryRun: true } });
+				if (preview.skippedCycle) return setSkipped(preview.skippedCycle);
 			}
 			await update.mutateAsync({ data });
 			await qc.invalidateQueries();
@@ -598,14 +612,17 @@ export function SubscriptionDialog({
 					</div>
 				)}
 				{error && <p className="rounded-lg bg-bad-soft px-3 py-2 text-sm text-bad">{error}</p>}
+				{skipped && <SkippedCycleNote skipped={skipped} />}
 				<div className="mt-1 flex justify-end gap-2">
 					<Button onClick={() => onOpenChange(false)}>{t("Cancel")}</Button>
 					<Button type="submit" variant="primary" disabled={create.isPending || update.isPending}>
 						{create.isPending || update.isPending
 							? t("Saving…")
-							: editing
-								? t("Save")
-								: t("Add subscription")}
+							: skipped
+								? t("Save anyway")
+								: editing
+									? t("Save")
+									: t("Add subscription")}
 					</Button>
 				</div>
 			</form>

@@ -81,6 +81,13 @@ func TestMatchStatement(t *testing.T) {
 	if res.Matches[1].PriceChange != nil {
 		t.Error("the same amount is not a new price")
 	}
+	// The day the money left is kept when it is not the due date.
+	if got := res.Matches[1].ChargedOn.String(); got != "2026-09-29" {
+		t.Errorf("Spotify left on 29 September, chargedOn = %q", got)
+	}
+	if !res.Matches[3].ChargedOn.IsZero() {
+		t.Errorf("Coffee Club was charged on its due date, chargedOn = %s", res.Matches[3].ChargedOn)
+	}
 	// Gym (same card) was expected on 1 October and is not there. The
 	// phone is paid with another card: this statement cannot show it. The
 	// weekly club's other three weeks have no payment method: expected too.
@@ -100,8 +107,8 @@ func TestMatchStatement(t *testing.T) {
 
 	// Applying a match is an ordinary set_charge_status.
 	m := res.Matches[2]
-	paid, err := f.svc.SetChargeStatus(ctx, f.owner, SetChargeStatusInput{ChargeID: m.Charge.ID, Status: "paid", ChargedAmount: m.Paid.Decimal(), ChargedIn: m.Paid.Currency})
-	if err != nil || paid.Charge.Status != domain.ChargePaid || paid.PriceChange == nil {
+	paid, err := f.svc.SetChargeStatus(ctx, f.owner, SetChargeStatusInput{ChargeID: m.Charge.ID, Status: "paid", ChargedAmount: m.Paid.Decimal(), ChargedIn: m.Paid.Currency, ChargedOn: m.ChargedOn.String()})
+	if err != nil || paid.Charge.Status != domain.ChargePaid || paid.PriceChange == nil || paid.Charge.DueDate.String() != "2026-10-07" {
 		t.Fatalf("apply: %+v %v", paid, err)
 	}
 	again, err := f.svc.MatchStatement(ctx, f.owner, MatchStatementInput{Transactions: []StatementLine{{Date: "2026-10-07", Description: "NETFLIX.COM", Amount: "15.99"}}})

@@ -55,7 +55,8 @@ type ChargeMatch struct {
 	Charge      ChargeView    `json:"charge"`
 	Transaction StatementLine `json:"transaction"`
 	Paid        money.Money   `json:"paid" jsonschema:"what the transaction took"`
-	Action      string        `json:"action" jsonschema:"mark_paid: call set_charge_status with status=paid, chargedAmount and chargedCurrency from paid (dryRun first); already_paid: nothing to do" enum:"mark_paid,already_paid"`
+	Action      string        `json:"action" jsonschema:"mark_paid: call set_charge_status with status=paid, chargedAmount and chargedCurrency from paid, and chargedOn when set (dryRun first); already_paid: nothing to do" enum:"mark_paid,already_paid"`
+	ChargedOn   engine.Date   `json:"chargedOn,omitzero" jsonschema:"the day the money left, when it is not the due date: pass it as chargedOn"`
 	// PriceChange is set when the bank took another amount in the same
 	// currency: ask whether it is the new price.
 	PriceChange *PriceChangeHint `json:"priceChange,omitempty" jsonschema:"the bank took another amount than expected. After marking it paid, ask the user whether this is the new price; if so call update_subscription with price"`
@@ -89,6 +90,7 @@ func (s *Service) MatchStatement(ctx context.Context, actor Actor, in MatchState
 	if err != nil {
 		return StatementMatch{}, err
 	}
+	today := s.today(ctx, q, actor)
 	type line struct {
 		StatementLine
 		date engine.Date
@@ -193,6 +195,9 @@ func (s *Service) MatchStatement(ctx context.Context, actor Actor, in MatchState
 		usedCharge[p.c], usedLine[p.l] = true, true
 		c, l := charges[p.c], lines[p.l]
 		m := ChargeMatch{Charge: c, Transaction: l.StatementLine, Paid: l.paid, Action: MatchMarkPaid}
+		if l.date != c.DueDate && !l.date.After(today) {
+			m.ChargedOn = l.date
+		}
 		if c.Status == domain.ChargePaid {
 			m.Action = MatchAlreadyPaid
 		} else if l.paid.Currency == c.Amount.Currency && l.paid != c.Amount {

@@ -4,9 +4,10 @@ SEND #1
 🔔 iCloud renews in 3 days
   💶 €2.99 · Sun, 8 Nov 2026
   💳 Visa ••4421
-  [✅ Already paid](paid|chg_X) [📅 Change date](date|chg_X|2026-11)
-  [💳 Payment method](pm|chg_X) [✏️ Amount](amount|chg_X)
-  [⏭ Skip this one](skip|chg_X) [❌ Cancel subscription](cancel|chg_X)
+  [✅ Already paid](paid|chg_X) [🗓 Paid another day](pon|chg_X|2026-11)
+  [📅 Change date](date|chg_X|2026-11) [✏️ Amount](amount|chg_X)
+  [💳 Payment method](pm|chg_X) [⏭ Skip this one](skip|chg_X)
+  [❌ Cancel subscription](cancel|chg_X)
   [💤 Remind me tomorrow](snz|chg_X|1|r) [💤 In 3 days](snz|chg_X|3|r)
 
 SEND #2
@@ -77,9 +78,10 @@ SEND #5
 🔔 iCloud renews in 3 days
   💶 €2.99 · Sun, 8 Nov 2026
   💳 Revolut ••0937
-  [✅ Already paid](paid|chg_X) [📅 Change date](date|chg_X|2026-11)
-  [💳 Payment method](pm|chg_X) [✏️ Amount](amount|chg_X)
-  [⏭ Skip this one](skip|chg_X) [❌ Cancel subscription](cancel|chg_X)
+  [✅ Already paid](paid|chg_X) [🗓 Paid another day](pon|chg_X|2026-11)
+  [📅 Change date](date|chg_X|2026-11) [✏️ Amount](amount|chg_X)
+  [💳 Payment method](pm|chg_X) [⏭ Skip this one](skip|chg_X)
+  [❌ Cancel subscription](cancel|chg_X)
   — 💤 OK — I'll remind you tomorrow.
 
 === 2026-11-06 09:00
@@ -87,9 +89,10 @@ SEND #6
 🔔 iCloud renews in 2 days
   💶 €2.99 · Sun, 8 Nov 2026
   💳 Revolut ••0937
-  [✅ Already paid](paid|chg_X) [📅 Change date](date|chg_X|2026-11)
-  [💳 Payment method](pm|chg_X) [✏️ Amount](amount|chg_X)
-  [⏭ Skip this one](skip|chg_X) [❌ Cancel subscription](cancel|chg_X)
+  [✅ Already paid](paid|chg_X) [🗓 Paid another day](pon|chg_X|2026-11)
+  [📅 Change date](date|chg_X|2026-11) [✏️ Amount](amount|chg_X)
+  [💳 Payment method](pm|chg_X) [⏭ Skip this one](skip|chg_X)
+  [❌ Cancel subscription](cancel|chg_X)
   [💤 Remind me tomorrow](snz|chg_X|1|r) [💤 On the day](snz|chg_X|3|r)
 
 === 2026-11-08 09:00
@@ -97,9 +100,10 @@ SEND #7
 🔔 iCloud renews today
   💶 €2.99 · Sun, 8 Nov 2026
   💳 Revolut ••0937
-  [✅ Already paid](paid|chg_X) [📅 Change date](date|chg_X|2026-11)
-  [💳 Payment method](pm|chg_X) [✏️ Amount](amount|chg_X)
-  [⏭ Skip this one](skip|chg_X) [❌ Cancel subscription](cancel|chg_X)
+  [✅ Already paid](paid|chg_X) [🗓 Paid another day](pon|chg_X|2026-11)
+  [📅 Change date](date|chg_X|2026-11) [✏️ Amount](amount|chg_X)
+  [💳 Payment method](pm|chg_X) [⏭ Skip this one](skip|chg_X)
+  [❌ Cancel subscription](cancel|chg_X)
 
 SEND #8
 ⏰ 4 days left to cancel Gym

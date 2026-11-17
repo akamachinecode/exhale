@@ -3,9 +3,10 @@ SEND #1
 🔔 Netflix se renueva en 3 días
   💶 13,99 € · dom, 8 nov 2026
   💳 Visa ••4421
-  [✅ Ya pagado](paid|chg_X) [📅 Cambiar fecha](date|chg_X|2026-11)
-  [💳 Método de pago](pm|chg_X) [✏️ Importe](amount|chg_X)
-  [⏭ Saltar este](skip|chg_X) [❌ Cancelar suscripción](cancel|chg_X)
+  [✅ Ya pagado](paid|chg_X) [🗓 Pagado otro día](pon|chg_X|2026-11)
+  [📅 Cambiar fecha](date|chg_X|2026-11) [✏️ Importe](amount|chg_X)
+  [💳 Método de pago](pm|chg_X) [⏭ Saltar este](skip|chg_X)
+  [❌ Cancelar suscripción](cancel|chg_X)
   [💤 Recuérdamelo mañana](snz|chg_X|1|r) [💤 En 3 días](snz|chg_X|3|r)
 
 SEND #2
