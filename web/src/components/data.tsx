@@ -63,6 +63,7 @@ const payInput = (m: ChargeMatch, dryRun = false) => ({
 	status: "paid" as const,
 	chargedAmount: decimal(m.paid),
 	chargedCurrency: m.paid.currency,
+	chargedOn: m.chargedOn || undefined,
 	dryRun,
 });
 

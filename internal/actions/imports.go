@@ -131,7 +131,11 @@ func (e *Engine) ImportFile(ctx context.Context, actor app.Actor, chat ChatRef, 
 }
 
 func payInput(m app.ChargeMatch, dry bool) app.SetChargeStatusInput {
-	return app.SetChargeStatusInput{ChargeID: m.Charge.ID, Status: string(domain.ChargePaid), ChargedAmount: m.Paid.Decimal(), ChargedIn: m.Paid.Currency, DryRun: dry}
+	in := app.SetChargeStatusInput{ChargeID: m.Charge.ID, Status: string(domain.ChargePaid), ChargedAmount: m.Paid.Decimal(), ChargedIn: m.Paid.Currency, DryRun: dry}
+	if !m.ChargedOn.IsZero() {
+		in.ChargedOn = m.ChargedOn.String()
+	}
+	return in
 }
 
 // importError says why a file could not be read, in the member's language

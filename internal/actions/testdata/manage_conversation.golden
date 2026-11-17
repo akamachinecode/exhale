@@ -251,7 +251,7 @@ NEW MESSAGE
   ⏰ Cancel by Tue, 13 Oct 2026
   [✅ Paid](paid|chg_X) [⏳ Not yet](notyet|chg_X) [❌ Failed](failed|chg_X)
   [📅 New date](date|chg_X|2026-11) [⏭ Skip](skip|chg_X)
-  [💶 Paid, another amount](pa|chg_X)
+  [💶 Paid, another amount](pa|chg_X) [🗓 Paid another day](pon|chg_X|2026-11)
 
 > press Paid, another amount
 (toast: Type the amount)

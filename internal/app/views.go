@@ -58,4 +58,7 @@ type SubscriptionDetail struct {
 	History      []ChargeView     `json:"history"`
 	PriceHistory []PricePoint     `json:"priceHistory" jsonschema:"every price it has had, oldest first, from the charge ledger; a scheduled change comes last"`
 	Paid         PaidTotals       `json:"paid" jsonschema:"what it has really cost so far"`
+	// SkippedCycle is set by an edit whose new billing day leaves a cycle
+	// without a charge (see ChargeResult).
+	SkippedCycle *SkippedCycle `json:"skippedCycle,omitempty" jsonschema:"the change removes an open charge and the first new one is nearer the cycle after it, so nothing is charged for that cycle. Ask the user whether it was already paid; if so, preview with dryRun first and instead mark that charge paid with set_charge_status (chargedOn = the day it was charged), then move the next charge"`
 }

@@ -34,9 +34,10 @@
 🔔 Gym renews in 37 days
   💶 €39.00 · Sat, 12 Dec 2026
   ⏰ Cancel by Thu, 12 Nov 2026
-  [✅ Already paid](paid|chg_X) [📅 Change date](date|chg_X|2026-12)
-  [💳 Payment method](pm|chg_X) [✏️ Amount](amount|chg_X)
-  [⏭ Skip this one](skip|chg_X) [❌ Cancel subscription](cancel|chg_X)
+  [✅ Already paid](paid|chg_X) [🗓 Paid another day](pon|chg_X|2026-11)
+  [📅 Change date](date|chg_X|2026-12) [✏️ Amount](amount|chg_X)
+  [💳 Payment method](pm|chg_X) [⏭ Skip this one](skip|chg_X)
+  [❌ Cancel subscription](cancel|chg_X)
   [↩︎ Undo](undo|chg_X|aud_X)
   — You chose to keep it.
 

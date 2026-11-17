@@ -93,6 +93,21 @@ func (e *Engine) chargeResult(ctx context.Context, actor app.Actor, chargeID str
 	return app.ChargeResult{}, domain.Missing("charge %s: not found", chargeID)
 }
 
+// nextOpenCharge returns the first open charge of a subscription other
+// than skip, or nil.
+func (e *Engine) nextOpenCharge(ctx context.Context, actor app.Actor, subID, skip string) *app.ChargeView {
+	d, err := e.svc.GetSubscription(ctx, actor, app.GetSubscriptionInput{ID: subID})
+	if err != nil {
+		return nil
+	}
+	for _, c := range d.Upcoming {
+		if c.ID != skip && c.Open() {
+			return &c
+		}
+	}
+	return nil
+}
+
 // Handle runs the action behind a button: app navigation (ADR 0019) or a
 // charge action. Charge actions pressed inside an app message stay inside
 // the app.
@@ -214,10 +229,46 @@ func (e *Engine) handleCharge(ctx context.Context, actor app.Actor, chat ChatRef
 			Lines: []string{tr(locale, "Only this charge: a one-off delay; later charges keep their date."), tr(locale, "This and following: the billing day changes from now on.")},
 			Rows: [][]Button{
 				{{Label: this, Data: data(vDateScope, chargeID, d, "this")}, {Label: following, Data: data(vDateScope, chargeID, d, "following")}},
-				{{Label: tr(locale, "↩︎ Back"), Data: data(vDateMenu, chargeID, d[:7])}},
 			},
 		}
+		// A new billing day that leaves this charge's cycle without a
+		// charge is usually a renewal date read off a receipt for a charge
+		// already paid: say so, and offer to record that payment instead.
+		if preview, err := e.svc.ChangeChargeDate(ctx, actor, app.ChangeChargeDateInput{ChargeID: chargeID, NewDate: d, Scope: "following", DryRun: true}); err == nil && preview.SkippedCycle != nil {
+			sk := preview.SkippedCycle
+			m.Lines = append(m.Lines, tr(locale, "⚠️ With “This and following” the %s charge disappears and the next one is %s: nothing is charged in between. If it was already paid, record that first.", longDate(sk.Removed, locale), longDate(sk.Next, locale)))
+			m.Rows = append(m.Rows, []Button{paidOnButton(r.Charge, today, locale)})
+		}
+		m.Rows = append(m.Rows, []Button{{Label: tr(locale, "↩︎ Back"), Data: data(vDateMenu, chargeID, d[:7])}})
 		return Reply{Edit: &m}, nil
+	case vPaidOn:
+		r, err := e.chargeResult(ctx, actor, chargeID)
+		if err != nil {
+			return e.fail(ctx, actor, err)
+		}
+		month, err := engine.ParseDate(arg(2) + "-01")
+		if err != nil {
+			month = minDate(r.Charge.DueDate, today)
+		}
+		m := Message{
+			Title: tr(locale, "🗓 What day was %s charged?", r.Subscription.Name),
+			Lines: append(details(r.Charge, r.Subscription, locale), tr(locale, "The day on the receipt or the bank statement. The billing day does not change.")),
+			Rows:  paidOnCalendar(chargeID, month, r.Charge.DueDate, today, locale),
+		}
+		return Reply{Edit: &m}, nil
+	case vPaidOnPick:
+		res, err := e.svc.SetChargeStatus(ctx, actor, app.SetChargeStatusInput{ChargeID: chargeID, Status: string(domain.ChargePaid), ChargedOn: arg(2)})
+		if err != nil {
+			return e.fail(ctx, actor, err)
+		}
+		m := paidMessage(res, today, locale)
+		// The receipt usually shows the next renewal too: one tap to check
+		// the next charge's date.
+		if next := e.nextOpenCharge(ctx, actor, res.Subscription.ID, chargeID); next != nil {
+			m.Lines = append(m.Lines, tr(locale, "Next charge %s. Does the receipt show another renewal date?", longDate(next.DueDate, locale)))
+			m.Rows = append([][]Button{{{Label: tr(locale, "📅 Change the next charge"), Data: data(vDateMenu, next.ID, next.DueDate.String()[:7])}}}, m.Rows...)
+		}
+		return Reply{Edit: &m, Toast: tr(locale, "Marked as paid ✅")}, nil
 	case vDateScope:
 		res, err := e.svc.ChangeChargeDate(ctx, actor, app.ChangeChargeDateInput{ChargeID: chargeID, NewDate: arg(2), Scope: arg(3)})
 		if err != nil {

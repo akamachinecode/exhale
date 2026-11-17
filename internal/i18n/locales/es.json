@@ -816,5 +816,15 @@
 	"Only while plugged in": "Solo con el cargador",
 	"Open Exhale": "Abrir Exhale",
 	"Quit menu bar icon": "Cerrar el icono de la barra de menús",
-	"Quit tray icon": "Cerrar el icono de la bandeja"
+	"Quit tray icon": "Cerrar el icono de la bandeja",
+	"a charge cannot have been paid after today": "un cobro no puede haberse pagado después de hoy",
+	"a charge date goes only with status paid": "la fecha del cobro solo va con el estado pagado",
+	"charged on": "cobrado el",
+	"🗓 Paid another day": "🗓 Pagado otro día",
+	"🗓 What day was %s charged?": "🗓 ¿Qué día se cobró %s?",
+	"The day on the receipt or the bank statement. The billing day does not change.": "El día del recibo o del extracto del banco. El día de cobro no cambia.",
+	"Next charge %s. Does the receipt show another renewal date?": "Próximo cobro el %s. ¿El recibo muestra otra fecha de renovación?",
+	"↪︎ was due %s": "↪︎ tocaba el %s",
+	"📅 Change the next charge": "📅 Cambiar el próximo cobro",
+	"⚠️ With “This and following” the %s charge disappears and the next one is %s: nothing is charged in between. If it was already paid, record that first.": "⚠️ Con «Este y los siguientes» desaparece el cobro del %s y el siguiente es el %s: entre medias no se cobra nada. Si ya se pagó, regístralo primero."
 }

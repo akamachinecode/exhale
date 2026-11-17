@@ -362,7 +362,7 @@ function Charges({ charges, empty }: { charges: ChargeView[]; empty: string }) {
 						<p className="font-medium">{date(c.dueDate, "long")}</p>
 						{c.delayed && (
 							<p className="text-xs text-muted">
-								{t("moved from")} {date(c.originalDate)}
+								{c.status === "paid" ? t("was due") : t("moved from")} {date(c.originalDate)}
 							</p>
 						)}
 						{c.chargedAmount && c.chargedAmount.minor !== c.amount.minor && (

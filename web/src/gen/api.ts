@@ -1086,9 +1086,15 @@ export interface StatementLine {
 export interface ChargeMatch {
   action: ChargeMatchAction;
   charge: ChargeView;
+  chargedOn?: string;
   paid: Money;
   priceChange?: PriceChangeHint;
   transaction: StatementLine;
+}
+
+export interface SkippedCycle {
+  next: string;
+  removed: string;
 }
 
 export interface ChargeResult {
@@ -1098,6 +1104,7 @@ export interface ChargeResult {
   charge: ChargeView;
   dryRun?: boolean;
   priceChange?: PriceChangeHint;
+  skippedCycle?: SkippedCycle;
   subscription: SubscriptionView;
 }
 
@@ -2394,6 +2401,7 @@ export interface SetChargeStatusInput {
   chargeId: string;
   chargedAmount?: string;
   chargedCurrency?: string;
+  chargedOn?: string;
   dryRun?: boolean;
   note?: string;
   status: SetChargeStatusInputStatus;
@@ -2628,6 +2636,7 @@ export interface SubscriptionDetail {
   paid: PaidTotals;
   /** @nullable */
   priceHistory: PricePoint[] | null;
+  skippedCycle?: SkippedCycle;
   subscription: SubscriptionView;
   /** @nullable */
   upcoming: ChargeView[] | null;

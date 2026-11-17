@@ -30,6 +30,8 @@ const (
 	vKeep       = "keep"   // keep|chg     (keep this renewal: stop asking)
 	vExpire     = "expire" // expire|chg   (manual renewal: let it expire)
 	vPaidAmount = "pa"     // pa|chg       (paid, but another amount: type it)
+	vPaidOn     = "pon"    // pon|chg|YYYY-MM    (paid on another day: calendar page)
+	vPaidOnPick = "pod"    // pod|chg|YYYY-MM-DD (paid on that day)
 	vNewPrice   = "np"     // np|chg|12.99 (that amount is the new price)
 	vUse        = "use"    // use|chg|1|0  (still using it?)
 	// vSnooze brings the message back later: snz|chg|days|r|d|c, where the
@@ -123,7 +125,7 @@ func chargeMessage(kind string, r app.ChargeResult, today engine.Date, locale st
 		m.Rows = [][]Button{
 			{{Label: tr(locale, "✅ Paid"), Data: data(vPaid, id)}, {Label: tr(locale, "⏳ Not yet"), Data: data(vNotYet, id)}, {Label: tr(locale, "❌ Failed"), Data: data(vFailed, id)}},
 			{{Label: tr(locale, "📅 New date"), Data: data(vDateMenu, id, c.DueDate.String()[:7])}, {Label: tr(locale, "⏭ Skip"), Data: data(vSkip, id)}},
-			{{Label: tr(locale, "💶 Paid, another amount"), Data: data(vPaidAmount, id)}},
+			{{Label: tr(locale, "💶 Paid, another amount"), Data: data(vPaidAmount, id)}, paidOnButton(c, today, locale)},
 		}
 	case c.Kind == app.ChargeExpiry:
 		m.Title = tr(locale, "⌛ %s expires %s", sub.Name, when(days, locale))
@@ -147,9 +149,10 @@ func chargeMessage(kind string, r app.ChargeResult, today engine.Date, locale st
 	default:
 		m.Title = tr(locale, "🔔 %s renews %s", sub.Name, when(days, locale))
 		m.Rows = [][]Button{
-			{{Label: tr(locale, "✅ Already paid"), Data: data(vPaid, id)}, {Label: tr(locale, "📅 Change date"), Data: data(vDateMenu, id, c.DueDate.String()[:7])}},
-			{{Label: tr(locale, "💳 Payment method"), Data: data(vMethod, id)}, {Label: tr(locale, "✏️ Amount"), Data: data(vAmount, id)}},
-			{{Label: tr(locale, "⏭ Skip this one"), Data: data(vSkip, id)}, {Label: tr(locale, "❌ Cancel subscription"), Data: data(vCancel, id)}},
+			{{Label: tr(locale, "✅ Already paid"), Data: data(vPaid, id)}, paidOnButton(c, today, locale)},
+			{{Label: tr(locale, "📅 Change date"), Data: data(vDateMenu, id, c.DueDate.String()[:7])}, {Label: tr(locale, "✏️ Amount"), Data: data(vAmount, id)}},
+			{{Label: tr(locale, "💳 Payment method"), Data: data(vMethod, id)}, {Label: tr(locale, "⏭ Skip this one"), Data: data(vSkip, id)}},
+			{{Label: tr(locale, "❌ Cancel subscription"), Data: data(vCancel, id)}},
 		}
 		if sub.AskUsage {
 			// A cheap, honest "is it worth it?": one tap, asked rarely.
@@ -192,7 +195,10 @@ func statusTitle(c app.ChargeView, name, locale string) string {
 
 func details(c app.ChargeView, sub app.SubscriptionView, locale string) []string {
 	lines := []string{fmt.Sprintf("💶 %s · %s", c.Amount.Format(locale), longDate(c.DueDate, locale))}
-	if c.Delayed {
+	switch {
+	case c.Delayed && c.Status == domain.ChargePaid:
+		lines = append(lines, tr(locale, "↪︎ was due %s", longDate(c.OriginalDate, locale)))
+	case c.Delayed:
 		lines = append(lines, tr(locale, "↪︎ moved from %s", longDate(c.OriginalDate, locale)))
 	}
 	if sub.PaymentMethod != "" {
@@ -216,6 +222,33 @@ func calendar(chargeID string, month engine.Date, selected engine.Date, today en
 		func(m string) string { return data(vDateMenu, chargeID, m) },
 		func(d string) string { return data(vDatePick, chargeID, d) })
 	return append(rows, []Button{{Label: tr(locale, "↩︎ Back"), Data: data(vBack, chargeID)}})
+}
+
+// paidOnButton opens the calendar to record that a charge was paid on
+// another day than its due date (an App Store receipt dated before the
+// renewal it shows).
+func paidOnButton(c app.ChargeView, today engine.Date, locale string) Button {
+	return Button{Label: tr(locale, "🗓 Paid another day"), Data: data(vPaidOn, c.ID, minDate(c.DueDate, today).String()[:7])}
+}
+
+// paidOnCalendar picks the day a charge was paid. Days after today cannot
+// be picked: they stay on the page.
+func paidOnCalendar(chargeID string, month, due, today engine.Date, locale string) [][]Button {
+	page := func(m string) string { return data(vPaidOn, chargeID, m) }
+	rows := monthGrid(month, due, today, locale, page, func(d string) string {
+		if day, err := engine.ParseDate(d); err == nil && day.After(today) {
+			return page(d[:7])
+		}
+		return data(vPaidOnPick, chargeID, d)
+	})
+	return append(rows, []Button{{Label: tr(locale, "↩︎ Back"), Data: data(vBack, chargeID)}})
+}
+
+func minDate(a, b engine.Date) engine.Date {
+	if b.Before(a) {
+		return b
+	}
+	return a
 }
 
 // monthGrid renders a month as rows of day buttons, Monday first. nav builds

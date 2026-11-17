@@ -340,12 +340,20 @@ func (s *Service) UpdateSubscription(ctx context.Context, actor Actor, in Update
 		if err := s.saveSubscription(ctx, q, sub); err != nil {
 			return err
 		}
+		var skipped *SkippedCycle
 		if !repriceFrom.IsZero() {
+			removed, hasRemoved, err := firstRemovable(ctx, q, sub.ID, repriceFrom)
+			if err != nil {
+				return err
+			}
 			if err := q.DeleteFuturePendingCharges(ctx, db.DeleteFuturePendingChargesParams{SubscriptionID: sub.ID, OriginalDate: repriceFrom.String()}); err != nil {
 				return err
 			}
 			if err := s.materialize(ctx, q, sub, maxDate(repriceFrom, today)); err != nil {
 				return err
+			}
+			if hasRemoved {
+				skipped = skippedCycle(before.Schedule, sub.Schedule, removed, maxDate(repriceFrom, today))
 			}
 		}
 		if _, err := c.record(q, "subscription.update", "subscription", sub.ID, before, sub); err != nil {
@@ -353,6 +361,7 @@ func (s *Service) UpdateSubscription(ctx context.Context, actor Actor, in Update
 		}
 		c.emit(bus.Event{Type: bus.SubscriptionUpdated, HouseholdID: sub.HouseholdID, SubscriptionID: sub.ID})
 		out, err = s.detail(ctx, q, actor, sub.ID)
+		out.SkippedCycle = skipped
 		return err
 	})
 	return out, err

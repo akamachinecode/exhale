@@ -1551,6 +1551,9 @@
           "charge": {
             "$ref": "#/components/schemas/ChargeView"
           },
+          "chargedOn": {
+            "type": "string"
+          },
           "paid": {
             "$ref": "#/components/schemas/Money"
           },
@@ -1592,6 +1595,9 @@
           },
           "priceChange": {
             "$ref": "#/components/schemas/PriceChangeHint"
+          },
+          "skippedCycle": {
+            "$ref": "#/components/schemas/SkippedCycle"
           },
           "subscription": {
             "$ref": "#/components/schemas/SubscriptionView"
@@ -5620,6 +5626,9 @@
           "chargedCurrency": {
             "type": "string"
           },
+          "chargedOn": {
+            "type": "string"
+          },
           "dryRun": {
             "type": "boolean"
           },
@@ -5828,6 +5837,22 @@
           "amount",
           "paidBy",
           "status"
+        ],
+        "type": "object"
+      },
+      "SkippedCycle": {
+        "additionalProperties": false,
+        "properties": {
+          "next": {
+            "type": "string"
+          },
+          "removed": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "removed",
+          "next"
         ],
         "type": "object"
       },
@@ -6378,6 +6403,9 @@
               "array",
               "null"
             ]
+          },
+          "skippedCycle": {
+            "$ref": "#/components/schemas/SkippedCycle"
           },
           "subscription": {
             "$ref": "#/components/schemas/SubscriptionView"

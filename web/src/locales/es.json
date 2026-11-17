@@ -115,10 +115,6 @@
 	"{0} took {1} instead of {2}": "{0} cobró {1} en lugar de {2}",
 	"{0}% · {1} a year. Is it the new price?": "{0} % · {1} al año. ¿Es el nuevo precio?",
 	"Yes, from now on": "Sí, desde ahora",
-	"{0} was paid at another amount": "{0} se cobró por otro importe",
-	"Paid, another amount": "Pagado, otro importe",
-	"How much did it take?": "¿Cuánto cobró?",
-	"Expected": "Se esperaban",
 	"Amount charged": "Importe cobrado",
 	"{0} moved": "{0} movido",
 	"Move {0}": "Mover {0}",
@@ -1106,5 +1102,15 @@
 	"Updates": "Actualizaciones",
 	"New versions of Exhale, installed with one click.": "Las versiones nuevas de Exhale, instaladas con un clic.",
 	"The update was cancelled. Nothing changed.": "Se ha cancelado la actualización. No ha cambiado nada.",
-	"Your password is asked to install it. Exhale restarts by itself; your data stays as it is.": "Se te pedirá la contraseña para instalarla. Exhale se reinicia solo; tus datos se quedan como están."
+	"Your password is asked to install it. Exhale restarts by itself; your data stays as it is.": "Se te pedirá la contraseña para instalarla. Exhale se reinicia solo; tus datos se quedan como están.",
+	"{0} was paid on another day or at another amount": "{0} se pagó otro día o con otro importe",
+	"Paid another day or amount": "Pagado otro día u otro importe",
+	"When and how much?": "¿Cuándo y cuánto?",
+	"Expected {0} on {1}.": "Se esperaban {0} el {1}.",
+	"Use the receipt or the bank statement.": "Usa el recibo o el extracto del banco.",
+	"The {0} charge disappears and the next one is {1}: nothing is charged in between.": "Desaparece el cobro del {0} y el siguiente es el {1}: entre medias no se cobra nada.",
+	"If it was already paid (a receipt dated before its renewal), first mark it paid on the day it was charged.": "Si ya se pagó (un recibo con fecha anterior a su renovación), primero márcalo pagado el día en que se cobró.",
+	"Save anyway": "Guardar igualmente",
+	"Day it was charged": "Día en que se cobró",
+	"was due": "tocaba el"
 }
