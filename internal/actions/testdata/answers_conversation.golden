@@ -2,7 +2,8 @@
 === 2026-11-05 09:00
 SEND #1
 🔔 iCloud renews in 3 days
-  💶 €2.99 · Sun, 8 Nov 2026
+  💶 €2.99
+  🔁 Renewal: Sun, 8 Nov 2026
   💳 Visa ••4421
   [✅ Already paid](paid|chg_X) [🗓 Paid another day](pon|chg_X|2026-11)
   [📅 Change date](date|chg_X|2026-11) [✏️ Amount](amount|chg_X)
@@ -12,7 +13,8 @@ SEND #1
 
 SEND #2
 ⏰ 7 days left to cancel Gym
-  💶 €39.00 · Thu, 19 Nov 2026
+  💶 €39.00
+  🔁 Renewal: Thu, 19 Nov 2026
   ⏰ Cancel by Thu, 12 Nov 2026
   After that it renews for €39.00.
   [👍 Keep it](keep|chg_X) [❌ Cancel](cancel|chg_X)
@@ -44,7 +46,8 @@ SEND #5
 > alex presses In 3 days
 (toast: 💤 Snoozed)
 ⏰ 7 days left to cancel Gym
-  💶 €39.00 · Thu, 19 Nov 2026
+  💶 €39.00
+  🔁 Renewal: Thu, 19 Nov 2026
   ⏰ Cancel by Thu, 12 Nov 2026
   After that it renews for €39.00.
   [👍 Keep it](keep|chg_X) [❌ Cancel](cancel|chg_X)
@@ -76,7 +79,8 @@ SEND #5
 > alex presses Remind me tomorrow
 (toast: 💤 Snoozed)
 🔔 iCloud renews in 3 days
-  💶 €2.99 · Sun, 8 Nov 2026
+  💶 €2.99
+  🔁 Renewal: Sun, 8 Nov 2026
   💳 Revolut ••0937
   [✅ Already paid](paid|chg_X) [🗓 Paid another day](pon|chg_X|2026-11)
   [📅 Change date](date|chg_X|2026-11) [✏️ Amount](amount|chg_X)
@@ -87,7 +91,8 @@ SEND #5
 === 2026-11-06 09:00
 SEND #6
 🔔 iCloud renews in 2 days
-  💶 €2.99 · Sun, 8 Nov 2026
+  💶 €2.99
+  🔁 Renewal: Sun, 8 Nov 2026
   💳 Revolut ••0937
   [✅ Already paid](paid|chg_X) [🗓 Paid another day](pon|chg_X|2026-11)
   [📅 Change date](date|chg_X|2026-11) [✏️ Amount](amount|chg_X)
@@ -98,7 +103,8 @@ SEND #6
 === 2026-11-08 09:00
 SEND #7
 🔔 iCloud renews today
-  💶 €2.99 · Sun, 8 Nov 2026
+  💶 €2.99
+  🔁 Renewal: Sun, 8 Nov 2026
   💳 Revolut ••0937
   [✅ Already paid](paid|chg_X) [🗓 Paid another day](pon|chg_X|2026-11)
   [📅 Change date](date|chg_X|2026-11) [✏️ Amount](amount|chg_X)
@@ -107,7 +113,8 @@ SEND #7
 
 SEND #8
 ⏰ 4 days left to cancel Gym
-  💶 €39.00 · Thu, 19 Nov 2026
+  💶 €39.00
+  🔁 Renewal: Thu, 19 Nov 2026
   ⏰ Cancel by Thu, 12 Nov 2026
   After that it renews for €39.00.
   [👍 Keep it](keep|chg_X) [❌ Cancel](cancel|chg_X)
@@ -116,15 +123,18 @@ SEND #8
 > alex presses Already paid
 (toast: Marked as paid ✅)
 ✅ iCloud paid
-  💶 €2.99 · Sun, 8 Nov 2026
+  💶 €2.99
+  🔁 Renewal: Sun, 8 Nov 2026
+  ✅ Paid on: Sun, 8 Nov 2026
   💳 Revolut ••0937
-  [↩︎ Reopen](reopen|chg_X)
+  [🗓 Change paid date](pon|chg_X|2026-11) [↩︎ Reopen](reopen|chg_X)
   [↩︎ Undo](undo|chg_X|aud_X)
 
 > alex presses Remind me tomorrow
 (toast: 💤 Snoozed)
 ⏰ 4 days left to cancel Gym
-  💶 €39.00 · Thu, 19 Nov 2026
+  💶 €39.00
+  🔁 Renewal: Thu, 19 Nov 2026
   ⏰ Cancel by Thu, 12 Nov 2026
   After that it renews for €39.00.
   [👍 Keep it](keep|chg_X) [❌ Cancel](cancel|chg_X)
@@ -133,7 +143,8 @@ SEND #8
 === 2026-11-09 09:00
 SEND #9
 ⏰ 3 days left to cancel Gym
-  💶 €39.00 · Thu, 19 Nov 2026
+  💶 €39.00
+  🔁 Renewal: Thu, 19 Nov 2026
   ⏰ Cancel by Thu, 12 Nov 2026
   After that it renews for €39.00.
   [👍 Keep it](keep|chg_X) [❌ Cancel](cancel|chg_X)
@@ -142,7 +153,8 @@ SEND #9
 > alex presses Remind me tomorrow
 (toast: 💤 Snoozed)
 ⏰ 3 days left to cancel Gym
-  💶 €39.00 · Thu, 19 Nov 2026
+  💶 €39.00
+  🔁 Renewal: Thu, 19 Nov 2026
   ⏰ Cancel by Thu, 12 Nov 2026
   After that it renews for €39.00.
   [👍 Keep it](keep|chg_X) [❌ Cancel](cancel|chg_X)
@@ -151,7 +163,8 @@ SEND #9
 === 2026-11-10 09:00
 SEND #10
 ⏰ 2 days left to cancel Gym
-  💶 €39.00 · Thu, 19 Nov 2026
+  💶 €39.00
+  🔁 Renewal: Thu, 19 Nov 2026
   ⏰ Cancel by Thu, 12 Nov 2026
   After that it renews for €39.00.
   [👍 Keep it](keep|chg_X) [❌ Cancel](cancel|chg_X)
@@ -160,7 +173,8 @@ SEND #10
 > alex presses On the last day
 (toast: 💤 Snoozed)
 ⏰ 2 days left to cancel Gym
-  💶 €39.00 · Thu, 19 Nov 2026
+  💶 €39.00
+  🔁 Renewal: Thu, 19 Nov 2026
   ⏰ Cancel by Thu, 12 Nov 2026
   After that it renews for €39.00.
   [👍 Keep it](keep|chg_X) [❌ Cancel](cancel|chg_X)
@@ -169,7 +183,8 @@ SEND #10
 === 2026-11-12 09:00
 SEND #11
 ⏰ Last day to cancel Gym: today
-  💶 €39.00 · Thu, 19 Nov 2026
+  💶 €39.00
+  🔁 Renewal: Thu, 19 Nov 2026
   ⏰ Cancel by Thu, 12 Nov 2026
   After that it renews for €39.00.
   [👍 Keep it](keep|chg_X) [❌ Cancel](cancel|chg_X)

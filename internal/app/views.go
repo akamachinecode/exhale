@@ -36,6 +36,8 @@ type ChargeView struct {
 	SubscriptionName string `json:"subscriptionName"`
 	PaymentMethod    string `json:"paymentMethod,omitempty"`
 	Delayed          bool   `json:"delayed" jsonschema:"true when the charge was moved from its scheduled date"`
+	// PaidOn is the day a paid charge was paid: its due date, named.
+	PaidOn engine.Date `json:"paidOn,omitzero" jsonschema:"for a paid charge, the day it was paid on (originalDate is its renewal date)"`
 	DaysUntil        int    `json:"daysUntil" jsonschema:"days from today to the due date (negative if overdue)"`
 	// Kind tells what this date means to the member.
 	Kind         string      `json:"kind" jsonschema:"renewal (a normal charge), trial (the first charge after a free trial) or expiry (manual renewal: it expires on this date unless renewed)" enum:"renewal,trial,expiry"`

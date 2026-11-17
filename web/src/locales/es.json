@@ -701,7 +701,6 @@
 	"Nothing marked as paid yet.": "Aún no hay nada marcado como pagado.",
 	"Price history": "Historial de precios",
 	"From ": "Desde el ",
-	"moved from": "movido desde el",
 	"charged": "cobrado",
 	"the free trial ends": "termina la prueba gratis",
 	"cancel by": "cancelar antes del",
@@ -1106,11 +1105,17 @@
 	"{0} was paid on another day or at another amount": "{0} se pagó otro día o con otro importe",
 	"Paid another day or amount": "Pagado otro día u otro importe",
 	"When and how much?": "¿Cuándo y cuánto?",
-	"Expected {0} on {1}.": "Se esperaban {0} el {1}.",
 	"Use the receipt or the bank statement.": "Usa el recibo o el extracto del banco.",
 	"The {0} charge disappears and the next one is {1}: nothing is charged in between.": "Desaparece el cobro del {0} y el siguiente es el {1}: entre medias no se cobra nada.",
 	"If it was already paid (a receipt dated before its renewal), first mark it paid on the day it was charged.": "Si ya se pagó (un recibo con fecha anterior a su renovación), primero márcalo pagado el día en que se cobró.",
 	"Save anyway": "Guardar igualmente",
 	"Day it was charged": "Día en que se cobró",
-	"was due": "tocaba el"
+	"Change the day or amount {0} was paid": "Cambiar el día o el importe en que se pagó {0}",
+	"Change paid date or amount": "Cambiar fecha de pago o importe",
+	"Renewal {0}, {1}.": "Renovación el {0}, {1}.",
+	"Next renewal": "Próxima renovación",
+	"Renewal": "Renovación",
+	"Paid on {0}": "Pagado el {0}",
+	"Moved to {0}": "Movido al {0}",
+	"{0}: paid date saved": "{0}: fecha de pago guardada"
 }

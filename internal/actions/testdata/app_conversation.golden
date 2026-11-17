@@ -31,7 +31,8 @@ EDIT #1
 
 > press Netflix
 ❓ Was Netflix charged?
-  💶 €13.99 · Fri, 6 Nov 2026
+  💶 €13.99
+  🔁 Renewal: Fri, 6 Nov 2026
   💳 Visa ••4421
   🏷 Streaming
   [✅ Paid](paid|chg_2) [⏳ Not yet](notyet|chg_2) [❌ Failed](failed|chg_2)
@@ -42,10 +43,12 @@ EDIT #1
 > press Paid
 (toast: Marked as paid ✅)
 ✅ Netflix paid
-  💶 €13.99 · Fri, 6 Nov 2026
+  💶 €13.99
+  🔁 Renewal: Fri, 6 Nov 2026
+  ✅ Paid on: Fri, 6 Nov 2026
   💳 Visa ••4421
   🏷 Streaming
-  [↩︎ Reopen](reopen|chg_2)
+  [🗓 Change paid date](pon|chg_2|2026-11) [↩︎ Reopen](reopen|chg_2)
   [↩︎ Undo](undo|chg_2|aud_1)
   [‹ Netflix](a|sub|sub_3) [🏠 Home](a|home)
 
@@ -71,7 +74,7 @@ EDIT #1
 > press Spotify Family
 Spotify Family
   💶 €17.99 · monthly
-  📅 Next charge Sun, 8 Nov 2026
+  🔁 Next renewal: Sun, 8 Nov 2026
   💳 Revolut ••0937
   🏷 Music
   👤 Alex
@@ -82,7 +85,8 @@ Spotify Family
 
 > press Next charge
 🔔 Spotify Family renews tomorrow
-  💶 €17.99 · Sun, 8 Nov 2026
+  💶 €17.99
+  🔁 Renewal: Sun, 8 Nov 2026
   💳 Revolut ••0937
   🏷 Music
   [✅ Already paid](paid|chg_1) [🗓 Paid another day](pon|chg_1|2026-11)
@@ -93,7 +97,8 @@ Spotify Family
 
 > press Change date
 📅 New date for Spotify Family
-  💶 €17.99 · Sun, 8 Nov 2026
+  💶 €17.99
+  🔁 Renewal: Sun, 8 Nov 2026
   💳 Revolut ••0937
   🏷 Music
   [‹](date|chg_1|2026-10) [November 2026](date|chg_1|2026-11) [›](date|chg_1|2026-12)
@@ -153,7 +158,7 @@ Spotify Family
 > press iCloud+
 iCloud+
   💶 €35.88 · yearly
-  📅 Next charge Wed, 25 Nov 2026
+  🔁 Next renewal: Wed, 25 Nov 2026
   💳 Revolut ••0937
   🏷 Cloud & Dev
   👤 Alex

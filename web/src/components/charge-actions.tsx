@@ -64,13 +64,16 @@ export function ChargeActions({
 	});
 	if (charge.status !== "pending" && charge.status !== "failed") {
 		return (
-			<Button
-				size="sm"
-				variant="ghost"
-				onClick={() => status.mutate({ data: { chargeId: charge.id, status: "pending" } })}
-			>
-				{t("Reopen")}
-			</Button>
+			<div className="flex items-center justify-end gap-0.5">
+				{charge.status === "paid" && <PaidAmount charge={charge} />}
+				<Button
+					size="sm"
+					variant="ghost"
+					onClick={() => status.mutate({ data: { chargeId: charge.id, status: "pending" } })}
+				>
+					{t("Reopen")}
+				</Button>
+			</div>
 		);
 	}
 	const due = charge.daysUntil <= 0 || charge.status === "failed";
@@ -132,7 +135,9 @@ function PaidAmount({ charge }: { charge: ChargeView }) {
 	const [open, setOpen] = useState(false);
 	const [amount, setAmount] = useState(decimal(charge.amount));
 	const today = todayISO();
+	const paid = charge.status === "paid";
 	const [on, setOn] = useState([charge.dueDate, today].sort()[0]);
+	const [amount0] = useState(amount);
 	const reprice = useUpdateSubscription({
 		mutation: {
 			onSuccess: () => {
@@ -149,7 +154,11 @@ function PaidAmount({ charge }: { charge: ChargeView }) {
 				setOpen(false);
 				const h = r.priceChange;
 				if (!h) {
-					toast.success(t("{0} marked paid", charge.subscriptionName));
+					toast.success(
+						paid
+							? t("{0}: paid date saved", charge.subscriptionName)
+							: t("{0} marked paid", charge.subscriptionName),
+					);
 					return;
 				}
 				toast(
@@ -172,8 +181,12 @@ function PaidAmount({ charge }: { charge: ChargeView }) {
 		<Popover.Root open={open} onOpenChange={setOpen}>
 			<Popover.Trigger
 				className={iconTrigger}
-				aria-label={t("{0} was paid on another day or at another amount", charge.subscriptionName)}
-				title={t("Paid another day or amount")}
+				aria-label={
+					paid
+						? t("Change the day or amount {0} was paid", charge.subscriptionName)
+						: t("{0} was paid on another day or at another amount", charge.subscriptionName)
+				}
+				title={paid ? t("Change paid date or amount") : t("Paid another day or amount")}
 			>
 				<Coins className="size-4" />
 			</Popover.Trigger>
@@ -182,7 +195,7 @@ function PaidAmount({ charge }: { charge: ChargeView }) {
 					<Popover.Popup className="z-50 w-64 rounded-xl border border-line bg-surface p-4 shadow-xl">
 						<p className="text-sm font-semibold">{t("When and how much?")}</p>
 						<p className="mt-0.5 text-xs text-muted">
-							{t("Expected {0} on {1}.", money(charge.amount), formatDate(charge.dueDate))}{" "}
+							{t("Renewal {0}, {1}.", formatDate(charge.originalDate), money(charge.amount))}{" "}
 							{t("Use the receipt or the bank statement.")}
 						</p>
 						<form
@@ -193,7 +206,7 @@ function PaidAmount({ charge }: { charge: ChargeView }) {
 									data: {
 										chargeId: charge.id,
 										status: "paid",
-										chargedAmount: amount.trim().replace(",", "."),
+										chargedAmount: paid && amount === amount0 ? undefined : amount.trim().replace(",", "."),
 										chargedOn: on && on !== charge.dueDate ? on : undefined,
 									},
 								});
@@ -214,8 +227,12 @@ function PaidAmount({ charge }: { charge: ChargeView }) {
 								onChange={(e) => setAmount(e.target.value)}
 								aria-label={t("Amount charged")}
 							/>
-							<Button type="submit" variant="primary" disabled={pay.isPending}>
-								{t("Mark paid")}
+							<Button
+								type="submit"
+								variant="primary"
+								disabled={pay.isPending || (paid && on === charge.dueDate && amount === amount0)}
+							>
+								{paid ? t("Save") : t("Mark paid")}
 							</Button>
 						</form>
 					</Popover.Popup>

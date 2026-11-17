@@ -1,7 +1,8 @@
 # Recordatorios
 SEND #1
 🔔 Netflix se renueva en 3 días
-  💶 13,99 € · dom, 8 nov 2026
+  💶 13,99 €
+  🔁 Renovación: dom, 8 nov 2026
   💳 Visa ••4421
   [✅ Ya pagado](paid|chg_X) [🗓 Pagado otro día](pon|chg_X|2026-11)
   [📅 Cambiar fecha](date|chg_X|2026-11) [✏️ Importe](amount|chg_X)
@@ -11,7 +12,8 @@ SEND #1
 
 SEND #2
 ⏰ Quedan 7 días para cancelar Gimnasio
-  💶 39,00 € · sáb, 12 dic 2026
+  💶 39,00 €
+  🔁 Renovación: sáb, 12 dic 2026
   ⏰ Cancelar antes del jue, 12 nov 2026
   Después se renueva por 39,00 €.
   [👍 La mantengo](keep|chg_X) [❌ Cancelar](cancel|chg_X)
@@ -20,6 +22,7 @@ SEND #2
 SEND #3
 ⏳ La prueba gratis de Notion AI termina en 3 días
   Después, 10,00 US$ al mes.
+  ⏳ Fin de la prueba: dom, 8 nov 2026
   [👍 La mantengo](keep|chg_X) [❌ Cancelar antes del cobro](cancel|chg_X)
   [📅 Cambiar fecha](date|chg_X|2026-11) [✏️ Importe](amount|chg_X)
   [💳 Método de pago](pm|chg_X) [⏭ Saltar este](skip|chg_X)
@@ -50,7 +53,7 @@ SEND #3
 > pulsa Gimnasio
 Gimnasio
   💶 39,00 € · cada 3 meses
-  📅 Próximo cobro: sáb, 12 dic 2026
+  🔁 Próxima renovación: sáb, 12 dic 2026
   ⏰ Cancelar antes del jue, 12 nov 2026
   👤 Alex
   [🔔 Próximo cobro · sáb 12 dic](a|chg|chg_X)

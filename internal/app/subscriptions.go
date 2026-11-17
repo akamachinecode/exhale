@@ -683,6 +683,9 @@ func (s *Service) view(ctx context.Context, q *db.Queries, sub domain.Subscripti
 
 func (s *Service) chargeView(ch domain.Charge, sub SubscriptionView, today engine.Date) ChargeView {
 	v := ChargeView{Charge: ch, SubscriptionName: sub.Name, PaymentMethod: sub.PaymentMethod, Delayed: ch.Delayed(), DaysUntil: today.DaysUntil(ch.DueDate), Kind: ChargeRenewal, Logo: sub.Logo}
+	if ch.Status == domain.ChargePaid {
+		v.PaidOn = ch.DueDate
+	}
 	switch {
 	case sub.ManualRenewal():
 		v.Kind = ChargeExpiry

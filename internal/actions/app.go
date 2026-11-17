@@ -463,7 +463,7 @@ func (e *Engine) subScreen(ctx context.Context, actor app.Actor, id, locale stri
 	case s.InTrial:
 		m.Lines = append(m.Lines, tr(locale, "⏳ Free trial until %s", longDate(s.NextCharge, locale)))
 	default:
-		m.Lines = append(m.Lines, tr(locale, "📅 Next charge %s", longDate(s.NextCharge, locale)))
+		m.Lines = append(m.Lines, tr(locale, "🔁 Next renewal: %s", longDate(s.NextCharge, locale)))
 	}
 	if !s.CancelBy.IsZero() {
 		m.Lines = append(m.Lines, tr(locale, "⏰ Cancel by %s", longDate(s.CancelBy, locale)))
@@ -484,8 +484,7 @@ func (e *Engine) subScreen(ctx context.Context, actor app.Actor, id, locale stri
 		m.Lines = append(m.Lines, tr(locale, "🌱 Since %s", longDate(s.StartedOn, locale)))
 	}
 	if len(d.History) > 0 {
-		h := d.History[0]
-		m.Sections = append(m.Sections, Section{Heading: tr(locale, "Last charge"), Lines: []string{fmt.Sprintf("%s · %s · %s", shortDate(h.DueDate, locale), h.Amount.Format(locale), tr(locale, string(h.Status)))}})
+		m.Sections = append(m.Sections, Section{Heading: tr(locale, "History"), Lines: historyLines(d.History, locale)})
 	}
 	var next *app.ChargeView
 	for i := range d.Upcoming {
@@ -511,6 +510,34 @@ func (e *Engine) subScreen(ctx context.Context, actor app.Actor, id, locale stri
 	m.Rows = append(m.Rows, []Button{{Label: tr(locale, "✏️ Edit"), Data: route(scrEdit, s.ID)}})
 	m.Rows = append(m.Rows, []Button{{Label: tr(locale, "‹ Subscriptions"), Data: route(scrSubs, "0")}, {Label: tr(locale, "🏠 Home"), Data: RouteHome}})
 	return m, nil
+}
+
+// historyLines lists the last charges of a subscription, newest first, with
+// both dates: the renewal and the day it was paid on.
+func historyLines(history []app.ChargeView, locale string) []string {
+	const most = 6
+	lines := []string{}
+	for i, h := range history {
+		if i == most {
+			lines = append(lines, tr(locale, "…older ones on the web"))
+			break
+		}
+		amount := h.Amount
+		if !h.ChargedAmount.IsZero() {
+			amount = h.ChargedAmount
+		}
+		switch h.Status {
+		case domain.ChargePaid:
+			lines = append(lines, tr(locale, "🔁 %s · ✅ paid %s · %s", shortDate(h.OriginalDate, locale), shortDate(h.DueDate, locale), amount.Format(locale)))
+		case domain.ChargeFailed:
+			lines = append(lines, tr(locale, "🔁 %s · ❌ failed · %s", shortDate(h.OriginalDate, locale), amount.Format(locale)))
+		case domain.ChargeSkipped:
+			lines = append(lines, tr(locale, "🔁 %s · ⏭ skipped", shortDate(h.OriginalDate, locale)))
+		default:
+			lines = append(lines, tr(locale, "🔁 %s · ❓ not confirmed · %s", shortDate(h.OriginalDate, locale), amount.Format(locale)))
+		}
+	}
+	return lines
 }
 
 func (e *Engine) upcomingScreen(ctx context.Context, actor app.Actor, today engine.Date, locale string) (Message, error) {

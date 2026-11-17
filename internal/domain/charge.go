@@ -25,8 +25,8 @@ const (
 type Charge struct {
 	ID             string       `json:"id"`
 	SubscriptionID string       `json:"subscriptionId"`
-	OriginalDate   engine.Date  `json:"originalDate"`
-	DueDate        engine.Date  `json:"dueDate"`
+	OriginalDate   engine.Date  `json:"originalDate" jsonschema:"renewal date: this cycle's date in the schedule. It only changes when the billing day changes"`
+	DueDate        engine.Date  `json:"dueDate" jsonschema:"the day the money leaves: the renewal date, unless this charge was moved or, once paid, the day it was paid on"`
 	Amount         money.Money  `json:"amount"`
 	ChargedAmount  money.Money  `json:"chargedAmount,omitzero"` // what the bank actually took, any currency
 	Status         ChargeStatus `json:"status"`

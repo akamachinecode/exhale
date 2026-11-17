@@ -197,7 +197,7 @@ type SetChargeStatusInput struct {
 	Status        string `json:"status" jsonschema:"paid, failed, skipped, or pending to reopen" enum:"paid,failed,skipped,pending"`
 	ChargedAmount string `json:"chargedAmount,omitempty" jsonschema:"what the bank actually took, decimal string (optional)"`
 	ChargedIn     string `json:"chargedCurrency,omitempty" jsonschema:"currency of chargedAmount, e.g. EUR when a USD service is paid from a EUR card"`
-	ChargedOn     string `json:"chargedOn,omitempty" jsonschema:"day the bank took it, YYYY-MM-DD, when it was not the due date (status paid only, not after today). The charge moves to that day, e.g. an App Store receipt dated before the renewal date it shows"`
+	ChargedOn     string `json:"chargedOn,omitempty" jsonschema:"the day it was paid on, YYYY-MM-DD, when it was not the renewal date (status paid only, not after today). The renewal date (originalDate) stays; e.g. an App Store receipt dated after the renewal. On a charge already paid, corrects the day without reopening it"`
 	Note          string `json:"note,omitempty"`
 	DryRun        bool   `json:"dryRun,omitempty"`
 }
@@ -211,8 +211,16 @@ func (s *Service) SetChargeStatus(ctx context.Context, actor Actor, in SetCharge
 			return err
 		}
 		before := ch
-		if err := ch.Transition(domain.ChargeStatus(in.Status), s.now()); err != nil {
-			return err
+		// A paid charge stays paid when only its day or amount is corrected
+		// (the receipt says another day); any other change needs a reopen.
+		repaid := ch.Status == domain.ChargePaid && in.Status == string(domain.ChargePaid)
+		if repaid && in.ChargedOn == "" && in.ChargedAmount == "" {
+			return domain.Invalid("charge %s is already paid; pass chargedOn or chargedAmount to correct it", ch.ID)
+		}
+		if !repaid {
+			if err := ch.Transition(domain.ChargeStatus(in.Status), s.now()); err != nil {
+				return err
+			}
 		}
 		if in.ChargedOn != "" {
 			on, err := engine.ParseDate(in.ChargedOn)

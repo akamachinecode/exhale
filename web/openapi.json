@@ -1657,6 +1657,9 @@
           "originalDate": {
             "type": "string"
           },
+          "paidOn": {
+            "type": "string"
+          },
           "paymentMethod": {
             "type": "string"
           },
