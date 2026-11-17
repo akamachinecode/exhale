@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.7.0](https://github.com/akamachinecode/exhale/compare/v0.6.0...v0.7.0) (2026-11-17)
+
+
+### Features
+
+* **charges:** every charge shows its renewal date and the day it was paid ([#33](https://github.com/akamachinecode/exhale/issues/33)) ([e51f48a](https://github.com/akamachinecode/exhale/commit/e51f48a002f79479fac0d7e7049dc5e9c9b62ae4))
+
 ## [0.6.0](https://github.com/akamachinecode/exhale/compare/v0.5.0...v0.6.0) (2026-11-17)
 
 
