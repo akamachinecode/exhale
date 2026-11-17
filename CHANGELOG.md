@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.6.0](https://github.com/akamachinecode/exhale/compare/v0.5.0...v0.6.0) (2026-11-17)
+
+
+### Features
+
+* **charges:** paid on another day, and a warning before a cycle is lost ([#30](https://github.com/akamachinecode/exhale/issues/30)) ([e1abf8c](https://github.com/akamachinecode/exhale/commit/e1abf8c222461f80d1576204cddc51d791df74f1))
+
 ## [0.5.0](https://github.com/akamachinecode/exhale/compare/v0.4.0...v0.5.0) (2026-11-12)
 
 
