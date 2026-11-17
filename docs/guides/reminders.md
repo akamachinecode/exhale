@@ -30,9 +30,16 @@ If Exhale was down when a repeat was due, that repeat is not sent late. The next
 
 ## Paid on another day
 
+Every charge keeps two dates, and the chat and the web show both:
+
+- **🔁 Renewal**: the date of that cycle in the schedule (the 9th of every month). It only changes when the billing day changes.
+- **✅ Paid on**: the day the money really left, once it is paid.
+
+A subscription's screen in the chat lists its history the same way: `🔁 9 Nov · ✅ paid 15 Nov · $19.99`.
+
 Sometimes the money leaves on a different day than Exhale expected. An App Store receipt, for example, is dated the day Apple charged (15 November) and also shows the next renewal (9 December). Those are two different facts:
 
-- **The day it was charged** belongs to this charge. In the chat, press **🗓 Paid another day** (on the reminder or on "Was it charged?") and pick the day. On the web, open **Paid another day or amount** next to the charge. The charge is marked paid on that day, and the billing day does not change. AI agents pass `chargedOn` to `set_charge_status`.
+- **The day it was charged** belongs to this charge. In the chat, press **🗓 Paid another day** (on the reminder or on "Was it charged?") and pick the day. On the web, open **Paid another day or amount** next to the charge. The charge is marked paid on that day, and its renewal date does not change. Already marked paid on the wrong day? **🗓 Change paid date** (in the web, the same button next to a paid charge) fixes it without reopening the charge. AI agents pass `chargedOn` to `set_charge_status`, and read `originalDate` (renewal) and `paidOn`.
 - **The next renewal** belongs to the next charge. After a payment on another day the chat offers **📅 Change the next charge**. Choose **This and following** if the billing day changed for good.
 
 Moving a charge that was never recorded to the next renewal date would leave a month with no charge. Exhale warns before you do it: "the 20 Nov charge disappears and the next one is 9 Dec: nothing is charged in between". If it was already paid, record the payment first.

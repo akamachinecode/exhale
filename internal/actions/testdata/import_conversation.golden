@@ -75,20 +75,24 @@
   — Each change can be undone from Activity in Exhale.
 SEND #1
 ✅ Netflix paid
-  💶 €12.99 · Tue, 6 Oct 2026
+  💶 €12.99
+  🔁 Renewal: Tue, 6 Oct 2026
+  ✅ Paid on: Tue, 6 Oct 2026
   🏦 charged €15.99
   ## New price?
   It took €15.99 instead of €12.99 (+23.1%, +€36.00 a year).
   [Yes, from now on](np|chg_X|15.99) [Just this time](back|chg_X)
-  [↩︎ Reopen](reopen|chg_X)
+  [🗓 Change paid date](pon|chg_X|2026-10) [↩︎ Reopen](reopen|chg_X)
   [↩︎ Undo](undo|chg_X|aud_X)
 
 > press Yes, from now on
 (toast: Price updated 💶)
 ✅ Netflix paid
-  💶 €12.99 · Tue, 6 Oct 2026
+  💶 €12.99
+  🔁 Renewal: Tue, 6 Oct 2026
+  ✅ Paid on: Tue, 6 Oct 2026
   🏦 charged €15.99
-  [↩︎ Reopen](reopen|chg_X)
+  [🗓 Change paid date](pon|chg_X|2026-10) [↩︎ Reopen](reopen|chg_X)
   — New price saved for the next charges.
 
 > send statement.pdf

@@ -1,6 +1,7 @@
 SEND #1
 🔔 Spotify Family renews in 3 days
-  💶 €17.99 · Sun, 8 Nov 2026
+  💶 €17.99
+  🔁 Renewal: Sun, 8 Nov 2026
   💳 Revolut ••0937
   [✅ Already paid](paid|chg_X) [🗓 Paid another day](pon|chg_X|2026-11)
   [📅 Change date](date|chg_X|2026-11) [✏️ Amount](amount|chg_X)
@@ -10,7 +11,8 @@ SEND #1
 
 > press Change date
 📅 New date for Spotify Family
-  💶 €17.99 · Sun, 8 Nov 2026
+  💶 €17.99
+  🔁 Renewal: Sun, 8 Nov 2026
   💳 Revolut ••0937
   [‹](date|chg_X|2026-10) [November 2026](date|chg_X|2026-11) [›](date|chg_X|2026-12)
   [ ](date|chg_X|2026-11) [ ](date|chg_X|2026-11) [ ](date|chg_X|2026-11) [ ](date|chg_X|2026-11) [ ](date|chg_X|2026-11) [ ](date|chg_X|2026-11) [1](pick|chg_X|2026-11-01)
@@ -31,8 +33,9 @@ SEND #1
 > press Only this charge
 (toast: Date changed 📅)
 🔔 Spotify Family renews in 5 days
-  💶 €17.99 · Tue, 10 Nov 2026
-  ↪︎ moved from Sun, 8 Nov 2026
+  💶 €17.99
+  🔁 Renewal: Sun, 8 Nov 2026
+  📅 Moved to: Tue, 10 Nov 2026
   💳 Revolut ••0937
   [✅ Already paid](paid|chg_X) [🗓 Paid another day](pon|chg_X|2026-11)
   [📅 Change date](date|chg_X|2026-11) [✏️ Amount](amount|chg_X)
@@ -43,9 +46,10 @@ SEND #1
 > Claude marks it paid over MCP
 EDIT #1
 ✅ Spotify Family paid
-  💶 €17.99 · Tue, 10 Nov 2026
-  ↪︎ was due Sun, 8 Nov 2026
+  💶 €17.99
+  🔁 Renewal: Sun, 8 Nov 2026
+  ✅ Paid on: Tue, 10 Nov 2026
   💳 Visa ••4421
-  [↩︎ Reopen](reopen|chg_X)
+  [🗓 Change paid date](pon|chg_X|2026-11) [↩︎ Reopen](reopen|chg_X)
   [↩︎ Undo](undo|chg_X|aud_X)
   — Changed by Claude (MCP)

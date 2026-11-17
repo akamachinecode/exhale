@@ -108,6 +108,9 @@ func chargeMessage(kind string, r app.ChargeResult, today engine.Date, locale st
 		{{Label: tr(locale, "💳 Payment method"), Data: data(vMethod, id)}, {Label: tr(locale, "⏭ Skip this one"), Data: data(vSkip, id)}},
 	}
 	switch {
+	case c.Status == domain.ChargePaid:
+		m.Title = statusTitle(c, sub.Name, locale)
+		m.Rows = [][]Button{{{Label: tr(locale, "🗓 Change paid date"), Data: data(vPaidOn, id, c.DueDate.String()[:7])}, {Label: tr(locale, "↩︎ Reopen"), Data: data(vReopen, id)}}}
 	case c.Status != domain.ChargePending && c.Status != domain.ChargeFailed:
 		m.Title = statusTitle(c, sub.Name, locale)
 		m.Rows = [][]Button{{{Label: tr(locale, "↩︎ Reopen"), Data: data(vReopen, id)}}}
@@ -194,12 +197,14 @@ func statusTitle(c app.ChargeView, name, locale string) string {
 }
 
 func details(c app.ChargeView, sub app.SubscriptionView, locale string) []string {
-	lines := []string{fmt.Sprintf("💶 %s · %s", c.Amount.Format(locale), longDate(c.DueDate, locale))}
+	// Two dates, named: the renewal (this cycle in the schedule) and, once
+	// paid, the day it was paid on. Both stay in the history.
+	lines := []string{"💶 " + c.Amount.Format(locale), renewalLine(c, locale)}
 	switch {
-	case c.Delayed && c.Status == domain.ChargePaid:
-		lines = append(lines, tr(locale, "↪︎ was due %s", longDate(c.OriginalDate, locale)))
+	case c.Status == domain.ChargePaid:
+		lines = append(lines, tr(locale, "✅ Paid on: %s", longDate(c.DueDate, locale)))
 	case c.Delayed:
-		lines = append(lines, tr(locale, "↪︎ moved from %s", longDate(c.OriginalDate, locale)))
+		lines = append(lines, tr(locale, "📅 Moved to: %s", longDate(c.DueDate, locale)))
 	}
 	if sub.PaymentMethod != "" {
 		lines = append(lines, "💳 "+sub.PaymentMethod)
@@ -214,6 +219,19 @@ func details(c app.ChargeView, sub app.SubscriptionView, locale string) []string
 		lines = append(lines, tr(locale, "🏦 charged %s", c.ChargedAmount.Format(locale)))
 	}
 	return lines
+}
+
+// renewalLine names what a charge's scheduled date means: a renewal, the
+// end of a free trial or an expiry.
+func renewalLine(c app.ChargeView, locale string) string {
+	d := longDate(c.OriginalDate, locale)
+	switch c.Kind {
+	case app.ChargeTrial:
+		return tr(locale, "⏳ Trial ends: %s", d)
+	case app.ChargeExpiry:
+		return tr(locale, "⌛ Expires: %s", d)
+	}
+	return tr(locale, "🔁 Renewal: %s", d)
 }
 
 // calendar renders a month of day buttons for choosing a new date.

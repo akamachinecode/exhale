@@ -216,7 +216,7 @@ export function SubscriptionDetail() {
 								value={`${money(s.monthlyCost)} · ${money(s.yearlyCost)}`}
 							/>
 							<Detail
-								label={s.expires ? t("Expires") : s.inTrial ? t("Trial ends") : t("Next charge")}
+								label={s.expires ? t("Expires") : s.inTrial ? t("Trial ends") : t("Next renewal")}
 								value={date(s.nextCharge, "long")}
 							/>
 							{s.nextPrice && (
@@ -348,6 +348,11 @@ function Detail({ label, value }: { label: string; value: string }) {
 	);
 }
 
+/** What a charge's scheduled date means: a renewal, a trial's end or an expiry. */
+function renewalLabel(c: ChargeView) {
+	return c.kind === "trial" ? t("Trial ends") : c.kind === "expiry" ? t("Expires") : t("Renewal");
+}
+
 function Charges({ charges, empty }: { charges: ChargeView[]; empty: string }) {
 	if (charges.length === 0)
 		return <p className="border-t border-line px-5 py-8 text-center text-sm text-muted">{empty}</p>;
@@ -359,11 +364,14 @@ function Charges({ charges, empty }: { charges: ChargeView[]; empty: string }) {
 					className="group flex flex-wrap items-center gap-x-3 gap-y-2 px-5 py-3 text-sm sm:flex-nowrap"
 				>
 					<div className="min-w-0 flex-1">
-						<p className="font-medium">{date(c.dueDate, "long")}</p>
-						{c.delayed && (
-							<p className="text-xs text-muted">
-								{c.status === "paid" ? t("was due") : t("moved from")} {date(c.originalDate)}
-							</p>
+						<p className="font-medium">
+							<span className="font-normal text-muted">{renewalLabel(c)} · </span>
+							{date(c.originalDate, "long")}
+						</p>
+						{c.paidOn ? (
+							<p className="text-xs text-muted">{t("Paid on {0}", date(c.paidOn, "long"))}</p>
+						) : (
+							c.delayed && <p className="text-xs text-muted">{t("Moved to {0}", date(c.dueDate, "long"))}</p>
 						)}
 						{c.chargedAmount && c.chargedAmount.minor !== c.amount.minor && (
 							<p className="text-xs text-muted">

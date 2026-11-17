@@ -1,6 +1,7 @@
 SEND #1
 🔔 ChatGPT renews in 3 days
-  💶 $19.99 · Fri, 20 Nov 2026
+  💶 $19.99
+  🔁 Renewal: Fri, 20 Nov 2026
   [✅ Already paid](paid|chg_1) [🗓 Paid another day](pon|chg_1|2026-11)
   [📅 Change date](date|chg_1|2026-11) [✏️ Amount](amount|chg_1)
   [💳 Payment method](pm|chg_1) [⏭ Skip this one](skip|chg_1)
@@ -9,7 +10,8 @@ SEND #1
 
 > press Change date
 📅 New date for ChatGPT
-  💶 $19.99 · Fri, 20 Nov 2026
+  💶 $19.99
+  🔁 Renewal: Fri, 20 Nov 2026
   [‹](date|chg_1|2026-10) [November 2026](date|chg_1|2026-11) [›](date|chg_1|2026-12)
   [ ](date|chg_1|2026-11) [ ](date|chg_1|2026-11) [ ](date|chg_1|2026-11) [ ](date|chg_1|2026-11) [ ](date|chg_1|2026-11) [ ](date|chg_1|2026-11) [1](pick|chg_1|2026-11-01)
   [2](pick|chg_1|2026-11-02) [3](pick|chg_1|2026-11-03) [4](pick|chg_1|2026-11-04) [5](pick|chg_1|2026-11-05) [6](pick|chg_1|2026-11-06) [7](pick|chg_1|2026-11-07) [8](pick|chg_1|2026-11-08)
@@ -21,7 +23,8 @@ SEND #1
 
 > press ›
 📅 New date for ChatGPT
-  💶 $19.99 · Fri, 20 Nov 2026
+  💶 $19.99
+  🔁 Renewal: Fri, 20 Nov 2026
   [‹](date|chg_1|2026-11) [December 2026](date|chg_1|2026-12) [›](date|chg_1|2027-01)
   [ ](date|chg_1|2026-12) [1](pick|chg_1|2026-12-01) [2](pick|chg_1|2026-12-02) [3](pick|chg_1|2026-12-03) [4](pick|chg_1|2026-12-04) [5](pick|chg_1|2026-12-05) [6](pick|chg_1|2026-12-06)
   [7](pick|chg_1|2026-12-07) [8](pick|chg_1|2026-12-08) [9](pick|chg_1|2026-12-09) [10](pick|chg_1|2026-12-10) [11](pick|chg_1|2026-12-11) [12](pick|chg_1|2026-12-12) [13](pick|chg_1|2026-12-13)
@@ -41,8 +44,9 @@ SEND #1
 
 > press Paid another day
 🗓 What day was ChatGPT charged?
-  💶 $19.99 · Fri, 20 Nov 2026
-  The day on the receipt or the bank statement. The billing day does not change.
+  💶 $19.99
+  🔁 Renewal: Fri, 20 Nov 2026
+  The day on the receipt or the bank statement. The renewal date does not change.
   [‹](pon|chg_1|2026-10) [November 2026](pon|chg_1|2026-11) [›](pon|chg_1|2026-12)
   [ ](pon|chg_1|2026-11) [ ](pon|chg_1|2026-11) [ ](pon|chg_1|2026-11) [ ](pon|chg_1|2026-11) [ ](pon|chg_1|2026-11) [ ](pon|chg_1|2026-11) [1](pod|chg_1|2026-11-01)
   [2](pod|chg_1|2026-11-02) [3](pod|chg_1|2026-11-03) [4](pod|chg_1|2026-11-04) [5](pod|chg_1|2026-11-05) [6](pod|chg_1|2026-11-06) [7](pod|chg_1|2026-11-07) [8](pod|chg_1|2026-11-08)
@@ -52,19 +56,47 @@ SEND #1
   [30](pon|chg_1|2026-11) [ ](pon|chg_1|2026-11) [ ](pon|chg_1|2026-11) [ ](pon|chg_1|2026-11) [ ](pon|chg_1|2026-11) [ ](pon|chg_1|2026-11) [ ](pon|chg_1|2026-11)
   [↩︎ Back](back|chg_1)
 
+> press 16
+(toast: Marked as paid ✅)
+✅ ChatGPT paid
+  💶 $19.99
+  🔁 Renewal: Fri, 20 Nov 2026
+  ✅ Paid on: Mon, 16 Nov 2026
+  Next renewal: Sun, 20 Dec 2026. Does the receipt show another date?
+  [📅 Change the next charge](date|chg_2|2026-12)
+  [🗓 Change paid date](pon|chg_1|2026-11) [↩︎ Reopen](reopen|chg_1)
+  [↩︎ Undo](undo|chg_1|aud_X)
+
+> press Change paid date
+🗓 What day was ChatGPT charged?
+  💶 $19.99
+  🔁 Renewal: Fri, 20 Nov 2026
+  ✅ Paid on: Mon, 16 Nov 2026
+  The day on the receipt or the bank statement. The renewal date does not change.
+  [‹](pon|chg_1|2026-10) [November 2026](pon|chg_1|2026-11) [›](pon|chg_1|2026-12)
+  [ ](pon|chg_1|2026-11) [ ](pon|chg_1|2026-11) [ ](pon|chg_1|2026-11) [ ](pon|chg_1|2026-11) [ ](pon|chg_1|2026-11) [ ](pon|chg_1|2026-11) [1](pod|chg_1|2026-11-01)
+  [2](pod|chg_1|2026-11-02) [3](pod|chg_1|2026-11-03) [4](pod|chg_1|2026-11-04) [5](pod|chg_1|2026-11-05) [6](pod|chg_1|2026-11-06) [7](pod|chg_1|2026-11-07) [8](pod|chg_1|2026-11-08)
+  [9](pod|chg_1|2026-11-09) [10](pod|chg_1|2026-11-10) [11](pod|chg_1|2026-11-11) [12](pod|chg_1|2026-11-12) [13](pod|chg_1|2026-11-13) [14](pod|chg_1|2026-11-14) [15](pod|chg_1|2026-11-15)
+  [•16](pod|chg_1|2026-11-16) [(17)](pod|chg_1|2026-11-17) [18](pon|chg_1|2026-11) [19](pon|chg_1|2026-11) [20](pon|chg_1|2026-11) [21](pon|chg_1|2026-11) [22](pon|chg_1|2026-11)
+  [23](pon|chg_1|2026-11) [24](pon|chg_1|2026-11) [25](pon|chg_1|2026-11) [26](pon|chg_1|2026-11) [27](pon|chg_1|2026-11) [28](pon|chg_1|2026-11) [29](pon|chg_1|2026-11)
+  [30](pon|chg_1|2026-11) [ ](pon|chg_1|2026-11) [ ](pon|chg_1|2026-11) [ ](pon|chg_1|2026-11) [ ](pon|chg_1|2026-11) [ ](pon|chg_1|2026-11) [ ](pon|chg_1|2026-11)
+  [↩︎ Back](back|chg_1)
+
 > press 15
 (toast: Marked as paid ✅)
 ✅ ChatGPT paid
-  💶 $19.99 · Sun, 15 Nov 2026
-  ↪︎ was due Fri, 20 Nov 2026
-  Next charge Sun, 20 Dec 2026. Does the receipt show another renewal date?
+  💶 $19.99
+  🔁 Renewal: Fri, 20 Nov 2026
+  ✅ Paid on: Sun, 15 Nov 2026
+  Next renewal: Sun, 20 Dec 2026. Does the receipt show another date?
   [📅 Change the next charge](date|chg_2|2026-12)
-  [↩︎ Reopen](reopen|chg_1)
+  [🗓 Change paid date](pon|chg_1|2026-11) [↩︎ Reopen](reopen|chg_1)
   [↩︎ Undo](undo|chg_1|aud_X)
 
 > press Change the next charge
 📅 New date for ChatGPT
-  💶 $19.99 · Sun, 20 Dec 2026
+  💶 $19.99
+  🔁 Renewal: Sun, 20 Dec 2026
   [‹](date|chg_2|2026-11) [December 2026](date|chg_2|2026-12) [›](date|chg_2|2027-01)
   [ ](date|chg_2|2026-12) [1](pick|chg_2|2026-12-01) [2](pick|chg_2|2026-12-02) [3](pick|chg_2|2026-12-03) [4](pick|chg_2|2026-12-04) [5](pick|chg_2|2026-12-05) [6](pick|chg_2|2026-12-06)
   [7](pick|chg_2|2026-12-07) [8](pick|chg_2|2026-12-08) [9](pick|chg_2|2026-12-09) [10](pick|chg_2|2026-12-10) [11](pick|chg_2|2026-12-11) [12](pick|chg_2|2026-12-12) [13](pick|chg_2|2026-12-13)
@@ -83,7 +115,8 @@ SEND #1
 > press This and following
 (toast: Date changed 📅)
 🔔 ChatGPT renews in 22 days
-  💶 $19.99 · Wed, 9 Dec 2026
+  💶 $19.99
+  🔁 Renewal: Wed, 9 Dec 2026
   [✅ Already paid](paid|chg_3) [🗓 Paid another day](pon|chg_3|2026-11)
   [📅 Change date](date|chg_3|2026-12) [✏️ Amount](amount|chg_3)
   [💳 Payment method](pm|chg_3) [⏭ Skip this one](skip|chg_3)

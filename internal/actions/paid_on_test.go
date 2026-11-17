@@ -87,7 +87,13 @@ func TestPaidOnAnotherDayConversation(t *testing.T) {
 		t.Fatalf("moving November to the next renewal must warn:\n%s", fake.Render(msg))
 	}
 	press("Paid another day")
+	press("16")
+	// The receipt says the 15th: correct the paid date without reopening.
+	press("Change paid date")
 	press("15")
+	if !strings.Contains(fake.Render(msg), "Renewal: Fri, 20 Nov 2026") || !strings.Contains(fake.Render(msg), "Paid on: Sun, 15 Nov 2026") {
+		t.Fatalf("both dates must show:\n%s", fake.Render(msg))
+	}
 	press("Change the next charge")
 	press("9")
 	if strings.Contains(fake.Render(msg), "nothing is charged in between") {

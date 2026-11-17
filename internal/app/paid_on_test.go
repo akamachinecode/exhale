@@ -123,3 +123,37 @@ func TestNewBillingDayWarnsWhenACycleGetsNoCharge(t *testing.T) {
 		t.Fatalf("this charge only: %+v, %v", res.SkippedCycle, err)
 	}
 }
+
+func TestChangePaidDateKeepsRenewalAndStatus(t *testing.T) {
+	f, d := appStoreFixture(t)
+	ctx := context.Background()
+	id := d.Upcoming[0].ID
+	paid, err := f.svc.SetChargeStatus(ctx, f.owner, SetChargeStatusInput{ChargeID: id, Status: "paid"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if paid.Charge.PaidOn.String() != "2026-11-20" {
+		// Paid ahead of the date: paidOn is the due date until corrected.
+		t.Fatalf("paidOn = %s", paid.Charge.PaidOn)
+	}
+	if _, err := f.svc.SetChargeStatus(ctx, f.owner, SetChargeStatusInput{ChargeID: id, Status: "paid"}); !errors.Is(err, domain.ErrValidation) {
+		t.Fatalf("paying twice with nothing to correct must fail, got %v", err)
+	}
+	res, err := f.svc.SetChargeStatus(ctx, f.owner, SetChargeStatusInput{ChargeID: id, Status: "paid", ChargedOn: "2026-11-15"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	c := res.Charge
+	if c.Status != domain.ChargePaid || c.OriginalDate.String() != "2026-11-20" || c.PaidOn.String() != "2026-11-15" || c.ResolvedAt == nil || !c.ResolvedAt.Equal(*paid.Charge.ResolvedAt) {
+		t.Fatalf("corrected charge = %+v", c)
+	}
+	if _, err := f.svc.Undo(ctx, f.owner, UndoInput{AuditID: res.AuditID}); err != nil {
+		t.Fatal(err)
+	}
+	after, _ := f.svc.GetSubscription(ctx, f.owner, GetSubscriptionInput{ID: d.Subscription.ID})
+	for _, h := range append(after.History, after.Upcoming...) {
+		if h.ID == id && (h.PaidOn.String() != "2026-11-20" || h.Status != domain.ChargePaid) {
+			t.Fatalf("undo: %+v", h)
+		}
+	}
+}

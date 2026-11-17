@@ -252,7 +252,7 @@ func (e *Engine) handleCharge(ctx context.Context, actor app.Actor, chat ChatRef
 		}
 		m := Message{
 			Title: tr(locale, "🗓 What day was %s charged?", r.Subscription.Name),
-			Lines: append(details(r.Charge, r.Subscription, locale), tr(locale, "The day on the receipt or the bank statement. The billing day does not change.")),
+			Lines: append(details(r.Charge, r.Subscription, locale), tr(locale, "The day on the receipt or the bank statement. The renewal date does not change.")),
 			Rows:  paidOnCalendar(chargeID, month, r.Charge.DueDate, today, locale),
 		}
 		return Reply{Edit: &m}, nil
@@ -265,7 +265,7 @@ func (e *Engine) handleCharge(ctx context.Context, actor app.Actor, chat ChatRef
 		// The receipt usually shows the next renewal too: one tap to check
 		// the next charge's date.
 		if next := e.nextOpenCharge(ctx, actor, res.Subscription.ID, chargeID); next != nil {
-			m.Lines = append(m.Lines, tr(locale, "Next charge %s. Does the receipt show another renewal date?", longDate(next.DueDate, locale)))
+			m.Lines = append(m.Lines, tr(locale, "Next renewal: %s. Does the receipt show another date?", longDate(next.DueDate, locale)))
 			m.Rows = append([][]Button{{{Label: tr(locale, "📅 Change the next charge"), Data: data(vDateMenu, next.ID, next.DueDate.String()[:7])}}}, m.Rows...)
 		}
 		return Reply{Edit: &m, Toast: tr(locale, "Marked as paid ✅")}, nil

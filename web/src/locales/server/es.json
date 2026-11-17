@@ -182,6 +182,7 @@
 	"changes to {0} cannot be undone yet": "los cambios de {0} aún no se pueden deshacer",
 	"charge": "cobro",
 	"charge {0} changed meanwhile": "el cobro {0} cambió mientras tanto",
+	"charge {0} is already paid; pass chargedOn or chargedAmount to correct it": "el cobro {0} ya está pagado; indica chargedOn o chargedAmount para corregirlo",
 	"charge {0} is not one of {1}": "el cobro {0} no es de {1}",
 	"charge {0} is {1}; reopen it first": "el cobro {0} está {1}; reábrelo primero",
 	"charge {0}: not found": "cobro {0}: no encontrado",

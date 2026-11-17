@@ -333,6 +333,7 @@ export interface ChargeView {
   logo?: string;
   note?: string;
   originalDate: string;
+  paidOn?: string;
   paymentMethod?: string;
   resolvedAt?: string;
   status: string;

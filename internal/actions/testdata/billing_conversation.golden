@@ -8,7 +8,7 @@
 > press Gym
 Gym
   💶 €30.00 · monthly
-  📅 Next charge Sun, 15 Nov 2026
+  🔁 Next renewal: Sun, 15 Nov 2026
   👤 Alex
   [🔔 Next charge · Sun 15 Nov](a|chg|chg_X)
   [⏸ Pause](a|st|sub_X|pause) [❌ Cancel](a|cx|sub_X)
@@ -81,7 +81,7 @@ Gym
 > press ‹ Gym
 Gym
   💶 €30.00 · monthly · the third Sunday · weekends move to the next business day
-  📅 Next charge Mon, 16 Nov 2026
+  🔁 Next renewal: Mon, 16 Nov 2026
   👤 Alex
   [🔔 Next charge · Mon 16 Nov](a|chg|chg_X)
   [⏸ Pause](a|st|sub_X|pause) [❌ Cancel](a|cx|sub_X)
@@ -127,7 +127,7 @@ Gym
 > press Gym
 Gym
   💶 30,00 € · al mes · el tercer domingo · en fin de semana pasa al siguiente día hábil
-  📅 Próximo cobro: lun, 16 nov 2026
+  🔁 Próxima renovación: lun, 16 nov 2026
   👤 Alex
   [🔔 Próximo cobro · lun 16 nov](a|chg|chg_X)
   [⏸ Pausar](a|st|sub_X|pause) [❌ Cancelar](a|cx|sub_X)
