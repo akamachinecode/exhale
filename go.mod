@@ -9,9 +9,9 @@ require (
 	github.com/bojanz/currency v1.5.0
 	github.com/coreos/go-oidc/v3 v3.21.0
 	github.com/danielgtaylor/huma/v2 v2.40.0
-	github.com/ebitengine/purego v0.11.1
-	github.com/go-telegram/bot v1.27.0
-	github.com/godbus/dbus/v5 v5.2.2
+	github.com/ebitengine/purego v0.11.3
+	github.com/go-telegram/bot v1.28.0
+	github.com/godbus/dbus/v5 v5.2.4
 	github.com/google/go-cmp v0.7.0
 	github.com/google/jsonschema-go v0.4.3
 	github.com/gorilla/websocket v1.5.3
@@ -22,12 +22,12 @@ require (
 	github.com/slack-go/slack v0.35.0
 	github.com/thejerf/suture/v4 v4.0.6
 	github.com/wailsapp/wails/v3 v3.1.0
-	golang.org/x/image v0.47.0
+	golang.org/x/image v0.48.0
 	golang.org/x/oauth2 v0.38.0
-	golang.org/x/sys v0.49.0
-	golang.org/x/term v0.47.0
+	golang.org/x/sys v0.50.0
+	golang.org/x/term v0.48.0
 	golang.org/x/time v0.16.0
-	modernc.org/sqlite v1.61.1
+	modernc.org/sqlite v1.62.0
 	pgregory.net/rapid v1.3.0
 )
 
@@ -49,7 +49,7 @@ require (
 	go.uber.org/multierr v1.11.0 // indirect
 	golang.org/x/crypto v0.58.0 // indirect
 	golang.org/x/sync v0.24.0 // indirect
-	modernc.org/libc v1.79.0 // indirect
+	modernc.org/libc v1.80.1 // indirect
 	modernc.org/mathutil v1.7.1 // indirect
 	modernc.org/memory v1.12.1 // indirect
 )
