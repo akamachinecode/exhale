@@ -85,6 +85,9 @@ func Run(o Options) error {
 	if o.Background && !withTray {
 		return nil // nothing to show until Exhale is opened
 	}
+	// A window reopened by an older one after an update can start before
+	// the package has restarted the server; the page would never load.
+	b.waitForAnswer(context.Background(), startWait)
 	policy := application.ActivationPolicyRegular
 	if o.Background {
 		policy = application.ActivationPolicyAccessory // no Dock icon while the window is hidden

@@ -70,7 +70,8 @@ func (b *bridge) updatePackage() {
 	b.sendUpdate("restarting", "")
 }
 
-// serverVersion is the version of the server this window shows.
+// serverVersion is the version of the server this window shows, or "" while
+// it does not answer.
 func (b *bridge) serverVersion(ctx context.Context) string {
 	ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
 	defer cancel()
@@ -83,6 +84,9 @@ func (b *bridge) serverVersion(ctx context.Context) string {
 		return ""
 	}
 	_ = res.Body.Close()
+	if res.StatusCode != http.StatusOK {
+		return "" // a proxy in front of a server that is down
+	}
 	return res.Header.Get(desktop.VersionHeader)
 }
 
