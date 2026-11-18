@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.7.1](https://github.com/akamachinecode/exhale/compare/v0.7.0...v0.7.1) (2026-11-18)
+
+
+### Bug Fixes
+
+* **window:** reopen after an update only once the server is back ([#35](https://github.com/akamachinecode/exhale/issues/35)) ([eaa8731](https://github.com/akamachinecode/exhale/commit/eaa87312473074960262ca3a518c8499f0438944))
+
 ## [0.7.0](https://github.com/akamachinecode/exhale/compare/v0.6.0...v0.7.0) (2026-11-17)
 
 
